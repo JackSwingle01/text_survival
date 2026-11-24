@@ -125,6 +125,22 @@ public class GameHostTests
         Assert.Equal(Encoding.UTF8.GetString(whole.Save()), Encoding.UTF8.GetString(chunked.Save()));
     }
 
+    /// The pack shows a discrete resource by its count and a continuous one by its amount (#142).
+    [Fact]
+    public void The_pack_counts_stones_and_weighs_plant_fibre()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var pack = Items.Pack(h.World, AgentId.Player);
+        Items.AddPieces(pack, Resource.Stone, [0.2, 0.3, 0.4]);
+        Items.Add(pack, Resource.PlantFiber, 0.12);
+        Items.Add(pack, Resource.Tinder, 1.2);
+        var stacks = Parse(h.View()).Pack.Stacks;
+        Assert.Equal("3 stones", stacks.Single(s => s.Resource == "Stone").Amount);
+        Assert.Equal("120 g plant fibre", stacks.Single(s => s.Resource == "PlantFiber").Amount);
+        Assert.Equal("1.4 kg tinder", stacks.Single(s => s.Resource == "Tinder").Amount); // with the starting tinder
+    }
+
     [Fact]
     public void Making_a_staff_runs_in_chunks_to_the_end_and_puts_one_staff_in_the_pack()
     {

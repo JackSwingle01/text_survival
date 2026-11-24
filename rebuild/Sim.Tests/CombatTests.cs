@@ -540,7 +540,7 @@ public class CombatTests
     {
         var (w, t) = Field();
         var pack = Items.Pack(w, AgentId.Player);
-        TestKit.Give(pack, Resource.Stone, 0.5);
+        Items.AddPiece(pack, Resource.Stone, 0.5);
         var spear = Spear(w);
         var e = PlayerVs(w, t, Species.Bison, 10, weapon: spear);
         Assert.DoesNotContain(spear, pack.Gear); // wielded, not packed
@@ -549,7 +549,7 @@ public class CombatTests
         Assert.Contains(e.Dropped!, d => d.Weapon == spear && d.At == B(e).Position); // where it was thrown at
         Assert.Equal("No weapon to throw.", Combat.Refusal(w, e, Me(e), CombatAction.Throw)?.Reason);
         Assert.Null(Combat.Apply(w, e, Me(e), CombatAction.ThrowStone, []).Refused);
-        Assert.Equal(0.2, Items.Have(pack, Resource.Stone), 9);
+        Assert.Equal(0, Items.Count(pack, Resource.Stone)); // a stone is thrown whole
         Assert.Equal("No stones to throw.", Combat.Refusal(w, e, Me(e), CombatAction.ThrowStone)?.Reason);
     }
 

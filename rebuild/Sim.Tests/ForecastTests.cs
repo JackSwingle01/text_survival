@@ -88,6 +88,7 @@ public class ForecastTests
         Gen.Select(Gen.Double[0.02, 2.5], Gen.Double[0, 3], Gen.Int[0, 3]).Check(c =>
         {
             var (tinderKg, kindlingKg, log) = c;
+            if (kindlingKg < Items.Resources[Resource.Kindling].MinPieceKg) kindlingKg = 0; // less than a stick is none
             var fuel = new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Bone }[log];
             var w = WithStriker();
             Give(w, (Resource.BirchBark, tinderKg * 5), (Resource.Kindling, kindlingKg), (fuel, 2));
@@ -167,14 +168,19 @@ public class ForecastTests
     public void AddFuel_RefusesASliver_WithTheRoomItNeeds()
     {
         var w = At();
-        Give(w, (Resource.Birch, 5), (Resource.Kindling, 0.05));
+        Give(w, (Resource.Birch, 5), (Resource.Kindling, 0.05), (Resource.Tinder, 1));
         var pit = w.Fires[PitWith(w, Resource.Birch, Fire.MaxFuelKg(PitType.Open) - 0.1)];
+        // A log goes on whole or not at all: a nearly full fire refuses it, naming the room a log needs (#142).
         var refused = Sim.Refusal(w, new AddFuel(P, Resource.Birch, 1));
-        Assert.Equal("the fire is full", refused?.Reason);
+        Assert.Equal("the fire has no room for a whole birch log", refused?.Reason);
         var room = Assert.IsType<MissingState>(refused!.Missing);
-        Assert.Equal((Lack.FireRoomKg, Fire.SliverKg), (room.Lack, room.Need));
+        Assert.Equal((Lack.FireRoomKg, Items.LightestKg(Items.Pack(w, P), Resource.Birch)), (room.Lack, room.Need));
         Assert.Equal(0.1, room.Have!.Value, 6);
-        Assert.Null(Sim.Refusal(w, new AddFuel(P, Resource.Kindling, 0.05))); // a small top-up that fits is no sliver
+        // An amount that would only fill a sliver of the room is refused as before.
+        var sliver = Sim.Refusal(w, new AddFuel(P, Resource.Tinder, 1));
+        Assert.Equal("the fire is full", sliver?.Reason);
+        Assert.Equal((Lack.FireRoomKg, Fire.SliverKg), (((MissingState)sliver!.Missing!).Lack, ((MissingState)sliver.Missing!).Need));
+        Assert.Null(Sim.Refusal(w, new AddFuel(P, Resource.Kindling, 0.05))); // a small stick that fits is no sliver
         Assert.Equal(Fire.MaxFuelKg(PitType.Open) - 0.1, Fire.TotalKg(pit), 9);
     }
 
@@ -644,7 +650,8 @@ public class ForecastTests
         Assert.Equal(new MissingTool(ToolType.Axe), Sim.Refusal(w, new Gather(P, 0))!.Missing);
         var stone = Assert.IsType<MissingResource>(Sim.Refusal(w, new Make(P, "sharp_rock"))!.Missing);
         Assert.Equal([Resource.Stone], stone.AnyOf);
-        Assert.Equal(0.3, stone.Kg, 9);
+        Assert.Equal(1, stone.Count); // one stone short, whatever it weighs
+        Assert.Equal((Items.Resources[Resource.Stone].MinPieceKg + Items.Resources[Resource.Stone].MaxPieceKg) / 2, stone.Kg, 9);
         Assert.Equal(new MissingResource(Resource.Honey, 1).AnyOf, ((MissingResource)Sim.Refusal(w, new Eat(P, Resource.Honey, 1))!.Missing!).AnyOf);
         var body = Me(w).Body;
         foreach (var leg in new[] { BodyTarget.LeftLeg, BodyTarget.RightLeg })

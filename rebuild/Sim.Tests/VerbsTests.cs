@@ -116,12 +116,15 @@ public class VerbsTests
     {
         var w = Camp(out _);
         TestKit.Supply(w);
+        // Whole logs: what went down is what is offered back, all of it.
         Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
-        Assert.Equal(new PickUp(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
+        double pine = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.Pine);
+        Assert.Equal(new PickUp(P, Resource.Pine, pine), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
         Sim.Step(w, new PutDown(P, Resource.Birch, 3), 1);
+        double birch = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.Birch);
         var pile = Listed(w, LocationFeatureKind.Pile);
         Assert.True(pile.Interact);
-        Assert.Equal(new Activity[] { new PickUp(P, Resource.Pine, 2), new PickUp(P, Resource.Birch, 3) }, pile.Menu.Select(v => v.Activity));
+        Assert.Equal(new Activity[] { new PickUp(P, Resource.Pine, pine), new PickUp(P, Resource.Birch, birch) }, pile.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -135,7 +138,8 @@ public class VerbsTests
         TestKit.Supply(w);
         Sim.Step(w, new Wait(P), 1);
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
-        Assert.Equal(new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), light.Activity);
+        // Kindling in whole sticks, lightest first, up to a kilo.
+        Assert.Equal(new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, Items.WouldMoveKg(Items.Pack(w, P), Resource.Kindling, 1.0)), light.Activity);
         var odds = Fire.StartOdds(w, w.Agent(P), ToolType.FireStriker, Resource.BirchBark);
         Assert.Equal(odds.TotalPct, light.Odds!.TotalPct);
         Assert.Equal(odds.Terms, light.Odds.Terms);

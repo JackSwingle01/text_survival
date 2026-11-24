@@ -141,6 +141,7 @@ public class ConservationMakeTests
                 Assert.True(Math.Abs(declared.GetValueOrDefault(r) - after.GetValueOrDefault(r)) < 1e-9,
                     $"{a} ({step.MinutesElapsed} min, {step.InterruptedReason}): {r} held {after.GetValueOrDefault(r)}, declared {declared.GetValueOrDefault(r)}");
             Assert.Equal(pieces.Where(kv => kv.Value != 0), Pieces(w));
+            Assert.Null(BrokenPiece(w)); // a make, a failure or an abandon never splits a piece (#142)
         }
     }
 

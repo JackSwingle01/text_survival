@@ -22,9 +22,6 @@ public sealed record HerdMind : Mind
     public TileId? FleeFrom { get; set; }
     /// When it last ate (the observer shows it); hunger itself is its body's.
     public long LastFedMinute { get; set; }
-    /// Ravens at a pile: what they have pecked toward the next whole piece, in kilos of it (Scavenging).
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-    public double PeckedKg { get; set; }
     /// Familiarity 0-1 with each animal it knows, kept only by a closed-group species (Fauna.IsKin); null otherwise.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<AgentId, double>? Familiar { get; set; }

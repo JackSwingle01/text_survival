@@ -720,7 +720,9 @@ public static class Fire
         var tile = world.Agent(a.Who).Tile;
         var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
         AddFuel(lit, a.Tinder, a.TinderKg);
-        if (a.KindlingKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, a.KindlingKg);
+        // The sticks that would go on: whole ones, as many as fit (PutOn).
+        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Kindling, a.KindlingKg, RoomKg(lit)) : 0;
+        if (sticksKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, sticksKg);
         IgniteAll(lit);
         return lit;
     }

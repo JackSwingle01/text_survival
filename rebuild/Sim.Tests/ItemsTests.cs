@@ -32,8 +32,8 @@ public class ItemsTests
         var player = w.Agent(P);
         Assert.Equal(1.33, player.Body.ClothingClo, 9);        // old Inventory.ClothingClo
         Assert.Equal(3.05, player.Body.ClothingWeightKg, 9);   // old TotalEquipmentWeightKg
-        Assert.Equal(4.43, Items.CarriedKg(player), 9);        // old CurrentWeightKg
-        Assert.Equal(0.29533333333333334, Items.EncumbrancePct(player), 9);
+        Assert.Equal(4.43 - 0.2, Items.CarriedKg(player), 9);  // old CurrentWeightKg, less the 0.2 kg the hand drill lost to its lightest inputs (#142)
+        Assert.Equal(4.23 / 15, Items.EncumbrancePct(player), 9);
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class ItemsTests
         pack.Gear.Add(Items.Make("large_bag"));
         pack.Gear.Add(Items.Make("rope_belt"));
         Assert.Equal(28, Items.CapacityKg(pack), 12);                // old: max 28
-        Assert.Equal(5.63, Items.CarriedKg(w.Agent(P)), 9);         // old: carried 5.63
+        Assert.Equal(5.63 - 0.2, Items.CarriedKg(w.Agent(P)), 9);   // old: carried 5.63, less the hand drill's 0.2 kg (#142)
     }
 
     // ---- golden: encumbrance reaches speed exactly as the old AbilityCalculator ----
@@ -103,8 +103,10 @@ public class ItemsTests
         TestKit.Give(gained, Resource.Stone, 20);
         var events = new List<WorldEvent>();
         var dropped = Items.Receive(w, agent, gained, events);
-        Assert.Equal(Items.CapacityKg(Items.Pack(w, P)), Items.CarriedKg(agent), 9);
-        Assert.Equal(20 - (15 - 4.43), Items.Have(dropped, Resource.Stone), 9);
+        // Whole stones: the pack fills to within one stone of full, and the rest go down.
+        Assert.True(Items.CarriedKg(agent) <= Items.CapacityKg(Items.Pack(w, P)) + 1e-9);
+        Assert.True(Items.CapacityKg(Items.Pack(w, P)) - Items.CarriedKg(agent) < Items.LightestKg(dropped, Resource.Stone));
+        Assert.Equal(20, Items.Have(dropped, Resource.Stone) + Items.Have(Items.Pack(w, P), Resource.Stone), 9);
         Assert.Equal(Items.Have(dropped, Resource.Stone), Items.Have(w.Tiles[agent.Tile].Pile!, Resource.Stone), 9);
         Assert.Single(events.OfType<Dropped>());
     }
@@ -113,10 +115,11 @@ public class ItemsTests
     public void PutDownAndPickUp_MoveThingsBetweenPackAndTile_AndSurviveASave()
     {
         var w = New();
+        // The sticks are 0.25, 0.3 and 0.35 kg: half a kilo puts down the lightest, since two would weigh more.
         Assert.Null(Sim.Step(w, new PutDown(P, Resource.Kindling, 0.5), 1).InterruptedReason);
-        Assert.Equal(0.4, Items.Have(Items.Pack(w, P), Resource.Kindling), 9);
+        Assert.Equal([0.3, 0.35], Items.Pack(w, P).Pieces[Resource.Kindling]);
         var loaded = TestWorlds.Load(Save.ToJson(w));
-        Assert.Equal(0.5, Items.Have(loaded.Tiles[Map.Of(loaded).Camp].Pile!, Resource.Kindling), 9);
+        Assert.Equal([0.25], loaded.Tiles[Map.Of(loaded).Camp].Pile!.Pieces[Resource.Kindling]);
         Sim.Step(loaded, new PickUp(P, Resource.Kindling, 99), 1);
         Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Kindling), 9);
         var r = Sim.Step(loaded, new PickUp(P, Resource.Kindling, 1), 5);
@@ -173,11 +176,11 @@ public class ItemsTests
         int fails = 0;
         for (int i = 0; i < 30 && Fire.PitAt(w, Map.Of(w).Camp) == null; i++)
         {
-            double tinder = Items.Have(pack, Resource.Tinder), kindling = Items.Have(pack, Resource.Kindling);
+            double tinder = Items.Have(pack, Resource.Tinder), kindling = Items.Have(pack, Resource.Kindling), stick = Items.LightestKg(pack, Resource.Kindling)!.Value;
             var r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1);
             Assert.Equal(tinder - 0.05, Items.Have(pack, Resource.Tinder), 9);
             if (r.InterruptedReason == "fire did not catch") { fails++; Assert.Equal(kindling, Items.Have(pack, Resource.Kindling), 9); }
-            else Assert.Equal(kindling - 0.3, Items.Have(pack, Resource.Kindling), 9);
+            else Assert.Equal(kindling - stick, Items.Have(pack, Resource.Kindling), 9); // a whole stick, the lightest
         }
         Assert.NotNull(Fire.PitAt(w, Map.Of(w).Camp));
         Assert.True(fails > 0, "a 50% hand drill never failed in a row of tries");

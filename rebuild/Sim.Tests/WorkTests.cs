@@ -124,10 +124,19 @@ public class WorkTests
         var plain = WithPools(Forage);
         var axed = WithPools(Forage);
         Axe(axed);
-        double Got(World w) { Sim.Step(w, new Gather(P, 0), 60); return Items.Totals(Items.Pack(w, P)).Sum(x => x.Kg) - 1.08; } // less the starting sticks and tinder
-        double a = Got(axed), p = Got(plain);
-        Assert.True(p > 0);
-        Assert.Equal(p * 1.1, a, 6); // same draws, every find a tenth heavier
+        // Less the starting tinder: an amount found is a tenth heavier; a piece found keeps its weight, and a tenth
+        // of the finds are two pieces instead of one (#142).
+        (double Kg, int Pieces) Got(World w)
+        {
+            Sim.Step(w, new Gather(P, 0), 60);
+            var pack = Items.Pack(w, P);
+            return (pack.Amounts.Values.Sum() - 0.18, pack.Pieces.Values.Sum(x => x.Count) - 3);
+        }
+        var (a, aPieces) = Got(axed);
+        var (p, pPieces) = Got(plain);
+        Assert.True(p > 0 && pPieces > 0);
+        Assert.Equal(p * 1.1, a, 6); // same draws
+        Assert.InRange(aPieces, pPieces, pPieces * 1.1 + 3);
     }
 
     [Fact]

@@ -127,7 +127,8 @@ public class ConservationItemsTests
             // Into the pit what it has room for; the rest stays in the pack (Fire.Start).
             double max = Fire.MaxFuelKg(start.Pit), t0 = before.PitTotalKg;
             double tinder = t0 < max ? Math.Min(start.TinderKg, max - t0) : 0;
-            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Math.Min(start.KindlingKg, max - t0 - tinder) : 0;
+            // Kindling in whole sticks, as many as the pit has room for (Items.Move).
+            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Items.WouldMoveKg(before.Pack, Resource.Kindling, start.KindlingKg, max - t0 - tinder) : 0;
             AddTo(d, start.Tinder, -tinder);
             AddTo(d, Resource.Kindling, -kindling);
         }
@@ -160,7 +161,7 @@ public class ConservationItemsTests
 
     sealed record Before(SortedDictionary<Resource, double> Items, SortedDictionary<string, int> Gear, double PackWaterKg,
         double PitTotalKg, double PitCharcoalKg, List<(Carcass C, Dictionary<Resource, double> Yield)> Carcasses,
-        Dictionary<Carcass, TileId> CarcassTile);
+        Dictionary<Carcass, TileId> CarcassTile, Inventory Pack);
 
     static Before Snapshot(World w)
     {
@@ -176,7 +177,7 @@ public class ConservationItemsTests
                 tiles[c] = tile;
             }
         return new Before(ItemKg(w), GearCount(w), Items.Have(Items.Pack(w, P), Resource.Water),
-            pit == null ? 0 : Fire.TotalKg(pit), pit?.CharcoalKg ?? 0, carcasses, tiles);
+            pit == null ? 0 : Fire.TotalKg(pit), pit?.CharcoalKg ?? 0, carcasses, tiles, Items.CopyResources(Items.Pack(w, P)));
     }
 
     /// Floating-point summation, and one Items.SliverKg a strike: Fire.Start takes a last sliver of
@@ -205,6 +206,7 @@ public class ConservationItemsTests
                     $"op {i} {a} ({step.MinutesElapsed} min, {step.InterruptedReason}): {r} moved {delta:R}, declared {want:R}, leak {delta - want:R}");
             }
             Assert.Equal(before.Gear, GearCount(w));
+            Assert.Null(BrokenPiece(w)); // after any take, drop, burn, eat, cook or butchering, every piece is whole (#142)
             Assert.Empty(notes);
             if (!Sim.IsAlive(player)) return;
         }
@@ -251,6 +253,7 @@ public class ConservationItemsTests
         }
         Assert.True(taken <= 0.05 * s.Members * s.Minutes + Tolerance, $"took {taken:R} kg in {s.Minutes} min with {s.Members} members");
         Assert.Equal(gear, GearCount(w));
+        Assert.Null(BrokenPiece(w));
     }
 
     [Fact]
@@ -304,6 +307,7 @@ public class ConservationItemsTests
             Assert.True(Math.Abs(delta - Items.Have(session.Got, r)) <= Tolerance, $"{r}: got {Items.Have(session.Got, r):R}, items moved {delta:R}");
         }
         Assert.Equal(gear, GearCount(w));
+        Assert.Null(BrokenPiece(w)); // forage, felling and stock yield whole pieces in range (#142)
     }
 
     [Fact]

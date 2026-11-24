@@ -75,7 +75,7 @@
  // Twisted by feel: no light needed.
  "cordage": { "name": "Cordage", "category": "Processing",
   "inputs": [ { "of": "PlantFiber", "g": 300 } ], "tools": [], "requires": [], "minutes": 15,
-  "result": { "resource": "Rope", "count": 1, "sharePct": 0.66 },
+  "result": { "resource": "Rope", "count": 1, "sharePct": 0.6667 },
   "outcomes": ["fail:waste_material:PlantFiber:0.5=.08", "succeed:save_material:PlantFiber:0.33=.10"] },
  // Old scrape-hide, now needing a blade (old bug, §3.7).
  "scrape_hide": { "name": "Scrape a hide", "category": "Processing",

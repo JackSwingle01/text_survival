@@ -49,7 +49,7 @@ static class TestKit
     };
 
     /// Kilos of r for setting a scene: an amount of a continuous resource, or as many nominal pieces of a discrete one
-    /// as make those kilos, split evenly (at least one piece, each inside the kind's range).
+    /// as make those kilos, split evenly (each inside the kind's range; less than the smallest piece gives nothing).
     public static void Give(Inventory inv, Resource r, double kg)
     {
         if (!Items.IsDiscrete(r)) { Items.Add(inv, r, kg); return; }
@@ -59,9 +59,29 @@ static class TestKit
         int n = Math.Max(1, (int)Math.Round(kg / nominal, MidpointRounding.AwayFromZero));
         while (kg / n > def.MaxPieceKg) n++;
         while (n > 1 && kg / n < def.MinPieceKg) n--;
-        if (kg / n < def.MinPieceKg) throw new ArgumentOutOfRangeException(nameof(kg), kg, $"less than one piece of {r}");
+        if (kg / n < def.MinPieceKg) return; // less than one piece is none (the property tests draw any kilos)
         for (int i = 0; i < n; i++) Items.AddPiece(inv, r, kg / n);
     }
+
+    /// count nominal pieces of a discrete r.
+    public static void GivePieces(Inventory inv, Resource r, int count)
+    {
+        var def = Items.Resources[r];
+        double nominal = Math.Clamp(NominalKg.GetValueOrDefault(r, (def.MinPieceKg + def.MaxPieceKg) / 2), def.MinPieceKg, def.MaxPieceKg);
+        for (int i = 0; i < count; i++) Items.AddPiece(inv, r, nominal);
+    }
+
+    /// What a recipe input asks for, of one of its alternatives.
+    public static void GiveFor(Inventory inv, Resource r, MaterialInput m)
+    {
+        if (Items.IsDiscrete(r)) GivePieces(inv, r, m.Count);
+        else Items.Add(inv, r, m.Kg);
+    }
+
+    /// Whether the pack holds enough for the input, in either of its forms.
+    public static bool Enough(Inventory inv, MaterialInput m) =>
+        m.Discrete().Any() && m.Discrete().Sum(x => Items.Count(inv, x)) >= m.Count
+        || m.Continuous().Any() && m.Continuous().Sum(x => Items.Have(inv, x)) >= m.Kg - 1e-9;
 
     /// Every resource gone, gear kept.
     public static void ClearResources(Inventory inv)

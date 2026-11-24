@@ -252,7 +252,6 @@ public static class Work
                 if (Access.Refusal(world, agent.Id, LocationFeatures.PileAt(world, agent.Tile)!.Value) is { } pickUpBarred) return pickUpBarred;
                 if (Items.CarriedKg(agent) >= Items.CapacityKg(pack))
                     return new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)));
-                // A piece comes whole or not at all.
                 return Items.LightestKg(pile, u.Resource) is double pieceKg && pieceKg > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9
                     ? new($"no room in your pack for a whole {Names.PieceWord(u.Resource)}",
                         new MissingState(Lack.PackRoomKg, pieceKg, Items.CapacityKg(pack) - Items.CarriedKg(agent)))
@@ -470,8 +469,7 @@ public static class Work
                                         s.Finds.Add(new Find(world.Minute, r, kg * factor));
                                         continue;
                                     }
-                                    // A piece is found whole, at its own weight: the eyes, tools and clues decide how many such pieces, not their size.
-                                    int pieces = (int)Math.Floor(factor);
+                                    int pieces = (int)Math.Floor(factor); // the factor counts pieces, never sizes them
                                     if (pieceRng.NextDouble() < factor - pieces) pieces++;
                                     for (int i = 0; i < pieces; i++)
                                     {
@@ -510,7 +508,6 @@ public static class Work
                     // A practised cook turns it sooner: less time over the fire (Skills).
                     double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
                         * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
-                    // A whole piece turns once the minutes have covered its weight; the rest of the minute goes on to the next.
                     s.CookingKg += perMinute;
                     while (Items.LightestKg(pack, c.Raw) is double pieceKg && pieceKg <= s.CookingKg + 1e-9 && s.DoneKg < c.Kg - 1e-9)
                     {
@@ -585,7 +582,6 @@ public static class Work
         var ready = Carcasses.TakeReady(c);
         var leftovers = Items.Receive(world, agent, ready, events, dropExcess: false);
         Carcasses.PutBack(c, leftovers);
-        // What the pack took: what was ready less what came back. Whole pieces, so the pieces taken are those not left over.
         var kept = Items.CopyResources(ready);
         foreach (var (r, _) in Items.Totals(leftovers).ToList())
             if (Items.IsDiscrete(r)) foreach (var kg in leftovers.Pieces[r]) { var ps = kept.Pieces[r]; ps.RemoveAt(ps.IndexOf(kg)); if (ps.Count == 0) kept.Pieces.Remove(r); }

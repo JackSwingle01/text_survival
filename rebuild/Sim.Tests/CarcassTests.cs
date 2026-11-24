@@ -101,8 +101,9 @@ public class CarcassTests
 
         var (_, full) = Make("Caribou");
         var f = CutAll(full, 30, true, false, ButcherMode.FullProcessing);
-        Assert.Equal(4.505415162454874, Items.Have(f, Resource.RawMeat), Digits);
-        Assert.Equal(0.6301279947489334, Items.Have(f, Resource.Sinew), Digits);
+        // Whole pieces come off as they are ready; the rest of a part-cut stack waits on the carcass.
+        Assert.Equal(4.505415162454874, Items.Have(f, Resource.RawMeat) + full.Pending.GetValueOrDefault(Resource.RawMeat), Digits);
+        Assert.Equal(0.6301279947489334, Items.Have(f, Resource.Sinew) + full.Pending.GetValueOrDefault(Resource.Sinew), Digits);
         // Old 78.90653121028166 kg of the careful ledger; this ledger is full processing's (ThoroughFactor), cut at the old rate.
         Assert.Equal(85.515309275547125, Carcasses.TotalRemainingKg(full), Digits);
 
@@ -230,11 +231,13 @@ public class CarcassTests
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
         Assert.Equal(Work.PackFull, r.InterruptedReason); // all cut, not all carried: the carcass is not done
         Assert.Contains(r.Events, e => e is Butchered { Finished: false });
-        Assert.Equal(Items.CapacityKg(Items.Pack(w, P)), Items.CarriedKg(w.Agent(P)), 6);
+        // Full to within a piece: the next cut of meat would not fit whole.
+        Assert.InRange(Items.CapacityKg(Items.Pack(w, P)) - Items.CarriedKg(w.Agent(P)), 0, Items.Resources[Resource.RawMeat].MaxPieceKg);
         Assert.Equal(0, Carcasses.TotalRemainingKg(c));
         Assert.InRange(c.Pending.Values.Sum(), total - 20, total - 9); // ~10 kg taken, the rest of the meat's loss is decay
         Assert.Contains(c, w.Tiles[Map.Of(w).Camp].Carcasses!);
         Assert.Equal(Work.PackFull, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused: no room, nothing to cut
+        Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); // the hide comes whole, 12 kg, more than a bare pack's room beside the clothes (#142)
         for (int i = 0; i < 40 && !Carcasses.IsButchered(c); i++)
         {
             Sim.Step(w, new PutDown(P, Resource.RawMeat, 99), 1);
@@ -404,7 +407,7 @@ public class CarcassTests
         {
             Sim.Step(small, new Butcher(P, c2.Id, ButcherMode.QuickStrip), 24 * 60);
             var pack = Items.Pack(small, P);
-            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) TestKit.Give(pile, r, Items.Take(pack, r, 999));
+            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.MoveAll(pack, pile, r);
             Refresh(small);
         }
         Assert.Null(Carcasses.Find(small, Map.Of(small).Camp, c2.Id));
@@ -495,6 +498,7 @@ public class CarcassTests
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
         var c = Carcasses.Create(w, Map.Of(w).Camp, "Wolf", body, 0, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
         w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        for (int i = 0; i < 3; i++) Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); // room for every whole piece: this is about the blade, not the pack
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
         Assert.Equal(Work.NeedsABlade, r.InterruptedReason);
         Assert.Contains(c, w.Tiles[Map.Of(w).Camp].Carcasses!);

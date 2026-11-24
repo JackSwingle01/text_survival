@@ -302,9 +302,8 @@ public static class Carcasses
     }
 
     /// A resource waits on the carcass until it has given a keepable piece (or Settle dropped it). What the pack
-    /// cannot hold goes back with PutBack. A discrete resource comes off in whole pieces: one of the largest size
-    /// while two pieces' worth or more waits, and the last of it, once none of it is left to cut, in even pieces,
-    /// each in the kind's range (a hide comes off whole).
+    /// cannot hold goes back with PutBack. Whole pieces: the largest while two pieces' worth waits, the last of it in
+    /// even pieces once none is left to cut (a hide comes off whole); a crumb too small for a piece is not kept.
     public static Inventory TakeReady(Carcass c)
     {
         var ready = new Inventory();
@@ -324,10 +323,11 @@ public static class Carcasses
                 Items.AddPiece(ready, r, def.MaxPieceKg);
                 left -= def.MaxPieceKg;
             }
-            if (c.Remaining.GetValueOrDefault(r) < 0.01 && left >= def.MinPieceKg)
+            if (c.Remaining.GetValueOrDefault(r) < 0.01)
             {
                 int n = (int)Math.Ceiling(left / def.MaxPieceKg - 1e-9);
-                for (int i = 0; i < n; i++) Items.AddPiece(ready, r, left / n);
+                if (left >= def.MinPieceKg) for (int i = 0; i < n; i++) Items.AddPiece(ready, r, left / n);
+                else c.YieldKg[r] -= left;
                 left = 0;
             }
             if (left > 1e-12) c.Pending[r] = left;
@@ -342,7 +342,6 @@ public static class Carcasses
         foreach (var (r, kg) in Items.Totals(leftovers)) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
     }
 
-    /// A discrete resource's smallest piece; less of it is not worth keeping.
     static double MinimumKg(Resource r) => Items.Resources[r].Discrete ? Items.Resources[r].MinPieceKg : r switch
     {
         Resource.Feather => 0.02 + 1e-12,

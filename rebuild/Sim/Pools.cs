@@ -19,11 +19,9 @@ public sealed record TreePool(string Name, Resource? Wood, double MinutesToFell,
 public sealed record StockPool(
     string Name, StockKind Kind, int MinutesPerUnit, IReadOnlyList<StockItem> Items, double RevealAtHours,
     double PlacementHeightM = 0.6, IReadOnlyList<Gear>? Gear = null, ToolType? RequiresTool = null, IReadOnlyList<string>? Found = null) : PoolDef(Name);
-/// PieceKgs: a salvage's or a pile's pieces as rolled, one unit holding them all (KgPerUnit their sum); null for a
-/// harvest, where each unit of a discrete resource is one piece of KgPerUnit.
+/// PieceKgs: a salvage's or a pile's pieces as rolled, one unit of them all; null for a harvest (a unit is a piece).
 public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, IReadOnlyList<double>? PieceKgs = null)
 {
-    /// The pieces by weight, not the list they are held in.
     public bool Equals(StockItem? other) => other is not null && Resource == other.Resource && Units == other.Units && KgPerUnit == other.KgPerUnit
         && RespawnHoursPerUnit == other.RespawnHoursPerUnit && (PieceKgs ?? []).SequenceEqual(other.PieceKgs ?? []);
 
@@ -260,7 +258,6 @@ public static class Pools
     static int Between(Rng rng, int min, int maxExclusive) => min + rng.NextInt(maxExclusive - min);
     static double Uniform(Rng rng, double min, double max) => min + rng.NextDouble() * (max - min);
 
-    /// Several pieces of one resource, each its own weight.
     static List<double> Pieces(Rng rng, int count, double min, double max)
     {
         var kg = new List<double>(count);
@@ -402,10 +399,8 @@ public static class Pools
             Cap(insulation, d.InsulationCap, k.InsulationCap), Cap(overhead, d.OverheadCap, k.OverheadCap), Cap(wind, d.WindCap, k.WindCap));
     }
 
-    /// Everything at once: one unit of all the pieces. A continuous resource's are only summed when it is worked.
     static StockItem All(Resource r, IReadOnlyList<double> pieces) => new(r, 1, pieces.Sum(), PieceKgs: pieces);
 
-    /// One unit of a stock item into an inventory: its pieces, or a piece of KgPerUnit, or an amount.
     static void AddUnit(Inventory to, StockItem item)
     {
         if (!Items.IsDiscrete(item.Resource)) Items.Add(to, item.Resource, item.KgPerUnit);

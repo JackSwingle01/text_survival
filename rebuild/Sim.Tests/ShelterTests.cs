@@ -286,12 +286,12 @@ public class ShelterTests
         var w = Builder(out var tile);
         var pack = Items.Pack(w, P);
         TestKit.Give(pack, Resource.Kindling, 1.5);
-        double sticks = Items.Have(pack, Resource.Kindling);
+        int sticks = Items.Count(pack, Resource.Kindling);
         var r = Sim.Step(w, new Make(P, "branch_frame"), 120);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(30, r.MinutesElapsed);
         Assert.Contains(r.Events, e => e is Built { Recipe: "branch_frame" });
-        Assert.Equal(sticks - 4 * 0.3, Items.Have(pack, Resource.Kindling), Digits);
+        Assert.Equal(sticks - 4, Items.Count(pack, Resource.Kindling)); // four sticks, whatever they weigh
         var s = Shelters.At(w, tile, [])!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
         Assert.Contains("already a shelter", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
