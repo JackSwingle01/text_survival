@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reads the plan usage a Claude Code run reported, for the issue agent (issue-agent.yml).
+"""Reads the plan usage a Claude Code run reported, for the issue agent (issue-triage.yml, issue-build.yml).
 
   plan_limits.py EXECUTION_FILE MAX_UTILIZATION
 

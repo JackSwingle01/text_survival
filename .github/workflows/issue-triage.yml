@@ -1,0 +1,343 @@
+name: Issue triage
+
+# The first half of the issue agent: triages the open issues one at a time, oldest first, and labels
+# each. A ready one gets `ready-for-agent`, which is the build's queue (.github/workflows/issue-build.yml).
+# Triage reads and answers, nothing else, so a run takes minutes and new issues never wait on a build.
+#
+# - workflow_dispatch: drains the queue. Pass `issue` to triage only that one.
+# - issues opened or reopened: drains the queue too. Runs share one concurrency group, and GitHub keeps
+#   only the newest pending run, which is fine: that run lists every eligible issue again.
+# - issues unlabeled: removing `needs-user` (you answered) or `ready-for-agent` (triage it again) puts
+#   the issue back in the queue.
+# - issues closed: closing an issue (usually by merging its PR) unblocks the issues waiting on it.
+# - schedule (hourly, :23): resumes after a usage limit, and catches issues filed with GITHUB_TOKEN
+#   (ratchet.yml), which start no workflows. A drain with nothing eligible makes no Claude call.
+#
+# .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
+# without write access (except the `ratchet` issues ratchet.yml files), issues labelled `needs-user`
+# or `ready-for-agent`, issues with an open PR or an `<issue#>-` branch, and issues with an open
+# native "blocked by" link. Everything that takes reading the issue (a design ticket, a map, blocking
+# written in the text, a vague spec) is the triage call's judgement on Sonnet.
+#
+# Outcomes. Ready: label `ready-for-agent`. Needs a person (or already done, or another PR does it):
+# comment and label `needs-user`; answer on the issue and remove the label to requeue it. Blocked:
+# link the blockers as native "blocked by", comment and label `blocked`; the queue skips it without
+# a Claude call until they close, and the next triage removes the label. A blocker that can't be
+# linked parks the issue as `needs-user` instead.
+#
+# Handing off. A label added with GITHUB_TOKEN starts no workflows, so the last job dispatches the
+# build itself (workflow_dispatch is the exception to that rule) whenever any issue is ready. The
+# build's own hourly run covers a dispatch that goes missing.
+#
+# Usage limits. The plan is shared with Jack's own sessions. A triage refused for a limit is not
+# blamed on the issue: the run leaves the issue untouched, stops the queue (fail-fast cancels the
+# jobs after it), and the next hourly run resumes where it stopped. Triage starts at any usage; only
+# the build stops at MAX_PLAN_UTILIZATION.
+#
+# Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
+# to a workflow that matches the default branch, so a change here works once it is on main.
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "Triage only this issue number (empty: the whole queue, oldest first)"
+        required: false
+        type: string
+  issues:
+    types: [opened, reopened, closed, unlabeled]
+  schedule:
+    - cron: "23 * * * *"
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: issue-triage
+  cancel-in-progress: false
+
+jobs:
+  select:
+    # The repo is public: only people with write access can spend the plan. Removing a label takes
+    # triage access, so an unlabel is trusted whoever wrote the issue; the queue still skips issues
+    # from people without write access.
+    if: |
+      github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
+      github.event.action == 'unlabeled' ||
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    outputs:
+      issues: ${{ steps.list.outputs.issues }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ONLY: ${{ inputs.issue }}
+        run: |
+          set -euo pipefail
+          gh label create needs-user --color D93F0B \
+            --description "The issue agent stopped: a person has to decide or answer" 2>/dev/null || true
+          gh label create blocked --color FBCA04 \
+            --description "Waits on open issues (linked as blocked by); triage retries when they close" \
+            2>/dev/null || true
+          gh label create ready-for-agent --color 0E8A16 \
+            --description "Triage found it ready: the issue build takes it next, oldest first" 2>/dev/null || true
+          # shellcheck disable=SC2086
+          issues=$(python3 .github/scripts/issue_queue.py list $ONLY 2> skipped.txt)
+          {
+            echo "## Triage queue"
+            echo
+            echo "Eligible, in order: \`$issues\`"
+            echo
+            sed 's/^/- /' skipped.txt
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat skipped.txt
+          echo "issues=$issues" >> "$GITHUB_OUTPUT"
+
+  triage:
+    name: "#${{ matrix.issue }}"
+    needs: select
+    if: needs.select.outputs.issues != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+      id-token: write
+    strategy:
+      max-parallel: 1
+      # A job fails only when the plan ran out (or the workflow itself broke): then the issues
+      # after it must not start. An issue's own outcome parks it and the job still succeeds.
+      fail-fast: true
+      matrix:
+        issue: ${{ fromJSON(needs.select.outputs.issues) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ matrix.issue }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Earlier issues in this run may have changed things (a PR, a label, a closed blocker).
+      - name: Still eligible?
+        id: check
+        run: |
+          if reason=$(python3 .github/scripts/issue_queue.py check "$ISSUE"); then
+            python3 .github/scripts/issue_queue.py brief "$ISSUE" > "$RUNNER_TEMP/issue.md"
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$reason" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Triage
+        id: triage
+        if: steps.check.outputs.go == 'true'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/JackSwingle01/skills.git"
+          plugins: "mp@jackswingle01"
+          prompt: |
+            Triage issue #${{ matrix.issue }} of ${{ github.repository }} for an unattended agent that builds
+            it next. Nobody can answer that agent's questions while it works.
+
+            ${{ runner.temp }}/issue.md holds the issue and its comments from people with write access,
+            then what was fetched for you: its GitHub links (blocked by, blocking, parent, sub-issues), every
+            issue and PR it mentions with its state (and, for issues opened by people with write access,
+            their text and those people's comments), the open pull requests, and whether each repo path it
+            names exists. You have no GitHub access: that file is all of GitHub you get, by design.
+
+            Read GLOSSARY.md, the decision records in documentation/decisions/ that touch the issue's area,
+            and any spec it links. Then search the code, by domain concept and not only by the issue's
+            wording, for whether the behaviour already exists. You are at the repository root: use the
+            Grep, Glob and Read tools, and plain read-only shell commands without `cd`.
+
+            Decide one:
+            - ready: an implementation ticket that says what to build, with acceptance criteria an agent can
+              check, and no decision in it that belongs to a person. Gaps an engineer can close from the
+              spec, the glossary, the decision records or the code are not a reason to stop.
+            - blocked: it depends on another open issue in this repo, however the issue says so. Each one's
+              state is in the brief. A mention for context is not a blocker. Put every open
+              blocker's number in `blocked_by`; they become GitHub "blocked by" links, and the issue comes
+              back when they close. If it depends on work no open issue covers, answer needs_user instead.
+            - needs_user: a person has to decide or answer first. For example: a design or grilling ticket;
+              a map or parent issue that tracks other tickets; an open question; an issue that asks for a
+              diagnosis or report to come back before anything changes; acceptance criteria nobody can
+              check; a conflict with a decision record; or a choice the issue says goes to Jack.
+            - already_done: main already does what it asks. Say where.
+            - in_progress: an open pull request in the brief already does this issue's work, whether or not
+              it links the issue. Name it in the note; nobody should build it twice.
+
+            Change no files. Answer only through the structured output. `note` is what gets posted on the
+            issue when it isn't ready: one or two short sentences saying what a person has to do or decide,
+            naming the issue, PR or file involved. Nothing else: no recap of the issue, no list of what you
+            checked.
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git grep:*),Bash(git show:*),Bash(grep:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(ls:*),Bash(find:*),Bash(wc:*)"
+            --json-schema '{"type":"object","additionalProperties":false,
+            "required":["decision","note","blocked_by"],
+            "properties":{"decision":{"type":"string","enum":["ready","blocked","needs_user","already_done","in_progress"]},
+            "note":{"type":"string","maxLength":300},
+            "blocked_by":{"type":"array","items":{"type":"integer"}}}}'
+
+      - name: Triage usage
+        id: triage_usage
+        if: always() && steps.triage.outcome != 'skipped'
+        env:
+          EXEC: ${{ steps.triage.outputs.execution_file }}
+        # Triage runs at any usage: only `rejected` matters here, so the threshold is 1.
+        run: python3 .github/scripts/plan_limits.py "$EXEC" 1 >> "$GITHUB_OUTPUT"
+
+      - name: Read triage
+        id: verdict
+        if: steps.triage.outcome == 'success'
+        env:
+          OUTPUT: ${{ steps.triage.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          decision=$(jq -r '.decision' <<< "$OUTPUT")
+          if [ "$decision" != "blocked" ]; then
+            # Back from blocked: the label described the last triage, not this one.
+            gh issue edit "$ISSUE" --remove-label blocked 2>/dev/null || true
+          fi
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Triage: $decision"
+            echo
+            jq -r '.note + (if (.blocked_by | length) > 0
+              then "\n\nBlocked by: " + (.blocked_by | map("#" + tostring) | join(", ")) else "" end)' <<< "$OUTPUT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mark ready
+        if: steps.verdict.outputs.decision == 'ready'
+        run: gh issue edit "$ISSUE" --add-label ready-for-agent
+
+      # Blocking triage read in the text becomes GitHub's native "blocked by" links, so the queue
+      # script skips the issue without a Claude call until the blockers close. A blocker that can't
+      # be linked (none named, already closed, or the API refused) parks the issue for a person
+      # instead: otherwise it would be triaged and commented on again every run.
+      - name: Mark blocked
+        id: blocked
+        if: steps.verdict.outputs.decision == 'blocked'
+        env:
+          OUTPUT: ${{ steps.triage.outputs.structured_output }}
+        run: |
+          set -uo pipefail
+          linked=(); problems=()
+          for b in $(jq -r '.blocked_by[]' <<< "$OUTPUT"); do
+            if [ "$b" = "$ISSUE" ]; then problems+=("#$b is this issue"); continue; fi
+            if ! blocker=$(gh api "repos/$GITHUB_REPOSITORY/issues/$b" --jq '[.id, .state] | @tsv'); then
+              problems+=("#$b could not be read"); continue
+            fi
+            read -r id state <<< "$blocker"
+            if [ "$state" != "open" ]; then problems+=("#$b is already closed"); continue; fi
+            if out=$(gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/dependencies/blocked_by" \
+                       -F issue_id="$id" 2>&1) || grep -qi "already" <<< "$out"; then
+              linked+=("#$b")
+            else
+              problems+=("#$b could not be linked: $out")
+            fi
+          done
+          if [ ${#linked[@]} -eq 0 ] || [ ${#problems[@]} -gt 0 ]; then
+            printf '%s\n' "${problems[@]}" "No open blocker could be linked." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "park=true" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "${problems[@]}" > blocked-problems.txt
+            exit 0
+          fi
+          jq -rn --arg run "$RUN_URL" --arg linked "${linked[*]}" '
+            "Blocked by " + ($linked | split(" ") | join(", ")) + " (now linked); picked up again when they close." +
+            "\n\n<sub>[Issue triage](" + $run + ")</sub>"' > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          gh issue edit "$ISSUE" --add-label blocked
+
+      - name: Park for a person
+        if: |
+          steps.verdict.outputs.decision == 'needs_user' || steps.verdict.outputs.decision == 'already_done' ||
+          steps.verdict.outputs.decision == 'in_progress' ||
+          steps.blocked.outputs.park == 'true'
+        env:
+          OUTPUT: ${{ steps.triage.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          problems=$(paste -sd ';' blocked-problems.txt 2>/dev/null | sed 's/;/; /g' || true)
+          jq -r --arg run "$RUN_URL" --arg problems "$problems" '
+            (if .decision == "blocked" then "Blocked, but the blockers couldn'"'"'t be linked (" + $problems +
+              "); link them as \"blocked by\" or fix the issue text." else .note end) +
+            "\n\n<sub>[Issue triage](" + $run + ") · remove `needs-user` to requeue</sub>"' <<< "$OUTPUT" > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          gh issue edit "$ISSUE" --add-label needs-user
+
+      # The full transcript, for debugging a triage (mp:transcript-tally reads it). The repo is public,
+      # so any signed-in GitHub user can download this artifact: tokens are scrubbed first, and it is
+      # kept 30 days. Nothing is uploaded unless the scrub succeeds. The scrubber is read from GitHub at
+      # this run's commit, not from the checkout.
+      - name: Collect transcripts
+        id: transcripts
+        if: always() && steps.triage.outcome != 'skipped'
+        env:
+          OAUTH: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/transcripts"
+          rm -rf "$out"
+          scrubber=$(mktemp --suffix=.py)
+          gh api -H "Accept: application/vnd.github.raw" \
+            "repos/$GITHUB_REPOSITORY/contents/.github/scripts/scrub_tokens.py?ref=$GITHUB_SHA" > "$scrubber"
+          mkdir -p "$out"
+          cp -r "$HOME/.claude/projects/." "$out/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/claude-execution-output.json" "$out/" 2>/dev/null || true
+          python3 -I "$scrubber" "$out" || { rm -rf "$out"; echo "::error::Scrubbing failed: no transcripts uploaded."; exit 1; }
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.transcripts.outcome == 'success'
+        with:
+          name: triage-${{ matrix.issue }}-transcripts
+          path: ${{ runner.temp }}/transcripts/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # Running out of plan is not the issue's fault: it is left as it was, to be picked up again. A
+      # triage that fails says nothing about the issue either, and parking on it would park every
+      # issue after it the same way.
+      - name: Stop the queue
+        if: |
+          always() && steps.check.outputs.go == 'true' &&
+          (steps.triage_usage.outputs.rejected == 'true' || steps.triage.outcome != 'success')
+        env:
+          REJECTED: ${{ steps.triage_usage.outputs.rejected }}
+          TRIAGE: ${{ steps.triage.outcome }}
+        run: |
+          if [ "$REJECTED" = "true" ]; then why="triage hit a usage limit"
+          else why="triage failed ($TRIAGE); see the Triage step's log"; fi
+          echo "::error::Stopping the queue: $why. #$ISSUE is untouched; the hourly run resumes from it."
+          echo "Stopped: $why. The hourly run resumes from #$ISSUE." >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+  # Labels added with GITHUB_TOKEN start no workflows, so triage starts the build itself. It runs
+  # even when triage stopped: issues found ready before the stop still get built.
+  dispatch-build:
+    needs: [select, triage]
+    if: always() && needs.select.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      issues: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - run: |
+          set -euo pipefail
+          ready=$(gh issue list --repo "$GITHUB_REPOSITORY" --label ready-for-agent --state open --limit 1 \
+                    --json number --jq 'length')
+          if [ "$ready" -gt 0 ]; then
+            gh workflow run issue-build.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH"
+            echo "Dispatched the issue build." >> "$GITHUB_STEP_SUMMARY"
+          fi
