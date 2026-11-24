@@ -31,13 +31,14 @@
 // derives both from the view:
 //   cell:  { dust: 0 | 1 (where patches are not), patches: 0..1 of the ground under patches, snow: 0..1 under full cover,
 //            laden: bool (plants carry snow), mud: 0..1 (wet ground),
-//            water: 0..1 (standing water's extent; frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick' }
+//            water: 0..1 (standing water's extent; frozen where ice is not 'none'), ice: 'none' | 'thin' | 'thick',
+//            trodden: 0..1 (packed by time spent on it, drawn trampled all over) }
 //   world: { palette: 'winter' | 'summer' | 'autumn', snowline: 0..1 mountain height that holds snow }
 // The palette sets colour only; every snow, mud and ice layer follows the cell, except the mountains'
 // snow, which follows the season's snowline because the Sim keeps no snow on them.
 
 export const CELL = 48, SRC = 96, VARIANTS = 4, STEP = 6;
-export const WINTER = Object.freeze({ dust: 0, patches: 1, snow: 1, laden: true, mud: 0, water: 0, ice: 'thick' });
+export const WINTER = Object.freeze({ dust: 0, patches: 1, snow: 1, laden: true, mud: 0, water: 0, ice: 'thick', trodden: 0 });
 export const WINTER_WORLD = Object.freeze({ palette: 'winter', snowline: 0.34 });
 
 // ---------------------------------------------------------------- the art that exists
@@ -181,12 +182,13 @@ const spriteArt = (name, palette, laden) => `terrain/sprites/${name}_${laden ? '
 /**
  * One print of each maker, heading north (front = -y), in art pixels, and how far apart a line of
  * them falls. Bigger than life (a cell is 100 m), so a print reads as a print: a boot's long stride either side of the line, a wolf's paws almost in one line, a
- * hoof's split cleats.
+ * hoof's split cleats, a bird's three toes forward and one back.
  */
 const PRINTS = {
   human: { step: 16, side: 4, shape: [[-1, -4], [0, -4], [-2, -3], [-1, -3], [0, -3], [1, -3], [-2, -2], [-1, -2], [0, -2], [1, -2], [-2, -1], [-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [-1, 2], [0, 2], [-1, 3], [0, 3]] },
   paw: { step: 12, side: 2, shape: [[-2, -3], [1, -3], [-3, -2], [2, -2], [-1, -1], [0, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [-1, 2], [0, 2]] },
   hoof: { step: 13, side: 3, shape: [[-2, -2], [2, -2], [-2, -1], [-1, -1], [1, -1], [2, -1], [-2, 0], [-1, 0], [1, 0], [2, 0], [-2, 1], [-1, 1], [1, 1], [2, 1], [-1, 2], [1, 2]] },
+  bird: { step: 8, side: 1, shape: [[-2, -3], [0, -3], [2, -3], [-1, -2], [0, -2], [1, -2], [0, -1], [0, 0], [0, 1]] },
 };
 const HEADINGS = { north: [0, -1], east: [1, 0], south: [0, 1], west: [-1, 0] };
 /**
@@ -201,7 +203,7 @@ export const MARKS = {
 export const snowyCell = state => state.snow + state.patches * 0.5 >= 0.5;
 /**
  * The marks of a cell's prints: [[x, y, kind, strength]] in art pixels from the cell's top-left, kind
- * a key of MARKS.snow. track: { x, y, maker: 'human' | 'paw' | 'hoof', heading: 'north' | ..., pattern:
+ * a key of MARKS.snow. track: { x, y, maker: 'human' | 'paw' | 'hoof' | 'bird', heading: 'north' | ..., pattern:
  * 'heading' | 'northsouth' | 'eastwest' | 'mixed', traffic: n, freshness: 0..1 }. Lines run along the
  * heading (both ways for a two-way pattern, across too for a mixed one), one per individual up to
  * three; old prints fill in and go missing.
@@ -380,7 +382,8 @@ export function createBaker(map, stateAt, world, tex) {
   /**
    * Grazing ground, 0..1: where most sides of most cells around are worn, the ground is trampled all
    * over and drawn without lines (lines there would draw the grid). A route, even where it forks, has
-   * few worn sides around it and keeps its line.
+   * few worn sides around it and keeps its line. A tile trodden by time spent on it (a bedding ground)
+   * is trampled as much as the Sim says.
    */
   const churns = new Map();
   const churnAt = (x, y) => {
@@ -389,7 +392,7 @@ export function createBaker(map, stateAt, world, tex) {
     if (v !== undefined) return v;
     let sum = 0;
     for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) sum += links.get((y + oy) * W + x + ox)?.length ?? 0;
-    v = Math.max(0, Math.min(1, (sum - 13) / 13));
+    v = Math.max(0, Math.min(1, (sum - 13) / 13), stateAt(x, y)?.trodden ?? 0);
     churns.set(k, v);
     return v;
   };

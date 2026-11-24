@@ -415,9 +415,10 @@ public class KillChainTests
         Assert.True(Carcasses.MeatKg(c) < meat, "the ravens ate nothing");
     }
 
-    /// Flying there and feeding, a raven touches no ground: no prints on the way or at the kill (spec "Species", amended 2026-11-23).
+    /// Flying there, a raven touches no ground: no prints on the way and no trail (spec "Species", amended 2026-11-23).
+    /// Where it lands and feeds it leaves Bird prints (TroddenTilesTests).
     [Fact]
-    public void A_Raven_LeavesNoPrints_FlyingOrFeeding()
+    public void A_Raven_LeavesNoPrints_Flying()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
@@ -431,7 +432,7 @@ public class KillChainTests
         Assert.Equal(tile, w.Agent(raven).Tile);
         Sim.Advance(w, 60);
         Assert.True(Carcasses.MeatKg(c) < meat, "the raven ate nothing");
-        for (int y = start.Y; y >= tile.Y; y--) Assert.Empty(Tracks.Read(w, new TileId(tile.X, y)));
+        for (int y = start.Y - 1; y > tile.Y; y--) Assert.Empty(Tracks.Read(w, new TileId(tile.X, y)));
         Assert.Empty(w.Trails);
     }
 

@@ -1,7 +1,7 @@
 namespace Survival;
 
-/// RavensOver: ravens over a predator herd (no flesh on the tile), its cause the predator.
-public enum SignKind { Body, Carcass, Pile, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
+/// RavensOver: ravens over a predator herd (no flesh on the tile), its cause the predator. Trodden: a bedding ground.
+public enum SignKind { Body, Carcass, Pile, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver, Trodden }
 
 /// One piece of evidence on a tile (emergent-world-design §3.2). MadeMinute is null where the location feature keeps
 /// no clock of its making (pile, fire pit, shelter, body, stumps): adding one would be a new saved field.
@@ -28,6 +28,7 @@ public static class Signs
                 LocationFeatureKind.Track => [OfTrack(world, t)],
                 LocationFeatureKind.Sign => [],
                 LocationFeatureKind.Item => [],
+                LocationFeatureKind.Trodden => [new Sign(t, SignKind.Trodden, state!.Trodden!.Minute, null)],
             });
         return signs;
     }

@@ -4,10 +4,11 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// What a person keeps of a tile's surface (Ground.Underfoot), and what the map draws, in sight or remembered.
-public readonly record struct SeenSurface(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced)
+/// What a person keeps of a tile's surface within it (Ground.Within), and what the map draws, in sight or remembered.
+/// TroddenLevel: the ground packed by time spent on it, so a bedding ground out of sight is still known as one.
+public readonly record struct SeenSurface(double SnowDepthM, bool Crusted, double MudLevel, double WaterDepthM, bool Iced, double TroddenLevel = 0)
 {
-    public static SeenSurface Of(Surface s) => new(s.SnowDepthM, s.Crusted, s.MudLevel, s.WaterDepthM, s.Iced);
+    public static SeenSurface Of(Surface s) => new(s.SnowDepthM, s.Crusted, s.MudLevel, s.WaterDepthM, s.Iced, s.TroddenLevel);
 }
 
 /// A tile's surface as a person last saw it, to the millimetre and the hundredth, and the minute they saw it.
@@ -17,19 +18,20 @@ public readonly record struct RememberedGround(SeenSurface Surface, long SeenMin
 /// the trails worn between seen tiles as last seen (Tracks.TierOf). Held to millimetres and hundredths
 /// of mud, which is all a view shows, so the remembered ground and the ground in sight read alike. A
 /// trail is kept with the tile at its west or north end, so it costs a saved tile nothing. Saved as
-/// "WxH:seen:records", both base64: a bitset of the tiles seen, then ten bytes per tile seen, in
-/// tile order (minute, snow mm, water mm, mud hundredths, flags: crust, ice, east and south trails).
+/// "WxH:seen:records", both base64: a bitset of the tiles seen, then eleven bytes per tile seen, in
+/// tile order (minute, snow mm, water mm, mud hundredths, flags: crust, ice, east and south trails,
+/// trodden hundredths).
 [JsonConverter(typeof(GroundMemoryConverter))]
 public sealed class GroundMemory
 {
-    const int RecordBytes = 10;
+    const int RecordBytes = 11;
     const byte Seen = 1, Crust = 2, Ice = 4;
     const int EastShift = 3, SouthShift = 5, TierMask = 3;
     const byte TrailBits = TierMask << EastShift | TierMask << SouthShift;
 
     readonly int[] _minute;
     readonly ushort[] _snowMm, _waterMm;
-    readonly byte[] _mudPct, _flags;
+    readonly byte[] _mudPct, _flags, _troddenPct;
 
     public int Width { get; }
     public int Height { get; }
@@ -40,7 +42,7 @@ public sealed class GroundMemory
         if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(width), $"{width}x{height} is no map");
         (Width, Height) = (width, height);
         int n = width * height;
-        (_minute, _snowMm, _waterMm, _mudPct, _flags) = (new int[n], new ushort[n], new ushort[n], new byte[n], new byte[n]);
+        (_minute, _snowMm, _waterMm, _mudPct, _flags, _troddenPct) = (new int[n], new ushort[n], new ushort[n], new byte[n], new byte[n], new byte[n]);
     }
 
     int Index(TileId t) =>
@@ -54,7 +56,7 @@ public sealed class GroundMemory
         int i = Index(t);
         if ((_flags[i] & Seen) == 0) return null;
         return new RememberedGround(new SeenSurface(_snowMm[i] / 1000.0, (_flags[i] & Crust) != 0, _mudPct[i] / 100.0, _waterMm[i] / 1000.0,
-            (_flags[i] & Ice) != 0), _minute[i]);
+            (_flags[i] & Ice) != 0, _troddenPct[i] / 100.0), _minute[i]);
     }
 
     public void Remember(TileId t, SeenSurface s, long minute)
@@ -65,8 +67,9 @@ public sealed class GroundMemory
         ushort snow = Quantised(s.SnowDepthM * 1000, ushort.MaxValue, nameof(s.SnowDepthM));
         ushort water = Quantised(s.WaterDepthM * 1000, ushort.MaxValue, nameof(s.WaterDepthM));
         byte mud = (byte)Quantised(s.MudLevel * 100, 100, nameof(s.MudLevel));
+        byte trodden = (byte)Quantised(s.TroddenLevel * 100, 100, nameof(s.TroddenLevel));
         if ((_flags[i] & Seen) == 0) Count++;
-        (_minute[i], _snowMm[i], _waterMm[i], _mudPct[i]) = ((int)minute, snow, water, mud);
+        (_minute[i], _snowMm[i], _waterMm[i], _mudPct[i], _troddenPct[i]) = ((int)minute, snow, water, mud, trodden);
         _flags[i] = (byte)(Seen | (s.Crusted ? Crust : 0) | (s.Iced ? Ice : 0) | _flags[i] & TrailBits);
     }
 
@@ -131,6 +134,7 @@ public sealed class GroundMemory
             BinaryPrimitives.WriteUInt16LittleEndian(rec[6..], _waterMm[i]);
             rec[8] = _mudPct[i];
             rec[9] = _flags[i];
+            rec[10] = _troddenPct[i];
             r += RecordBytes;
         }
         return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{Width}x{Height}:{Convert.ToBase64String(seen)}:{Convert.ToBase64String(records)}");
@@ -160,8 +164,9 @@ public sealed class GroundMemory
             memory._waterMm[i] = BinaryPrimitives.ReadUInt16LittleEndian(rec[6..]);
             memory._mudPct[i] = rec[8];
             memory._flags[i] = rec[9];
+            memory._troddenPct[i] = rec[10];
             int x = i % width, y = i / width;
-            if ((rec[9] & Seen) == 0 || rec[9] > (Seen | Crust | Ice | TrailBits) || rec[8] > 100
+            if ((rec[9] & Seen) == 0 || rec[9] > (Seen | Crust | Ice | TrailBits) || rec[8] > 100 || rec[10] > 100
                 || x == width - 1 && (rec[9] >> EastShift & TierMask) != 0 || y == height - 1 && (rec[9] >> SouthShift & TierMask) != 0) throw new JsonException($"GroundMemory record {r / RecordBytes} is not a seen tile's ground");
             memory.Count++;
             r += RecordBytes;

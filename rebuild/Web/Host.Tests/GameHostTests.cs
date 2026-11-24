@@ -459,6 +459,38 @@ public class GameHostTests
 
     static int Index(World w, TileId t) => t.Y * Map.Of(w).Width + t.X;
 
+    /// A bedding ground: a tile in sight that a herd has trodden shows as trodden on the map and in the signs,
+    /// and once out of sight the person still remembers it as trodden, after a save and load.
+    [Fact]
+    public void A_trodden_tile_shows_on_the_map_and_in_signs_and_is_remembered_out_of_sight()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var p = w.Agent(AgentId.Player);
+        var t = InSightOfPlayer(w);
+        if (!w.Tiles.TryGetValue(t, out var state)) w.Tiles[t] = state = new TileState();
+        state.Trodden = new TileTrodden(0.6, w.Minute);
+        Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
+
+        Assert.True(Parse(h.View()).Map.Surface.Single(s => s.I == Index(w, t)).Trodden >= Tracks.TroddenTileAt);
+        Assert.Contains(Signs.At(w, t), s => s.Kind == SignKind.Trodden);
+        Assert.Contains(Report.Finds(w), f => f.Tile == t && f.Kind == "trodden");
+
+        var m = Map.Of(w);
+        p.Tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - t.X) + Math.Abs(f.Y - t.Y) > 2 * Sight.MaxTiles);
+        p.Crossing = null;
+        Sim.Step(w, new Wait(AgentId.Player), 1);
+        state.Trodden = null; // gone while nobody looked
+
+        var loaded = new GameHost();
+        var v = Parse(loaded.Load(h.Save()));
+        Assert.DoesNotContain(Index(w, t), v.Map.Visible);
+        Assert.Equal(0, Tracks.TroddenAt(loaded.World, t));
+        Assert.True(v.Map.Surface.Single(s => s.I == Index(w, t)).Trodden >= Tracks.TroddenTileAt);
+    }
+
     /// Regression: a tile seen under snow, then out of sight while the snow went, still shows that
     /// snow after a save and load (the page keeps nothing across a load), not the bare ground there now.
     [Fact]
@@ -587,7 +619,7 @@ public class GameHostTests
     public void Every_route_and_print_code_is_one_the_page_draws()
     {
         string[] tiers = ["trace", "path", "trail"], headings = ["north", "east", "south", "west"],
-            patterns = ["heading", "northsouth", "eastwest", "mixed"], makers = ["human", "paw", "hoof"];
+            patterns = ["heading", "northsouth", "eastwest", "mixed"], makers = ["human", "paw", "hoof", "bird"];
         Assert.All(Enum.GetValues<TrailTier>().Where(t => t != TrailTier.None), t => Assert.Contains(Words.Code(t), tiers));
         Assert.All(Enum.GetValues<Direction>(), d => Assert.Contains(Words.Code(d), headings));
         Assert.All(Enum.GetValues<TrafficPattern>(), p => Assert.Contains(Words.Code(p), patterns));

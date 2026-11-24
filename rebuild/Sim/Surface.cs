@@ -1,7 +1,7 @@
 namespace Survival;
 
 /// The ground at a place as it is (Ground.Underfoot), and its effects, from it alone: the column stays Ground's.
-/// TroddenLevel is a trodden edge's packing at its half of a tile (Trodden).
+/// TroddenLevel is the place's trodden level (Trodden): a trodden edge's at its half of a tile, or the tile's own within it.
 public readonly record struct Surface(
     double SnowDepthM,
     double SnowPackingLevel,

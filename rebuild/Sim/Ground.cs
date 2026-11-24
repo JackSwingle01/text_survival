@@ -224,6 +224,14 @@ public static class Ground
         return other is { } o ? surface.Trodden(Tracks.TroddenLevel(world, tile, o, surface.SnowDepthM)) : surface;
     }
 
+    /// Within the tile, where people work and rest and animals graze and bed: its ground with the top snow packed by
+    /// the time spent on it (Tracks.TroddenLevel). A crossing reads the tile or an edge's half, never this.
+    public static Surface Within(World world, TileId tile)
+    {
+        var surface = Underfoot(world, tile);
+        return world.Tiles.GetValueOrDefault(tile)?.Trodden == null ? surface : surface.Trodden(Tracks.TroddenLevel(world, tile, surface.SnowDepthM));
+    }
+
     /// The depth snow of this water equivalent lies when it has just fallen.
     public static double FreshSnowDepthM(double waterEquivalentM) => waterEquivalentM * IceExpansion / LooseSnowIceFraction;
 
