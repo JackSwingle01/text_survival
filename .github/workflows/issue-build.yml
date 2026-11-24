@@ -39,11 +39,11 @@ name: Issue build
 # Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
 # files. A build longer than an hour outlives the Claude app token it started with (GitHub App
 # tokens last 60 minutes), so when no PR exists after a finished build, the "Open the PR" step
-# pushes and opens it from those files with the workflow's own GITHUB_TOKEN. That needs the repo
-# setting "Allow GitHub Actions to create and approve pull requests". Workflows on a PR that token
-# opens wait in an approval-required state: "Approve workflows to run" in the PR's merge box starts
-# CI and Claude Review (the PR body says so). Interim, until the PR is opened by an app whose PRs
-# start CI without approval.
+# opens it from those files with the workflow's own GITHUB_TOKEN, pushing the branch first if the
+# build could not. That needs the repo setting "Allow GitHub Actions to create and approve pull
+# requests". Workflows on a PR that token opens wait in an approval-required state: "Approve
+# workflows to run" in the PR's merge box starts CI and Claude Review (the PR body says so).
+# Interim, until the PR is opened by an app whose PRs start CI without approval.
 #
 # Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
 # to a workflow that matches the default branch, so a change here works once it is on main.
@@ -291,6 +291,15 @@ jobs:
           # The build's git credentials were its expired app token: use this job's token instead.
           remote="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
           nocreds=(-c "http.https://github.com/.extraheader=" -c credential.helper=)
+          # Often the build pushed its branch before its token expired and only `gh pr create` was
+          # refused. Then there is nothing to push: open the PR, and leave any conflict with a main that
+          # moved during the build to the PR, where it is resolved like any other.
+          pushed=$(git "${nocreds[@]}" ls-remote "$remote" "refs/heads/$BRANCH" | cut -f1)
+          if [ "$pushed" = "$(git rev-parse HEAD)" ]; then
+            echo "The build pushed $BRANCH already; opening the PR only."
+            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
+            exit 0
+          fi
           # GitHub refuses a push with this token whenever the branch's workflow files differ from main's
           # (it has no `workflows` permission), and that includes a branch merely behind a main whose
           # workflows changed during the build (#95). Merge main first, so only the build's own changes remain.
