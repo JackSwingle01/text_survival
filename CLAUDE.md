@@ -78,8 +78,8 @@ Two workflows. `.github/workflows/issue-triage.yml` triages every open issue wri
 with write access, oldest first, within the hour: when it is opened, when any issue closes, when a
 label comes off, hourly, or on a manual run. Sonnet reads it; a ready one gets the
 `ready-for-agent` label. `.github/workflows/issue-build.yml` builds the oldest `ready-for-agent`
-issue, one per run, through `mp:implement` on Opus (seams chosen and logged, nobody asked), ending
-as a PR into `main`, and starts the next run while any remain. How each works is in its header. To
+issues, two at a time, each through `mp:implement` on Opus (seams chosen and logged, nobody asked),
+ending as a PR into `main`, and starts the next run while any remain. How each works is in its header. To
 get the outcome you want from an issue you write:
 
 - **Ready to build** means it says what to build, has acceptance criteria an agent can check, and
