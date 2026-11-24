@@ -54,3 +54,11 @@ Revised: with no plan, prey that sensed a threat beside them lay down (GiveWay s
 Revised: budgets measured side by side, Release, seed 17: HerdTests.ThirtyPopulatedDays_StayCheap 6,177 MB on this branch against main's 6,131 (+0.75 %, under its 6,600 cap); Phase2GateTests.ThirtyDays_Headless 6,658 MB against main's 6,679 → scent does not make sensing measurably dearer, so nothing is re-baselined.
 Revised: the cohesion gate passes on all four seeds (17, 23, 42, 123): 223, 240, 367 and 394 MB a day against the baselines branch's 232, 251, 391 and 327, under the 406 ceiling.
 Follow-up: Phase2GateTests.ThirtyDays_Headless_CompletesAliveAndSmall fails on main already (6,679 MB against its 6,100 cap, Release, seed 17); it is Slow, so PR CI does not see it.
+Revised (review): Tags still marked only raw meat and fish a ScentSource, against "cooked meat and fish included" → ScentSource is any food at Scent.ScentSourceLevel (0.5) or above: meat and fish, raw or cooked.
+Revised (review): PeopleSensed and WouldComeForSomeone repeated one loop → WouldComeForSomeone asks PeopleSensed.
+Revised (review): the carcass loop lost its cheap distance skip → tiles past the farthest sight or full-scent reach are skipped first.
+Revised (review): Senses.Of and Scent.Of shared a name, so the sky-reading allowance let both through → Senses.Now.
+Revised (review): a person's food scent is the strongest food they carry x its kilos up to one, not a sum: 30 kg of meat smells as 1 kg → kept, so a full pack does not outsmell bleeding; a number for #124's piles to revisit.
+Revised (review): clean-room-architecture.md's Species row still named Fauna.DetectionRangeTiles → removed.
+Follow-up: a wounded or bleeding animal smells no stronger than a healthy one (an animal's scent is its species' base, for the scan's cost); the spec lists bleeding and Bloody as sources without saying whose.
+Follow-up: prey flee only a threat on or beside their tile, which sight covers on open ground in clear air, so the wind decides prey flight only where sight is short (criterion 3 is shown in a whiteout among trees). Whether prey should flee at the range they smell, or the hunt's in-tile stalk should read the wind, is Jack's call.

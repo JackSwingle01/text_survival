@@ -116,7 +116,7 @@ public static partial class Fauna
         bool closed = IsClosedGroup(animal.Species);
         if (!CanMove(animal) || Threatened(animal, mind, closed ? world.Minute - SenseEveryMinutes : long.MinValue) is not TileId threat) return null;
         // It steps a tile off a threat beside it; prey with one on their tile keep their way (Flee).
-        if (!closed && threat == animal.Tile || FleeDirection(world, animal, threat, events) is not Direction away)
+        if ((!closed && threat == animal.Tile) || FleeDirection(world, animal, threat, events) is not Direction away)
         {
             StartFleeing(world, mind, threat);
             return Flee(world, animal, mind, events);
@@ -205,10 +205,7 @@ public static partial class Fauna
     static bool WouldComeForSomeone(World world, Agent predator, List<WorldEvent> events)
     {
         if (BehaviorOf(predator.Species) != HerdBehavior.Pack || Hunger(predator) <= ComesForPeopleHunger || MindOf(predator).Fear > Tags.AfraidLevel) return false;
-        var senses = Senses.Of(world, predator);
-        foreach (var a in Nearby.People(world))
-            if (Combat.EncounterOf(world, a.Id) == null && senses.Finds(world, a.Tile, Scent.Of(world, a)) && WouldComeFor(world, predator, a, events) != null) return true;
-        return false;
+        return PeopleSensed(world, predator, events).Count > 0;
     }
 
     /// Its species' sight on open ground in clear weather (Sight.OpenGroundTiles x perception): how far a roam goes.
@@ -391,12 +388,14 @@ public static partial class Fauna
         var behavior = BehaviorOf(animal.Species);
         bool prey = behavior == HerdBehavior.Prey, foodSeen = false;
         bool rivals = IsClosedGroup(animal.Species), hunts = !prey && Combat.Hunts(animal.Species);
-        var senses = Senses.Of(world, animal);
+        var senses = Senses.Now(world, animal);
         if (!prey)
         {
             mind.Sightings?.RemoveAll(s => s.Carcass is int id && senses.Sees(world, s.Tile) && !HasMeat(world, s.Tile, id));
+            double reach = Math.Max(senses.SightBudgetTiles, Scent.ReachTiles(1, senses.SmellFactor, 2));
             foreach (var t in Carcasses.TilesWith(world))
             {
+                if (MapGen.Manhattan(t, animal.Tile) > reach) continue;
                 bool? seen = null;
                 foreach (var c in world.Tiles[t].Carcasses ?? [])
                 {

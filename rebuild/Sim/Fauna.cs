@@ -639,7 +639,7 @@ public static partial class Fauna
     static HashSet<TileId> PeopleSensed(World world, Agent predator, List<WorldEvent> events)
     {
         var found = new HashSet<TileId>();
-        var senses = Senses.Of(world, predator);
+        var senses = Senses.Now(world, predator);
         foreach (var h in Nearby.People(world))
             if (Combat.EncounterOf(world, h.Id) == null && senses.Finds(world, h.Tile, Scent.Of(world, h)) && WouldComeFor(world, predator, h, events) != null)
                 found.Add(h.Tile);

@@ -6,7 +6,7 @@ public static class Scent
     /// A full scent to a nose of 1 in calm air, in tiles: a wolf (2.5) smells a fresh carcass 24 tiles (2.4 km)
     /// straight downwind, as Isle Royale wolves scented moose (Mech 1966, R).
     public const double FullReachTiles = 6;
-    public const double BleedingLevel = 0.9, BloodyLevel = 0.8;
+    public const double BleedingLevel = 0.9, BloodyLevel = 0.8, ScentSourceLevel = 0.5;
 
     /// x2 straight downwind, x0.5 upwind, x1 across and in calm air; a wind is named for where it comes from.
     public static double WindFactor(WindDirection wind, TileId source, TileId nose)
@@ -35,7 +35,7 @@ public static class Scent
         level += BloodyLevel * Effects.Severity(agent.Body, EffectKind.Bloody);
         double food = 0;
         foreach (var (r, kg) in person.Pack.Kg)
-            if (kg > 0 && Items.Resources[r].ScentLevel is double perKg) food = Math.Max(food, perKg * Math.Min(1, kg));
+            if (kg > 0) food = Math.Max(food, OfFood(r) * Math.Min(1, kg));
         return Math.Min(1, level + food);
     }
 
@@ -56,7 +56,7 @@ public static class Scent
 /// The one sensing function (spec "Scent"): what an animal makes out from where it stands, by sight or by scent.
 public readonly record struct Senses(TileId From, double SightBudgetTiles, double SmellFactor, WindDirection Wind)
 {
-    public static Senses Of(World world, Agent animal)
+    public static Senses Now(World world, Agent animal)
     {
         var row = SpeciesTable.Of(animal.Species);
         double sight = Sight.BudgetTiles(world, animal.Tile, Body.GetCapacities(animal.Body).Sight) * row.PerceptionFactor;

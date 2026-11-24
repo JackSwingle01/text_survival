@@ -158,11 +158,11 @@ public class ScentTests
         var w = Strip(Sky(WindDirection.West));
         var person = Bleeding(w, T(20));
         var pack = StarvingPack(w, T(downwind ? 34 : 6));
-        Assert.False(Senses.Of(w, pack).Sees(w, person.Tile));
+        Assert.False(Senses.Now(w, pack).Sees(w, person.Tile));
         var (activity, _) = Fauna.Decide(w, pack, []);
         var toward = downwind ? Direction.West : Direction.East;
         Assert.Equal(downwind, activity is Travel t && t.Dir == toward);
-        Assert.Equal(downwind, Senses.Of(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
+        Assert.Equal(downwind, Senses.Now(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
     }
 
     /// In calm air the same bleeding person is smelled fourteen tiles off from either side (15 tiles).
@@ -189,9 +189,9 @@ public class ScentTests
         var pack = StarvingPack(w, T(34));
         var pack0 = Items.PackOf(person)!;
         foreach (var r in pack0.Kg.Keys.ToList()) Items.Take(pack0, r, double.MaxValue);
-        Assert.False(Senses.Of(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
+        Assert.False(Senses.Now(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
         Items.Add(pack0, Resource.CookedMeat, 1);
-        Assert.True(Senses.Of(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
+        Assert.True(Senses.Now(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
     }
 
     /// In a whiteout among trees a caribou cannot see the next tile (11 x 0.1 = 1.1 tiles of budget, the half of its own
@@ -211,7 +211,7 @@ public class ScentTests
             var caribou = PlannerTests.Animal(w, Species.Caribou, T(20));
             TestKit.SetHunger(caribou, 0.85); // hungry enough to weigh food it cannot find
             w.Agent(Npc.Spawn(w, T(fromUpwind ? 20 - d : 20 + d)));
-            Assert.False(Senses.Of(w, caribou).Sees(w, T(21)));
+            Assert.False(Senses.Now(w, caribou).Sees(w, T(21)));
             if (Fauna.Decide(w, caribou, []).Activity is Travel) fledAt = d;
         }
         Assert.Equal(fleesAtTiles, fledAt);
