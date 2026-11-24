@@ -113,8 +113,14 @@ static class MapGen
 
     public static bool In(TileId p, int width, int height) => p.X >= 0 && p.X < width && p.Y >= 0 && p.Y < height;
 
-    /// North, east, south, west: the draw order depends on it.
-    public static TileId[] Neighbors(TileId p) => [new(p.X, p.Y - 1), new(p.X + 1, p.Y), new(p.X, p.Y + 1), new(p.X - 1, p.Y)];
+    /// North, east, south, west: the draw order and the route search's tie-breaks depend on it.
+    public static readonly (int Dx, int Dy)[] NeighborSteps = [(0, -1), (1, 0), (0, 1), (-1, 0)];
+    public static TileId[] Neighbors(TileId p)
+    {
+        var around = new TileId[NeighborSteps.Length];
+        for (int i = 0; i < around.Length; i++) around[i] = new(p.X + NeighborSteps[i].Dx, p.Y + NeighborSteps[i].Dy);
+        return around;
+    }
     public static int Manhattan(TileId a, TileId b) => Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
     /// Single precision, as the legacy distance was computed.
     public static double Distance(TileId a, TileId b) { float dx = a.X - b.X, dy = a.Y - b.Y; return MathF.Sqrt(dx * dx + dy * dy); }

@@ -682,7 +682,9 @@ public class HerdTests(ITestOutputHelper output)
         // the number stated), Release, seed 17: 9,423 MB in about 50 s (main 5,948 MB on the same probe), save 860 KB.
         // Animals now drink and sleep: route searches for water and dens, sensing, and predators up in their hours.
         // Under #81's 3x ceiling (12,192 MB); the cap leaves the usual margin over the measurement.
-        Assert.True(allocatedMB < 11_000, $"allocated {allocatedMB} MB");
+        // Lowered 2026-11-24 for the pooled route search (#133), Release, seed 17: 5,676 MB in about 25 s (main 8,106 MB
+        // on the same probe), the same 39,161 moves.
+        Assert.True(allocatedMB < 6_600, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 120, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");
         Assert.DoesNotContain("\"Layers\"", Save.ToJson(w)); // everyone read the ground; no tile stored any

@@ -126,6 +126,11 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
     public IReadOnlyDictionary<TileId, LocationDef> Sites => _sites;
     public EdgeType? EdgeBetween(TileId a, TileId b) => edges.TryGetValue(MapGen.EdgeKey(a, b), out var e) ? e : null;
+
+    /// Map.BaseTraversalMinutes by tile, 0 until first read: a pure function of the map, read on every crossing
+    /// priced, and dear to work out (TraversalModifier seeds a LegacyRng). Two readers at once write the same value.
+    readonly int[] baseTraversalMinutes = new int[width * height];
+    internal ref int BaseTraversalMinutesCell(TileId t) => ref baseTraversalMinutes[t.Y * Width + t.X];
 }
 
 /// The world's terrain and how tiles connect. Terrain is a pure function of the seed.
@@ -237,6 +242,12 @@ public static class Map
     }
 
     public static int BaseTraversalMinutes(GeneratedMap m, TileId t)
+    {
+        ref int kept = ref m.BaseTraversalMinutesCell(t);
+        return kept != 0 ? kept : kept = WorkOutBaseTraversalMinutes(m, t);
+    }
+
+    static int WorkOutBaseTraversalMinutes(GeneratedMap m, TileId t)
     {
         int terrainBase = m.TerrainAt(t).BaseTraversalMinutes();
         int hazardBonus = (int)Math.Floor(TerrainHazardLevel(m, t) * 5);
