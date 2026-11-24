@@ -44,7 +44,7 @@ public class FeelsTests
     [Fact]
     public void Feeling_OnAFreshWorld_WritesNothing()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         string before = Save.ToJson(w);
         Sim.Feels(w, P, new Wait(P));
         Sim.Feels(w, P, new Sleep(P));

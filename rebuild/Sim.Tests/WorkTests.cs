@@ -311,7 +311,7 @@ public class WorkTests
     [Fact]
     public void ATileWhoseLastCarcassGoes_IsGone()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var tile = new TileId(3, 3);
         Assert.False(w.Tiles.ContainsKey(tile));
         var c = Carcasses.Create(w, tile, "Hare", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.5), 0);
@@ -354,7 +354,7 @@ public class WorkTests
     [Fact]
     public void ARiverOrLake_GivesWaterWithoutAPack()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         var m = Map.Of(w);
         var river = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y))).First(m.BesideRiver);

@@ -227,7 +227,7 @@ public class FireTests
     [Fact]
     public void StartFire_KeepsWhatThePitHasNoRoomFor()
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         TestKit.Supply(world);
         var pit = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(pit, Resource.Kindling, Fire.MaxFuelKg(PitType.Open) - 0.03); // cold, and nearly full
@@ -262,7 +262,7 @@ public class FireTests
     {
         var world = LitCamp();
         Assert.Equal("the fire is not hot enough for bone", Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 1).InterruptedReason);
-        var empty = TestWorlds.New(1);
+        var empty = TestWorlds.Bare(1);
         Assert.Equal("no fire here", Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1).InterruptedReason);
     }
 

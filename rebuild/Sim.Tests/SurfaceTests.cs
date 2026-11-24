@@ -105,7 +105,7 @@ public class SurfaceTests
     [Fact]
     public void Underfoot_OnEveryTile_ReadsTheRecordedGround()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var sb = new StringBuilder();
         foreach (long minute in new[] { 3 * 1440L + 7, 40 * 1440L + 290, 75 * 1440L + 1000 })
