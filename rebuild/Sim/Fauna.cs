@@ -278,30 +278,36 @@ public static partial class Fauna
     public static Source? GrazeHere(World world, Agent animal) => GrazeAt(world, animal, animal.Tile);
 
     /// Its full rate shared among its diet's resources on the tile's forage, each by what is left of it (1 - grazed level),
-    /// divided among the grazers standing there now; null where nothing it eats grows. A meat-eater's grazing is the small
-    /// game it lives on between kills, there on any ground (a saber-tooth's, until it hunts: #84).
+    /// times min(1, capacity / load) (TileCapacity, Load); null where nothing it eats grows. Below capacity company costs
+    /// nothing; past it every grazer's share falls. A meat-eater's grazing is the small game it lives on between kills,
+    /// there on any ground at an average tile's capacity (a saber-tooth's, until it hunts: #84).
     static Source? GrazeAt(World world, Agent animal, TileId tile)
     {
         double rate = SpeciesTable.Of(animal.Species).GrazeKcalPerMinute;
         if (rate <= 0) return null;
         var eats = Eats(DietOf(animal.Species));
-        double left = 1;
+        double left = 1, density = 0;
+        ForagePool? pool = null;
         if (eats.Count > 0)
         {
-            if (ForageHere(world, tile) is not (PoolId id, ForagePool pool)) return null;
+            if (ForageHere(world, tile) is not (PoolId id, ForagePool p)) return null;
+            pool = p;
             // Read on every tile a food plan weighs, so counted, not listed, and indexed (an interface's enumerator is boxed).
             double sum = 0;
             int count = 0;
             for (int i = 0; i < eats.Count; i++)
             {
-                if (!Grows(pool, eats[i])) continue;
+                if (!Grows(p, eats[i])) continue;
                 sum += 1 - Pools.GrazedLevel(world, id, eats[i]);
                 count++;
             }
             if (count == 0) return null;
             left = sum / count;
+            density = p.Density;
         }
-        return left <= 0 ? null : new Source(rate * left / Grazers(world, animal, tile));
+        if (left <= 0) return null;
+        double capacity = TileCapacity(pool == null ? 1 : density / MeanForageDensity(world), left);
+        return new Source(rate * left * Math.Min(1, capacity / Load(world, animal, tile, eats, pool)));
     }
 
     static bool Grows(ForagePool pool, Resource r)
@@ -310,29 +316,52 @@ public static partial class Fauna
         return false;
     }
 
-    /// It and the living animals on the tile now that graze what it would there, one stepping onto it counted there
-    /// and not where it left: those with a plan to come later don't count.
-    static int Grazers(World world, Agent animal, TileId tile)
+    /// The intake a tile of average forage holds: seven caribou's (7 x 13 kcal a minute). A mammoth loads it like seven.
+    const double AverageTileKcalPerMinute = 91;
+
+    /// The intake a tile holds, scaled by the forage on it now: its richness against the valley's mean, times what is
+    /// left of what this grazer eats there.
+    static double TileCapacity(double richness, double left) => AverageTileKcalPerMinute * richness * left;
+
+    /// The mean forage density over the valley's open land, ungrazed. Fixed at generation, so worked out once and never saved.
+    static double MeanForageDensity(World world)
     {
-        var eats = Eats(DietOf(animal.Species));
-        var pool = eats.Count > 0 && ForageHere(world, tile) is (_, ForagePool p) ? p : null;
-        int count = 1 + GrazersOn(world, animal, tile, tile, eats, pool);
-        foreach (var d in Map.Directions) count += GrazersOn(world, animal, Map.Step(tile, d), tile, eats, pool);
-        return count;
+        if (world.MeanForageDensityCache is { } mean) return mean;
+        double sum = 0;
+        int count = 0;
+        foreach (var t in OpenLand(world))
+            if (ForageHere(world, t) is (_, ForagePool p)) { sum += p.Density; count++; }
+        return (world.MeanForageDensityCache = count > 0 ? sum / count : 1).Value;
     }
 
-    static int GrazersOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    /// A grazer's intake as load on a tile: its species' rate scaled by its weight against the species', to the 3/4 power.
+    static double Intake(Agent a)
+    {
+        var row = SpeciesTable.Of(a.Species);
+        return row.GrazeKcalPerMinute * Math.Pow(a.Body.WeightKg / row.WeightKg, 0.75);
+    }
+
+    /// Its intake and that of the living animals on the tile now that graze what it would there, one stepping onto it
+    /// counted there and not where it left: those with a plan to come later don't count.
+    static double Load(World world, Agent animal, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    {
+        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool);
+        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool);
+        return load;
+    }
+
+    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
     {
         var here = Nearby.At(world, on);
-        int count = 0;
+        double load = 0;
         for (int i = 0; i < here.Count; i++)
         {
             var other = world.Agents[here[i]];
             if (other.Id == animal.Id || other.Mind is not HerdMind || SpeciesTable.Of(other.Species).GrazeKcalPerMinute <= 0
                 || !(other.Crossing is { } c ? Map.Step(c.From, c.Dir) == tile : other.Tile == tile) || !Sim.IsAlive(other)) continue;
-            if (Shares(eats, Eats(DietOf(other.Species)), pool)) count++;
+            if (Shares(eats, Eats(DietOf(other.Species)), pool)) load += Intake(other);
         }
-        return count;
+        return load;
     }
 
     /// Both graze a resource growing there; two meat-eaters share the small game.

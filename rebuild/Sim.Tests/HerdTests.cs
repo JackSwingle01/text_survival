@@ -326,9 +326,9 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void GrazingThinsWhatThisDietEats_AndNotTheRest()
     {
-        var w = TestWorlds.New(1);
-        var tile = Quiet(w, Terrain.Forest);
-        // One of each: crowded, a herd spreads to the tiles around (FoodTests).
+        // The strip, all pasture, with no kin anywhere to draw them off it (FoodTests).
+        var w = FoodTests.Pasture();
+        var tile = new TileId(20, 1);
         var bison = Animals.Spawn(w, Species.Bison, tile, 1);
         var deer = Animals.Spawn(w, Species.Caribou, tile, 1);
         foreach (var a in bison.In(w).Concat(deer.In(w))) { TestKit.SetHunger(a, 1.0); Fauna.MindOf(a).State = HerdState.Grazing; }

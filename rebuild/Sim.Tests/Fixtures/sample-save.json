@@ -2292,13 +2292,15 @@
             "Route": [
               "23,42",
               "24,42"
-            ]
+            ],
+            "PerMinute": 0
           },
           "Sightings": [
             {
               "Who": 2,
               "Tile": "19,42",
-              "Minute": 172
+              "Minute": 172,
+              "Carcass": null
             }
           ]
         },

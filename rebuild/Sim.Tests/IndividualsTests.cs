@@ -315,7 +315,9 @@ public static class CohesionGate
 
     sealed class Tally
     {
-        public long Alone, AnimalLooks, Regroups, Moves, Deaths;
+        public long Alone, AnimalLooks, Regroups, Moves, Deaths, BlobLooks, CountedLooks;
+        /// The biggest herd's look: its day, its tiles, and whether any of them has water.
+        public (int Day, int Tiles, bool AtWater) Biggest;
         public double MaxHerdPct, WaterTilePctSum;
         public int Looks;
         public List<int> Herds = [];
@@ -373,8 +375,19 @@ public static class CohesionGate
                 t.Looks++;
                 t.AnimalLooks += living;
                 var herds = Herds(group);
-                if (living > BlobFloor) t.MaxHerdPct = Math.Max(t.MaxHerdPct, herds.Max(h => h.Count) / (double)living);
-                if (minute % 1440 == 0) t.Herds = herds.Select(h => h.Count).OrderDescending().ToList();
+                if (living > BlobFloor)
+                {
+                    var top = herds.MaxBy(h => h.Count)!;
+                    double pct = top.Count / (double)living;
+                    t.CountedLooks++;
+                    if (pct > MaxHerdPct) t.BlobLooks++;
+                    if (pct > t.MaxHerdPct)
+                    {
+                        var tiles = top.Select(a => a.Tile).Distinct().ToList();
+                        (t.MaxHerdPct, t.Biggest) = (pct, (minute / 1440, tiles.Count, tiles.Any(x => Work.HasUnfrozenWater(w, x) || Work.HasOpenWater(w, x))));
+                    }
+                }
+                t.Herds = herds.Select(h => h.Count).OrderDescending().ToList();
                 var atWater = group.GroupBy(a => a.Tile).Where(h => Work.HasUnfrozenWater(w, h.Key) || Work.HasOpenWater(w, h.Key))
                     .Select(h => h.Count()).DefaultIfEmpty(0).Max();
                 t.WaterTilePctSum += atWater / (double)living;
@@ -392,18 +405,18 @@ public static class CohesionGate
         }
         double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / Days;
         output.WriteLine($"seed {seed}: {mbPerDay:F0} MB a day allocated");
-        double LooksPerDay = 1440.0 / LookEveryMinutes;
+        double looksPerDay = 1440.0 / LookEveryMinutes;
         foreach (var (s, t) in tallies)
         {
-            double animalDays = t.AnimalLooks / LooksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
-            output.WriteLine($"seed {seed} {s}: {heads:F1} living on average; alone {t.Alone / (double)t.AnimalLooks:P1}; biggest herd {t.MaxHerdPct:P0}; "
+            double animalDays = t.AnimalLooks / looksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
+            output.WriteLine($"seed {seed} {s}: {heads:F1} living on average; alone {t.Alone / (double)t.AnimalLooks:P1}; biggest herd {t.MaxHerdPct:P0} (day {t.Biggest.Day}, {t.Biggest.Tiles} tiles, water {t.Biggest.AtWater}; over {MaxHerdPct:P0} at {t.BlobLooks / (double)Math.Max(1, t.CountedLooks):P1} of looks); "
                 + $"regroups {t.Regroups / animalDays:F2}/animal-day; moves {t.Moves / animalDays:F2}/animal-day; busiest water tile {t.WaterTilePctSum / t.Looks:P1}; "
-                + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head); herds at the last day's start [{string.Join(" ", t.Herds)}]");
+                + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head); herds at the end [{string.Join(" ", t.Herds)}]");
         }
         Assert.True(mbPerDay < MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {MaxAllocatedMbPerDay:F0}");
         foreach (var (s, t) in tallies)
         {
-            double animalDays = t.AnimalLooks / LooksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
+            double animalDays = t.AnimalLooks / looksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
             Assert.True(t.Deaths / Math.Max(1, heads) <= MaxHungerAndThirstDeathsPerHead, $"seed {seed}: {s} lost {t.Deaths} to hunger and thirst, {heads:F1} living on average");
             Assert.True(t.WaterTilePctSum / t.Looks < MaxWaterTilePct, $"seed {seed}: {s} {t.WaterTilePctSum / t.Looks:P1} on its busiest water tile");
             Assert.InRange(t.Moves / animalDays, MinMovesPerAnimalDay, MaxMovesPerAnimalDay);
