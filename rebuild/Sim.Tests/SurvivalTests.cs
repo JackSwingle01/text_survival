@@ -178,7 +178,7 @@ public class SurvivalTests
     [Fact]
     public void WellFedEnding_IsToldBeforeTheHungerThatEndsIt()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var p = w.Agent(AgentId.Player);
         p.Body.MinutesWithoutHunger = 2 * 1440;
         Effects.Set(p.Body, EffectKind.WellFed, 1);

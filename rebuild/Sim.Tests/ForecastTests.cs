@@ -314,7 +314,7 @@ public class ForecastTests
             var from = Camp(w);
             var to = Map.Step(from, dir);
             if (Map.Blocked(m, from, to) != null) continue;
-            var copy = Save.FromJson(Save.ToJson(w));
+            var copy = TestWorlds.Load(Save.ToJson(w));
             int forecast = Trip.StepMinutes(copy, P, from, to, Pace.Quick);
             var r = Sim.Step(copy, new Travel(P, dir), Verbs.UntilDoneMinutes);
             Assert.Equal((Traversal.Arrived, forecast), (r.Reason, r.MinutesElapsed));
@@ -323,7 +323,7 @@ public class ForecastTests
         int light = Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick);
         Items.Add(Items.Pack(w, P), Resource.Stone, 60);
         Assert.True(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick) > light); // a load picked up this minute counts
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick), Trip.StepMinutes(loaded, P, Camp(loaded), east, Pace.Quick));
     }
 
@@ -468,7 +468,7 @@ public class ForecastTests
         var flock = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
         var path = Trip.Routes(w, flock).RouteTo(corner);
         Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
-        var again = Save.FromJson(Save.ToJson(w));
+        var again = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
     }
 

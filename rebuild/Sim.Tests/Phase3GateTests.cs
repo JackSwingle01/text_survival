@@ -115,7 +115,7 @@ public class Phase3GateTests
 
     internal static (World World, Tally Tally) Run(int steps, int saveEvery = 0)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         // An NPC living on its own mind beside all this: its mind, memory and work in hand are saved state too.
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
@@ -123,7 +123,7 @@ public class Phase3GateTests
         var t = new Tally();
         for (int i = 0; i < steps; i++)
         {
-            if (saveEvery > 0 && i % saveEvery == 0) w = Save.FromJson(Save.ToJson(w));
+            if (saveEvery > 0 && i % saveEvery == 0) w = TestWorlds.Load(Save.ToJson(w));
             Play(w, i, t);
         }
         return (w, t);
@@ -132,7 +132,7 @@ public class Phase3GateTests
     /// The mixed run's events, every one the player's steps raised, with the herds' and the NPC's.
     internal static List<WorldEvent> RunCollecting(int steps)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
         foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));

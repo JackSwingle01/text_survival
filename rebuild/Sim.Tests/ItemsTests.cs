@@ -10,7 +10,7 @@ public class ItemsTests
 
     static World New(int seed = 17)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         w.FixedWeather = Mild;
         return w;
     }
@@ -28,7 +28,7 @@ public class ItemsTests
     [Fact]
     public void StartingKit_MatchesOld_CloWeightAndLoad()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var player = w.Agent(P);
         Assert.Equal(1.33, player.Body.ClothingClo, 9);        // old Inventory.ClothingClo
         Assert.Equal(3.05, player.Body.ClothingWeightKg, 9);   // old TotalEquipmentWeightKg
@@ -63,7 +63,7 @@ public class ItemsTests
     [Fact]
     public void Accessories_StackCapacity_AndTheirWeightCounts()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("large_bag"));
         pack.Gear.Add(Items.Make("rope_belt"));
@@ -97,7 +97,7 @@ public class ItemsTests
     [Fact]
     public void Receive_FillsThePack_ThenDropsTheRestOnTheTile()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var agent = w.Agent(P);
         var gained = new Inventory();
         Items.Add(gained, Resource.Stone, 20);
@@ -115,7 +115,7 @@ public class ItemsTests
         var w = New();
         Assert.Null(Sim.Step(w, new PutDown(P, Resource.Kindling, 0.5), 1).InterruptedReason);
         Assert.Equal(0.4, Items.Have(Items.Pack(w, P), Resource.Kindling), 9);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(0.5, Items.Have(loaded.Tiles[Map.Of(loaded).Camp].Pile!, Resource.Kindling), 9);
         Sim.Step(loaded, new PickUp(P, Resource.Kindling, 99), 1);
         Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Kindling), 9);

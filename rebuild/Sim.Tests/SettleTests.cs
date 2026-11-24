@@ -9,7 +9,7 @@ public class SettleTests
     [Fact]
     public void Seed123_Mammoths_OutliveTwoYearsOfPacks()
     {
-        var w = World.New(123);
+        var w = TestWorlds.New(123);
         int start = w.Agents.Values.Where(a => a.Species == Species.Mammoth).Sum(a => a.Members.Count);
         var events = Sim.Advance(w, 730 * 1440);
         Assert.DoesNotContain(events.OfType<Killed>(), k => k.Species == Species.Mammoth); // at 9cbe8cc: 13, all to wolves

@@ -24,7 +24,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(42)]
     public void APopulatedWorld_HasOneAgentPerAnimal(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var animals = Animals(w).ToList();
         output.WriteLine($"{animals.Count} animals");
         Assert.All(animals, a => Assert.Single(a.Members));
@@ -40,7 +40,7 @@ public class IndividualsTests(ITestOutputHelper output)
         int hunts = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var tile = Quiet(w);
             var ours = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var theirs = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
@@ -71,7 +71,7 @@ public class IndividualsTests(ITestOutputHelper output)
         int hunts = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
             var tile = Quiet(w);
             var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
@@ -111,7 +111,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(3)]
     public void APack_KeepsOnToWhereItLastSmelledPrey(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         var m = Map.Of(w);
         int range = Fauna.DetectionRangeTiles(Species.Wolf);
@@ -143,7 +143,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(3)]
     public void AFlock_FollowsAFlightTooShortToSeeUnderWay(int leader)
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var from = Quiet(w);
         var to = Map.Step(from, Direction.East);
         var flock = Agents.SpawnGroup(w, Species.Raven, from, 4);
@@ -160,7 +160,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void ABoldnessFromNumbers_CountsTheWolvesItKnows_OnItsTile()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var person = BodyState.BaselineHuman();
         var lone = Agents.Spawn(w, Species.Wolf, tile);
@@ -176,7 +176,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void AHerdCrossing_LeavesThePrintsAndWear_OfTheSameHerdCrossingAsOne()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var from = Quiet(w);
         var to = Map.Step(from, Direction.East);
         var herd = Agents.SpawnGroup(w, Species.Caribou, from, 12);
@@ -191,7 +191,7 @@ public class IndividualsTests(ITestOutputHelper output)
         double trodden = Tracks.TroddenAt(w, from, to);
 
         // The same herd crossing at once: twelve stamps, at the minute the last one crossed.
-        var once = World.New(1);
+        var once = TestWorlds.New(1);
         once.Minute = w.Minute;
         foreach (var _ in herd) Tracks.RecordMove(once, from, to, TrackMaker.Hoof, Tracks.IndividualDepth(Species.Caribou));
         var alone = Tracks.Read(once, to).Single(t => t.Maker == TrackMaker.Hoof);
@@ -206,7 +206,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void AnNpcThatSeesTwelveCaribou_RemembersOneHerdOfTwelve()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var npc = w.Agent(Npc.Spawn(w, camp));
         var there = Map.Step(Map.Step(camp, Direction.East), Direction.East);
@@ -231,7 +231,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void AWolfBornIntoAPack_IsOfThePack()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         while (Weather.DayOfYear(w.Minute) != 110) w.Minute += 1440; // the whelping season opens, before anyone is put down
         var m = Map.Of(w);
@@ -280,7 +280,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
     {
-        Assert.Equal(Save.ToJson(World.New(23)), Save.ToJson(World.New(23)));
+        Assert.Equal(Save.ToJson(TestWorlds.New(23)), Save.ToJson(TestWorlds.New(23)));
         var straight = World.New(23);
         Sim.Advance(straight, 2 * 1440);
         var saved = World.New(23);
@@ -303,7 +303,7 @@ public static class CohesionGate
 
     internal static void Run(int seed, ITestOutputHelper output)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var alone = OpenGroup.ToDictionary(s => s, _ => (Alone: 0L, Animals: 0L));
         for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {

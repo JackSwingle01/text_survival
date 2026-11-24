@@ -62,7 +62,7 @@ public class HerdTests(ITestOutputHelper output)
         int kills = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var (wolves, caribou, tile) = PackAndPrey(w);
             var events = Idle(w, 120);
             var kill = events.OfType<Killed>().FirstOrDefault(k => k.Species == Species.Caribou && k.By is AgentId by && wolves.Ids.Contains(by));
@@ -89,7 +89,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AFrightenedPack_LeavesPreyAlone()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var (wolves, _, _) = PackAndPrey(w);
         foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).Fear = 1.0; // fades at 0.015 a minute: still frightened for half an hour
         var events = Idle(w, 30);
@@ -101,7 +101,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void Gate_AWoundedAnimalThatGetsAway_RunsOnItsOwn_AndLeavesPrints()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         w.Agent(P).Tile = tile;
         var herd = Animals.Spawn(w, Species.Caribou, tile, 5);
@@ -135,7 +135,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void ABleedingAnimal_DiesWhereItFalls_AsACarcass()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var lone = Agents.Spawn(w, Species.Caribou, tile);
         Mind(w, lone).State = HerdState.Resting;
@@ -158,7 +158,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AGoneHerd_TakesItsStreamsWithIt()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var lone = Agents.Spawn(w, Species.Caribou, tile);
         Mind(w, lone).State = HerdState.Resting;
@@ -175,7 +175,7 @@ public class HerdTests(ITestOutputHelper output)
         int pulledDown = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var v = World.New(seed);
+            var v = TestWorlds.New(seed);
             var (_, caribou, _) = PackAndPrey(v, caribou: 1);
             var events = Idle(v, 120);
             if (!events.OfType<Killed>().Any(k => k.Agent == caribou)) continue;
@@ -200,7 +200,7 @@ public class HerdTests(ITestOutputHelper output)
 
     static World Planted(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         PackAndPrey(w);
         return w;
     }
@@ -212,7 +212,7 @@ public class HerdTests(ITestOutputHelper output)
         int steps = 0;
         while (w.Minute < totalMinutes)
         {
-            if (saveEverySteps > 0 && ++steps % saveEverySteps == 0) w = Save.FromJson(Save.ToJson(w));
+            if (saveEverySteps > 0 && ++steps % saveEverySteps == 0) w = TestWorlds.Load(Save.ToJson(w));
             int n = (int)Math.Min(stepMinutes, totalMinutes - w.Minute);
             if (Body.IsAlive(w.Agent(P).Body)) Sim.Step(w, new Wait(P), n);
             else Sim.Advance(w, n);
@@ -247,7 +247,7 @@ public class HerdTests(ITestOutputHelper output)
         while (b.Minute < minutes)
         {
             Sim.Advance(b, (int)Math.Min(97, minutes - b.Minute));
-            b = Save.FromJson(Save.ToJson(b));
+            b = TestWorlds.Load(Save.ToJson(b));
         }
         Assert.Equal(straight, Save.ToJson(b));
     }
@@ -271,7 +271,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void HerdsAreNotTickedForMinutesAHeadlessFightAlreadyLived()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         var caribou = Animals.Spawn(w, Species.Caribou, tile, 2);
@@ -293,7 +293,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void APersonInAHeadlessFight_DoesNotBleedItsRoundsTwice()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         w.Agent(P).Tile = tile;
         var me = w.Agent(P).Body;
@@ -310,7 +310,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void Gate_HerdsMoveGrazeAndWearTrails()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var events = Sim.Advance(w, 4 * 1440);
         var herdIds = Herds(w).Select(h => h.Id).ToHashSet();
         var moves = events.OfType<Moved>().Where(m => herdIds.Contains(m.Who)).ToList();
@@ -326,7 +326,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void GrazingThinsWhatThisDietEats_AndNotTheRest()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w, Terrain.Forest);
         var bison = Animals.Spawn(w, Species.Bison, tile, 6);
         var deer = Animals.Spawn(w, Species.Caribou, tile, 6);
@@ -348,7 +348,7 @@ public class HerdTests(ITestOutputHelper output)
     public void AHerdOnTheMove_StillGetsHungrier()
     {
         // old game: hunger stood still while a herd was walking (bug, fixed).
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var herd = Animals.Spawn(w, Species.Caribou, tile, 3);
         foreach (var a in herd.In(w)) (Fauna.MindOf(a).State, Fauna.MindOf(a).FleeFrom) = (HerdState.Fleeing, tile);
@@ -365,7 +365,7 @@ public class HerdTests(ITestOutputHelper output)
     {
         // old game: a fleeing pack fled from the player's tile every minute until the map stopped it (bug, fixed).
         // Each wolf flees on its own mind; the pack runs one way because each follows the ones already going.
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var pack = Animals.Spawn(w, Species.Wolf, tile, 4);
         foreach (var id in pack.Ids) Fauna.AfterEncounter(w, id, CombatResult.Fled, killedOne: false, tile);
@@ -380,7 +380,7 @@ public class HerdTests(ITestOutputHelper output)
     public void APatrollingPack_RangesAcrossItsLand()
     {
         // old game: each patrol step aimed at the next tile in flood-fill order, so a pack never left its den's doorstep (bug, fixed).
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var pack = Herds(w).First(h => h.Species == Species.Wolf);
         var den = Mind(w, pack.Id).Territory[0];
         int farthest = 0;
@@ -400,7 +400,7 @@ public class HerdTests(ITestOutputHelper output)
     [InlineData(42)]
     public void TheValley_IsPopulatedLikeTheOldGame(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var m = Map.Of(w);
         // Every animal is its own agent, and the herds are where they were put together.
         Assert.All(Herds(w), a => Assert.Single(a.Members));
@@ -439,7 +439,7 @@ public class HerdTests(ITestOutputHelper output)
         // Predators hold their land apart from each other's.
         var wolfLand = herds.Where(h => h.Species == Species.Wolf).SelectMany(h => ((HerdMind)h.Mind).Territory).ToList();
         Assert.Equal(wolfLand.Count, wolfLand.Distinct().Count());
-        Assert.Equal(Save.ToJson(World.New(seed)), Save.ToJson(w)); // same seed, same herds
+        Assert.Equal(Save.ToJson(TestWorlds.New(seed)), Save.ToJson(w)); // same seed, same herds
     }
 
     [Fact]
@@ -449,7 +449,7 @@ public class HerdTests(ITestOutputHelper output)
         int overlapping = 0;
         foreach (int seed in new[] { 1, 2, 3, 17, 42 })
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var wolfLand = Herds(w).Where(h => h.Species == Species.Wolf).SelectMany(h => ((HerdMind)h.Mind).Territory).ToHashSet();
             if (Herds(w).Any(h => !Fauna.IsPredator(h.Species) && ((HerdMind)h.Mind).Territory.Any(wolfLand.Contains))) overlapping++;
         }
@@ -561,7 +561,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AWellPlacedStalk_CanKillACaribou()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var tile = Quiet(w);
         w.Agent(P).Tile = tile;
         for (int stalk = 1; stalk <= 1000; stalk++)
@@ -604,7 +604,7 @@ public class HerdTests(ITestOutputHelper output)
     {
         (string Rolls, int Mine, int HerdInjuries) Run(bool farFight)
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             var m = Map.Of(w);
             if (farFight)
             {
@@ -644,22 +644,22 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AWorkSessionUnderWay_RoundTripsThroughASave()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var herd = Herds(w).First();
         herd.Doing = new Doing { Work = new WorkSession { Activity = new Gather(herd.Id, 0, ForageFocus.Food), Minutes = 3 }, MinutesLeft = 7 };
         Items.Add(herd.Doing.Work!.Got, Resource.Berries, 0.2);
         string json = Save.ToJson(w);
-        var back = Save.FromJson(json).Agent(herd.Id).Doing!;
+        var back = TestWorlds.Load(json).Agent(herd.Id).Doing!;
         Assert.Equal(new Gather(herd.Id, 0, ForageFocus.Food), back.Activity);
         Assert.Equal(0.2, Items.Have(back.Work!.Got, Resource.Berries));
-        Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+        Assert.Equal(json, Save.ToJson(TestWorlds.Load(json)));
     }
 
     [Fact]
     [Trait("Category", TestCategories.Slow)] // a long-run simulation: about 43 s in Release
     public void ThirtyPopulatedDays_StayCheap()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var events = Sim.Advance(w, 30 * 1440);
@@ -717,7 +717,7 @@ public class HerdTests(ITestOutputHelper output)
     {
         // Review P11: one member that could not walk held a herd of five still for ten days. Each animal
         // walks on its own legs now: the lame one stays, the rest drift on together.
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var herd = HerdWithALameMember(w, 5);
         var tile = w.Agent(herd).Tile;
         var events = new List<WorldEvent>();
@@ -730,7 +730,7 @@ public class HerdTests(ITestOutputHelper output)
     public void AnimalWounds_MendAtTheOldRate()
     {
         // Old PreyBehavior: WoundSeverity fell 0.0002 a minute. Here the tissue and the blood do.
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var id = Agents.Spawn(w, Species.Caribou, tile);
         Mind(w, id).State = HerdState.Resting;
@@ -748,7 +748,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void ALoneLameAnimal_MendsAndWalksAgain()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var lone = HerdWithALameMember(w, 1);
         var body = w.Agent(lone).Body;
         var events = Sim.Advance(w, 6 * 1440);
@@ -774,7 +774,7 @@ public class HerdTests(ITestOutputHelper output)
     public void EveryBody_LivesEveryMinuteOnce_InThePlayersHunt()
     {
         // Review P9: a herd with one member in the player's fight was frozen, every member of it.
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         w.Agent(P).Tile = tile;
         var herd = Animals.Spawn(w, Species.Caribou, tile, 4);
@@ -795,7 +795,7 @@ public class HerdTests(ITestOutputHelper output)
     public void AFledFighter_LivesOnItsOwnMind_WhileThePlayerFightsOn()
     {
         // Review P9: an NPC that fled the player's fight was frozen until it ended.
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var wolves = Agents.Spawn(w, Species.Wolf, camp);
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 40, Awareness.Engaged, Awareness.Unaware);
@@ -816,7 +816,7 @@ public class HerdTests(ITestOutputHelper output)
     public void AnNpcJoiningThePlayersFight_LivesItsJoiningMinuteOnce()
     {
         // Review P8b: the NPC lived its joining minute on the scheduler and again in the player's round.
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var wolves = Agents.Spawn(w, Species.Wolf, camp);
         var enc = Combat.Create(w, [new Fighter(P)], [new Fighter(wolves, 0)], camp, 40, Awareness.Engaged, Awareness.Unaware);
@@ -839,7 +839,7 @@ public class HerdTests(ITestOutputHelper output)
         int hunts = 0;
         for (int seed = 1; seed <= 4; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var (wolves, caribou, _) = PackAndPrey(w);
             var bodies = wolves.In(w).Concat(caribou.In(w)).Select(a => a.Body).Append(w.Agent(P).Body).ToList();
             foreach (var b in bodies) Trace(b);
@@ -857,7 +857,7 @@ public class HerdTests(ITestOutputHelper output)
         int fights = 0;
         for (int seed = 1; seed <= 8; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var tile = Quiet(w);
             var npc = Survival.Npc.Spawn(w, tile);
             var wolf = Agents.Spawn(w, Species.Wolf, tile, [tile]);
@@ -883,7 +883,7 @@ public class HerdTests(ITestOutputHelper output)
     public void Advance_LivesThePlayersMinutes_AsWaiting()
     {
         // Review P1: the world ran on and the player stood outside time.
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var b = w.Agent(P).Body;
         Trace(b);
         double kcal = b.CaloriesKcal, water = b.HydrationMl;
@@ -899,7 +899,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AHeadlessFightsRounds_MendAnimalsAsWellAsBleedThem()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         Sim.Advance(w, 1); // off minute zero, where the first round's minute is clamped
         var a = Agents.Spawn(w, Species.Caribou, tile);
@@ -919,7 +919,7 @@ public class HerdTests(ITestOutputHelper output)
     [Fact]
     public void AForayEnds_WhenThePackScavenges()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         foreach (var id in w.Agents.Values.Where(x => x.Mind is HerdMind).Select(x => x.Id).ToList()) w.Agents.Remove(id);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
@@ -947,7 +947,7 @@ public static class HerdLongRun
 
     internal static void Run(int seed, ITestOutputHelper output)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var progress = new NetProgress(RadiusTiles);
         var hunts = new Dictionary<AgentId, int>();
         // A pack is the wolves that started together on their den, named by its first.
@@ -999,7 +999,7 @@ public class DenTests
     [InlineData(19)] // a den nine tiles from camp, inside the safe zone
     public void EveryWolfDen_HasAPackLivingOnIt(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var dens = Sites(w, "wolf_den");
         Assert.NotEmpty(dens);
         foreach (var den in dens)
@@ -1016,7 +1016,7 @@ public class DenTests
     [Fact]
     public void TheBearCave_HasItsBear()
     {
-        var w = World.New(53); // the first seed whose valley has a Bear Cave (elite: far east only)
+        var w = TestWorlds.New(53); // the first seed whose valley has a Bear Cave (elite: far east only)
         var cave = Assert.Single(Sites(w, "bear_cave"));
         var bear = Assert.Single(w.Agents.Values, a => a.Mind is HerdMind m && m.Territory[0] == cave);
         Assert.Contains(bear.Species, new[] { Species.Bear, Species.CaveBear });
@@ -1026,7 +1026,7 @@ public class DenTests
     [Fact]
     public void BoneHollow_HasTheMammoths_AndAKilledHerdStaysDead()
     {
-        var w = World.New(91237);
+        var w = TestWorlds.New(91237);
         var hollow = Sites(w, "bone_hollow")[0];
         var herd = Herds(w, Species.Mammoth).ToList();
         Assert.All(herd, m => Assert.Equal(hollow, m.Tile));
@@ -1040,7 +1040,7 @@ public class DenTests
         Assert.All(herd, m => Assert.False(w.Agents.ContainsKey(m.Id)));
         Sim.Advance(w, 3 * 1440);
         Assert.DoesNotContain(w.Agents.Values, a => a.Species == Species.Mammoth);
-        Assert.Empty(Herds(World.New(1), Species.Mammoth)); // and a valley with no Bone Hollow has none at all
+        Assert.Empty(Herds(TestWorlds.New(1), Species.Mammoth)); // and a valley with no Bone Hollow has none at all
     }
 
     /// old game: den land was any open tile in a square round the den bar the far side, grown by
@@ -1055,7 +1055,7 @@ public class DenTests
     [InlineData(1)] // megaloceros between stages
     public void EveryTerritory_IsWalkableFromItsStart_AndOffThePass(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var m = Map.Of(w);
         // The corridor read off the terrain alone: from the exit back to the Pass Approach, every tile
         // reached through a passage one tile wide. (West of the approach is the valley's own.)

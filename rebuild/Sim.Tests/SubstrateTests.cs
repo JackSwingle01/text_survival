@@ -10,7 +10,7 @@ public class SubstrateTests
 
     static World Camp(out TileId camp)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         camp = Map.Of(w).Camp;
         return w;
     }
@@ -69,7 +69,7 @@ public class SubstrateTests
         Carcasses.Remove(w, camp, first);
         Assert.True(LocationFeatures.Exists(w, secondRef));
         Assert.Same(second, Carcasses.Find(w, camp, secondRef.Index));
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(LocationFeatures.At(w, camp), LocationFeatures.At(loaded, camp));
         Assert.Equal(second.Animal, Carcasses.Find(loaded, camp, secondRef.Index)!.Animal);
     }
@@ -170,7 +170,7 @@ public class SubstrateTests
         w.Agent(caribou).Body.BloodPct = 0;
         Combat.ResolveHeadless(w, hunt, []);
         Agents.Remove(w, wolves); // the killer is gone; its name stays on what it left
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         var c = loaded.Tiles[camp].Carcasses!.Single();
         Assert.Equal(new Cause(wolves, "a wolf"), c.Cause);
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));

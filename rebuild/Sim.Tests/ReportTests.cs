@@ -7,7 +7,7 @@ public class ReportTests
     /// A populated world a couple of days on, with one of each thing the player can leave behind.
     static World Lived(int seed = 17)
     {
-        var w = TestKit.Supply(World.New(seed));
+        var w = TestKit.Supply(TestWorlds.New(seed));
         var camp = Map.Of(w).Camp;
         for (int i = 0; i < 10 && Fire.PitAt(w, camp) == null; i++)
             Sim.Step(w, new StartFire(AgentId.Player, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
@@ -67,7 +67,7 @@ public class ReportTests
     {
         World Thawed(bool shelter, out TileId tile)
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
             var m = Map.Of(w);
             tile = (from x in Enumerable.Range(0, m.Width)
@@ -95,7 +95,7 @@ public class ReportTests
     [Fact]
     public void Fuel_floor_fails_where_wood_is_thin_and_counts_forage()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         IEnumerable<TileId> Tiles(RegionRow r) =>
             from x in Enumerable.Range(r.X * Report.RegionTiles, Report.RegionTiles)
@@ -123,7 +123,7 @@ public class ReportTests
     [Fact]
     public void Fuel_floor_counts_what_hands_gather_and_trees_apart()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var forest = (from x in Enumerable.Range(0, m.Width)
                       from y in Enumerable.Range(0, m.Height)
@@ -146,7 +146,7 @@ public class ReportTests
     [Fact]
     public void Look_changes_nothing()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         var m = Map.Of(w);
         var tile = (from x in Enumerable.Range(0, m.Width)
@@ -185,7 +185,7 @@ public class ReportTests
     [InlineData(Resource.Oak)]
     public void TreeFireHours_IsTheMiddleOfWhatChopGives(Resource? wood)
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var camp = Map.Of(w).Camp;
         w.PoolCache = new() { [camp] = [new TreePool("Trees", wood, 10)] };
         var id = new PoolId(camp, 0);

@@ -8,7 +8,7 @@ public class NpcTests(ITestOutputHelper output)
 {
     static (World World, AgentId Npc) AtCamp(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         return (w, NpcBench.Spawn(w, Map.Of(w).Camp));
     }
 
@@ -171,7 +171,7 @@ public class NpcTests(ITestOutputHelper output)
     [Fact]
     public void APredatorSeenNextToIt_ItStepsAway()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var start = new TileId(camp.X + 1, camp.Y);
         var npc = Npc.Spawn(w, start, camp);
@@ -186,7 +186,7 @@ public class NpcTests(ITestOutputHelper output)
     [Fact]
     public void AwayInTheCold_ItJudgesWarmthByTheCoreItWillHaveAtCamp()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, new TileId(camp.X, camp.Y - 3), camp);
         var b = w.Agent(npc).Body;
@@ -202,7 +202,7 @@ public class NpcTests(ITestOutputHelper output)
     [Fact]
     public void BesideALitFire_WithAPredatorNextDoor_ItSleeps()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
