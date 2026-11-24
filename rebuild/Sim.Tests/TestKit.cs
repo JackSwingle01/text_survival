@@ -50,6 +50,16 @@ static class TestKit
     }
 }
 
+/// A warm-up world several tests build alike, built once per test run (even under parallel tests) and
+/// handed to each test as its own save/load copy, so one test's changes never reach another. The copy loads
+/// through TestWorlds.Load, onto the seed's shared map.
+sealed class SharedWorld(Func<World> build)
+{
+    readonly Lazy<string> json = new(() => Save.ToJson(build()));
+
+    public World Copy() => TestWorlds.Load(json.Value);
+}
+
 /// Animals a test spawned together, in id order. Where one id is wanted, they stand for the first.
 readonly record struct Animals(List<AgentId> Ids)
 {
