@@ -90,8 +90,8 @@ sealed class ViewBuilder(World world, int gen)
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
-                StartFire f => [Names.Kg(f.TinderKg, f.Tinder), .. f.KindlingKg > 0 ? new[] { Names.Kg(f.KindlingKg, Resource.Kindling) } : [], Names.Of(f.Tool)],
-                AddFuel f => [Names.Kg(f.Kg, f.Fuel)],
+                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Kindling, f.KindlingKg) } : [], Names.Of(f.Tool)],
+                AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },
             Durations: v.Durations);
@@ -240,6 +240,10 @@ sealed class ViewBuilder(World world, int gen)
         var phase = Fire.Phase(f);
         return new FireDto(Names.Title(phase), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
     }
+
+    /// What an activity would take from the pack, in words: the whole pieces it would move, or the amount.
+    string Load(Resource r, double kg) => Items.PackOf(_player) is { } pack
+        ? Names.Amount(r, Items.WouldMoveKg(pack, r, kg), Items.WouldMovePieces(pack, r, kg)) : Names.Kg(kg, r);
 
     PackDto Pack()
     {

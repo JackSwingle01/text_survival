@@ -582,11 +582,7 @@ public static class Work
         var ready = Carcasses.TakeReady(c);
         var leftovers = Items.Receive(world, agent, ready, events, dropExcess: false);
         Carcasses.PutBack(c, leftovers);
-        var kept = Items.CopyResources(ready);
-        foreach (var (r, _) in Items.Totals(leftovers).ToList())
-            if (Items.IsDiscrete(r)) foreach (var kg in leftovers.Pieces[r]) { var ps = kept.Pieces[r]; ps.RemoveAt(ps.IndexOf(kg)); if (ps.Count == 0) kept.Pieces.Remove(r); }
-            else Items.Take(kept, r, Items.Have(leftovers, r));
-        Items.AddAll(s.Got, kept);
+        Items.AddAll(s.Got, Items.Without(ready, leftovers));
         // Blood on you an hour, at most 0.5 from butchering; scent on the carcass an hour.
         double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
         if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));

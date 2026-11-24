@@ -238,12 +238,35 @@ public static class Items
     public static double MoveAll(Inventory from, Inventory to, Resource r) => Move(from, to, r, double.PositiveInfinity);
 
     /// What Move(kg, limitKg) would move, moving nothing.
-    public static double WouldMoveKg(Inventory from, Resource r, double kg, double limitKg = double.PositiveInfinity)
+    public static double WouldMoveKg(Inventory from, Resource r, double kg, double limitKg = double.PositiveInfinity) =>
+        Have(WouldMove(from, r, kg, limitKg), r);
+
+    /// The pieces Move(kg, limitKg) would move; 0 for a continuous resource.
+    public static int WouldMovePieces(Inventory from, Resource r, double kg, double limitKg = double.PositiveInfinity) =>
+        Count(WouldMove(from, r, kg, limitKg), r);
+
+    static Inventory WouldMove(Inventory from, Resource r, double kg, double limitKg)
     {
         var copy = new Inventory();
         if (from.Pieces.TryGetValue(r, out var pieces)) copy.Pieces[r] = [.. pieces];
         else if (from.Amounts.TryGetValue(r, out var amount)) copy.Amounts[r] = amount;
-        return Move(copy, new Inventory(), r, kg, limitKg);
+        var moved = new Inventory();
+        Move(copy, moved, r, kg, limitKg);
+        return moved;
+    }
+
+    /// What is left of all once part, moved out of it, is taken away: part's very pieces, and its amounts.
+    public static Inventory Without(Inventory all, Inventory part)
+    {
+        var left = CopyResources(all);
+        foreach (var (r, kg) in part.Amounts) Take(left, r, kg);
+        foreach (var (r, pieces) in part.Pieces)
+        {
+            var mine = left.Pieces[r];
+            foreach (var kg in pieces) mine.RemoveAt(mine.IndexOf(kg));
+            if (mine.Count == 0) left.Pieces.Remove(r);
+        }
+        return left;
     }
 
     public static void AddAll(Inventory to, Inventory from)

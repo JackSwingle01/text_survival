@@ -84,7 +84,7 @@ public static partial class Content
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
         IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null,
         double? FasterFactor = null);
-    /// Kg is no longer a field anyone may write: it is read only to refuse it.
+    /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
         ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null);
@@ -777,6 +777,10 @@ public static partial class Content
     static string? ForageRefProblem(ForageRef r, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage) =>
         !forage.ContainsKey(r.Table) ? $"no forage table '{r.Table}'" : r.Density <= 0 ? $"forage density {r.Density}" : null;
 
+    /// Everything a carcass can give (Carcasses.Create and the special yields).
+    static readonly Resource[] CarcassYields =
+        [Resource.RawMeat, Resource.RawFat, Resource.Bone, Resource.Sinew, Resource.Hide, Resource.Feather, Resource.Ivory, Resource.MammothHide];
+
     /// Every table that yields a discrete resource yields whole pieces inside its kind's range.
     static IEnumerable<string> PieceProblems(IReadOnlyDictionary<Resource, ResourceDef> resources, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage,
         IReadOnlyList<LocationDef> locations, DiscoveriesFile discoveries, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, FellingFile felling,
@@ -808,6 +812,10 @@ public static partial class Content
             if (pieces.Kg is [var lo, var hi]) foreach (var p in Range($"terrain.json felling {r}", r, lo, hi)) yield return p;
         foreach (var (r, pieces) in packKg)
             foreach (var kg in pieces) foreach (var p in Range("items.json startingPack", r, kg, kg)) yield return p;
+        // A carcass gives its last pieces evenly (Carcasses.TakeReady): that needs a range at least two-fold.
+        foreach (var r in CarcassYields)
+            if (resources[r] is { Discrete: true } d && d.MinPieceKg > d.MaxPieceKg / 2)
+                yield return $"items.json: {r} comes off a carcass, and its pieces need to run from at most half the largest";
     }
 
     static IEnumerable<string> ForageProblems(IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage)

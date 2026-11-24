@@ -135,10 +135,10 @@ public class GameHostTests
         Items.AddPieces(pack, Resource.Stone, [0.2, 0.3, 0.4]);
         Items.Add(pack, Resource.PlantFiber, 0.12);
         Items.Add(pack, Resource.Tinder, 1.2);
-        var stacks = Parse(h.View()).Pack.Stacks;
-        Assert.Equal("3 stones", stacks.Single(s => s.Resource == "Stone").Amount);
-        Assert.Equal("120 g plant fibre", stacks.Single(s => s.Resource == "PlantFiber").Amount);
-        Assert.Equal("1.4 kg tinder", stacks.Single(s => s.Resource == "Tinder").Amount); // with the starting tinder
+        var shown = Parse(h.View()).Pack.Stacks;
+        Assert.Equal("3 stones", shown.Single(s => s.Resource == "Stone").Amount);
+        Assert.Equal("120 g plant fibre", shown.Single(s => s.Resource == "PlantFiber").Amount);
+        Assert.Equal("1.4 kg tinder", shown.Single(s => s.Resource == "Tinder").Amount); // with the starting tinder
     }
 
     [Fact]

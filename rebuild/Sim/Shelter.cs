@@ -348,6 +348,8 @@ public static class Shelters
                         // A whole piece comes out of the pack when its work begins, and is worked in over the minutes after.
                         if (s.WorkingPiece != i.Material || s.WorkingPieceLeftPct <= 1e-9)
                         {
+                            // A piece of another material left part-worked is already in the shelter: it counts in full.
+                            if (s.WorkingPiece is Resource other && s.WorkingPieceLeftPct > 1e-9) Improve(s, i.Stat, other, s.WorkingPieceLeftPct);
                             Items.TakePieces(pack, i.Material, 1);
                             s.WorkingPiece = i.Material;
                             s.WorkingPieceLeftPct = 1;

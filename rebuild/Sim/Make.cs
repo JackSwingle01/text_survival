@@ -494,7 +494,7 @@ public static class Making
         else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
             Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
         else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
-        events.Add(new Built(world.Minute, agent.Id, tile, r.Id, KgOf(p.Materials)));
+        events.Add(new Built(world.Minute, agent.Id, tile, r.Id, Items.KgByResource(p.Materials)));
         return Shelters.BuiltReason;
     }
 
@@ -631,9 +631,6 @@ public static class Making
             if (g.MadeOf is { } made) Items.AddAll(parts, Items.CopyResources(made));
         return parts;
     }
-
-    /// Kilos by resource, for the events that report what went where.
-    static SortedDictionary<Resource, double> KgOf(Inventory inv) => new(Items.Totals(inv).ToDictionary(x => x.Resource, x => x.Kg));
 
     static string? Injure(World world, Agent agent, Injury j, List<WorldEvent> events)
     {
