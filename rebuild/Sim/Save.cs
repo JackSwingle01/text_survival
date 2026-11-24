@@ -35,11 +35,17 @@ public static class Save
     /// (a pile's cause, a refusal, a find's name) and the activity a refusal names. Nothing else differs.
     static readonly Dictionary<string, string> PileFields = new()
     {
-        ["Stash"] = "Pile", ["StashCause"] = "PileCause", ["StashId"] = "PileId", ["NextStashId"] = "NextPileId",
+        ["Stash"] = "Pile",
+        ["StashCause"] = "PileCause",
+        ["StashId"] = "PileId",
+        ["NextStashId"] = "NextPileId",
     };
     static readonly Dictionary<string, string> PileKinds = new()
     {
-        ["stash"] = "putdown", ["unstash"] = "pickup", ["stashed"] = "putonpile", ["unstashed"] = "pickedup",
+        ["stash"] = "putdown",
+        ["unstash"] = "pickup",
+        ["stashed"] = "putonpile",
+        ["unstashed"] = "pickedup",
     };
     const string OldCause = "stashed by ", NewCause = "put down by ";
     static readonly (string Old, string New)[] PileWords =
