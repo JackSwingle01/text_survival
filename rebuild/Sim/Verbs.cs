@@ -177,7 +177,7 @@ public static class Verbs
     {
         LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
         LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)) && !Pools.LaysItsOwnFeature(Pools.Def(world, new PoolId(t.Tile, t.Index))),
-        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
+        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item or LocationFeatureKind.Trodden => true,
     };
 
     /// What a thing on a tile is called, the same whoever looks (and with no one there to look).
@@ -192,6 +192,7 @@ public static class Verbs
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)!.Name,
         LocationFeatureKind.Track => t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
             : $"{Names.Of((TrackMaker)t.Index)} prints",
+        LocationFeatureKind.Trodden => "trodden ground",
         LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
         LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
     };
@@ -203,7 +204,7 @@ public static class Verbs
         return (NameOf(world, t), t.Kind switch
         {
             LocationFeatureKind.Agent => world.Agent(new AgentId(t.Index)).Mind is HerdMind ? [("Hunt", new Hunt(who, new AgentId(t.Index)), 1)] : [],
-            LocationFeatureKind.Body or LocationFeatureKind.Track => [],
+            LocationFeatureKind.Body or LocationFeatureKind.Track or LocationFeatureKind.Trodden => [],
             LocationFeatureKind.Pool => PoolVerbs(world, who, t),
             LocationFeatureKind.Carcass => CarcassVerbs(world, who, t),
             LocationFeatureKind.Pile => [.. Items.Totals(world.Tiles[t.Tile].Pile!).Select(x => ($"Take {Names.Of(x.Resource)}", (Activity)new PickUp(who, x.Resource, x.Kg), 1))],

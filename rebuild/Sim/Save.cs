@@ -12,7 +12,7 @@ public static class Save
 {
     /// The last change of what a saved value means that kept the types' shape (a unit, a scale, an encoding), as its
     /// issue and a few words. Shape changes need nothing here.
-    const string MeaningChange = "#85: Species.Raven is one raven, not the folded carrion flock";
+    const string MeaningChange = "#107: a GroundMemory record holds the tile's trodden hundredths, eleven bytes";
 
     static readonly JsonSerializerOptions Options = new() { WriteIndented = false, TypeInfoResolver = new DefaultJsonTypeInfoResolver() };
 

@@ -35,9 +35,12 @@ public sealed class TileState
     public int? PileId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<Carcass>? Carcasses { get; set; }
+    /// Snow packed by time spent here. Owned by Tracks; null when nothing has stayed.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public TileTrodden? Trodden { get; set; }
     /// Nothing here differs from generation, so the tile can leave World.Tiles.
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsEmpty => Tracks == null && Pools == null && Pile == null && PileCause == null && PileId == null && Carcasses == null;
+    public bool IsEmpty => Tracks == null && Pools == null && Pile == null && PileCause == null && PileId == null && Carcasses == null && Trodden == null;
 }
 
 /// Trees is stated on every row, null where none stand, so a forest cannot lose its timber to a typo.

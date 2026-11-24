@@ -29,8 +29,9 @@ public sealed record ThrownWeapon(double RangeM, double Accuracy, double Damage)
 public enum ResourceForm { Discrete, Continuous }
 
 /// GLOSSARY: Resource, Piece. Form is null only in a row the loader refuses.
+/// ScentLevel: what a kilo of it gives off to an animal's nose (Scent), stated for every food and nothing else.
 public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0,
-    ResourceForm? Form = null, PieceRange? PieceKg = null)
+    ResourceForm? Form = null, PieceRange? PieceKg = null, double? ScentLevel = null)
 {
     public bool Discrete => Form == ResourceForm.Discrete;
     public double MinPieceKg => PieceKg?.Min ?? double.NaN;

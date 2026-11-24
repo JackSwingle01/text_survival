@@ -534,6 +534,7 @@ public static class Scheduler
         // the clock, before anyone lives the minute, so every way of stepping the world agrees.
         Remains.Hour(world);
         Fauna.Renew(world, events);
+        Tracks.RecordActivity(world);
         foreach (var id in world.Agents.Keys.ToList())
         {
             if (id == actor || !world.Agents.TryGetValue(id, out var agent) || agent.Mind is PlayerMind) continue;

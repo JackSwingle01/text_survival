@@ -5,7 +5,7 @@ namespace Survival;
 /// Every kind of location feature a sign, an access check or a verb can point at (emergent-world-design §3.1).
 /// Switches over it have no default arm and CS8509 is an error in Sim, so a new kind fails the build
 /// wherever it is not handled.
-public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelter, Track, Sign, Item }
+public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelter, Track, Sign, Item, Trodden }
 
 /// One location feature in the world. Index must survive save and load and never shift when another is
 /// removed; per kind:
@@ -20,6 +20,7 @@ public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelte
 /// - Shelter: ShelterState.Id, never reused; ShelterState.Unplaced for a find shown before it stands.
 /// - Track: (int)TrackMaker for that maker's prints; TrailIndexBase + (int)Direction for the desire
 ///   path along an edge, named from its west or north end (Trail makes the canonical form).
+/// - Trodden: 0, the tile's snow packed by time spent on it (Tracks.TroddenAt), while it reads as trodden ground.
 /// - Sign, Item: reserved. Neither has an id yet, and a list position shifts on removal.
 public readonly record struct LocationFeature(LocationFeatureKind Kind, TileId Tile, int Index) : IComparable<LocationFeature>
 {
@@ -91,6 +92,7 @@ public static class LocationFeatures
             foreach (var sign in Tracks.Read(world, tile)) found.Add(new(LocationFeatureKind.Track, tile, (int)sign.Maker));
         foreach (var dir in (ReadOnlySpan<Direction>)[Direction.East, Direction.South])
             if (TrailTo(world, tile, dir) != TrailTier.None) found.Add(LocationFeature.Trail(tile, dir));
+        if (state?.Trodden != null && IsTrodden(world, tile)) found.Add(new(LocationFeatureKind.Trodden, tile, 0));
         found.Sort();
         return found;
     }
@@ -116,6 +118,7 @@ public static class LocationFeatures
                 : Enum.IsDefined((TrackMaker)t.Index) && Tracks.Read(world, t.Tile).Any(s => (int)s.Maker == t.Index),
             LocationFeatureKind.Sign => false,
             LocationFeatureKind.Item => false,
+            LocationFeatureKind.Trodden => t.Index == 0 && IsTrodden(world, t.Tile),
         };
     }
 
@@ -134,6 +137,8 @@ public static class LocationFeatures
 
     public static LocationFeature? ShelterAt(World world, TileId tile) =>
         Shelters.Peek(world, tile) is { } s ? new(LocationFeatureKind.Shelter, tile, s.Id) : null;
+
+    static bool IsTrodden(World world, TileId tile) => Ground.Within(world, tile).TroddenLevel >= Tracks.TroddenTileAt;
 
     internal static TrailTier TrailTo(World world, TileId tile, Direction dir)
     {

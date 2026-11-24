@@ -69,12 +69,13 @@ public static class Tags
                 : Tracks.Read(world, t.Tile).First(s => (int)s.Maker == t.Index).FreshnessPct >= FreshPrintsPct ? Tag.Fresh : Tag.None,
             LocationFeatureKind.Sign => Tag.None,
             LocationFeatureKind.Item => Tag.None,
+            LocationFeatureKind.Trodden => Tag.None,
         };
         bool holdable = t.Kind switch
         {
             LocationFeatureKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
             LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
-            LocationFeatureKind.Track => false,
+            LocationFeatureKind.Track or LocationFeatureKind.Trodden => false,
             LocationFeatureKind.Sign => true,
             LocationFeatureKind.Item => false,
         };
@@ -94,7 +95,7 @@ public static class Tags
         // It stands for its herd (LocationFeatures.At).
         var bodies = Fauna.HerdOf(world, a).Select(k => k.Body).ToList();
         if (bodies.Any(b => Body.IsAlive(b) && Combat.WoundLevel(b) > WoundedLevel)) tags |= Tag.Wounded;
-        if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Have(pack, Resource.RawMeat) > 0)
+        if (bodies.Any(b => Effects.Severity(b, EffectKind.Bloody) > 0) || Items.PackOf(a) is { } pack && Items.Totals(pack).Any(s => s.Kg > 0 && Scent.OfFood(s.Resource) >= Scent.ScentSourceLevel))
             tags |= Tag.ScentSource;
         var enc = Combat.EncounterOf(world, a.Id);
         if (viewer is AgentId v && v != a.Id && enc != null && Combat.EncounterOf(world, v) == enc)
@@ -164,7 +165,7 @@ public static class Tags
         LocationFeatureKind.Pile => world.Tiles.GetValueOrDefault(t.Tile)?.PileCause?.Who,
         LocationFeatureKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
-        LocationFeatureKind.Track => null,
+        LocationFeatureKind.Track or LocationFeatureKind.Trodden => null,
         LocationFeatureKind.Sign => null,
         LocationFeatureKind.Item => null,
     };
@@ -217,7 +218,7 @@ public static class Tags
             if (kg <= 0) continue;
             if (Items.Resources[r].Category == ResourceCategory.Food) tags |= Tag.Edible;
             if (Fire.IsFuel(r)) tags |= Tag.Burnable;
-            if (r is Resource.RawMeat or Resource.RawFish) tags |= Tag.ScentSource;
+            if (Scent.OfFood(r) >= Scent.ScentSourceLevel) tags |= Tag.ScentSource;
         }
         return tags;
     }

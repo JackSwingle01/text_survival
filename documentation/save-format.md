@@ -53,8 +53,9 @@ The hash sees shapes, not meanings or a custom converter's encoding. These are t
 lives in code, and changing any of them is a `MeaningChange`:
 
 - `Beliefs.Explored` is a `GroundMemory` written as `"WxH:seen:records"`: a base64 bitset of the tiles seen,
-  then ten bytes per tile seen (minute, snow and standing water in millimetres, mud in hundredths, crust and
-  ice flags, and in the flags' spare bits the `TrailTier` of the tile's east and south edges, two bits each).
+  then eleven bytes per tile seen (minute, snow and standing water in millimetres, mud in hundredths, crust and
+  ice flags, and in the flags' spare bits the `TrailTier` of the tile's east and south edges, two bits each,
+  then the tile's trodden level in hundredths).
 - `EffectKind` and some other enums are written as numbers, so a new kind is appended, never inserted. Enums
   marked with `JsonStringEnumConverter` (`Stat`, `Priority`, `LuckTier`, `Tutorial`) are written by name.
 - An `Asleep` severity is the sleep left in ninetieths of the longest collapse (`MaxCollapseMinutes`).

@@ -121,6 +121,8 @@ public static partial class Fauna
         return TowardNearest(world, animal, near.Select(k => k.Tile).ToHashSet());
     }
 
+    static bool WithKin(World world, Agent animal) => IsPrey(animal.Species) ? KinAt(world, animal, animal.Tile) : SideCount(world, animal) > 1;
+
     static int SideCount(World world, Agent animal)
     {
         int count = 1;

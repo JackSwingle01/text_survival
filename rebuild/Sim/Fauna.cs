@@ -635,12 +635,16 @@ public static partial class Fauna
         return resolve >= Combat.PressingEnterResolve ? resolve : null;
     }
 
-    public static int DetectionRangeTiles(Species s) => SpeciesTable.Of(s).DetectionRangeTiles;
-
-    static HashSet<TileId> PeopleSensed(World world, Agent predator, List<WorldEvent> events) =>
-        Nearby.Within(world, predator.Tile, DetectionRangeTiles(predator.Species))
-            .Where(h => h.Mind is PersonMind && Combat.EncounterOf(world, h.Id) == null && WouldComeFor(world, predator, h, events) != null)
-            .Select(h => h.Tile).ToHashSet();
+    /// The tiles of the people it senses (Senses: seen or smelled) and would come for now.
+    static HashSet<TileId> PeopleSensed(World world, Agent predator, List<WorldEvent> events)
+    {
+        var found = new HashSet<TileId>();
+        var senses = Senses.Now(world, predator);
+        foreach (var h in Nearby.People(world))
+            if (Combat.EncounterOf(world, h.Id) == null && senses.Finds(world, h.Tile, Scent.Of(world, h)) && WouldComeFor(world, predator, h, events) != null)
+                found.Add(h.Tile);
+        return found;
+    }
 
     static HashSet<TileId> MeatSensed(World world, TileId from, int radius)
     {

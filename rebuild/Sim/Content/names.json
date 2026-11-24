@@ -262,7 +262,8 @@
  "TrackMaker": {
   "Human": "human",
   "Paw": "paw",
-  "Hoof": "hoof"
+  "Hoof": "hoof",
+  "Bird": "bird"
  },
  "TrailTier": {
   "None": "no trail",

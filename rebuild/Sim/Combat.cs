@@ -327,7 +327,7 @@ public static partial class Combat
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
     public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
-        double hunger = 0, double fear = 0, bool targetCarriesMeat = false, int othersWithTarget = 0)
+        double hunger = 0, double fear = 0, int othersWithTarget = 0)
     {
         var agent = world.Agent(herd);
         var t = SpeciesTable.Of(agent.Species).Temperament;
@@ -337,7 +337,6 @@ public static partial class Combat
         if (hunger > t.StarvingAt) bold += t.HungerBonus;
         if (defending) bold += t.DefendBonus;
         if (Effects.Has(target, EffectKind.Bleeding) || Effects.Severity(target, EffectKind.Bloody) > 0.3) bold += 0.15;
-        if (targetCarriesMeat) bold += 0.1;
         if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
         if (Body.Vitality(target) < 0.7) bold += 0.1;
         if (Fauna.ActiveNow(world, agent.Species)) bold += ActiveHoursBoldnessDelta;

@@ -396,6 +396,7 @@ function renderPlace(d, v) {
   if (p?.den) lines.push(['danger', 'A den', '']);
   if (p?.hurt) lines.push(['ui/blood', 'You were hurt here', '']);
   for (const s of sights) lines.push([s.species, `${s.count > 1 ? `${s.count} × ` : ''}${s.species.split('/').pop()}`, ago(v.minute - s.minute)]);
+  if (m.surface.find(s => s.i === y * m.width + x)?.troddenLevel) lines.push(['ui/tracks', 'Trodden ground', '']);
   for (const t of m.tracks.filter(t => t.x === x && t.y === y)) lines.push([`tracks/${t.maker === 'human' ? 'boot' : t.maker}`, `${cap(t.maker)} prints, ${t.reading}`, ago(t.ageMinutes)]);
   $('sideBody').innerHTML = `
     ${code === '.' ? '<p class="note">You have never seen this ground.</p>' : seen ? '' : '<span class="stale">As you last saw it</span>'}
