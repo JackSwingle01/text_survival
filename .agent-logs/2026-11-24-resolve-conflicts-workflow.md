@@ -20,6 +20,9 @@ Revised: Jack asked for Sonnet, for Claude to read the PR that caused the confli
 this PR's issue before resolving, and for a confidence score. The score is posted on the PR and in
 the merge commit; nothing gates on it.
 
+Revised (review): `plan_limits.py` was run from the PR branch's checkout, which may predate it →
+the Conflicts step copies main's copy to the runner's temp directory and both steps run that.
+
 Not verified: no run. The workflow only works from `main` (dispatch, and the Claude app's token
 check), and actionlint could not be run in the session; CI's `actionlint` job checks it on a PR.
 Checked here: the YAML parses, and the PR filter on sample data.
