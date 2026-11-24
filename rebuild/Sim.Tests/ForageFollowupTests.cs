@@ -10,7 +10,7 @@ public class ForageFollowupTests
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -160,7 +160,7 @@ public class ForageFollowupTests
     [Fact]
     public void ACrossing_SearchesTheTileLeftAndTheTileEntered_HalfEach()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var from = w.Agent(P).Tile;
         var go = Verbs.At(w, P).Walk.First(v => v.Allowed);
@@ -179,7 +179,7 @@ public class ForageFollowupTests
     static List<PoolDef> Rolled(string find, int count) =>
         [.. Enumerable.Range(0, count).Select(i => Pools.Make(Content.Tables.Discoveries.Finds[find], Rng.ForSystem(i, $"find {find}"), 1))];
 
-    static IReadOnlyList<string> FoundOf(PoolDef p) => p switch { StockPool s => s.Found!, StashFind f => f.Found!, _ => throw new InvalidOperationException(p.Name) };
+    static IReadOnlyList<string> FoundOf(PoolDef p) => p switch { StockPool s => s.Found!, PileFind f => f.Found!, _ => throw new InvalidOperationException(p.Name) };
 
     [Theory]
     [InlineData("OldCampsite"), InlineData("KillSite"), InlineData("HiddenCache"), InlineData("BoneScatter"), InlineData("SquirrelCache"),

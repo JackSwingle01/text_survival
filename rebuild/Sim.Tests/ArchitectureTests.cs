@@ -77,7 +77,7 @@ public class ArchitectureTests
     [
         (@"\bMap\.WindFactor\(", "reads a tile's wind factor",
             [("Map.cs", "WindFactor", "its definition"),
-             ("Ground.cs", "ClassOf", "the key of a never-observed tile's ground class, not a wind")]),
+             ("Ground.cs", "ClassOf", "the key of a tile's ground class, not a wind")]),
         (@"\bMap\.OverheadCover\(", "reads a tile's overhead cover",
             [("Map.cs", "OverheadCover", "its definition"),
              ("Ground.cs", "ClassOf", "the ground class key")]),
@@ -207,7 +207,7 @@ public class ArchitectureTests
     public void ABusyRun_RaisesNoEventWithoutATile()
     {
         var events = Phase3GateTests.RunCollecting(200);
-        var m = Map.Of(World.New(17));
+        var m = Map.Of(TestWorlds.New(17));
         Assert.True(events.Select(e => e.GetType()).Distinct().Count() >= 12, string.Join(", ", events.Select(e => e.GetType().Name).Distinct()));
         var bad = events.Where(e => e.Tile == default || !m.InBounds(e.Tile)).Select(e => e.ToString()).Take(5).ToList();
         Assert.True(bad.Count == 0, string.Join("\n", bad));
@@ -221,6 +221,7 @@ public class ArchitectureTests
     [Fact]
     public void ABusyWorld_HasNoObjectReachableTwice()
     {
+        // Its own live build, never Phase3GateTests.BusyDay: a save/load copy would split a shared object in two.
         var (world, _) = Phase3GateTests.Run(160);
         // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
         var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);

@@ -36,7 +36,7 @@ static class Words
         CrossedThePass or SkillLeveledUp => "ui/confirm",
         Gathered => "ui/foraging",
         Dropped => "ui/drop",
-        Stashed or Unstashed => "ui/storage",
+        PutOnPile or PickedUp => "ui/storage",
         PoolDiscovered => "ui/inspect",
         Scavenged => "carcass",
         TutorialShown => "ui/help",

@@ -14,14 +14,16 @@ public sealed class World
         {
             if (Minute != 0 && !Nullable.Equals(field, value))
                 throw new InvalidOperationException($"FixedWeather changed at minute {Minute}: the sky is pinned before the clock starts");
-            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache) = (null, null);
+            if (!Nullable.Equals(field, value)) (DecayCache, GroundCache, SurfaceCache) = (null, null, null);
             field = value;
         }
     }
     public long Minute { get; set; }
     internal WeatherTimeline? WeatherCache;
     /// Owned by Tracks.
-    internal ErosionTimeline? ErosionCache;
+    internal SkyTimeline? ErosionCache, WeatheringCache;
+    /// Owned by Tracks.
+    internal SkyTimeline? SnowfallCache;
     internal GeneratedMap? GeneratedMap;
     // Sorted: a Dictionary's order after Remove-then-Add differs from freshly loaded, so a loaded save would diverge.
     public SortedDictionary<TileId, TileState> Tiles { get; init; } = []; // only tiles that differ from generation
@@ -33,13 +35,13 @@ public sealed class World
     public int NextAgentId { get; set; } = 1;
     /// Owned by Combat; a fight stays here from Combat.Create until its aftermath.
     public List<Encounter> Encounters { get; init; } = [];
-    /// Desire-path wear, only on edges something has walked. Owned by Tracks.
-    public SortedDictionary<EdgeId, TrailWear> Trails { get; init; } = [];
+    /// Each edge's trodden amount, only on edges something has walked. Owned by Tracks.
+    public SortedDictionary<EdgeId, EdgeTrodden> Trails { get; init; } = [];
     /// The clock hour of the last sweep of faded tracks. Owned by Tracks.
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
     /// Never reused, so a ref held to one never points at a later one on the same tile (LocationFeature). Owned by Items and Shelters.
-    public int NextStashId { get; set; }
+    public int NextPileId { get; set; }
     public int NextShelterId { get; set; }
     /// Owned by Shelters.
     public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];
@@ -60,13 +62,16 @@ public sealed class World
     internal Access.Gate AccessGates = Access.Wired;
     internal Dictionary<double, DecayTimeline>? DecayCache;
     internal Dictionary<GroundClass, GroundState>? GroundCache;
-    internal (long Minute, Dictionary<GroundClass, GroundSeen> ByClass)? WaterEstimateCache;
+    internal (long Minute, Dictionary<GroundClass, Surface> ByClass)? SurfaceCache;
     /// The stored-plan benchmark's other arm: animals plan again at every decision (Fauna.Needs).
     internal bool ReplanEveryDecision;
     internal Dictionary<Diet, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
+    internal double? MeanForageDensityCache;
     internal SortedSet<TileId>? CarcassTiles;
     internal NearbyIndex? Nearby;
+    /// Owned by Trip.Routes: one search's working state, reused by the next.
+    internal Trip.RouteScratch? RouteScratch;
     internal (long Minute, Dictionary<(AgentId Who, TileId From, TileId To, Pace Pace), (int Minutes, double EncumbrancePct, double Speed)> Minutes)? StepMinutesCache;
 
     public static World New(int seed)

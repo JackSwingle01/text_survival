@@ -8,7 +8,7 @@ public class VerbsTests
 
     static World Camp(out TileId camp)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         camp = Map.Of(w).Camp;
         return w;
     }
@@ -25,7 +25,10 @@ public class VerbsTests
     }
 
     /// Every verb listed, run on a copy of the world, is refused exactly when it says it is, with
-    /// the same words; and listing them changes nothing.
+    /// the same words; and listing them changes nothing. A walk that can start runs its whole trip,
+    /// to check the minutes it lists; every other verb runs one minute. That is all the check reads:
+    /// a refusal comes before any minute passes, and Step does not read the minutes it is given
+    /// until a job has lived its first.
     static void AssertEveryVerbIsTrue(World w, AgentId who)
     {
         string before = Save.ToJson(w);
@@ -34,9 +37,12 @@ public class VerbsTests
         Assert.NotEmpty(verbs);
         foreach (var v in verbs)
         {
-            var copy = Save.FromJson(before);
+            var copy = TestWorlds.Load(before);
             copy.AccessGates = w.AccessGates; // never saved
-            var result = Sim.Step(copy, v.Activity, v.Minutes);
+            copy.GeneratedMap = Map.Of(w); // never saved: the seed's own terrain, which a load would generate again for every verb
+            copy.GroundCache = w.GroundCache == null ? null : new(w.GroundCache); // never saved: a scene's ground (TestKit.EditGround)
+            int minutes = v.Activity is Travel && v.Allowed ? v.Minutes : 1; // a walk to its end; anything else its first minute
+            var result = Sim.Step(copy, v.Activity, minutes);
             if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");
             else Assert.True(result.MinutesElapsed > 0, $"{v.Label}: listed allowed, Step refused '{result.InterruptedReason}'");
@@ -104,18 +110,18 @@ public class VerbsTests
         return w.Tiles[tile].Carcasses!.MaxBy(c => c.Id)!;
     }
 
-    /// A stash of one thing shows taking it as its action; a stash of two is Interact.
+    /// A pile of one thing shows taking it as its action; a pile of two is Interact.
     [Fact]
-    public void AStash_OffersTakingEachThingInIt()
+    public void APile_OffersTakingEachThingInIt()
     {
         var w = Camp(out _);
         TestKit.Supply(w);
-        Sim.Step(w, new Stash(P, Resource.Pine, 2), 1);
-        Assert.Equal(new Unstash(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Stash).Action!.Activity);
-        Sim.Step(w, new Stash(P, Resource.Birch, 3), 1);
-        var stash = Listed(w, LocationFeatureKind.Stash);
-        Assert.True(stash.Interact);
-        Assert.Equal(new Activity[] { new Unstash(P, Resource.Pine, 2), new Unstash(P, Resource.Birch, 3) }, stash.Menu.Select(v => v.Activity));
+        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
+        Assert.Equal(new PickUp(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
+        Sim.Step(w, new PutDown(P, Resource.Birch, 3), 1);
+        var pile = Listed(w, LocationFeatureKind.Pile);
+        Assert.True(pile.Interact);
+        Assert.Equal(new Activity[] { new PickUp(P, Resource.Pine, 2), new PickUp(P, Resource.Birch, 3) }, pile.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -160,7 +166,7 @@ public class VerbsTests
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(tile, pool));
         w.Agent(P).Tile = tile;
         Sim.Step(w, new Wait(P), 1);
-        Ground.CatchUp(w, tile).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 3, CompactionPct = 0.3, FrozenFractionPct = 1 }));
         var unblocked = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature == new LocationFeature(LocationFeatureKind.Pool, tile, pool));
         Assert.Empty(unblocked.Conditions); // the gate is not wired: buried bars nothing yet
 
@@ -288,8 +294,8 @@ public class VerbsTests
         var eat = Assert.Single(carried, v => v.Activity is Eat);
         Assert.Equal(Resource.Berries, ((Eat)eat.Activity).Food);
         Assert.Equal("Eat berries", eat.Label);
-        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<Stash>().Select(s => s.Resource));
-        Assert.All(carried.Select(v => v.Activity).OfType<Stash>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
+        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<PutDown>().Select(s => s.Resource));
+        Assert.All(carried.Select(v => v.Activity).OfType<PutDown>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
         Assert.Equal(new Wear(P, "fur_chest_wrap"), Assert.Single(carried, v => v.Activity is Wear).Activity);
         Assert.Equal(w.Agent(P).Body.Worn.Select(g => g.Kind), carried.Select(v => v.Activity).OfType<TakeOff>().Select(t => t.Gear));
         AssertEveryVerbIsTrue(w, P);

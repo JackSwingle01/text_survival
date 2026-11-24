@@ -22,7 +22,7 @@ public class CarcassTests
 
     static (World, Carcass) Make(string animal, double effectiveHours = 0)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var (kg, muscle, fat, bird, mega) = Animals[animal];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
@@ -168,7 +168,7 @@ public class CarcassTests
     [Fact]
     public void Decay_ReadsTheAirNotTheWindChill()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
         var tile = Map.Of(w).Camp;
         Assert.True(Exposure.OpenAirF(w, tile, Weather.At(w, 0)) < 32);
@@ -185,8 +185,8 @@ public class CarcassTests
     [Theory, InlineData(17), InlineData(3), InlineData(9), InlineData(21)]
     public void Decay_InRealWeather_DoesNotDependOnHowOftenYouLook(int seed)
     {
-        var a = World.New(seed);
-        var b = World.New(seed);
+        var a = TestWorlds.New(seed);
+        var b = TestWorlds.New(seed);
         var tile = Map.Of(a).Camp;
         var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
         var once = Carcasses.Create(a, tile, "Caribou", body, 0);
@@ -214,7 +214,7 @@ public class CarcassTests
         // takes the first 30 minutes, the cutting the last 4 (decay costs meat only).
         double Meat(int minute) => 0.6703585854625697 * (1 - 0.8 * Carcasses.DecayLevel(minute / 60.0 * Carcasses.DecayFactor(Exposure.OpenAirF(w, Map.Of(w).Camp, Mild))));
         Assert.InRange(Items.Have(Items.Pack(w, P), Resource.RawMeat), Meat(34), Meat(30));
-        Assert.Null(w.Tiles[Map.Of(w).Camp].Carcasses); // the emptied list goes, so the tile can clean up
+        Assert.Null(w.Tiles.GetValueOrDefault(Map.Of(w).Camp)?.Carcasses); // the emptied list goes, so the tile can clean up
         Assert.True(Effects.Severity(w.Agent(P).Body, EffectKind.Bloody) > 0);
         Assert.Equal("no such carcass here", Sim.Step(w, new Butcher(P, c.Id), 10).InterruptedReason);
     }
@@ -237,8 +237,8 @@ public class CarcassTests
         Assert.Equal(Work.PackFull, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused: no room, nothing to cut
         for (int i = 0; i < 40 && !Carcasses.IsButchered(c); i++)
         {
-            Sim.Step(w, new Stash(P, Resource.RawMeat, 99), 1);
-            foreach (var res in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat }) Sim.Step(w, new Stash(P, res, 99), 1);
+            Sim.Step(w, new PutDown(P, Resource.RawMeat, 99), 1);
+            foreach (var res in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat }) Sim.Step(w, new PutDown(P, res, 99), 1);
             Sim.Step(w, new Butcher(P, c.Id), 60);
             w.Agent(P).Body.EnergyMinutes = Body.MaxEnergyMinutes;
             w.Agent(P).Body.CaloriesKcal = 1500; w.Agent(P).Body.HydrationMl = 3000;
@@ -359,7 +359,7 @@ public class CarcassTests
         double packBefore = Items.CarriedKg(w.Agent(P));
         for (int i = 0; i < 40; i++)
         {
-            w = Save.FromJson(Save.ToJson(w));
+            w = TestWorlds.Load(Save.ToJson(w));
             var cc = Carcasses.Find(w, Map.Of(w).Camp, c.Id);
             if (cc == null) break;
             c = cc;
@@ -399,19 +399,19 @@ public class CarcassTests
 
         var (small, c2) = Make("Caribou");
         Items.Pack(small, P).Gear.Add(Items.Make("flint_knife"));
-        var stash = new Inventory();
+        var pile = new Inventory();
         for (int session = 0; session < 20 && Carcasses.Find(small, Map.Of(small).Camp, c2.Id) != null; session++)
         {
             Sim.Step(small, new Butcher(P, c2.Id, ButcherMode.QuickStrip), 24 * 60);
             var pack = Items.Pack(small, P);
-            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(stash, r, Items.Take(pack, r, 999));
+            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(pile, r, Items.Take(pack, r, 999));
             Refresh(small);
         }
         Assert.Null(Carcasses.Find(small, Map.Of(small).Camp, c2.Id));
         // Bone and fat are cut at half weight in a quick strip, and do not rot: what was put back
         // must not be halved again. (Meat rots in the hours between, so it is not compared.)
-        Assert.Equal(Items.Have(bigPack, Resource.Bone), Items.Have(stash, Resource.Bone), 9);
-        Assert.Equal(Items.Have(bigPack, Resource.RawFat), Items.Have(stash, Resource.RawFat), 9);
+        Assert.Equal(Items.Have(bigPack, Resource.Bone), Items.Have(pile, Resource.Bone), 9);
+        Assert.Equal(Items.Have(bigPack, Resource.RawFat), Items.Have(pile, Resource.RawFat), 9);
     }
 
     /// A carcass keeps the mode it was first butchered in; asking for another is refused, not swapped.
@@ -433,7 +433,7 @@ public class CarcassTests
     public void Carcasses_RoundTripThroughASave()
     {
         var (w, c) = Make("Wolf");
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         var lc = Carcasses.Find(loaded, Map.Of(loaded).Camp, c.Id)!;
         Assert.Equal(c.Remaining, lc.Remaining);
         Assert.Equal(1, loaded.NextCarcassId);
@@ -445,7 +445,7 @@ public class CarcassTests
     [Fact]
     public void Scavengers_EatWhatACarefulButcherWouldCut()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
         var c = Carcasses.Create(w, camp, "Caribou", body, 0);
@@ -489,7 +489,7 @@ public class CarcassTests
     [Fact]
     public void BareHandedButchering_Ends_AndLeavesTheTuskForAKnife()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var (kg, muscle, fat, _, _) = Animals["Wolf"];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);

@@ -4,8 +4,8 @@ namespace Survival;
 /// Each slowing is the extra minutes over the stage before it, per segment, rounded as the crossing rounds them.
 /// Terrain is the ground's shape, Weather strong wind and heavy precipitation, Pace the body's own speed (negative
 /// for a quick one), Careful half again where Traversal.PaceMatters. Edge is an authored edge (a ravine, a game
-/// trail), Trail a path beaten in by use (negative). Ground is today's snow, water and mud, with the sum's
-/// rounding up; Shortest is what the five-minute floor adds.
+/// trail). Ground is today's snow, water and mud, with the sum's rounding up; Shortest is what the five-minute floor
+/// adds. Those are the crossing over the bare tiles; Trail is what the edge's trodden snow changes of it (negative).
 public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int WeatherMinutes, int PaceMinutes, int LoadMinutes,
     int CarefulMinutes, int EdgeMinutes, int TrailMinutes, int GroundMinutes, int ShortestMinutes)
 {
@@ -20,11 +20,9 @@ public sealed record TripTime(int WalkingMinutes, int TerrainMinutes, int Weathe
     ];
 }
 
-/// How a crossing reads the ground (Trip.Terms).
-public enum GroundRead { Look, Observe, Estimate }
-
-/// A crossing as seen before it is made, and the routes made of crossings. Previews look at the ground (Ground.Peek).
-// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(..., GroundRead.Observe).TotalMinutes.
+/// A crossing as seen before it is made, and the routes made of crossings. Reading the ground writes nothing, so a
+/// preview and the crossing itself read the same ground.
+// The one copy of the crossing formula: Traversal.CrossingMinutes is Terms(...).TotalMinutes.
 public static class Trip
 {
     public static TripTime Time(World world, AgentId who, Direction dir, Pace pace)
@@ -33,18 +31,18 @@ public static class Trip
         return Terms(world, Traversal.PaceBody(agent), agent.Tile, Map.Step(agent.Tile, dir), pace, Weather.At(world, world.Minute), Items.EncumbrancePct(agent));
     }
 
-    /// ground: Look reads without writing; Observe catches the ground up as a person's crossing does (writing to
-    /// the world); Estimate is the weather-only ground animals read (Ground.TraversalFactorEstimate).
     public static TripTime Terms(World world, BodyState body, TileId from, TileId to, Pace pace, WeatherSample sky,
-        double encumbrancePct = 0, GroundRead ground = GroundRead.Look)
+        double encumbrancePct = 0)
     {
         var m = Map.Of(world);
         double unloaded = Body.Speed(body), speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
         var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
         var (exit, entry) = (Segment(from), Segment(to));
-        int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0, trail = Tracks.TrailMinutes(world, from, to);
-        var (rounded, careful) = Join(HalfOf(world, from, body, speed, sky, ground, pace), HalfOf(world, to, body, speed, sky, ground, pace), edge + trail);
-        int whole = exit.Minutes + entry.Minutes + edge + trail;
+        int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
+        var (rounded, careful) = Join(HalfOf(world, from, null, body, speed, sky, pace), HalfOf(world, to, null, body, speed, sky, pace), edge);
+        int bare = Total((rounded, careful));
+        int trail = Tracks.IsTrodden(world, from, to) ? TroddenTotal(world, from, to, body, speed, sky, pace, edge) - bare : 0;
+        int whole = exit.Minutes + entry.Minutes + edge;
         return new TripTime(exit.Walking + entry.Walking, exit.Terrain + entry.Terrain, exit.Weather + entry.Weather,
             exit.Pace + entry.Pace, exit.Load + entry.Load, careful, edge, trail,
             GroundMinutes: rounded - whole, ShortestMinutes: Math.Max(0, Traversal.MinimumCrossingMinutes - rounded));
@@ -63,23 +61,14 @@ public static class Trip
 
     /// One tile's half of a crossing: its segment minutes at this speed under this sky, how much its ground slows
     /// that, and whether care slows it.
-    readonly record struct Half(int Minutes, double GroundFactor, bool Slow);
+    internal readonly record struct Half(int Minutes, double GroundFactor, bool Slow);
 
-    static Half HalfOf(World world, TileId tile, BodyState body, double speed, WeatherSample sky, GroundRead ground, Pace pace)
+    /// other: the tile across the edge, for the edge's half of tile; null for the bare tile.
+    static Half HalfOf(World world, TileId tile, TileId? other, BodyState body, double speed, WeatherSample sky, Pace pace)
     {
-        double factor = ground switch
-        {
-            GroundRead.Observe => Ground.TraversalFactor(world, tile),
-            GroundRead.Estimate => Ground.TraversalFactorEstimate(world, tile),
-            _ => Ground.TraversalFactorNow(world, tile),
-        };
-        double Hazard() => ground switch
-        {
-            GroundRead.Observe => Traversal.EffectiveHazardLevel(world, tile),
-            GroundRead.Estimate => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaEstimate(world, tile)),
-            _ => HazardNow(world, tile),
-        };
-        bool slow = pace == Pace.Careful && Traversal.PaceMatters(Traversal.InjuryOdds(Hazard(), body, sky, Pace.Quick).TotalPct);
+        double factor = Ground.Underfoot(world, tile, other).TraversalFactor;
+        bool slow = pace == Pace.Careful
+            && Traversal.PaceMatters(Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, tile, other), body, sky, Pace.Quick).TotalPct);
         return new Half(Traversal.SegmentMinutes(Map.Of(world), tile, speed, sky), factor, slow);
     }
 
@@ -92,29 +81,65 @@ public static class Trip
         return (rounded, (exit.Slow ? Careful(exit.Minutes) : 0) + (entry.Slow ? Careful(entry.Minutes) : 0));
     }
 
-    /// Prices one agent's crossings under one sky, each tile's half once however many crossings share it:
-    /// the same total Terms gives (Join), without its breakdown.
-    sealed class Pricer(World world, Agent agent, Pace pace, WeatherSample sky)
+    static int Total((int Rounded, int Careful) joined) => Math.Max(joined.Rounded, Traversal.MinimumCrossingMinutes) + joined.Careful;
+
+    static int TroddenTotal(World world, TileId from, TileId to, BodyState body, double speed, WeatherSample sky, Pace pace, int edge) =>
+        Total(Join(HalfOf(world, from, to, body, speed, sky, pace), HalfOf(world, to, from, body, speed, sky, pace), edge));
+
+    /// Prices one agent's crossings under one sky: the same total Terms gives (Join), without its breakdown. Given a
+    /// search's scratch, each bare tile's half is priced once however many crossings share it; a trodden edge's
+    /// halves are priced each time.
+    sealed class Pricer(World world, Agent agent, Pace pace, WeatherSample sky, RouteScratch? scratch = null)
     {
         readonly BodyState body = Traversal.PaceBody(agent);
         double? speed;
         double Speed => speed ??= Body.Speed(body, new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
-        readonly GroundRead ground = Traversal.GroundReadOf(agent, GroundRead.Look);
         readonly int? flight = Traversal.FlightMinutesPerTile(agent);
-        readonly Dictionary<TileId, Half> halves = [];
 
         public int Minutes(TileId from, TileId to)
         {
             if (flight is int flat) return flat;
-            var (rounded, careful) = Join(HalfAt(from), HalfAt(to), Traversal.EdgeMinutes(world, from, to));
-            return Math.Max(rounded, Traversal.MinimumCrossingMinutes) + careful;
+            int edge = Traversal.EdgeMinutes(world, from, to);
+            if (Tracks.IsTrodden(world, from, to)) return TroddenTotal(world, from, to, body, Speed, sky, pace, edge);
+            return Total(Join(HalfAt(from), HalfAt(to), edge));
         }
 
         Half HalfAt(TileId tile)
         {
-            if (!halves.TryGetValue(tile, out var half))
-                halves[tile] = half = HalfOf(world, tile, body, Speed, sky, ground, pace);
-            return half;
+            if (scratch == null) return HalfOf(world, tile, null, body, Speed, sky, pace);
+            int i = scratch.Index(tile);
+            if (scratch.HalfStamp[i] != scratch.Generation)
+                (scratch.Halves[i], scratch.HalfStamp[i]) = (HalfOf(world, tile, null, body, Speed, sky, pace), scratch.Generation);
+            return scratch.Halves[i];
+        }
+    }
+
+    /// One search's working state, flat by tile and kept on World between searches (World.RouteScratch, never saved).
+    /// A cell counts for this search only where its stamp is this search's Generation, so starting a search clears nothing.
+    internal sealed class RouteScratch(int width, int height)
+    {
+        public readonly int Width = width;
+        public int Generation;
+        public readonly int[] Minutes = new int[width * height], Previous = new int[width * height];
+        public readonly int[] ReachedStamp = new int[width * height], SettledStamp = new int[width * height], HalfStamp = new int[width * height];
+        public readonly Half[] Halves = new Half[width * height];
+        public readonly List<int> Settled = [];
+        public readonly PriorityQueue<int, (int Minutes, TileId Tile)> Queue = new();
+
+        public bool Fits(GeneratedMap m) => Width == m.Width && Minutes.Length == m.Width * m.Height;
+        public int Index(TileId t) => t.Y * Width + t.X;
+        public TileId Tile(int i) => new(i % Width, i / Width);
+
+        public void Begin()
+        {
+            if (Generation == int.MaxValue)
+            {
+                Array.Clear(ReachedStamp); Array.Clear(SettledStamp); Array.Clear(HalfStamp);
+                Generation = 0;
+            }
+            Generation++;
+            Settled.Clear();
+            Queue.Clear();
         }
     }
 
@@ -135,6 +160,14 @@ public static class Trip
         return minutes;
     }
 
+    /// A crossing of this edge priced this minute was priced before it was trodden (Tracks.RecordMove): only its prices go.
+    internal static void Forget(World world, TileId a, TileId b)
+    {
+        if (world.StepMinutesCache is not { } cache) return;
+        foreach (var key in cache.Minutes.Keys.Where(k => (k.From == a && k.To == b) || (k.From == b && k.To == a)).ToList())
+            cache.Minutes.Remove(key);
+    }
+
     /// The one route search, for people and animals alike: a Dijkstra from who's tile on StepMinutes' prices at a
     /// quick pace, so it agrees with the walk Travel then makes. A person routes over the ground it has explored, an
     /// animal over any. Tiles settle in order of minutes, then tile id, and of two equal ways in the one through
@@ -147,37 +180,57 @@ public static class Trip
         Func<TileId, bool>? refused = null, TileId? into = null)
     {
         var agent = world.Agent(who);
-        var pricer = new Pricer(world, agent, Pace.Quick, Weather.At(world, world.Minute));
         var m = Map.Of(world);
+        // Taken off World while in use: a search started from inside this one's callbacks gets its own.
+        var scratch = world.RouteScratch is { } kept && kept.Fits(m) ? kept : new RouteScratch(m.Width, m.Height);
+        world.RouteScratch = null;
+        scratch.Begin();
+        int search = scratch.Generation;
+        var pricer = new Pricer(world, agent, Pace.Quick, Weather.At(world, world.Minute), scratch);
         var origin = into ?? agent.Tile;
-        var explored = agent.Mind is PersonMind person ? person.Memory.Explored ?? new GroundMemory(m.Width, m.Height) : null;
-        bool Open(TileId t) => explored == null || t == agent.Tile || explored.Contains(t);
-        var minutes = new Dictionary<TileId, int> { [origin] = 0 };
-        var previous = new Dictionary<TileId, TileId>();
-        var settled = new Dictionary<TileId, int>();
-        var queue = new PriorityQueue<TileId, (int Minutes, TileId Tile)>();
-        queue.Enqueue(origin, (0, origin));
-        while (queue.TryDequeue(out var t, out var key))
+        // A person with no explored ground yet reaches only where it stands.
+        bool walksSeenGround = agent.Mind is PersonMind;
+        var explored = (agent.Mind as PersonMind)?.Memory.Explored;
+        bool Open(TileId t) => !walksSeenGround || t == agent.Tile || explored?.Contains(t) == true;
+        int start = scratch.Index(origin);
+        (scratch.Minutes[start], scratch.ReachedStamp[start]) = (0, search);
+        scratch.Queue.Enqueue(start, (0, origin));
+        while (scratch.Queue.TryDequeue(out var i, out var key))
         {
-            if (settled.ContainsKey(t)) continue;
-            settled[t] = key.Minutes;
+            if (scratch.SettledStamp[i] == search) continue;
+            scratch.SettledStamp[i] = search;
+            scratch.Settled.Add(i);
+            var t = key.Tile;
             if (until?.Invoke(t, key.Minutes) == true) break;
-            foreach (var n in MapGen.Neighbors(t))
+            foreach (var (dx, dy) in MapGen.NeighborSteps) // MapGen.Neighbors' order, without an array a tile
             {
-                if (!m.InBounds(n) || settled.ContainsKey(n) || !Open(n) || refused?.Invoke(n) == true) continue;
+                var n = new TileId(t.X + dx, t.Y + dy);
+                if (!m.InBounds(n)) continue;
+                int ni = scratch.Index(n);
+                if (scratch.SettledStamp[ni] == search || !Open(n) || refused?.Invoke(n) == true) continue;
                 var (from, to) = into == null ? (t, n) : (n, t);
                 if (Traversal.Blocked(world, agent, from, to) != null) continue;
                 long reach = (long)key.Minutes + pricer.Minutes(from, to);
                 if (reach > maxMinutes) continue;
                 int nd = (int)reach;
-                if (minutes.TryGetValue(n, out var old) && nd >= old) continue;
-                minutes[n] = nd;
-                previous[n] = t;
-                queue.Enqueue(n, (nd, n));
+                if (scratch.ReachedStamp[ni] == search && nd >= scratch.Minutes[ni]) continue;
+                (scratch.Minutes[ni], scratch.Previous[ni], scratch.ReachedStamp[ni]) = (nd, i, search);
+                scratch.Queue.Enqueue(ni, (nd, n));
             }
         }
-        return new RouteMap(origin, into != null, settled, previous, Traversal.KcalPerMinute(world, agent));
+        // The map owns a copy of what it reads, in settle order, so it stays true through later searches.
+        var minutes = new Dictionary<TileId, int>(scratch.Settled.Count);
+        var previous = new Dictionary<TileId, TileId>(scratch.Settled.Count);
+        foreach (int i in scratch.Settled)
+        {
+            var t = scratch.Tile(i);
+            minutes[t] = scratch.Minutes[i];
+            if (i != start) previous[t] = scratch.Tile(scratch.Previous[i]);
+        }
+        world.RouteScratch = scratch;
+        return new RouteMap(origin, into != null, minutes, previous, Traversal.KcalPerMinute(world, agent));
     }
+
     /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
     public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)
     {
@@ -185,14 +238,13 @@ public static class Trip
         // A crossing under way this way keeps the risk fixed when it began (Traversal.Begin resumes it).
         if (agent.Crossing is { } c && c.Dir == dir && c.Pace == pace && c.From == agent.Tile)
             return new Odds("As you set out", c.RiskPct, []);
-        return Traversal.InjuryOdds(HazardNow(world, Map.Step(agent.Tile, dir)), Traversal.PaceBody(agent), Weather.At(world, world.Minute), pace);
+        return Traversal.InjuryOdds(Traversal.EffectiveHazardLevel(world, Map.Step(agent.Tile, dir), agent.Tile), Traversal.PaceBody(agent), Weather.At(world, world.Minute), pace);
     }
 
     public static bool PaceMatters(World world, AgentId who, Direction dir) => Traversal.PaceMatters(Risk(world, who, dir, Pace.Quick).TotalPct);
 
     static int Careful(int segmentMinutes) => (int)Math.Ceiling(segmentMinutes * Traversal.CarefulFactor) - segmentMinutes;
 
-    static double HazardNow(World world, TileId tile) => Traversal.HazardLevel(Map.Of(world), tile, world.Minute, Ground.HazardDeltaNow(world, tile));
 }
 
 /// What Trip.Routes found: the minutes to every tile it settled, the calories the walk burns, and the way.

@@ -24,7 +24,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(42)]
     public void APopulatedWorld_HasOneAgentPerAnimal(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var animals = Animals(w).ToList();
         output.WriteLine($"{animals.Count} animals");
         Assert.All(animals, a => Assert.Single(a.Members));
@@ -40,7 +40,7 @@ public class IndividualsTests(ITestOutputHelper output)
         int hunts = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var tile = Quiet(w);
             var ours = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var theirs = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
@@ -63,14 +63,16 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 
     /// A fight's outcome reaches the whole herd, not only the animals drawn into it: when a pack takes
-    /// one caribou of ten, the nine that never fought run too.
+    /// one caribou of ten, the nine that never fought run too. A valley emptied of animals, so nothing
+    /// but the pack and the herd is near.
     [Fact]
     public void APackHunt_SendsTheRestOfThePreyHerdRunning()
     {
         int hunts = 0;
         for (int seed = 1; seed <= 6; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
+            foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
             var tile = Quiet(w);
             var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var herd = Agents.SpawnGroup(w, Species.Caribou, tile, 10);
@@ -109,7 +111,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(3)]
     public void APack_KeepsOnToWhereItLastSmelledPrey(int seed)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         var m = Map.Of(w);
         int range = Fauna.DetectionRangeTiles(Species.Wolf);
@@ -141,7 +143,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [InlineData(3)]
     public void AFlock_FollowsAFlightTooShortToSeeUnderWay(int leader)
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var from = Quiet(w);
         var to = Map.Step(from, Direction.East);
         var flock = Agents.SpawnGroup(w, Species.Raven, from, 4);
@@ -158,7 +160,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void ABoldnessFromNumbers_CountsTheWolvesItKnows_OnItsTile()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var tile = Quiet(w);
         var person = BodyState.BaselineHuman();
         var lone = Agents.Spawn(w, Species.Wolf, tile);
@@ -174,7 +176,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void AHerdCrossing_LeavesThePrintsAndWear_OfTheSameHerdCrossingAsOne()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var from = Quiet(w);
         var to = Map.Step(from, Direction.East);
         var herd = Agents.SpawnGroup(w, Species.Caribou, from, 12);
@@ -186,25 +188,25 @@ public class IndividualsTests(ITestOutputHelper output)
             foreach (var m in Sim.Advance(w, 1).OfType<Moved>().Where(m => m.From == from && m.To == to)) moved.Add(m.Who);
         Assert.Equal(herd.Count, moved.Count); // every one followed
         var together = Tracks.Read(w, to).Single(t => t.Maker == TrackMaker.Hoof);
-        double wear = Tracks.WearAt(w, from, to);
+        double trodden = Tracks.TroddenAt(w, from, to);
 
-        // The same herd as one agent of twelve: one stamp of twelve, at the minute the last one crossed.
-        var once = World.New(1);
+        // The same herd crossing at once: twelve stamps, at the minute the last one crossed.
+        var once = TestWorlds.New(1);
         once.Minute = w.Minute;
-        Tracks.RecordMove(once, from, to, TrackMaker.Hoof, herd.Count, Tracks.IndividualDepth(Species.Caribou));
+        foreach (var _ in herd) Tracks.RecordMove(once, from, to, TrackMaker.Hoof, Tracks.IndividualDepth(Species.Caribou));
         var alone = Tracks.Read(once, to).Single(t => t.Maker == TrackMaker.Hoof);
-        output.WriteLine($"crossed over {w.Minute - start} min: traffic {together.Traffic} vs {alone.Traffic}, wear {wear:0.00} vs {Tracks.WearAt(once, from, to):0.00}");
+        output.WriteLine($"crossed over {w.Minute - start} min: traffic {together.Traffic} vs {alone.Traffic}, trodden {trodden:0.000} vs {Tracks.TroddenAt(once, from, to):0.000}");
         Assert.Equal(alone.Traffic, together.Traffic);
         Assert.Equal(alone.Depth, together.Depth, 1);
         Assert.Equal(alone.Heading, together.Heading);
-        Assert.Equal(Tracks.WearAt(once, from, to), wear, 1);
+        Assert.Equal(Tracks.TroddenAt(once, from, to), trodden, 2);
     }
 
     /// Twelve caribou on a tile are one herd of twelve to whoever sees them, and seen again they are still one.
     [Fact]
     public void AnNpcThatSeesTwelveCaribou_RemembersOneHerdOfTwelve()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var npc = w.Agent(Npc.Spawn(w, camp));
         var there = Map.Step(Map.Step(camp, Direction.East), Direction.East);
@@ -221,37 +223,60 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.All(herd, id => Assert.NotNull(Memories.LastSeenMinute(npc, id)));
     }
 
-    /// A pup born into a pack knows its mother and whom she knows, and they know it: it is of their pack.
-    [Trait("Category", TestCategories.Slow)]
+    /// A pup born into a pack knows its mother and whom she knows, and they know it: it is of their pack,
+    /// and not of the strangers denning beside it. A valley emptied of animals: two packs on neighbouring
+    /// dens in the whelping season, fed so they never hunt, and bison pinned to one tile in range, beyond
+    /// scent, so the land carries far more wolves than there are and a pup comes within the season
+    /// (eight wolves at 0.02 a day each, times the land's room, (51.6 - 11) / 51.6: no pup in its 41 days about 1 in 250).
     [Fact]
     public void AWolfBornIntoAPack_IsOfThePack()
     {
-        var w = World.New(17);
-        while (Weather.DayOfYear(w.Minute) != 112) w.Minute += 1440; // the whelping season, before the clock starts
-        int born = w.NextAgentId;
-        var packs = w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => Fauna.HerdOf(w, a).Select(k => k.Id).ToHashSet())
-            .DistinctBy(p => p.Min()).ToList(); // each pack once
+        var w = TestWorlds.New(17);
+        foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
+        while (Weather.DayOfYear(w.Minute) != 110) w.Minute += 1440; // the whelping season opens, before anyone is put down
+        var m = Map.Of(w);
+        int apartTiles = Fauna.DetectionRangeTiles(Species.Wolf) + 8;
+        bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
+        var den = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apartTiles, t.Y)));
+        var strangersDen = Map.Step(den, Direction.North);
+        var grazing = new TileId(den.X + apartTiles, den.Y);
+        Agents.SpawnGroup(w, Species.Bison, grazing, 60, [grazing]);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, den, 8, [den]);
+        var strangers = Agents.SpawnGroup(w, Species.Wolf, strangersDen, 3, [strangersDen]);
+        var wolves = pack.Concat(strangers).ToList();
+        double capacity = Fauna.CapacityOf(w, w.Agent(pack[0]));
+        Assert.True(capacity >= 3 * wolves.Count, $"the land carries {capacity:0.0} wolves");
+
         Agent? pup = null;
-        for (int day = 0; day < 40 && pup == null; day++)
+        int day = 0;
+        for (; day <= 40 && pup == null; day++)
         {
-            Sim.Advance(w, 1440);
-            var body = w.Agent(P).Body;
-            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
-            // A pup is born on its mother's tile; a pack that arrives is placed out of everyone's sight.
-            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && a.Id.Value >= born
-                && packs.SelectMany(p => p).Any(id => w.Agents.TryGetValue(id, out var o) && o.Tile == a.Tile));
+            foreach (var wolf in wolves.Where(w.Agents.ContainsKey).Select(w.Agent))
+            {
+                TestKit.SetHunger(wolf, 0);
+                Fauna.MindOf(wolf).LastFedMinute = w.Minute;
+            }
+            // Births are rolled at midnight and nothing in the fed packs' day bears on them: the clock goes
+            // straight to the minute before, and lives through midnight.
+            w.Minute += 1440 - Weather.MinuteOfDay(w.Minute) - 1;
+            Sim.Advance(w, 2);
+            // A pup has a copy of its mother's land; a pack that arrives comes to land of its own.
+            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && !wolves.Contains(a.Id)
+                && Fauna.MindOf(a).Territory.SequenceEqual([den]));
         }
+        output.WriteLine($"a pup on day {day} of the season, on land carrying {capacity:0.0} wolves");
         Assert.NotNull(pup);
-        var pack = packs.Single(p => p.Any(id => Fauna.Familiarity(pup, id) > 0));
         Assert.All(pack.Where(w.Agents.ContainsKey).Select(w.Agent), wolf =>
         {
             Assert.True(Fauna.Familiarity(pup, wolf.Id) > 0, $"the pup does not know {wolf.Id}");
             Assert.True(Fauna.Familiarity(wolf, pup.Id) > 0, $"{wolf.Id} does not know the pup");
         });
-        Assert.DoesNotContain(packs.Where(p => p != pack).SelectMany(p => p), id => Fauna.Familiarity(pup, id) > 0);
+        Assert.DoesNotContain(strangers, id => Fauna.Familiarity(pup, id) > 0);
     }
 
     /// Same seed, same world; a save and load mid-run changes nothing.
+    [Trait("Category", TestCategories.Slow)]
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
     {
@@ -266,43 +291,74 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 }
 
-/// The cohesion gate (spec "Testing Decisions"): 60 days, several seeds, in Release, every metric per species. Bands
-/// were set from a first run (work log, 2026-11-23-83). Pack stability and kill rates are #84's (packs and predators).
-/// One class per seed, so they run side by side.
+/// The cohesion gate (spec "Testing Decisions"): 60 days, several seeds, in Release, every metric per species. A herd
+/// here is the animals of a species on a connected group of occupied tiles (8 neighbours), so a herd spread over
+/// several tiles while it grazes counts as one (#83, Jack 2026-11-24). Bands were set from a first run (work log,
+/// 2026-11-23-83). Pack stability and kill rates are #84's. One class per seed, so they run side by side. A look every
+/// seven minutes, which no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
 public static class CohesionGate
 {
-    const int Days = 60;
+    const int Days = 60, LookEveryMinutes = 7;
     const double MaxAlonePct = 0.10, MaxHerdPct = 0.60;
     const int BlobFloor = 20;
-    /// Splits and joins an animal-day (an hour in which its company on its tile changed) at least: a frozen lockstep has none.
+    /// Splits and joins an animal-day (a look at which its herd's members had changed) at least: a frozen lockstep has none.
     const double MinRegroupsPerAnimalDay = 0.5;
     /// Tile changes an animal-day: a herd that never moves, or one that oscillates.
     const double MinMovesPerAnimalDay = 0.5, MaxMovesPerAnimalDay = 40;
-    /// The share of a species on its single busiest water tile, on average over the hours.
+    /// The share of a species on its single busiest water tile, on average over the looks.
     const double MaxWaterTilePct = 0.5;
     /// Deaths of hunger and thirst (bodies, and renewal's thinning over capacity) per head living on average, over the 60 days.
     const double MaxHungerAndThirstDeathsPerHead = 0.5;
-    /// Allocation a day: 3x today's herd baseline (#81: 4,064 MB for 30 populated days on seed 17).
+    /// Allocation a day: 3x the herd baseline (#81: 4,064 MB for 30 populated days on seed 17), kept after #133 (Jack).
     const double MaxAllocatedMbPerDay = 3 * 4064.0 / 30;
     static readonly Species[] OpenGroup = [Species.Caribou, Species.Bison, Species.Megaloceros, Species.Mammoth];
 
     sealed class Tally
     {
-        public long Alone, AnimalHours, Regroups, Moves, Deaths;
+        public long Alone, AnimalLooks, Regroups, Moves, Deaths, BlobLooks, CountedLooks;
+        /// The biggest herd's look: its day, its tiles, and whether any of them has water.
+        public (int Day, int Tiles, bool AtWater) Biggest;
         public double MaxHerdPct, WaterTilePctSum;
-        public int Hours;
+        public int Looks;
+        public List<int> Herds = [];
+    }
+
+    /// The herds of one species: its animals on each connected group of occupied tiles, 8 neighbours.
+    internal static List<List<Agent>> Herds(IEnumerable<Agent> ofOneSpecies)
+    {
+        var byTile = ofOneSpecies.GroupBy(a => a.Tile).ToDictionary(g => g.Key, g => g.ToList());
+        var seen = new HashSet<TileId>();
+        var herds = new List<List<Agent>>();
+        foreach (var start in byTile.Keys.OrderBy(t => t.X).ThenBy(t => t.Y))
+        {
+            if (!seen.Add(start)) continue;
+            var herd = new List<Agent>();
+            var queue = new Queue<TileId>([start]);
+            while (queue.TryDequeue(out var t))
+            {
+                herd.AddRange(byTile[t]);
+                for (int dx = -1; dx <= 1; dx++)
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        var n = new TileId(t.X + dx, t.Y + dy);
+                        if (byTile.ContainsKey(n) && seen.Add(n)) queue.Enqueue(n);
+                    }
+            }
+            herds.Add(herd);
+        }
+        return herds;
     }
 
     internal static void Run(int seed, ITestOutputHelper output)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         var tallies = new SortedDictionary<Species, Tally>();
         Tally Of(Species s) => tallies.TryGetValue(s, out var t) ? t : tallies[s] = new Tally();
         var company = new Dictionary<AgentId, int>();
         long allocated = GC.GetAllocatedBytesForCurrentThread();
-        for (int hour = 0; hour < Days * 24; hour++)
+        for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
-            var events = Sim.Advance(w, 60);
+            var events = Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
             foreach (var e in events)
@@ -316,40 +372,56 @@ public static class CohesionGate
             {
                 var t = Of(group.Key);
                 int living = group.Count();
-                t.Hours++;
-                t.AnimalHours += living;
-                var herds = group.GroupBy(a => a.Tile).ToList();
-                if (living > BlobFloor) t.MaxHerdPct = Math.Max(t.MaxHerdPct, herds.Max(h => h.Count()) / (double)living);
-                var atWater = herds.Where(h => Work.HasUnfrozenWater(w, h.Key) || Work.HasOpenWater(w, h.Key)).Select(h => h.Count()).DefaultIfEmpty(0).Max();
-                t.WaterTilePctSum += atWater / (double)living;
-                foreach (var a in group)
+                t.Looks++;
+                t.AnimalLooks += living;
+                var herds = Herds(group);
+                if (living > BlobFloor)
                 {
-                    var kin = Fauna.HerdOf(w, a);
-                    if (kin.Count == 1) t.Alone++;
-                    int key = kin.Select(k => k.Id.GetHashCode()).OrderBy(h => h).Aggregate(17, (acc, h) => acc * 31 + h);
-                    if (company.TryGetValue(a.Id, out var was) && was != key) t.Regroups++;
-                    company[a.Id] = key;
+                    var top = herds.MaxBy(h => h.Count)!;
+                    double pct = top.Count / (double)living;
+                    t.CountedLooks++;
+                    if (pct > MaxHerdPct) t.BlobLooks++;
+                    if (pct > t.MaxHerdPct)
+                    {
+                        var tiles = top.Select(a => a.Tile).Distinct().ToList();
+                        (t.MaxHerdPct, t.Biggest) = (pct, (minute / 1440, tiles.Count, tiles.Any(x => Work.HasUnfrozenWater(w, x) || Work.HasOpenWater(w, x))));
+                    }
+                }
+                t.Herds = herds.Select(h => h.Count).OrderDescending().ToList();
+                var atWater = group.GroupBy(a => a.Tile).Where(h => Work.HasUnfrozenWater(w, h.Key) || Work.HasOpenWater(w, h.Key))
+                    .Select(h => h.Count()).DefaultIfEmpty(0).Max();
+                t.WaterTilePctSum += atWater / (double)living;
+                foreach (var herd in herds)
+                {
+                    int key = herd.Select(k => k.Id.GetHashCode()).OrderBy(h => h).Aggregate(17, (acc, h) => acc * 31 + h);
+                    foreach (var a in herd)
+                    {
+                        if (herd.Count == 1) t.Alone++;
+                        if (company.TryGetValue(a.Id, out var was) && was != key) t.Regroups++;
+                        company[a.Id] = key;
+                    }
                 }
             }
         }
         double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / Days;
         output.WriteLine($"seed {seed}: {mbPerDay:F0} MB a day allocated");
+        double looksPerDay = 1440.0 / LookEveryMinutes;
         foreach (var (s, t) in tallies)
         {
-            double animalDays = t.AnimalHours / 24.0, heads = t.AnimalHours / (double)(Days * 24);
-            output.WriteLine($"seed {seed} {s}: {heads:F1} living on average; alone {t.Alone / (double)t.AnimalHours:P1}; biggest herd {t.MaxHerdPct:P0}; "
-                + $"regroups {t.Regroups / animalDays:F2}/animal-day; moves {t.Moves / animalDays:F2}/animal-day; busiest water tile {t.WaterTilePctSum / t.Hours:P1}; "
-                + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head)");
+            double animalDays = t.AnimalLooks / looksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
+            output.WriteLine($"seed {seed} {s}: {heads:F1} living on average; alone {t.Alone / (double)t.AnimalLooks:P1}; biggest herd {t.MaxHerdPct:P0} (day {t.Biggest.Day}, {t.Biggest.Tiles} tiles, water {t.Biggest.AtWater}; over {MaxHerdPct:P0} at {t.BlobLooks / (double)Math.Max(1, t.CountedLooks):P1} of looks); "
+                + $"regroups {t.Regroups / animalDays:F2}/animal-day; moves {t.Moves / animalDays:F2}/animal-day; busiest water tile {t.WaterTilePctSum / t.Looks:P1}; "
+                + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head); herds at the end [{string.Join(" ", t.Herds)}]");
         }
         Assert.True(mbPerDay < MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {MaxAllocatedMbPerDay:F0}");
         foreach (var (s, t) in tallies)
         {
-            double animalDays = t.AnimalHours / 24.0, heads = t.AnimalHours / (double)(Days * 24);
+            double animalDays = t.AnimalLooks / looksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
             Assert.True(t.Deaths / Math.Max(1, heads) <= MaxHungerAndThirstDeathsPerHead, $"seed {seed}: {s} lost {t.Deaths} to hunger and thirst, {heads:F1} living on average");
-            Assert.True(t.WaterTilePctSum / t.Hours < MaxWaterTilePct, $"seed {seed}: {s} {t.WaterTilePctSum / t.Hours:P1} on its busiest water tile");
+            Assert.True(t.WaterTilePctSum / t.Looks < MaxWaterTilePct, $"seed {seed}: {s} {t.WaterTilePctSum / t.Looks:P1} on its busiest water tile");
             Assert.InRange(t.Moves / animalDays, MinMovesPerAnimalDay, MaxMovesPerAnimalDay);
             if (!OpenGroup.Contains(s)) continue;
-            Assert.True(t.Alone / (double)t.AnimalHours < MaxAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalHours:P1} of the time on average");
+            Assert.True(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time on average");
             Assert.True(t.MaxHerdPct <= MaxHerdPct, $"seed {seed}: one {s} herd held {t.MaxHerdPct:P0} of its species");
             Assert.True(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"seed {seed}: {s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
         }

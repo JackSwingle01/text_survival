@@ -235,7 +235,7 @@ public class MakeTests
 
         var split = Start();
         foreach (int n in new[] { 1, 3, 2, 7 }) Sim.Step(split, new Make(P, "stone_tipped_spear"), n);
-        split = Save.FromJson(Save.ToJson(split));
+        split = TestWorlds.Load(Save.ToJson(split));
         while (Items.Pack(split, P).Projects != null) Sim.Step(split, new Make(P, "stone_tipped_spear"), 4);
 
         Assert.Equal(whole.Minute, split.Minute);
@@ -520,12 +520,12 @@ public class MakeTests
                 if (!MakeOne(r, 0)) continue;
                 made.Add(r.Id);
                 progress = true;
-                // Keep the pack light: what no recipe uses as a tool or input goes on the camp stash,
+                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile,
                 // and what the land gives goes back to it.
                 foreach (var g in pack.Gear.Where(g => !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
                 {
                     pack.Gear.Remove(g);
-                    Items.StashAt(w, camp).Gear.Add(g);
+                    Items.PileAt(w, camp).Gear.Add(g);
                 }
                 foreach (var res in pack.Kg.Keys.Where(land.Contains).ToList()) pack.Kg.Remove(res);
             }

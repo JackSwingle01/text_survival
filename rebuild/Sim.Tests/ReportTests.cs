@@ -1,4 +1,5 @@
 using Survival;
+using Survival.Tests.Verification;
 using Xunit;
 
 public class ReportTests
@@ -6,30 +7,35 @@ public class ReportTests
     /// A populated world a couple of days on, with one of each thing the player can leave behind.
     static World Lived(int seed = 17)
     {
-        var w = TestKit.Supply(World.New(seed));
+        var w = TestKit.Supply(TestWorlds.New(seed));
         var camp = Map.Of(w).Camp;
         for (int i = 0; i < 10 && Fire.PitAt(w, camp) == null; i++)
             Sim.Step(w, new StartFire(AgentId.Player, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
-        Sim.Step(w, new Stash(AgentId.Player, Resource.Kindling, 1), 1);
+        Sim.Step(w, new PutDown(AgentId.Player, Resource.Kindling, 1), 1);
         Sim.Step(w, new Gather(AgentId.Player, 0), 60);
         Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute);
         Sim.Advance(w, 2 * 1440);
         return w;
     }
 
+    /// Seed 17's lived world, built once for the tests that only start from it.
+    static readonly SharedWorld SharedLived = new(() => Lived());
+
+    /// An independent build against the shared one: the same seed and steps give the same dump, through a
+    /// save and load on the shared side.
     [Fact]
     public void Dump_is_deterministic()
     {
-        Assert.Equal(Report.DumpText(Lived()), Report.DumpText(Lived()));
+        Assert.Equal(Report.DumpText(Lived()), Report.DumpText(SharedLived.Copy()));
     }
 
     [Fact]
     public void Dump_covers_every_kind_present_and_distribution_counts_every_row()
     {
-        var w = Lived();
+        var w = SharedLived.Copy();
         var finds = Report.Finds(w);
         var kinds = finds.Select(f => f.Kind).ToHashSet();
-        foreach (var kind in new[] { "carcass", "stash", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
+        foreach (var kind in new[] { "carcass", "pile", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
             Assert.Contains(kind, kinds);
         // One row a herd (the animals of one species on one tile), one a person, one a body.
         int rows = w.Agents.Values.Where(a => a.Id != AgentId.Player)
@@ -46,7 +52,7 @@ public class ReportTests
     [Fact]
     public void Reports_change_nothing_in_the_world()
     {
-        var w = Lived();
+        var w = SharedLived.Copy();
         var m = Map.Of(w);
         var tile = Map.Step(m.Camp, Direction.East);
         if (Shelters.At(w, tile, []) == null) Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
@@ -66,7 +72,7 @@ public class ReportTests
     {
         World Thawed(bool shelter, out TileId tile)
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
             var m = Map.Of(w);
             tile = (from x in Enumerable.Range(0, m.Width)
@@ -94,7 +100,7 @@ public class ReportTests
     [Fact]
     public void Fuel_floor_fails_where_wood_is_thin_and_counts_forage()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         IEnumerable<TileId> Tiles(RegionRow r) =>
             from x in Enumerable.Range(r.X * Report.RegionTiles, Report.RegionTiles)
@@ -122,7 +128,7 @@ public class ReportTests
     [Fact]
     public void Fuel_floor_counts_what_hands_gather_and_trees_apart()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var forest = (from x in Enumerable.Range(0, m.Width)
                       from y in Enumerable.Range(0, m.Height)
@@ -145,7 +151,7 @@ public class ReportTests
     [Fact]
     public void Look_changes_nothing()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         var m = Map.Of(w);
         var tile = (from x in Enumerable.Range(0, m.Width)
@@ -167,7 +173,7 @@ public class ReportTests
     [Fact]
     public void Curve_has_one_point_per_chunk()
     {
-        var w = World.New(17);
+        var w = ConservationWorlds.Seeded(); // the chunking is the subject, not the animals
         var curve = Report.Curve(w, 4, 2);
         Assert.Equal(2, curve.Count);
         Assert.Equal([2, 4], curve.Select(p => p.Day));
@@ -184,7 +190,7 @@ public class ReportTests
     [InlineData(Resource.Oak)]
     public void TreeFireHours_IsTheMiddleOfWhatChopGives(Resource? wood)
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var camp = Map.Of(w).Camp;
         w.PoolCache = new() { [camp] = [new TreePool("Trees", wood, 10)] };
         var id = new PoolId(camp, 0);

@@ -5,7 +5,7 @@ namespace Survival.Tests;
 public class TravelTests
 {
     static readonly AgentId P = AgentId.Player;
-    static readonly GeneratedMap Seed17 = Map.Generate(17);
+    static readonly GeneratedMap Seed17 = TestWorlds.Map(17);
 
     static readonly WeatherSample Calm = new(0, WeatherCondition.Clear, -10, 0, 0, 0, WindDirection.North);
     static readonly WeatherSample Blizzard = new(0, WeatherCondition.Blizzard, -10, 0.8, 0.7, 1, WindDirection.North);
@@ -29,7 +29,7 @@ public class TravelTests
         {
             var ground = Ground.Baseline(Ground.Substrate(Seed17, t));
             ground.LastUpdatedMinute = world.Minute;
-            world.Tiles[t] = new TileState { Ground = ground };
+            Ground.SetClassState(world, t, ground);
         }
         return world;
     }
@@ -68,7 +68,7 @@ public class TravelTests
     static World SnowyDecemberAfternoon()
     {
         const int december15 = 349, afternoonMinuteOfDay = 15 * 60;
-        var world = World.New(5);
+        var world = TestWorlds.New(5);
         long first = Enumerable.Range(0, 400).Select(d => d * 1440L).First(t => Weather.DayOfYear(t) == december15);
         long afternoon = first + afternoonMinuteOfDay - Weather.MinuteOfDay(first);
         world.Minute = Enumerable.Range(0, 60).Select(d => afternoon + d * 1440L)
@@ -87,7 +87,7 @@ public class TravelTests
         var valley = Enumerable.Range(30, m.Height - 35).SelectMany(y => Enumerable.Range(5, m.Width - 10).Select(x => new TileId(x, y))).Where(Open).ToList();
 
         var plain = valley.First(t => m.TerrainAt(t) == Terrain.Plain && m.TerrainAt(Map.Step(t, Direction.North)) == Terrain.Plain
-            && Ground.SurfaceNow(world, t) is { Iced: true, SnowDepthM: > 0.3 });
+            && Ground.Underfoot(world, t) is { Iced: true, SnowDepthM: > 0.3 });
         me.Tile = plain;
         Assert.False(Trip.PaceMatters(world, P, Direction.North), $"quick risk {Trip.Risk(world, P, Direction.North, Pace.Quick).TotalPct:P2} on buried ice");
 
@@ -99,7 +99,7 @@ public class TravelTests
         Assert.True(Trip.Time(world, P, Direction.North, Pace.Careful).TotalMinutes > Trip.Time(world, P, Direction.North, Pace.Quick).TotalMinutes,
             "careful pays for its care in minutes");
 
-        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t, world.Minute) <= 0.1 && Ground.SurfaceNow(world, t).SnowDepthM > 0.3;
+        bool Gentle(TileId t) => Map.TravelHazardLevel(m, t, world.Minute) <= 0.1 && Ground.Underfoot(world, t).SnowDepthM > 0.3;
         var gentle = valley.Where(t => Gentle(t) && Gentle(Map.Step(t, Direction.North))).ToList();
         Assert.True(gentle.Count > 500, $"only {gentle.Count} gentle snowy crossings");
         var risky = gentle.Where(t => { me.Tile = t; return Trip.PaceMatters(world, P, Direction.North); }).ToList();
@@ -343,11 +343,12 @@ public class TravelTests
             Assert.Equal(quick * 0.25, Trip.Risk(world, P, Direction.South, Pace.Careful).TotalPct, 12);
             Assert.InRange(Traversal.InjuryRiskPct(world, forest, body, sky, Pace.Careful), 0, 0.001);
         }
-        var trail = At(2, 33);
-        for (int i = 0; i < 60; i++) Tracks.RecordMove(trail, new TileId(2, 33), new TileId(2, 34), TrackMaker.Human);
-        var walker = trail.Agent(P).Body;
-        Assert.Equal(Traversal.MinimumCrossingMinutes, Traversal.CrossingMinutes(trail, walker, new TileId(2, 33), new TileId(2, 34), Pace.Quick, Calm));
-        Assert.True(Traversal.CrossingMinutes(trail, walker, new TileId(2, 33), new TileId(2, 34), Pace.Careful, Calm) > Traversal.MinimumCrossingMinutes,
+        // A short crossing onto rock: quick, it is the five-minute floor; careful, more.
+        var shortWay = At(19, 46);
+        var walker = shortWay.Agent(P).Body;
+        TileId shortFrom = new(19, 46), rockBeyond = new(19, 47);
+        Assert.Equal(Traversal.MinimumCrossingMinutes, Traversal.CrossingMinutes(shortWay, walker, shortFrom, rockBeyond, Pace.Quick, Calm));
+        Assert.True(Traversal.CrossingMinutes(shortWay, walker, shortFrom, rockBeyond, Pace.Careful, Calm) > Traversal.MinimumCrossingMinutes,
             "the five-minute floor swallowed the careful minutes");
 
         var plain = At(2, 51);
@@ -388,7 +389,7 @@ public class TravelTests
 
     static string RunRoute(int seed, int? saveAtStep = null, int splitMinutes = 3)
     {
-        var world = World.New(seed);
+        var world = TestWorlds.New(seed);
         world.FixedWeather = Calm with { TemperatureC = 5 }; // walking all day, not freezing to death
         int step = 0;
         foreach (var activity in Route(world))
@@ -446,7 +447,7 @@ public class TravelTests
     [Fact]
     public void ALake_IsWadedInJuly_AndWalkedOnAsIceInJanuary()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var (west, lake, east) = LakeBetweenLand(m);
         var me = w.Agent(P);
@@ -455,7 +456,7 @@ public class TravelTests
         var onto = new Travel(P, Direction.East, Pace.Careful);
         Assert.False(Map.IsFrozen(m, lake, w.Minute));
         Assert.Null(Verbs.At(w, P).Walk.Single(v => v.Activity == new Travel(P, Direction.East)).Refused);
-        Assert.Equal(new SurfaceSummary(0, false, 0, Ground.MaxStandingWaterDepthM, false), Ground.SurfaceNow(w, lake));
+        Assert.Equal(new SeenSurface(0, false, 0, Ground.MaxStandingWaterDepthM, false), SeenSurface.Of(Ground.Underfoot(w, lake)));
         Assert.True(Trip.Time(w, P, Direction.East, Pace.Careful).GroundMinutes > 0, "wading is slower than the walk");
         Assert.Equal("arrived", Sim.Step(w, onto, 600).InterruptedReason);
         Assert.Equal(lake, me.Tile);
@@ -466,15 +467,15 @@ public class TravelTests
 
         w.Minute = TestKit.JanuaryMinute;
         Assert.True(Map.IsFrozen(m, lake, w.Minute));
-        Assert.Equal(0, Ground.SurfaceNow(w, lake).WaterDepthM);
-        Assert.Equal(0, Ground.ContactWettingRate(w, lake, SurfaceContact.Walking, 0));
+        Assert.Equal(0, Ground.Underfoot(w, lake).WaterDepthM);
+        Assert.Equal(0, Ground.Underfoot(w, lake).ContactWettingRate(SurfaceContact.Walking, 0));
     }
 
     /// A shore drinks from the open lake beside it in July; in January the lake is ice and the shore is dry.
     [Fact]
     public void AShore_HasWaterToDrinkInJuly_NotInJanuary()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         var shore = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .First(t => m.TerrainAt(t) is Terrain.Forest or Terrain.Plain && m.SiteAt(t) == null && !m.BesideRiver(t) && m.CaveAt(t) == Cave.None
@@ -488,7 +489,7 @@ public class TravelTests
     [Fact]
     public void WaterIsIce_FromFreezeUpToBreakUp()
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var lake = LakeBetweenLand(m).Lake;
         var ice = Content.Tables.WaterIce;
         // The first time each day of the year comes round after 1 July.

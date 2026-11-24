@@ -123,124 +123,124 @@ public static class AuthoredPredatorScenes
     private static void BindActions(GameContext ctx, GameEvent evt, Herd? source)
     {
         foreach (var choice in evt.AuthoredChoices)
-        foreach (var result in choice.Results)
-        {
-            var action = choice.Action;
-            string lead = result.Message + " ";
-            if (action is SceneAction.UseFire or SceneAction.BuildUpFire)
+            foreach (var result in choice.Results)
             {
-                var prior = result.Validate;
-                result.Validate = c => (prior?.Invoke(c) ?? true) && (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) &&
-                    PredatorInteractions.WithinReach(c, source);
-                result.PredatorReaction = null;
-                int fuelCount = result.ResourceCosts.FirstOrDefault(cost => cost.Type == ResourceType.Fuel)?.Amount ?? 1;
-                result.ResourceCosts.Clear();
-                result.WorldAction = c =>
+                var action = choice.Action;
+                string lead = result.Message + " ";
+                if (action is SceneAction.UseFire or SceneAction.BuildUpFire)
                 {
-                    if (action == SceneAction.BuildUpFire && c.CurrentLocation.GetFeature<HeatSourceFeature>() is { } existing)
+                    var prior = result.Validate;
+                    result.Validate = c => (prior?.Invoke(c) ?? true) && (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) &&
+                        PredatorInteractions.WithinReach(c, source);
+                    result.PredatorReaction = null;
+                    int fuelCount = result.ResourceCosts.FirstOrDefault(cost => cost.Type == ResourceType.Fuel)?.Amount ?? 1;
+                    result.ResourceCosts.Clear();
+                    result.WorldAction = c =>
                     {
-                        foreach (var fuel in new[] { Resource.Stick, Resource.Pine, Resource.Birch, Resource.Oak, Resource.Charcoal })
-                            if (c.Inventory.Count(fuel) > 0)
-                            { Handlers.FireHandler.AddFuel(c.Inventory, existing, fuel, fuelCount); break; }
-                    }
-                    PredatorInteractions.Deter(c, source!, fire: true);
-                    return Task.CompletedTask;
-                };
-                result.DescribeAfterAction = c => lead + Events.PredatorEventFactory.ObserveResult(c, source);
-            }
-            if (action == SceneAction.Wait) result.TimeActivity = ActivityType.Resting;
-            bool dropFish = action == SceneAction.DropFishAndRun;
-            bool dropMeat = action is SceneAction.DropMeatAndRun or SceneAction.LeaveMeat;
-            bool moves = action is SceneAction.Retreat or SceneAction.RetreatTowardCamp or SceneAction.DropFishAndRun or SceneAction.DropMeatAndRun;
-            if (moves || dropMeat)
-            {
-                var origin = ctx.CurrentLocation;
-                var destination = moves ? RetreatDestination(ctx, source, towardCamp: action == SceneAction.RetreatTowardCamp) : null;
-                var old = result.Validate;
-                result.Validate = c => (old?.Invoke(c) ?? true) && (!moves || dropFish || dropMeat || destination != null) &&
-                    (!dropFish || c.Inventory.HasFish) &&
-                    (!dropMeat || c.Inventory.Weight(Resource.RawMeat) + c.Inventory.Weight(Resource.CookedMeat) > 0);
-                // A moving response is resolved by travel/AI, never by a scripted escape or attack.
-                result.PredatorReaction = null;
-                result.SpawnEncounter = null;
-                result.ResourceCosts.Clear();
-                result.TimeAddedMinutes = 0;
-                result.AbortsAction = true;
-                result.WorldAction = async c =>
-                {
-                    if (dropFish || dropMeat)
-                    {
-                        var food = new Inventory();
-                        var resources = dropFish ? new[] { Resource.RawFish, Resource.CookedFish } :
-                            new[] { Resource.RawMeat, Resource.CookedMeat };
-                        foreach (var resource in resources)
-                            while (c.Inventory.Count(resource) > 0) food.Add(resource, c.Inventory.Pop(resource));
-                        origin.AddGroundItems(food);
-                    }
-                    if (destination != null)
-                        await new Expeditions.TravelRunner(c).TravelToLocation(destination);
-                };
-                result.DescribeAfterAction = c => lead + (dropFish || dropMeat ? "You leave food on the ground. " : "") +
-                    (!moves ? "" : c.CurrentLocation != origin ? $"You reach {c.CurrentLocation.Name}. " : "You are still on the same ground. ") +
-                    Events.PredatorEventFactory.ObserveResult(c, source);
-            }
-            if (action is SceneAction.StartFire or SceneAction.LightTorch)
-            {
-                bool torch = action == SceneAction.LightTorch;
-                var old = result.Validate;
-                result.Validate = c => (old?.Invoke(c) ?? true) && (torch ? Handlers.TorchHandler.CanLightTorch(c) :
-                    Handlers.FireHandler.GetBestTool(c.Inventory) != null && Handlers.FireHandler.GetBestTinder(c.Inventory) != null && c.Inventory.Count(Resource.Stick) > 0);
-                result.ResourceCosts.Clear();
-                result.PredatorReaction = null;
-                result.SpawnEncounter = null;
-                result.NewDamage = null;
-                result.TimeActivity = ActivityType.TendingFire;
-                if (torch) result.TimeAddedMinutes = 0; // Torch handler owns its time.
-                string attempt = "You prepare your fire-making supplies.";
-                result.WorldAction = async c =>
-                {
-                    if (torch)
-                    {
-                        await Handlers.TorchHandler.LightTorch(c);
-                        attempt = c.Inventory.HasLitTorch ? "Your torch is burning." : "You have no burning torch.";
-                    }
-                    else
-                    {
-                        var started = Handlers.FireHandler.AttemptStartFire(c.player, c.Inventory, c.CurrentLocation,
-                            Handlers.FireHandler.GetBestTool(c.Inventory)!, Handlers.FireHandler.GetBestTinder(c.Inventory)!.Value,
-                            c.player.Skills.GetSkill("Firecraft").Level, c.GameTime.Hour, c.CurrentLocation.GetFeature<HeatSourceFeature>());
-                        attempt = started.Message;
-                    }
-                    if (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) PredatorInteractions.Deter(c, source!, fire: true);
-                };
-                result.DescribeAfterAction = c => lead + attempt + " " + Events.PredatorEventFactory.ObserveResult(c, source);
-            }
-            bool harvest = action == SceneAction.HarvestAndRun;
-            if (harvest || evt.PredatorScene == PredatorSceneKind.WolvesSmellBlood && result.RewardPools.Count > 0)
-            {
-                var carcass = Carcass(ctx);
-                var old = result.Validate;
-                result.Validate = c => (old?.Invoke(c) ?? true) && carcass != null && ReferenceEquals(Carcass(c), carcass);
-                result.RewardPools.Clear();
-                result.TimeActivity = ActivityType.Butchering;
-                result.AfterTimeAction = c =>
-                {
-                    var meat = carcass!.Harvest(result.TimeAddedMinutes, c.Inventory.HasCuttingTool, c.Check(EventCondition.Clumsy), ButcheringMode.QuickStrip);
-                    var excess = c.Inventory.CombineWithCapacity(meat);
-                    c.CurrentLocation.AddGroundItems(excess);
-                };
-                if (harvest)
-                {
-                    var destination = RetreatDestination(ctx, source, towardCamp: false);
-                    var allowed = result.Validate;
-                    result.Validate = c => (allowed?.Invoke(c) ?? true) && destination != null;
-                    result.AbortsAction = true;
-                    result.AfterTimeWorldAction = c => new Expeditions.TravelRunner(c).TravelToLocation(destination!);
+                        if (action == SceneAction.BuildUpFire && c.CurrentLocation.GetFeature<HeatSourceFeature>() is { } existing)
+                        {
+                            foreach (var fuel in new[] { Resource.Stick, Resource.Pine, Resource.Birch, Resource.Oak, Resource.Charcoal })
+                                if (c.Inventory.Count(fuel) > 0)
+                                { Handlers.FireHandler.AddFuel(c.Inventory, existing, fuel, fuelCount); break; }
+                        }
+                        PredatorInteractions.Deter(c, source!, fire: true);
+                        return Task.CompletedTask;
+                    };
+                    result.DescribeAfterAction = c => lead + Events.PredatorEventFactory.ObserveResult(c, source);
                 }
-                result.DescribeAfterAction = c => "You cut what you can from the carcass. What you cannot carry remains on the ground. " +
-                    (harvest ? $"You are now at {c.CurrentLocation.Name}. " : "") + Events.PredatorEventFactory.ObserveResult(c, source);
+                if (action == SceneAction.Wait) result.TimeActivity = ActivityType.Resting;
+                bool dropFish = action == SceneAction.DropFishAndRun;
+                bool dropMeat = action is SceneAction.DropMeatAndRun or SceneAction.LeaveMeat;
+                bool moves = action is SceneAction.Retreat or SceneAction.RetreatTowardCamp or SceneAction.DropFishAndRun or SceneAction.DropMeatAndRun;
+                if (moves || dropMeat)
+                {
+                    var origin = ctx.CurrentLocation;
+                    var destination = moves ? RetreatDestination(ctx, source, towardCamp: action == SceneAction.RetreatTowardCamp) : null;
+                    var old = result.Validate;
+                    result.Validate = c => (old?.Invoke(c) ?? true) && (!moves || dropFish || dropMeat || destination != null) &&
+                        (!dropFish || c.Inventory.HasFish) &&
+                        (!dropMeat || c.Inventory.Weight(Resource.RawMeat) + c.Inventory.Weight(Resource.CookedMeat) > 0);
+                    // A moving response is resolved by travel/AI, never by a scripted escape or attack.
+                    result.PredatorReaction = null;
+                    result.SpawnEncounter = null;
+                    result.ResourceCosts.Clear();
+                    result.TimeAddedMinutes = 0;
+                    result.AbortsAction = true;
+                    result.WorldAction = async c =>
+                    {
+                        if (dropFish || dropMeat)
+                        {
+                            var food = new Inventory();
+                            var resources = dropFish ? new[] { Resource.RawFish, Resource.CookedFish } :
+                                new[] { Resource.RawMeat, Resource.CookedMeat };
+                            foreach (var resource in resources)
+                                while (c.Inventory.Count(resource) > 0) food.Add(resource, c.Inventory.Pop(resource));
+                            origin.AddGroundItems(food);
+                        }
+                        if (destination != null)
+                            await new Expeditions.TravelRunner(c).TravelToLocation(destination);
+                    };
+                    result.DescribeAfterAction = c => lead + (dropFish || dropMeat ? "You leave food on the ground. " : "") +
+                        (!moves ? "" : c.CurrentLocation != origin ? $"You reach {c.CurrentLocation.Name}. " : "You are still on the same ground. ") +
+                        Events.PredatorEventFactory.ObserveResult(c, source);
+                }
+                if (action is SceneAction.StartFire or SceneAction.LightTorch)
+                {
+                    bool torch = action == SceneAction.LightTorch;
+                    var old = result.Validate;
+                    result.Validate = c => (old?.Invoke(c) ?? true) && (torch ? Handlers.TorchHandler.CanLightTorch(c) :
+                        Handlers.FireHandler.GetBestTool(c.Inventory) != null && Handlers.FireHandler.GetBestTinder(c.Inventory) != null && c.Inventory.Count(Resource.Stick) > 0);
+                    result.ResourceCosts.Clear();
+                    result.PredatorReaction = null;
+                    result.SpawnEncounter = null;
+                    result.NewDamage = null;
+                    result.TimeActivity = ActivityType.TendingFire;
+                    if (torch) result.TimeAddedMinutes = 0; // Torch handler owns its time.
+                    string attempt = "You prepare your fire-making supplies.";
+                    result.WorldAction = async c =>
+                    {
+                        if (torch)
+                        {
+                            await Handlers.TorchHandler.LightTorch(c);
+                            attempt = c.Inventory.HasLitTorch ? "Your torch is burning." : "You have no burning torch.";
+                        }
+                        else
+                        {
+                            var started = Handlers.FireHandler.AttemptStartFire(c.player, c.Inventory, c.CurrentLocation,
+                                Handlers.FireHandler.GetBestTool(c.Inventory)!, Handlers.FireHandler.GetBestTinder(c.Inventory)!.Value,
+                                c.player.Skills.GetSkill("Firecraft").Level, c.GameTime.Hour, c.CurrentLocation.GetFeature<HeatSourceFeature>());
+                            attempt = started.Message;
+                        }
+                        if (c.Inventory.HasLitTorch || c.CurrentLocation.HasActiveHeatSource()) PredatorInteractions.Deter(c, source!, fire: true);
+                    };
+                    result.DescribeAfterAction = c => lead + attempt + " " + Events.PredatorEventFactory.ObserveResult(c, source);
+                }
+                bool harvest = action == SceneAction.HarvestAndRun;
+                if (harvest || evt.PredatorScene == PredatorSceneKind.WolvesSmellBlood && result.RewardPools.Count > 0)
+                {
+                    var carcass = Carcass(ctx);
+                    var old = result.Validate;
+                    result.Validate = c => (old?.Invoke(c) ?? true) && carcass != null && ReferenceEquals(Carcass(c), carcass);
+                    result.RewardPools.Clear();
+                    result.TimeActivity = ActivityType.Butchering;
+                    result.AfterTimeAction = c =>
+                    {
+                        var meat = carcass!.Harvest(result.TimeAddedMinutes, c.Inventory.HasCuttingTool, c.Check(EventCondition.Clumsy), ButcheringMode.QuickStrip);
+                        var excess = c.Inventory.CombineWithCapacity(meat);
+                        c.CurrentLocation.AddGroundItems(excess);
+                    };
+                    if (harvest)
+                    {
+                        var destination = RetreatDestination(ctx, source, towardCamp: false);
+                        var allowed = result.Validate;
+                        result.Validate = c => (allowed?.Invoke(c) ?? true) && destination != null;
+                        result.AbortsAction = true;
+                        result.AfterTimeWorldAction = c => new Expeditions.TravelRunner(c).TravelToLocation(destination!);
+                    }
+                    result.DescribeAfterAction = c => "You cut what you can from the carcass. What you cannot carry remains on the ground. " +
+                        (harvest ? $"You are now at {c.CurrentLocation.Name}. " : "") + Events.PredatorEventFactory.ObserveResult(c, source);
+                }
             }
-        }
     }
 
     /// <summary>The passable neighbour to walk to: farthest from the animals, or closest to camp.</summary>
@@ -265,8 +265,12 @@ public static class AuthoredPredatorScenes
         {
             case PredatorReaction.Follow:
                 if (!PredatorInteractions.CanDetect(ctx, source, ctx.player)) return;
-                source.Pursuit = new PredatorInteraction { Target = ctx.player, LastDetectedLocation = ctx.CurrentLocation,
-                    LastDetectedMinute = ctx.TotalMinutesElapsed };
+                source.Pursuit = new PredatorInteraction
+                {
+                    Target = ctx.player,
+                    LastDetectedLocation = ctx.CurrentLocation,
+                    LastDetectedMinute = ctx.TotalMinutesElapsed
+                };
                 break;
             case PredatorReaction.Withdraw:
                 source.Pursuit = null;

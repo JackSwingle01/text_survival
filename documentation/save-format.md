@@ -4,9 +4,10 @@ A save is the `World` as JSON inside an envelope that names its format:
 `{"Version":N,"World":{...}}` (`rebuild/Sim/Save.cs`). `Save.FromJson` refuses a save in any
 other format, or one with no version, rather than read half of it.
 
-Until the first build someone else plays, there are no migrations
-(`decisions/2026-11-21-save-compatibility-from-first-release.md`): an old save simply stops loading.
-The version and the fixture exist so that no format change happens by accident.
+Until the rebuild is finished, there are no migrations
+(`decisions/2026-11-24-no-save-migrations-until-the-rebuild-is-finished.md`): an old save simply stops loading,
+even when a ticket asks otherwise. The version and the fixture exist so that no format change
+happens by accident.
 
 ## The fixture
 
@@ -27,7 +28,7 @@ default" attribute leaves old saves byte-identical, and the test stays green.
    that the format change is the only structural one.
 5. Commit the version, the fixture and the change together.
 
-The sample world has a little of most saved state: a fire, a stash, a shelter and bedding, a
+The sample world has a little of most saved state: a fire, a pile, a shelter and bedding, a
 crossing, an NPC, a wolf pack, memory, explored and remembered ground, a remembered route, rng streams, a journal, a made spear
 with its recorded parts and an unfinished one in the pack, a well-fed player and an NPC asleep where it dropped.
 
@@ -83,9 +84,9 @@ animals it knows, by id, 0 to 1. A sighting in a person's memory is one per herd
 `Others` listing the rest. The sample's pack is two wolves that know each other. When you add
 a new kind of saved state, extend `SampleWorld` so the fixture covers it. The `takeoff` activity (2026-11-21) is a new kind
 an old build cannot read, but nothing saves it yet (only the player takes clothes off, and the player's
-activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands. An animal also carries `LastLeft` (the tile, direction and minute of the last crossing it finished), written only once it has moved, so kin can follow a crossing too short to see under way. Version 22 (thirst, water and rest on the planner, #82) gives an animal's `HerdMind` a stored `Plan` (the stat by name, its priority by name, the goal tile, the tiles still to walk) and `Sightings` (the threats it sensed: who, where, the minute), each written only when set; an animal's body now spends and refills `HydrationMl` and `EnergyMinutes`, and a new animal starts full of both. The `watering` activity (an animal drinking) is new. The sample adds a caribou on its way to water with a wolf in mind.
+activity lives inside one step), so the version stands. The `raid` activity is the same: a raid lasts one minute, so no flock is between minutes in one, and the version stands. An animal also carries `LastLeft` (the tile, direction and minute of the last crossing it finished), written only once it has moved, so kin can follow a crossing too short to see under way. Version 22 (thirst, water and rest on the planner, #82) gives an animal's `HerdMind` a stored `Plan` (the stat by name, its priority by name, the goal tile, the tiles still to walk) and `Sightings` (the threats it sensed: who, where, the minute), each written only when set; an animal's body now spends and refills `HydrationMl` and `EnergyMinutes`, and a new animal starts full of both. The `watering` activity (an animal drinking) is new. The sample adds a caribou on its way to water with a wolf in mind. Version 23 (ground is a flyweight, #95) drops `TileState.Ground`: a tile's ground is its ground class's, recomputed from the seed and the sky, so a save carries none. The sample loses its three stored ground columns. Version 24 (trodden edges, #106) makes each `World.Trails` entry an `EdgeTrodden`: `Amount`, the edge's trodden amount from 0 to 1, and the `Minute` of its last stamp, in place of `TrailWear`'s `Wear` and `Minute`. The sample's remembered route is written at the new scale. Version 25 (prints fade by the real ground, #105) gives each `Track` its `SnowFallenM`, the snow its tile's ground class had taken when the print was made, so the snow since is a difference; it is written on every print. The sample's prints gain it. Version 26 (the stash renamed the pile, #121) renames `TileState.Stash`, `StashCause` and `StashId` to `Pile`, `PileCause` and `PileId`, `TileMemory.Stash` to `Pile` and `World.NextStashId` to `NextPileId`; the activities `stash` and `unstash` are `putdown` and `pickup`, the events `stashed` and `unstashed` are `putonpile` and `pickedup`, and the text the game wrote under the old name moves with it: a pile's cause "stashed by ..." reads "put down by ...", a saved refusal names `PutDown` or `PickUp` and the pile, and the finds "Medicine Stash" and "Trapper's Stash" are the Medicine and Trapper's Bundle. A format 25 save is refused, like every older one. Version 27 (food on the planner, #83) gives an animal's food `Plan` its `PerMinute` (the rate it chose, so a thinned source re-plans), keeps a meat-eater's carcass sightings (`Carcass`) in `Sightings`, and adds a `planner` rng stream to each agent that has weighed a choice (the noise in the planner's totals). A format 26 save is refused.
 
-## After the first release
+## After the rebuild is finished
 
 Each format change then also ships a migration from the previous version, tested against real
 saves. `FromJson` reads the version first so that a migration can be added there.

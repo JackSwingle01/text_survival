@@ -6,7 +6,7 @@ namespace Survival;
 /// Beyond the pack and memory every person has.
 public sealed partial record NpcMind
 {
-    /// The camp it lives from: its fire and its stash. A warmth goal may move it (the fire's site is a one of).
+    /// The camp it lives from: its fire and its pile. A warmth goal may move it (the fire's site is a one of).
     public TileId Camp { get; set; }
     public NpcGoal? Goal { get; set; }
     /// The fat this body is used to (Npc.AdaptTargetFat): falling short of it makes food a Need.
@@ -49,7 +49,7 @@ public static class Npc
     const double DustKg = 0.01, FullPackKg = 0.3;
     /// With less energy than the walk to camp plus this, it sleeps where it is.
     const double WalkReserveEnergyMinutes = 30;
-    const double MeltFireHours = 1, UnstashFuelKg = 3;
+    const double MeltFireHours = 1, PickUpFuelKg = 3;
     public const double TargetFatHalfLifeDays = 3;
 
     // ---- spawning ----
@@ -98,7 +98,7 @@ public static class Npc
     sealed record Req(string Name, IReadOnlyList<Resource> AnyOf, Func<Resource, double> PerKg, double Amount, ForageFocus Focus,
         bool Counted = false, double UsedPerHour = 0);
 
-    enum Via { Unstash, Gather, Butcher }
+    enum Via { PickUp, Gather, Butcher }
 
     sealed record Leaf(Via Via, TileId Tile, int Index, Req For, double Units, double Kg, int WorkMinutes);
 
@@ -133,7 +133,7 @@ public static class Npc
         TileId Camp => mind.Camp;
         bool AtCamp => Here == Camp;
         double RoomKg => Items.CapacityKg(pack) - Items.CarriedKg(agent);
-        Inventory? StashHere => world.Tiles.GetValueOrDefault(Here)?.Stash;
+        Inventory? PileHere => world.Tiles.GetValueOrDefault(Here)?.Pile;
         FireState? PitHere => Fire.CurrentPitAt(world, Here);
         bool BurningHere => PitHere is { } p && Fire.IsActive(p);
         double? fireHereHours;
@@ -185,7 +185,7 @@ public static class Npc
         {
             Stat.Warmth => AtCamp && Cold ? Light(Plan.None, now: true) ?? (BurningHere ? Stoke(HoursToSunrise()) : null) : null,
             Stat.Water => Sim.Refusal(world, new Drink(Id)) == null ? new(new Drink(Id), Work.DrinkMinutes, Work.DrinkMinutes)
-                : StashHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water))
+                : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water))
                 : BurningHere && Sim.Refusal(world, new MeltSnow(Id)) == null ? new(new MeltSnow(Id), Work.MeltSnowMinutes, Work.MeltSnowMinutes) : null,
             Stat.Food => EatToHand(),
             _ => null,
@@ -205,7 +205,7 @@ public static class Npc
         {
             bool seeing(Stat s) => mind.Goal?.Stat == s;
             double waterToHandL = Work.HasOpenWater(world, Here) ? double.PositiveInfinity
-                : Items.Have(pack, Resource.Water) + (StashHere is { } s ? Items.Have(s, Resource.Water) : 0);
+                : Items.Have(pack, Resource.Water) + (PileHere is { } s ? Items.Have(s, Resource.Water) : 0);
             return new()
             {
                 [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), UsableHoursAt(Camp), TonightHours() - NightSlackHours),
@@ -221,17 +221,17 @@ public static class Npc
 
         double HoursUntil(int hourOfDay) => (hourOfDay * 60 - Weather.MinuteOfDay(world.Minute) + 1440) % 1440 / 60.0;
 
-        /// From away, the fire as last seen beside it and the stash as it left it.
+        /// From away, the fire as last seen beside it and the pile as it left it.
         double UsableHoursAt(TileId site)
         {
-            if (Here == site) return Fire.UsableHours(PitHere, PitType.Open, Pile(StashHere?.Kg), Fire.CanStrike(pack));
-            return FireLeftHoursAt(site) + Fire.UsableHours(null, PitType.Open, Pile(memory.Places.GetValueOrDefault(site)?.Stash), Fire.CanStrike(pack));
+            if (Here == site) return Fire.UsableHours(PitHere, PitType.Open, WithPack(PileHere?.Kg), Fire.CanStrike(pack));
+            return FireLeftHoursAt(site) + Fire.UsableHours(null, PitType.Open, WithPack(memory.Places.GetValueOrDefault(site)?.Pile), Fire.CanStrike(pack));
         }
 
-        Dictionary<Resource, double> Pile(IReadOnlyDictionary<Resource, double>? stash)
+        Dictionary<Resource, double> WithPack(IReadOnlyDictionary<Resource, double>? pile)
         {
             var all = new Dictionary<Resource, double>(pack.Kg);
-            foreach (var (r, kg) in stash ?? new Dictionary<Resource, double>()) all[r] = all.GetValueOrDefault(r) + kg;
+            foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) all[r] = all.GetValueOrDefault(r) + kg;
             return all;
         }
 
@@ -308,9 +308,9 @@ public static class Npc
             return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Kindling)));
         }
 
-        /// A strike it can make whose fire, by the light forecast, will take a log it carries or left on the stash here.
+        /// A strike it can make whose fire, by the light forecast, will take a log it carries or left on the pile here.
         bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && Fire.ForecastLight(world, s) is var f
-            && (f.KeepsGoingPct > 0 || StashHere is { } stash && stash.Kg.Any(x => x.Value > DustKg && IsLog(x.Key) && f.Takes(x.Key)));
+            && (f.KeepsGoingPct > 0 || PileHere is { } pile && pile.Kg.Any(x => x.Value > DustKg && IsLog(x.Key) && f.Takes(x.Key)));
 
         /// The fire's site is a one of: the camp, here, or one of the nearest places it remembers trees, by the walk
         /// there plus the plan there. Committing to the goal there moves the camp.
@@ -340,7 +340,7 @@ public static class Npc
             if (wanted && Light(plan, now: Cold) is { } light) return light;
             if (BurningHere && wanted && Stoke(HoursWanted(priority)) is { } stoke) return stoke;
             if (BurningHere && Cold) return new(new Rest(Id), StintMinutes, StintMinutes);
-            return plan.Leaves.FirstOrDefault(l => l.Tile == Here && l.Via == Via.Unstash) is { } makings ? Do(makings) : null;
+            return plan.Leaves.FirstOrDefault(l => l.Tile == Here && l.Via == Via.PickUp) is { } makings ? Do(makings) : null;
         }
 
         /// The all of's consuming step: struck once this trip's list is in hand or the pack is full, or now.
@@ -363,22 +363,22 @@ public static class Npc
                 if (refused == null) return new(add, 1, 1);
                 if (refused.Missing is MissingState { Lack: Lack.FireRoomKg }) return null;
             }
-            if (StashHere is not { } stash) return null;
-            var take = FuelResources.Where(r => Items.Have(stash, r) > DustKg && Fire.WillCatch(pit, r, Verbs.FuelKg))
+            if (PileHere is not { } pile) return null;
+            var take = FuelResources.Where(r => Items.Have(pile, r) > DustKg && Fire.WillCatch(pit, r, Verbs.FuelKg))
                 .OrderByDescending(r => Fire.FuelHours(r, 1)).ThenBy(r => r).Cast<Resource?>().FirstOrDefault();
             if (take is not Resource fuel) return null;
-            var unstash = new Unstash(Id, fuel, Math.Min(Items.Have(stash, fuel), Math.Clamp(RoomKg, Verbs.FuelKg, UnstashFuelKg)));
-            return Sim.Refusal(world, unstash) == null ? new(unstash, 1, 1) : null;
+            var pickUp = new PickUp(Id, fuel, Math.Min(Items.Have(pile, fuel), Math.Clamp(RoomKg, Verbs.FuelKg, PickUpFuelKg)));
+            return Sim.Refusal(world, pickUp) == null ? new(pickUp, 1, 1) : null;
         }
 
-        /// Short of room for the trip: what it is not carrying home goes down, heaviest first; fuel on the stash still counts.
+        /// Short of room for the trip: what it is not carrying home goes down, heaviest first; fuel on the pile still counts.
         Next? PutDownFor(Plan plan)
         {
             double wantedKg = plan.Leaves.Where(l => l.Tile != Here).Sum(l => l.Kg);
             if (!AtCamp || wantedKg + FullPackKg < RoomKg) return null;
             var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).Concat(Fire.Tinders).Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).ToHashSet();
             var put = pack.Kg.Where(x => x.Value > DustKg && !kept.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
-            return put is Resource r ? new(new Stash(Id, r, Items.Have(pack, r)), 1, 1) : null;
+            return put is Resource r ? new(new PutDown(Id, r, Items.Have(pack, r)), 1, 1) : null;
         }
 
         // ---- water: drink to the satisfied line, or carry a day's water ----
@@ -451,7 +451,7 @@ public static class Npc
             }
             if (ReadyFood(pack) is Resource food)
                 return new(new Eat(Id, food, Math.Min(Items.Have(pack, food), MealKcal() / Items.Resources[food].KcalPerKg)), Work.EatMinutes, Work.EatMinutes);
-            if (StashHere is { } s && ReadyFood(s) is Resource stashed) return Take(stashed, Items.Have(s, stashed));
+            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled));
             return null;
         }
 
@@ -467,12 +467,12 @@ public static class Npc
             return plan;
         }
 
-        /// Each requirement from the pack, then the site's stash, then the quickest sources, as much as one trip carries.
+        /// Each requirement from the pack, then the site's pile, then the quickest sources, as much as one trip carries.
         Plan Build(TileId site, IReadOnlyList<Req> reqs)
         {
             var plan = new Plan();
             var packLeft = new Dictionary<Resource, double>(pack.Kg);
-            var stashLeft = new Dictionary<Resource, double>((Here == site ? StashHere?.Kg : memory.Places.GetValueOrDefault(site)?.Stash) ?? new SortedDictionary<Resource, double>());
+            var pileLeft = new Dictionary<Resource, double>((Here == site ? PileHere?.Kg : memory.Places.GetValueOrDefault(site)?.Pile) ?? new SortedDictionary<Resource, double>());
             // Logs carried go down at camp before a trip: their room counts, wherever the plan is made from.
             double freeKg = RoomKg + pack.Kg.Where(x => IsLog(x.Key)).Sum(x => x.Value);
             double tripMinutes = 0, awayWanted = 0, awayPlanned = 0;
@@ -480,14 +480,14 @@ public static class Npc
             {
                 double left = req.Amount;
                 if (!req.Counted)
-                    foreach (var (source, stashed) in new[] { (packLeft, false), (stashLeft, true) })
+                    foreach (var (source, piled) in new[] { (packLeft, false), (pileLeft, true) })
                         foreach (var r in req.AnyOf.OrderByDescending(req.PerKg).ThenBy(r => r))
                         {
                             double kg = Math.Min(source.GetValueOrDefault(r), left / req.PerKg(r));
                             if (left <= 1e-6 || kg <= 0) continue;
                             source[r] -= kg;
                             left -= kg * req.PerKg(r);
-                            if (stashed) plan.Leaves.Add(new Leaf(Via.Unstash, site, (int)r, req, kg * req.PerKg(r), kg, 1));
+                            if (piled) plan.Leaves.Add(new Leaf(Via.PickUp, site, (int)r, req, kg * req.PerKg(r), kg, 1));
                         }
                 awayWanted += Math.Max(0, left);
                 while (left > 1e-6)
@@ -548,13 +548,13 @@ public static class Npc
         IEnumerable<Leaf> Offers(TileId t, Req req, double want, int startIn, TileId site)
         {
             var seen = memory.Places.GetValueOrDefault(t);
-            double unsure = t == Here ? 0 : Memories.StashPrecisionKg / 2;
-            var stash = t == Here ? StashHere?.Kg : seen?.Stash;
-            if (t != site && stash != null)
-                foreach (var r in req.AnyOf.Where(r => stash.GetValueOrDefault(r) - unsure > DustKg))
+            double unsure = t == Here ? 0 : Memories.PilePrecisionKg / 2;
+            var pile = t == Here ? PileHere?.Kg : seen?.Pile;
+            if (t != site && pile != null)
+                foreach (var r in req.AnyOf.Where(r => pile.GetValueOrDefault(r) - unsure > DustKg))
                 {
-                    double kg = Math.Min(stash[r] - unsure, want / req.PerKg(r));
-                    yield return new Leaf(Via.Unstash, t, (int)r, req, kg * req.PerKg(r), kg, 1);
+                    double kg = Math.Min(pile[r] - unsure, want / req.PerKg(r));
+                    yield return new Leaf(Via.PickUp, t, (int)r, req, kg * req.PerKg(r), kg, 1);
                 }
             var pools = Pools.At(world, t);
             for (int i = 0; i < pools.Count; i++)
@@ -601,13 +601,13 @@ public static class Npc
         {
             Via.Gather => new Gather(Id, leaf.Index, leaf.For.Focus),
             Via.Butcher => new Butcher(Id, leaf.Index, ButcherMode.QuickStrip),
-            _ => new Unstash(Id, (Resource)leaf.Index, leaf.Kg),
+            _ => new PickUp(Id, (Resource)leaf.Index, leaf.Kg),
         };
 
         /// The survival filter: the trip ends above the Critical line, or no colder than staying here as long would.
         bool Survives(TileId t, int workMinutes, Activity work, TileId site)
         {
-            var legs = WalkLegs(Here, t).Append((work is Unstash ? new Wait(Id) : work, t, workMinutes)).Concat(WalkLegs(t, site)).ToList();
+            var legs = WalkLegs(Here, t).Append((work is PickUp ? new Wait(Id) : work, t, workMinutes)).Concat(WalkLegs(t, site)).ToList();
             double tripF = CoreAfterF(legs);
             return tripF > HypothermiaCoreF || tripF >= CoreAfterF([(new Rest(Id), Here, legs.Sum(l => l.Item3))]);
         }
@@ -635,12 +635,12 @@ public static class Npc
         /// A full pack makes room first: the heaviest thing that is not makings, water or food goes down.
         Next? Take(Resource r, double kg)
         {
-            var take = new Unstash(Id, r, kg);
+            var take = new PickUp(Id, r, kg);
             if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
             {
                 var keep = Fire.Tinders.Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).Append(r).ToHashSet();
                 var put = pack.Kg.Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
-                return put is Resource down ? new(new Stash(Id, down, Items.Have(pack, down)), 1, 1) : null;
+                return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
             }
             return Sim.Refusal(world, take) == null ? new(take, 1, 1) : null;
         }
@@ -648,7 +648,7 @@ public static class Npc
         Next? Do(Leaf leaf)
         {
             var act = ActivityFor(leaf);
-            if (act is Unstash take) return StashHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource))) : null;
+            if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource))) : null;
             if (Sim.Refusal(world, act) != null) return null;
             int minutes = act is Butcher ? Verbs.UntilDoneMinutes : Math.Clamp(leaf.WorkMinutes, 1, StintMinutes);
             return new(act, minutes, minutes);

@@ -39,7 +39,7 @@ public static class Capabilities
 /// copies, as Report's are, and nothing is caught up in place.
 /// Not derivable yet: Sealed (no lids or dens to force), FrozenIn (a frozen carcass is frozen meat, which
 /// butchering already charges), Elevated, Unstable (thin ice is a tile's, moves to edges),
-/// and Buried for a carcass, stash or body (no placement elevation: the snow under and over them is one depth).
+/// and Buried for a carcass, pile or body (no placement elevation: the snow under and over them is one depth).
 public static class Tags
 {
     /// How far an occupant holds its ground around what it occupies, in tiles (0: its own tile).
@@ -62,7 +62,7 @@ public static class Tags
             LocationFeatureKind.Body => OfBody(world, world.Agent(new AgentId(t.Index))),
             LocationFeatureKind.Carcass => OfCarcass(world, t.Tile, Carcasses.Find(world, t.Tile, t.Index)!, viewer),
             LocationFeatureKind.Pool => OfPool(world, new PoolId(t.Tile, t.Index)),
-            LocationFeatureKind.Stash => OfInventory(state!.Stash!) | OwnedBy(world, state.StashCause, viewer),
+            LocationFeatureKind.Pile => OfInventory(state!.Pile!) | OwnedBy(world, state.PileCause, viewer),
             LocationFeatureKind.Fire => OwnedBy(world, world.Fires[new FireId(t.Index)].Cause, viewer),
             LocationFeatureKind.Shelter => OfShelter(world, t.Tile, Shelters.Peek(world, t.Tile)!, viewer),
             LocationFeatureKind.Track => t.TrailDirection != null ? Tag.None // a desire path is a way, not a location feature to act on
@@ -73,7 +73,7 @@ public static class Tags
         bool holdable = t.Kind switch
         {
             LocationFeatureKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
-            LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
+            LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
             LocationFeatureKind.Track => false,
             LocationFeatureKind.Sign => true,
             LocationFeatureKind.Item => false,
@@ -161,7 +161,7 @@ public static class Tags
         LocationFeatureKind.Body => null,
         LocationFeatureKind.Carcass => null, // a kill, which a pack takes from its killer
         LocationFeatureKind.Pool => null,
-        LocationFeatureKind.Stash => world.Tiles.GetValueOrDefault(t.Tile)?.StashCause?.Who,
+        LocationFeatureKind.Pile => world.Tiles.GetValueOrDefault(t.Tile)?.PileCause?.Who,
         LocationFeatureKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
         LocationFeatureKind.Track => null,
@@ -198,7 +198,7 @@ public static class Tags
                 }
             case ShelterFind f:
                 return Tag.Sheltering | BuriedUnder(world, id.Tile, f.PlacementHeightM);
-            case CarcassFind or StashFind:
+            case CarcassFind or PileFind:
                 return Tag.None;
             default:
                 throw new InvalidOperationException($"Tags has no reading for pool {def.GetType().Name}");
@@ -207,7 +207,7 @@ public static class Tags
 
     /// Things the world was born with sit on the ground, so snow as deep as they stand buries them.
     static Tag BuriedUnder(World world, TileId tile, double? heightM) =>
-        heightM is double h && Ground.SnowDepthNowM(world, tile) >= h ? Tag.Buried : Tag.None;
+        heightM is double h && Ground.Underfoot(world, tile).SnowDepthM >= h ? Tag.Buried : Tag.None;
 
     static Tag OfInventory(Inventory inv)
     {

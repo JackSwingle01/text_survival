@@ -129,7 +129,7 @@ public static class Clues
             ClueWhen.Wind => sky.WindLevel > WindyLevel,
             ClueWhen.Rain => sky.PrecipitationPct > RainyPct,
             ClueWhen.Saturated => sky.PrecipitationPct > SaturatedPct,
-            ClueWhen.Snow => Ground.SnowDepthNowM(world, tile) >= SnowyM,
+            ClueWhen.Snow => Ground.Underfoot(world, tile).SnowDepthM >= SnowyM,
             ClueWhen.Frozen => sky.TemperatureF < FrozenBelowF,
             ClueWhen.DawnDusk => Weather.MinuteOfDay(world.Minute) / 60 is DawnHour or DuskHour,
             ClueWhen.NearlyDepleted => Pools.ForageDensity(world, forage) < NearlyDepletedDensity,

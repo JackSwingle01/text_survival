@@ -9,7 +9,7 @@ public class MemoryTests
 
     static World Mild17()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         return w;
     }
@@ -48,7 +48,7 @@ public class MemoryTests
     /// The minute a fire would die if nobody touched it from now, worked out on a copy of the world.
     static long DiesAt(World w, FireId id)
     {
-        var copy = Save.FromJson(Save.ToJson(w));
+        var copy = TestWorlds.Load(Save.ToJson(w));
         var events = new List<WorldEvent>();
         for (int i = 0; i < 48 * 60 && events.OfType<FireDied>().All(e => e.Fire != id); i++)
         {
@@ -103,7 +103,7 @@ public class MemoryTests
         Assert.All(places, p => Assert.Contains(p.Key, Sight.Visible(w, camp)));
         Assert.All(places.Where(p => p.Key != camp), p => Assert.True(p.Value.Trees || p.Value.Water || p.Value.Fire != null || p.Value.Shelter != null || p.Value.Danger != Danger.None));
         string json = Save.ToJson(w);
-        Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+        Assert.Equal(json, Save.ToJson(TestWorlds.Load(json)));
     }
 
     // ---- the ground explored (Memory.Explored) ----
@@ -117,7 +117,7 @@ public class MemoryTests
     [Fact]
     public void ANewWorld_HasLookedAroundOnce()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var inView = Sight.Visible(w, camp, Eyes(w, P));
         Assert.Equal(inView.Count, Explored(w, P).Count);
@@ -174,13 +174,13 @@ public class MemoryTests
     {
         World Walk(int chunk, bool reload)
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             foreach (var dir in new[] { Direction.East, Direction.East, Direction.South, Direction.East })
             {
                 for (int done = 0; done < 90; done += chunk)
                 {
                     if (Sim.Step(w, new Travel(P, dir), chunk).InterruptedReason is "arrived") break;
-                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                    if (reload) w = TestWorlds.Load(Save.ToJson(w));
                 }
                 Sim.Step(w, new Wait(P), 30);
             }
@@ -191,7 +191,7 @@ public class MemoryTests
         string json = Save.ToJson(whole);
         Assert.Equal(json, Save.ToJson(Walk(1, false)));
         Assert.Equal(json, Save.ToJson(Walk(7, true)));
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(Explored(whole, P).Count, Explored(loaded, P).Count);
         Assert.Equal(json, Save.ToJson(loaded));
     }
@@ -201,7 +201,7 @@ public class MemoryTests
     static readonly WeatherSample Cold = new(0, WeatherCondition.Cloudy, -10, 0.1, 0, 0.8, WindDirection.North);
 
     static void Snow(World w, TileId t, double depthM) =>
-        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        TestKit.EditGround(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
 
     /// The first passable tile in view from here, other than here.
     static TileId InViewFrom(World w, TileId from) =>
@@ -212,28 +212,28 @@ public class MemoryTests
     [Fact]
     public void GroundOutOfSight_IsTheGroundAsLastSeen_AfterASaveAndLoad()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Cold;
         var camp = Map.Of(w).Camp;
         var t = InViewFrom(w, camp);
-        Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // ground is kept once it has lived any time (Ground.CatchUp)
+        Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Snow(w, t, 0.4);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes); // the clock's next look sees it
-        double seenM = Ground.SurfaceNow(w, t).SnowDepthM;
+        double seenM = Ground.Underfoot(w, t).SnowDepthM;
         Assert.True(seenM > 0.35);
         Assert.Equal(seenM, Explored(w, P).At(t)!.Value.Surface.SnowDepthM, 3);
 
         Put(w, P, OutOfView(w, t));
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), t));
-        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        TestKit.EditGround(w, t, (g, _) => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
 
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         var remembered = Explored(loaded, P).At(t)!.Value;
         Assert.Equal(seenM, remembered.Surface.SnowDepthM, 3);
         Assert.Equal(2 * Memories.GlanceMinutes, remembered.SeenMinute);
-        Assert.Equal(0, Ground.SurfaceNow(loaded, t).SnowDepthM, 3);
+        Assert.Equal(0, Ground.Underfoot(loaded, t).SnowDepthM, 3);
     }
 
     /// Every tile in view has its ground remembered, with the minute of the look.
@@ -254,15 +254,15 @@ public class MemoryTests
     {
         var g = new GroundMemory(4, 3);
         var t = new TileId(2, 1);
-        g.Remember(t, new SurfaceSummary(0.12345, true, 0.456, 0.0071, true), 1234567);
-        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
+        g.Remember(t, new SeenSurface(0.12345, true, 0.456, 0.0071, true), 1234567);
+        Assert.Equal(new RememberedGround(new SeenSurface(0.123, true, 0.46, 0.007, true), 1234567), g.At(t));
         var loaded = GroundMemory.Parse(g.Format());
         Assert.Equal(g.At(t), loaded.At(t));
         Assert.Equal(1, loaded.Count);
         Assert.Null(loaded.At(new TileId(0, 0)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(-0.01, false, 0, 0, false), 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SurfaceSummary(0, false, 1.2, 0, false), 0));
-        Assert.Equal(new RememberedGround(new SurfaceSummary(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SeenSurface(-0.01, false, 0, 0, false), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => g.Remember(t, new SeenSurface(0, false, 1.2, 0, false), 0));
+        Assert.Equal(new RememberedGround(new SeenSurface(0.123, true, 0.46, 0.007, true), 1234567), g.At(t)); // a refused value leaves the tile as it was
         Assert.Equal(1, g.Count);
         Assert.Throws<System.Text.Json.JsonException>(() => GroundMemory.Parse("4x3:AA==:"));
         var one = g.Format();
@@ -277,7 +277,7 @@ public class MemoryTests
 
     // ---- routes as last seen (Memory.Explored trail tiers) ----
 
-    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+    static void Tread(World w, TileId a, TileId b, double trodden) => w.Trails[new EdgeId(a, b)] = new EdgeTrodden(trodden, w.Minute);
 
     /// A neighbour of t, also in view from the camp, both passable.
     static TileId NeighbourInView(World w, TileId t)
@@ -291,7 +291,7 @@ public class MemoryTests
         throw new InvalidOperationException($"No neighbour of {t} in view");
     }
 
-    /// A route seen as a path, worn into a trail while the player is away, is still a path in their
+    /// A route seen as a path, trodden into a trail while the player is away, is still a path in their
     /// memory, after a save and load too; back in sight it is a trail.
     [Fact]
     public void RouteOutOfSight_IsTheRouteAsLastSeen_AfterASaveAndLoad()
@@ -300,7 +300,7 @@ public class MemoryTests
         var camp = Map.Of(w).Camp;
         var a = InViewFrom(w, camp);
         var b = NeighbourInView(w, a);
-        Wear(w, a, b, Tracks.PathAt + 1);
+        Tread(w, a, b, Tracks.PathAt + 0.05);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(a, b));
         Assert.Equal(TrailTier.Path, Explored(w, P).TrailTierAt(b, a));
@@ -308,9 +308,9 @@ public class MemoryTests
         Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 1);
         Assert.False(Sight.InSight(w, w.Agent(P), a) || Sight.InSight(w, w.Agent(P), b));
-        Wear(w, a, b, Tracks.TrailAt + 1); // worn in while nobody looked
+        Tread(w, a, b, Tracks.TrailAt + 0.05); // trodden in while nobody looked
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(TrailTier.Path, Explored(loaded, P).TrailTierAt(a, b));
 
         Put(loaded, P, camp);
@@ -318,14 +318,14 @@ public class MemoryTests
         Assert.Equal(TrailTier.Trail, Explored(loaded, P).TrailTierAt(a, b));
     }
 
-    /// A route seen gone is forgotten; one never worn is none.
+    /// A route seen gone is forgotten; one never trodden is none.
     [Fact]
     public void RouteSeenFaded_IsForgotten()
     {
         var w = Mild17();
         var a = InViewFrom(w, Map.Of(w).Camp);
         var b = NeighbourInView(w, a);
-        Wear(w, a, b, Tracks.TraceAt + 1);
+        Tread(w, a, b, Tracks.TraceAt + 0.05);
         Sim.Step(w, new Wait(P), Memories.GlanceMinutes);
         Assert.Equal(TrailTier.Trace, Explored(w, P).TrailTierAt(a, b));
         w.Trails.Remove(new EdgeId(a, b));
@@ -341,11 +341,11 @@ public class MemoryTests
     {
         var g = new GroundMemory(4, 3);
         TileId a = new(1, 1), east = new(2, 1), south = new(1, 2);
-        var ground = new SurfaceSummary(0.1, false, 0, 0, false);
+        var ground = new SeenSurface(0.1, false, 0, 0, false);
         foreach (var t in new[] { a, east, south }) g.Remember(t, ground, 5);
         g.RememberTrailTier(east, a, TrailTier.Trail);
         g.RememberTrailTier(a, south, TrailTier.Trace);
-        g.Remember(a, new SurfaceSummary(0.2, true, 0.5, 0, true), 6);
+        g.Remember(a, new SeenSurface(0.2, true, 0.5, 0, true), 6);
         Assert.Equal(TrailTier.Trail, g.TrailTierAt(a, east));
         Assert.Equal(TrailTier.Trace, g.TrailTierAt(south, a));
         var loaded = GroundMemory.Parse(g.Format());
@@ -482,7 +482,7 @@ public class MemoryTests
     {
         (World, TileId) Make()
         {
-            var w = World.New(17);
+            var w = TestWorlds.New(17);
             w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 10, 0.1, 0, 0.8, WindDirection.North);
             var t = Away(w, Map.Of(w).Camp, 12);
             Shelters.Place(w, t, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
@@ -570,24 +570,24 @@ public class MemoryTests
         Assert.Contains(morning.Changes, c => c.Kind == ChangeKind.Fire && c.Now == nameof(FirePhase.Cold));
     }
 
-    /// The receipt's differences: a stash emptied while away, a carcass come and gone.
+    /// The receipt's differences: a pile emptied while away, a carcass come and gone.
     [Fact]
-    public void Receipt_ListsWhatChangedInTheStash()
+    public void Receipt_ListsWhatChangedInThePile()
     {
         var w = Mild17();
         var camp = Map.Of(w).Camp;
-        Items.Add(Items.StashAt(w, camp), Resource.DriedMeat, 2);
+        Items.Add(Items.PileAt(w, camp), Resource.DriedMeat, 2);
         Sim.Step(w, new Wait(P), 1);
-        Assert.Equal(2, Memory(w, P, camp)!.Stash![Resource.DriedMeat]);
+        Assert.Equal(2, Memory(w, P, camp)!.Pile![Resource.DriedMeat]);
         Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 30);
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
-        Sim.Step(w, new Unstash(npc, Resource.DriedMeat, 1), 1);
+        Sim.Step(w, new PickUp(npc, Resource.DriedMeat, 1), 1);
         Put(w, npc, ((NpcMind)w.Agent(npc).Mind).Camp);
         Put(w, P, camp);
         var r = Assert.Single(Sim.Step(w, new Wait(P), 1).Events.OfType<Noticed>()).Receipt;
-        Assert.Contains(r.Changes, c => c is { Kind: ChangeKind.Stash, Subject: nameof(Resource.DriedMeat), Was: "2.0", Now: "1.0" });
-        Assert.Contains(r.Happened.OfType<Unstashed>(), u => u.Who == npc && u.Kg == 1);
+        Assert.Contains(r.Changes, c => c is { Kind: ChangeKind.Pile, Subject: nameof(Resource.DriedMeat), Was: "2.0", Now: "1.0" });
+        Assert.Contains(r.Happened.OfType<PickedUp>(), u => u.Who == npc && u.Kg == 1);
     }
 
     /// Nothing changed, nothing to say: coming back to an unchanged tile gives no receipt.
@@ -610,8 +610,8 @@ public class MemoryTests
         Assert.True(Journal.Staked(w, camp));
         Assert.False(Journal.Staked(w, field));
         var events = new List<WorldEvent>();
-        for (int i = 0; i < Journal.MaxEntriesPerTile + 5; i++) events.Add(new Stashed(i, P, camp, Resource.Stone, 1));
-        events.Add(new Stashed(3, P, field, Resource.Stone, 1));
+        for (int i = 0; i < Journal.MaxEntriesPerTile + 5; i++) events.Add(new PutOnPile(i, P, camp, Resource.Stone, 1));
+        events.Add(new PutOnPile(3, P, field, Resource.Stone, 1));
         events.Add(new Moved(3, P, field, camp)); // a walk through is not news
         int filed = 0;
         Journal.File(w, events, ref filed);
@@ -620,9 +620,9 @@ public class MemoryTests
         Assert.Equal(Journal.MaxEntriesPerTile, w.Journal[camp].Count);
         Assert.Equal(5, w.Journal[camp][0].Minute); // the oldest went first
         string json = Save.ToJson(w);
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(json, Save.ToJson(loaded));
-        Assert.IsType<Stashed>(loaded.Journal[camp][^1]);
+        Assert.IsType<PutOnPile>(loaded.Journal[camp][^1]);
     }
 
     /// A full journal lets go of what happened longest ago, not what was filed first: catch-up files
@@ -646,9 +646,9 @@ public class MemoryTests
         Assert.Contains(kept, e => e.Minute == 700);
     }
 
-    /// Review: only fuel and stash chores made way, so 31 failed strikes, meals or cooked meat pushed
+    /// Review: only fuel and pile chores made way, so 31 failed strikes, meals or cooked meat pushed
     /// out the fire going out. Everything not notable goes before anything notable: the fire dying, a
-    /// shelter down, a wound, a kill, and the stash taken by someone whose camp it is not.
+    /// shelter down, a wound, a kill, and the pile taken by someone whose camp it is not.
     [Fact]
     public void ADayOfMealsAndMisses_KeepsWhatMattered_InTheJournal()
     {
@@ -659,7 +659,7 @@ public class MemoryTests
         {
             new FireDied(100, new FireId(0), camp),
             new Injured(101, P, camp, "Left Leg", DamageType.Pierce, 1),
-            new Unstashed(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
+            new PickedUp(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
             new Killed(103, new AgentId(99), Species.Caribou, 100, camp, P),
         };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
@@ -668,7 +668,7 @@ public class MemoryTests
                 0 => new FireStartFailed(200 + i, P, camp, 0.1),
                 1 => new Ate(200 + i, P, camp, Resource.Berries, 0.1, 50),
                 2 => new FireLit(200 + i, new FireId(1), camp, P),
-                _ => new Unstashed(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
+                _ => new PickedUp(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
             });
         int filed = 0;
         Journal.File(w, events, ref filed);
@@ -676,13 +676,13 @@ public class MemoryTests
         Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
         Assert.Contains(kept, e => e is FireDied);
         Assert.Contains(kept, e => e is Injured);
-        Assert.Contains(kept, e => e is Unstashed u && u.Who == stranger);
+        Assert.Contains(kept, e => e is PickedUp u && u.Who == stranger);
         Assert.Contains(kept, e => e is Killed);
         Assert.Equal(200 + 3 * Journal.MaxEntriesPerTile - 1, kept[^1].Minute); // and the latest of the rest
     }
 
-    /// Chores make way first: a night of feeding the fire and fetching from the stash cannot push out
-    /// the fire going out (review: an overnight FireDied evicted by FuelAdded and Stashed).
+    /// Chores make way first: a night of feeding the fire and fetching from the pile cannot push out
+    /// the fire going out (review: an overnight FireDied evicted by FuelAdded and PutOnPile).
     [Fact]
     public void ABusyNight_KeepsTheFireDying_InTheJournal()
     {
@@ -690,7 +690,7 @@ public class MemoryTests
         var camp = Map.Of(w).Camp;
         var events = new List<WorldEvent> { new FireDied(100, new FireId(0), camp) };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
-            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new Stashed(200 + i, P, camp, Resource.Pine, 1));
+            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new PutOnPile(200 + i, P, camp, Resource.Pine, 1));
         int filed = 0;
         Journal.File(w, events, ref filed);
         var kept = w.Journal[camp];
@@ -714,7 +714,7 @@ public class MemoryTests
     [Fact]
     public void NpcMemory_IsTheSharedModel()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var npc = Npc.Spawn(w, Map.Of(w).Camp);
         NpcDriver.Live(w, npc, 1440);
         var places = ((NpcMind)w.Agent(npc).Mind).Memory.Places;
@@ -749,7 +749,7 @@ public class MemoryTests
                     var r = Sim.Step(w, make(), n, more: done + n < total); // one job: work held between its chunks
                     Assert.True(r.MinutesElapsed > 0, r.InterruptedReason);
                     done += r.MinutesElapsed;
-                    if (reload) w = Save.FromJson(Save.ToJson(w));
+                    if (reload) w = TestWorlds.Load(Save.ToJson(w));
                 }
             }
             Do(() => new Gather(P, 0), 90);

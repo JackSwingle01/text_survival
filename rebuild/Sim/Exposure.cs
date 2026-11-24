@@ -78,7 +78,7 @@ public sealed record Exposure(
             // A roof over someone keeping still, or the sky's own cover, whichever is more.
             OverheadCoverLevel: Math.Max(overhead, cover.Shelter.OverheadLevel),
             SunlightLevel: sky.SunlightLevel * (1 - overhead),
-            GroundWettingPctPerMinute: contact is SurfaceContact c ? Ground.ContactWettingRate(world, tile, c, wetnessPct) : 0);
+            GroundWettingPctPerMinute: contact is SurfaceContact c ? Ground.Underfoot(world, tile).ContactWettingRate(c, wetnessPct) : 0);
     }
 
     /// The one wind at a body or thing: regional wind reaching this tile, less a pit's walls and a shelter's.
@@ -103,6 +103,9 @@ public sealed record Exposure(
             SnowfallWeMPerMinute: s.SnowfallWeMPerMinute * exposure,
             RainfallMPerMinute: s.RainfallMPerMinute * exposure);
     }
+
+    public static double SnowfallWeSince(World world, TileId tile, long minute) =>
+        (Tracks.SnowfallWeAt(world, world.Minute) - Tracks.SnowfallWeAt(world, minute)) * (1 - Map.OverheadCover(Map.Of(world), tile));
 
     /// windLevel is WindAt's. The defaults are a fully exposed tile.
     public static double FeltAirF(WeatherSample s, double windLevel, double overheadCoverLevel = 0, double temperatureDeltaF = 0)

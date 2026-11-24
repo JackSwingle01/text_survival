@@ -34,8 +34,8 @@ public static class Narration
             CrossedThePass x => x.Who == me,
             Gathered x => x.Who == me,
             Dropped x => x.Who == me,
-            Stashed x => x.Who == me,
-            Unstashed x => x.Who == me,
+            PutOnPile x => x.Who == me,
+            PickedUp x => x.Who == me,
             PoolDiscovered x => x.Who == me,
             Scavenged x => x.Who == me,
             TutorialShown x => x.Who == me,
@@ -85,8 +85,8 @@ public static class Narration
             Gathered x => x.What.Length > 0 ? ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good)
                 : Me(x.Who) && x.Density is double d ? (FailureLine(d, x.Minute), Tone.Bad) : ($"{Does(x.Who, "find")} nothing.", Tone.Bad),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
-            Stashed x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
-            Unstashed x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the stash." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",
+            PutOnPile x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
+            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the pile." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",
                 x.Taken ? Tone.Bad : Tone.Plain),
             PoolDiscovered x => (Me(x.Who) && Pools.FoundLine(world, x.Pool) is string found ? found : $"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
             Scavenged x => (x.Animal is Species a ? $"{Does(x.Who, "find")} a {x.Remains} - {Names.Of(a)}. It could be butchered for resources."
@@ -122,9 +122,9 @@ public static class Narration
         ChangeKind.Fire => c.Now == null ? "The fire pit is gone."
             : c.Was == null ? $"A fire here: {Phase(c.Now)}."
             : $"The fire was {Phase(c.Was)}. Now it is {Phase(c.Now)}.",
-        ChangeKind.Stash => c.Now == null ? $"The {Stuff(c.Subject)} in the stash is gone."
-            : c.Was == null ? $"{c.Now} kg {Stuff(c.Subject)} in the stash."
-            : $"The stash's {Stuff(c.Subject)}: {c.Was} kg, now {c.Now} kg.",
+        ChangeKind.Pile => c.Now == null ? $"The {Stuff(c.Subject)} in the pile is gone."
+            : c.Was == null ? $"{c.Now} kg {Stuff(c.Subject)} in the pile."
+            : $"The pile's {Stuff(c.Subject)}: {c.Was} kg, now {c.Now} kg.",
         ChangeKind.Carcass => c.Now == null ? $"The {c.Subject.ToLowerInvariant()} carcass is gone." : $"A {c.Subject.ToLowerInvariant()} carcass lies here.",
         ChangeKind.Shelter => c.Now == null ? $"The {(c.Was ?? "shelter").ToLowerInvariant()} is gone." : $"A {c.Now.ToLowerInvariant()} stands here.",
         _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),
@@ -179,7 +179,7 @@ public static class Narration
     static string Phase(string phase) => Names.Of(Enum.Parse<FirePhase>(phase));
 
     static string Stuff(string resource) => Enum.TryParse<Resource>(resource, out var r) ? Names.Of(r)
-        : throw new ArgumentException($"A stash change names no resource: '{resource}'", nameof(resource));
+        : throw new ArgumentException($"A pile change names no resource: '{resource}'", nameof(resource));
 
     static string Pct(double p) => (p * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 

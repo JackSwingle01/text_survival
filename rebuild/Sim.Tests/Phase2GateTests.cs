@@ -21,14 +21,14 @@ public class Phase2GateTests(ITestOutputHelper output)
     /// A day: a quick step onto the rock west of camp (seed 17: hazardous, so the injury roll is
     /// live) and a step back, careful by habit; a tree felled and hauled home, more while the camp's wood is
     /// short of a long storm's worth; foraging walks out three tiles and back, working whatever it
-    /// has found; home, the wood onto the stash; eat what it found; drink; the fire; sleep.
+    /// has found; home, the wood onto the pile; eat what it found; drink; the fire; sleep.
     /// It lives by a few rules a careful player would: never leave camp wet or thirsty, turn home
     /// when cold, wet, thirsty or the weather turns, and keep water and wood laid by.
     static void PlayDay(World w, Tally t)
     {
         var camp = Map.Of(w).Camp;
         int day = Weather.DayNumber(w.Minute);
-        void Note(string what) => Log?.Invoke($"day {day} {what} @{Weather.MinuteOfDay(w.Minute) / 60:00}h: core {w.Agent(P).Body.CoreTempF:0.0} wet {Effects.Severity(w.Agent(P).Body, EffectKind.Wet):0.00} energy {w.Agent(P).Body.EnergyPct:0.00} water {w.Agent(P).Body.HydrationPct:0.00} stash {Items.Describe(w.Tiles.GetValueOrDefault(camp)?.Stash ?? new Inventory())} pack {Items.Describe(Items.Pack(w, P))} fire {(Fire.PitAt(w, camp) is FireId f ? Fire.Phase(w.Fires[f]) + " " + Fire.TotalKg(w.Fires[f]).ToString("0.0") : "none")} sky {Weather.At(w, w.Minute).Condition} {Weather.At(w, w.Minute).TemperatureC:0}C");
+        void Note(string what) => Log?.Invoke($"day {day} {what} @{Weather.MinuteOfDay(w.Minute) / 60:00}h: core {w.Agent(P).Body.CoreTempF:0.0} wet {Effects.Severity(w.Agent(P).Body, EffectKind.Wet):0.00} energy {w.Agent(P).Body.EnergyPct:0.00} water {w.Agent(P).Body.HydrationPct:0.00} pile {Items.Describe(w.Tiles.GetValueOrDefault(camp)?.Pile ?? new Inventory())} pack {Items.Describe(Items.Pack(w, P))} fire {(Fire.PitAt(w, camp) is FireId f ? Fire.Phase(w.Fires[f]) + " " + Fire.TotalKg(w.Fires[f]).ToString("0.0") : "none")} sky {Weather.At(w, w.Minute).Condition} {Weather.At(w, w.Minute).TemperatureC:0}C");
         Note("wake");
         for (int i = 0; i < 6 && Alive(w) && w.Agent(P).Body.CoreTempF < 98.0; i++) { TendFire(w); S(w, new Rest(P), 30); }
         // Days run short of 24 h, so some start in the dark, when felling is refused: it waits for
@@ -50,7 +50,7 @@ public class Phase2GateTests(ITestOutputHelper output)
                 t.Injuries += Walk(w, Direction.East, 1);
             }
             // Firewood: fell a tree in the wood east of camp, carry it home in loads (what the pack
-            // cannot hold drops on that tile's stash and is fetched on the next load). Another while
+            // cannot hold drops on that tile's pile and is fetched on the next load). Another while
             // the camp's wood is short of what a two-day blizzard burns, light and energy allowing.
             for (int tree = 0; tree < 3 && Alive(w) && (tree == 0 || CampWoodKg(w) < ReserveWoodKg && !Foul(w)); tree++)
             {
@@ -77,7 +77,7 @@ public class Phase2GateTests(ITestOutputHelper output)
             for (int i = walked - 1; i >= 0; i--) t.Injuries += Walk(w, Opposite(path[i]), 1);
             if (!Alive(w)) return;
             Assert.Equal(camp, w.Agent(P).Tile); // walked back the same way
-            StashWood(w, t);
+            PutDownWood(w, t);
         }
         Note("home");
 
@@ -115,11 +115,11 @@ public class Phase2GateTests(ITestOutputHelper output)
         }
     }
 
-    /// Wood the camp holds, on the stash and in the fire.
+    /// Wood the camp holds, on the pile and in the fire.
     static double CampWoodKg(World w)
     {
         var camp = Map.Of(w).Camp;
-        double kg = new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling }.Sum(r => Items.Have(Items.StashAt(w, camp), r));
+        double kg = new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling }.Sum(r => Items.Have(Items.PileAt(w, camp), r));
         return kg + (Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f]) ? Fire.TotalKg(w.Fires[f]) : 0);
     }
     /// About what two days of blizzard by the fire burn (seed 17 has one of 36 h, then 12 h of whiteout).
@@ -182,12 +182,12 @@ public class Phase2GateTests(ITestOutputHelper output)
             if (load > 0)
             {
                 t.Injuries += Walk(w, Direction.East, 1);
-                var pile = Items.StashAt(w, wood);
-                foreach (var r in pile.Kg.Keys.ToList()) S(w, new Unstash(P, r, 99), 1);
+                var pile = Items.PileAt(w, wood);
+                foreach (var r in pile.Kg.Keys.ToList()) S(w, new PickUp(P, r, 99), 1);
             }
             t.Injuries += Walk(w, Direction.West, 1);
-            StashWood(w, t);
-            if (Items.StashAt(w, wood).Kg.Count == 0) break;
+            PutDownWood(w, t);
+            if (Items.PileAt(w, wood).Kg.Count == 0) break;
         }
     }
 
@@ -199,8 +199,8 @@ public class Phase2GateTests(ITestOutputHelper output)
         if (w.Agent(P).Tile != camp) return;
         for (int i = 0; i < 12 && Alive(w) && w.Agent(P).Body.HydrationPct < 0.9; i++)
         {
-            if (Items.Have(Items.Pack(w, P), Resource.Water) <= 0 && Items.Have(Items.StashAt(w, camp), Resource.Water) > 0)
-                S(w, new Unstash(P, Resource.Water, 1), 1);
+            if (Items.Have(Items.Pack(w, P), Resource.Water) <= 0 && Items.Have(Items.PileAt(w, camp), Resource.Water) > 0)
+                S(w, new PickUp(P, Resource.Water, 1), 1);
             if (Items.Have(Items.Pack(w, P), Resource.Water) > 0) { t.WaterLiters += Sip(w); continue; }
             if (!TendFire(w)) return;
             if (S(w, new MeltSnow(P), Work.MeltSnowMinutes).InterruptedReason == "melted") t.WaterLiters += Sip(w);
@@ -208,15 +208,15 @@ public class Phase2GateTests(ITestOutputHelper output)
     }
     static double Sip(World w) => S(w, new Drink(P), Work.DrinkMinutes).Events.OfType<Drank>().Sum(d => d.Liters);
 
-    /// With the fire going, melts snow into the stash until three litres are laid by, against a
+    /// With the fire going, melts snow into the pile until three litres are laid by, against a
     /// day the fire will not light.
     static void LayByWater(World w, Tally t)
     {
         var camp = Map.Of(w).Camp;
-        for (int i = 0; i < 4 && Alive(w) && Items.Have(Items.StashAt(w, camp), Resource.Water) + Items.Have(Items.Pack(w, P), Resource.Water) < 3; i++)
+        for (int i = 0; i < 4 && Alive(w) && Items.Have(Items.PileAt(w, camp), Resource.Water) + Items.Have(Items.Pack(w, P), Resource.Water) < 3; i++)
         {
             if (!TendFire(w) || S(w, new MeltSnow(P), Work.MeltSnowMinutes).InterruptedReason != "melted") return;
-            S(w, new Stash(P, Resource.Water, 99), 1);
+            S(w, new PutDown(P, Resource.Water, 99), 1);
         }
     }
 
@@ -231,9 +231,9 @@ public class Phase2GateTests(ITestOutputHelper output)
 
     static Direction Opposite(Direction d) => (Direction)(((int)d + 2) % 4);
 
-    /// Everything but food and a fire-lighting reserve goes on the camp stash, so the next walk
+    /// Everything but food and a fire-lighting reserve goes on the camp pile, so the next walk
     /// starts with room in the pack.
-    static void StashWood(World w, Tally t)
+    static void PutDownWood(World w, Tally t)
     {
         var pack = Items.Pack(w, P);
         foreach (var (r, kg) in pack.Kg.ToList())
@@ -241,7 +241,7 @@ public class Phase2GateTests(ITestOutputHelper output)
             if (Items.Resources[r].Category == ResourceCategory.Food) continue;
             double keep = r switch { Resource.Kindling => 2.0, Resource.Tinder or Resource.BirchBark or Resource.Amadou => 0.3, _ => 0 };
             if (r is Resource.Pine or Resource.Birch or Resource.Oak) t.WoodKg += kg;
-            if (kg - keep > 1e-6) S(w, new Stash(P, r, kg - keep), 1);
+            if (kg - keep > 1e-6) S(w, new PutDown(P, r, kg - keep), 1);
         }
     }
 
@@ -289,34 +289,34 @@ public class Phase2GateTests(ITestOutputHelper output)
         return injuries;
     }
 
-    /// Wood comes off the camp stash, a load at a time; refusals (full, too cold for it) cost nothing.
+    /// Wood comes off the camp pile, a load at a time; refusals (full, too cold for it) cost nothing.
     static void Feed(World w, double kg)
     {
-        var stash = Items.StashAt(w, Map.Of(w).Camp);
+        var pile = Items.PileAt(w, Map.Of(w).Camp);
         foreach (var wood in new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling })
         {
             if (kg <= 0) break;
-            double spare = wood == Resource.Kindling ? Items.Have(stash, wood) - 3 : Items.Have(stash, wood); // kindling kept for lighting
+            double spare = wood == Resource.Kindling ? Items.Have(pile, wood) - 3 : Items.Have(pile, wood); // kindling kept for lighting
             double take = Math.Min(kg, spare);
             if (take <= 0) continue;
-            S(w, new Unstash(P, wood, take), 1);
+            S(w, new PickUp(P, wood, take), 1);
             double before = Items.Have(Items.Pack(w, P), wood);
             S(w, new AddFuel(P, wood, before), 1);
             kg -= before - Items.Have(Items.Pack(w, P), wood);
-            S(w, new Stash(P, wood, 99), 1);
+            S(w, new PutDown(P, wood, 99), 1);
         }
     }
 
-    /// Lights the fire if it is out (with what the pack and stash hold) and feeds it up to a working
+    /// Lights the fire if it is out (with what the pack and pile hold) and feeds it up to a working
     /// size, bigger in foul weather: a fire fed blind burns a tree a day. Returns whether it burns.
     static bool TendFire(World w)
     {
         if (!Alive(w)) return false;
         var camp = Map.Of(w).Camp;
         var pack = Items.Pack(w, P);
-        var stash = Items.StashAt(w, camp);
+        var pile = Items.PileAt(w, camp);
         foreach (var (r, want) in new[] { (Resource.Kindling, 2.0), (Resource.Tinder, 0.3), (Resource.BirchBark, 0.3), (Resource.Amadou, 0.3) })
-            if (Items.Have(pack, r) < want && Items.Have(stash, r) > 0) S(w, new Unstash(P, r, want - Items.Have(pack, r)), 1);
+            if (Items.Have(pack, r) < want && Items.Have(pile, r) > 0) S(w, new PickUp(P, r, want - Items.Have(pack, r)), 1);
         bool Burning() => Fire.PitAt(w, camp) is FireId id && Fire.IsActive(w.Fires[id]);
         for (int i = 0; i < 20 && !Burning(); i++)
         {
@@ -336,7 +336,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     /// script has to survive the dice, not one lucky draw of them. Null leaves the seed's own streams.
     static World NewWorld(int seed, int? salt = null)
     {
-        var w = World.New(seed);
+        var w = TestWorlds.New(seed);
         Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
         if (salt is int s)
             foreach (var sys in PlayerStreams) w.Rngs[StreamName.Of(sys, P)] = Rng.ForSystem(s * 1000003 + seed, sys + ":salt");
@@ -395,8 +395,9 @@ public class Phase2GateTests(ITestOutputHelper output)
         // The wall clock is only a backstop for a blow-up that does not allocate. Both budgets here are
         // tripwires, not limits; see HerdTests.ThirtyPopulatedDays_StayCheap.
         // Re-baselined on purpose 2026-11-23 with HerdTests.ThirtyPopulatedDays_StayCheap (#82, animals drink and sleep):
-        // 9,112 MB, Release, beside the slow suite.
-        Assert.True(allocatedMB < 11_000, $"allocated {allocatedMB} MB");
+        // 9,112 MB, Release, beside the slow suite. Lowered 2026-11-24 for the pooled route search (#133): 5,216 MB
+        // (main 7,697 MB on the same probe).
+        Assert.True(allocatedMB < 6_100, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 300, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
 
@@ -416,7 +417,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         var half = NewWorld(17);
         var tally = new Tally();
         for (int day = 0; day < 15; day++) PlayDay(half, tally);
-        var resumed = Run(17, fromDay: 15, start: Save.FromJson(Save.ToJson(half))).World;
+        var resumed = Run(17, fromDay: 15, start: TestWorlds.Load(Save.ToJson(half))).World;
         Assert.Equal(Save.ToJson(straight), Save.ToJson(resumed));
     }
 

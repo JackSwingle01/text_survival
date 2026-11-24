@@ -20,11 +20,11 @@ public static partial class Combat
 
         // What was thrown and never picked up lies where the fight was.
         foreach (var d in enc.Dropped ?? [])
-            Items.StashAt(world, enc.Tile, new Cause(d.ThrownBy, $"thrown by {Cause.Describe(world, d.ThrownBy)}")).Gear.Add(d.Weapon);
+            Items.PileAt(world, enc.Tile, new Cause(d.ThrownBy, $"thrown by {Cause.Describe(world, d.ThrownBy)}")).Gear.Add(d.Weapon);
         foreach (var u in units.Where(u => u.Weapon != null))
         {
             var pack = Items.PackOf(world.Agent(u.Agent));
-            (pack != null && Alive(world, u) ? pack : Items.StashAt(world, enc.Tile, new Cause(u.Agent, $"dropped by {Cause.Describe(world, u.Agent)} in a fight"))).Gear.Add(u.Weapon!);
+            (pack != null && Alive(world, u) ? pack : Items.PileAt(world, enc.Tile, new Cause(u.Agent, $"dropped by {Cause.Describe(world, u.Agent)} in a fight"))).Gear.Add(u.Weapon!);
             u.Weapon = null;
         }
 

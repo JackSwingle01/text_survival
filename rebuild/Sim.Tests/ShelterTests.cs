@@ -13,7 +13,7 @@ public class ShelterTests
 
     static World At(WeatherSample sky)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = sky;
         return w;
     }
@@ -367,7 +367,7 @@ public class ShelterTests
             for (int done = 0; done < total; done += chunk)
             {
                 Sim.Step(w, a, Math.Min(chunk, total - done));
-                if (reload) w = Save.FromJson(Save.ToJson(w));
+                if (reload) w = TestWorlds.Load(Save.ToJson(w));
             }
         return Save.ToJson(w);
     }
@@ -406,7 +406,7 @@ public class ShelterTests
         Assert.Equal(("built", 10), (r.InterruptedReason, r.MinutesElapsed));
         Assert.DoesNotContain(Items.Pack(w, P).Gear, g => g.Kind == "hide_tent");
         Assert.Equal(0.9, Shelters.At(w, tile, [])!.OverheadLevel);
-        w = Save.FromJson(Save.ToJson(w));
+        w = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal("packed", Sim.Step(w, new PackTent(P), 5).InterruptedReason);
         Assert.Null(Shelters.At(w, tile, []));
         Assert.Contains(Items.Pack(w, P).Gear, g => g.Kind == "hide_tent");
@@ -426,7 +426,7 @@ public class ShelterTests
         double insulation = improved.InsulationLevel;
         Assert.True(insulation > 0.5);
         Sim.Step(w, new PackTent(P), 1);
-        w = Save.FromJson(Save.ToJson(w)); // packed through a save too
+        w = TestWorlds.Load(Save.ToJson(w)); // packed through a save too
         w.Agent(P).Tile = tile;
         Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 10).InterruptedReason);
         var again = Shelters.At(w, tile, [])!;
@@ -676,7 +676,7 @@ public class ShelterTests
         var finds = new List<ShelterDef>();
         for (int seed = 0; seed < 6 && finds.Count < 5; seed++)
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var m = Map.Of(w);
             for (int x = 0; x < m.Width; x++)
                 for (int y = 0; y < m.Height; y++)

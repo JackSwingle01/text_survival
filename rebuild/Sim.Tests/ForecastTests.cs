@@ -267,7 +267,7 @@ public class ForecastTests
                 forecast += Total(Work.ExpectedGather(w, Me(w), g, 60));
                 double before = Items.CarriedKg(Me(w));
                 Sim.Step(w, g, 60);
-                gathered += Items.CarriedKg(Me(w)) - before + (w.Tiles.GetValueOrDefault(Camp(w))?.Stash is { } s ? Items.WeightKg(s) : 0);
+                gathered += Items.CarriedKg(Me(w)) - before + (w.Tiles.GetValueOrDefault(Camp(w))?.Pile is { } s ? Items.WeightKg(s) : 0);
             }
             Assert.InRange(gathered, forecast * 0.8, forecast * 1.2);
         }
@@ -314,7 +314,7 @@ public class ForecastTests
             var from = Camp(w);
             var to = Map.Step(from, dir);
             if (Map.Blocked(m, from, to) != null) continue;
-            var copy = Save.FromJson(Save.ToJson(w));
+            var copy = TestWorlds.Load(Save.ToJson(w));
             int forecast = Trip.StepMinutes(copy, P, from, to, Pace.Quick);
             var r = Sim.Step(copy, new Travel(P, dir), Verbs.UntilDoneMinutes);
             Assert.Equal((Traversal.Arrived, forecast), (r.Reason, r.MinutesElapsed));
@@ -323,7 +323,7 @@ public class ForecastTests
         int light = Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick);
         Items.Add(Items.Pack(w, P), Resource.Stone, 60);
         Assert.True(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick) > light); // a load picked up this minute counts
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick), Trip.StepMinutes(loaded, P, Camp(loaded), east, Pace.Quick));
     }
 
@@ -352,6 +352,30 @@ public class ForecastTests
         Assert.Equal(target, w.Agent(who).Tile);
         Assert.Equal(routes.Minutes[target], walked);
         Assert.InRange(before - Held(), routes.Kcal(target)!.Value * (1 - kcalTolerancePct), routes.Kcal(target)!.Value * (1 + kcalTolerancePct));
+    }
+
+    /// A day into heavy snow, with every east-west edge near camp trodden hard: deep loose snow, where a trail pays.
+    static World TroddenSnow()
+    {
+        var w = Bare(-10);
+        w.FixedWeather = new(0, WeatherCondition.HeavySnow, -10, 0.2, 0.6, 1, WindDirection.North);
+        w.Minute = 1440;
+        var camp = Camp(w);
+        for (int dx = -6; dx < 6; dx++)
+            for (int dy = -6; dy <= 6; dy++)
+                w.Trails[new EdgeId(new TileId(camp.X + dx, camp.Y + dy), new TileId(camp.X + dx + 1, camp.Y + dy))] = new EdgeTrodden(0.9, w.Minute);
+        return w;
+    }
+
+    [Fact]
+    public void Routes_OverTroddenEdges_AgreeWithTheWalkMade_ForAPersonAndAnAnimal()
+    {
+        var person = TroddenSnow();
+        Assert.True(Ground.Underfoot(person, Camp(person)).SnowDepthM > 0.2);
+        RouteAgrees(person, P, 0.02);
+        var w = TroddenSnow();
+        var caribou = Agents.Spawn(w, Species.Caribou, Map.Step(Camp(w), Direction.South));
+        RouteAgrees(w, caribou, 0.001);
     }
 
     [Fact]
@@ -444,7 +468,7 @@ public class ForecastTests
         var flock = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
         var path = Trip.Routes(w, flock).RouteTo(corner);
         Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
-        var again = Save.FromJson(Save.ToJson(w));
+        var again = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
     }
 
@@ -483,8 +507,9 @@ public class ForecastTests
         Assert.Equal(kcal - burn - snow.PerMinute * snow.KcalPerUnit, KcalHeld(wolf.Body), 3);
     }
 
-    /// Three hungry caribou on the only half-grazed lichen tile: each takes what Fauna.GrazeHere says, a third of a lone one's
-    /// share of what is left (spec "Cohesion and crowding"), less its minute's burn.
+    /// Six hungry caribou on the only half-grazed lichen tile, over its capacity: each takes what Fauna.GrazeHere says, its
+    /// full rate x what is left x capacity ÷ load (decision on #83, 2026-11-24: seven caribou's intake on an average tile, x
+    /// what is left; load by intake), less its minute's burn.
     [Fact]
     public void Grazing_WithCrowding_AgreesWithWhatTheAnimalEats()
     {
@@ -492,14 +517,18 @@ public class ForecastTests
         var tile = new TileId(20, 1);
         foreach (var t in w.PoolCache!.Keys.Where(t => t != tile).ToList()) w.PoolCache[t] = []; // nowhere better to go
         Pools.SetGrazed(w, new PoolId(tile, 0), Resource.Usnea, 0.5);
-        var herd = Enumerable.Range(0, 3).Select(_ => PlannerTests.Animal(w, Species.Caribou, tile)).ToList();
+        var herd = Enumerable.Range(0, 6).Select(_ => PlannerTests.Animal(w, Species.Caribou, tile)).ToList();
         foreach (var a in herd) a.Body.CaloriesKcal = 0;
+        var row = SpeciesTable.Of(Species.Caribou);
+        double load = herd.Sum(a => row.GrazeKcalPerMinute * Math.Pow(a.Body.WeightKg / row.WeightKg, 0.75));
+        double capacity = 7 * row.GrazeKcalPerMinute * 0.5;
+        Assert.True(load > capacity, $"load {load:F1} under capacity {capacity:F1}");
         var caribou = herd[0];
         var graze = Assert.IsType<Source>(Fauna.GrazeHere(w, caribou));
-        Assert.Equal(SpeciesTable.Of(Species.Caribou).GrazeKcalPerMinute * 0.5 / 3, graze.PerMinute, 9);
+        Assert.Equal(row.GrazeKcalPerMinute * 0.5 * capacity / load, graze.PerMinute, 9);
         double before = KcalHeld(caribou.Body), burn = Fauna.BurnKcalPerMinute(caribou.Body);
         Sim.Advance(w, 1);
-        Assert.Equal(before - burn + graze.PerMinute, KcalHeld(caribou.Body), 3);
+        Assert.Equal(before - burn + graze.PerMinute, KcalHeld(caribou.Body), 2);
     }
 
     /// A tired wolf's minute asleep buys what Fauna.RestPerMinute says: at its den in full, elsewhere a lighter sleep.

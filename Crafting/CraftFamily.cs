@@ -50,11 +50,17 @@ public static class CraftFamilies
         {
             NeedCategory.CuttingTool => option.Name switch
             {
-                "Stone Axe" => "axe", "Bone Shovel" => "shovel", "Knapping Stone" => "knapping", "Bone Needle" => "needle", _ => "cutting"
+                "Stone Axe" => "axe",
+                "Bone Shovel" => "shovel",
+                "Knapping Stone" => "knapping",
+                "Bone Needle" => "needle",
+                _ => "cutting"
             },
             NeedCategory.FireStarting => option.Name switch
             {
-                "Hand Drill" or "Bow Drill" => "friction", "Tinder Bundle" => "tinder", _ => "spark"
+                "Hand Drill" or "Bow Drill" => "friction",
+                "Tinder Bundle" => "tinder",
+                _ => "spark"
             },
             NeedCategory.Lighting => option.Name.Contains("Torch") ? "torch" : "ember",
             NeedCategory.HuntingWeapon => "spear",
@@ -63,12 +69,18 @@ public static class CraftFamilies
             NeedCategory.Carrying => option.Name.Contains("Belt") ? "belt" : option.Name.Contains("Pouch") ? "pouch" : "pack",
             NeedCategory.Equipment or NeedCategory.Mending => (option.MendSlot ?? option.GearFactory?.Invoke(option.Durability).Slot) switch
             {
-                Items.EquipSlot.Hands => "hands", Items.EquipSlot.Head => "head", Items.EquipSlot.Chest => "chest",
-                Items.EquipSlot.Legs => "legs", Items.EquipSlot.Feet => "feet", _ => throw new InvalidOperationException(option.Name)
+                Items.EquipSlot.Hands => "hands",
+                Items.EquipSlot.Head => "head",
+                Items.EquipSlot.Chest => "chest",
+                Items.EquipSlot.Legs => "legs",
+                Items.EquipSlot.Feet => "feet",
+                _ => throw new InvalidOperationException(option.Name)
             },
             NeedCategory.Processing => option.Name switch
             {
-                "Scrape Hide" => "hide", "Render Fat" => "fat", _ => "cordage"
+                "Scrape Hide" => "hide",
+                "Render Fat" => "fat",
+                _ => "cordage"
             },
             NeedCategory.Treatment => option.Name.Contains("Tea") ? "tea" : "dressing",
             NeedCategory.CampInfrastructure => option.Name switch

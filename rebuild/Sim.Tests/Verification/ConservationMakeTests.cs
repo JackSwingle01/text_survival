@@ -69,7 +69,7 @@ public class ConservationMakeTests
             if (Items.PackOf(a) is { } pack) foreach (var g in InventoryGear(pack)) yield return g;
             foreach (var b in a.Members) foreach (var g in b.Worn) yield return g;
         }
-        foreach (var ts in w.Tiles.Values) if (ts.Stash is { } stash) foreach (var g in InventoryGear(stash)) yield return g;
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) foreach (var g in InventoryGear(pile)) yield return g;
     }
 
     static IEnumerable<Gear> InventoryGear(Inventory inv) => inv.Gear.Concat(inv.Projects?.SelectMany(p => p.Materials.Gear) ?? []);
@@ -80,7 +80,7 @@ public class ConservationMakeTests
         var t = ItemKg(w);
         void Add(IEnumerable<KeyValuePair<Resource, double>> kgs) { foreach (var (r, kg) in kgs) t[r] = t.GetValueOrDefault(r) + kg; }
         foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var p in pack.Projects ?? []) Add(p.Materials.Kg);
-        foreach (var ts in w.Tiles.Values) foreach (var p in ts.Stash?.Projects ?? []) Add(p.Materials.Kg);
+        foreach (var ts in w.Tiles.Values) foreach (var p in ts.Pile?.Projects ?? []) Add(p.Materials.Kg);
         foreach (var g in AllGear(w)) Add(g.MadeOf ?? []);
         return t;
     }

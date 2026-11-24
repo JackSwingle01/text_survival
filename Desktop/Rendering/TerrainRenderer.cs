@@ -13,18 +13,18 @@ public static class TerrainRenderer
     internal readonly record struct Neighborhood(ulong Packed)
     {
         public TerrainType At(int dx, int dy) =>
-            (TerrainType)((Packed >> (((dy+1)*3+dx+1)*4)) & 15);
+            (TerrainType)((Packed >> (((dy + 1) * 3 + dx + 1) * 4)) & 15);
 
         public static Neighborhood Create(TerrainType center, Func<int, int, TerrainType?>? neighbor = null)
         {
             ulong packed = 0;
             for (int y = -1; y <= 1; y++)
-            for (int x = -1; x <= 1; x++)
-            {
-                // Unknown and off-map neighbors never contribute their terrain.
-                var terrain = x == 0 && y == 0 ? center : neighbor?.Invoke(x, y) ?? center;
-                packed |= (ulong)terrain << (((y+1)*3+x+1)*4);
-            }
+                for (int x = -1; x <= 1; x++)
+                {
+                    // Unknown and off-map neighbors never contribute their terrain.
+                    var terrain = x == 0 && y == 0 ? center : neighbor?.Invoke(x, y) ?? center;
+                    packed |= (ulong)terrain << (((y + 1) * 3 + x + 1) * 4);
+                }
             return new Neighborhood(packed);
         }
     }
@@ -59,7 +59,7 @@ public static class TerrainRenderer
                     try
                     {
                         variants.Add(new Art(image.Width, image.Height,
-                            new ReadOnlySpan<Color>(colors, image.Width*image.Height).ToArray()));
+                            new ReadOnlySpan<Color>(colors, image.Width * image.Height).ToArray()));
                     }
                     finally { Raylib.UnloadImageColors(colors); }
                 }
@@ -106,8 +106,14 @@ public static class TerrainRenderer
             Texture2D texture;
             fixed (Color* data = pixels)
             {
-                var image = new Image { Data = data, Width = Resolution, Height = Resolution,
-                    Mipmaps = 1, Format = PixelFormat.UncompressedR8G8B8A8 };
+                var image = new Image
+                {
+                    Data = data,
+                    Width = Resolution,
+                    Height = Resolution,
+                    Mipmaps = 1,
+                    Format = PixelFormat.UncompressedR8G8B8A8
+                };
                 texture = Raylib.LoadTextureFromImage(image);
             }
             Raylib.SetTextureFilter(texture, TextureFilter.Point);
@@ -123,31 +129,31 @@ public static class TerrainRenderer
     internal static Color[] Rasterize(int worldX, int worldY, Neighborhood neighbors,
         IReadOnlyDictionary<TerrainType, Art[]> art, bool blend = true, bool caveFloor = false)
     {
-        var pixels = new Color[Resolution*Resolution];
+        var pixels = new Color[Resolution * Resolution];
         for (int y = 0; y < Resolution; y++)
-        for (int x = 0; x < Resolution; x++)
-        {
-            int px = worldX*Resolution+x, py = worldY*Resolution+y;
-            if (caveFloor)
+            for (int x = 0; x < Resolution; x++)
             {
-                pixels[y*Resolution+x] = SampleArt(_caveFloor, px, py);
-                continue;
+                int px = worldX * Resolution + x, py = worldY * Resolution + y;
+                if (caveFloor)
+                {
+                    pixels[y * Resolution + x] = SampleArt(_caveFloor, px, py);
+                    continue;
+                }
+                float u = (x + 0.5f) / Resolution, v = (y + 0.5f) / Resolution;
+                // The same continuous world-space displacement on both sides of an
+                // edge prevents straight seams, including four-terrain junctions.
+                float wx = (px + 0.5f) / Resolution, wy = (py + 0.5f) / Resolution;
+                float du = MathF.Sin(wy * 11 + MathF.Sin(wx * 7)) * 0.07f;
+                float dv = MathF.Sin(wx * 13 + MathF.Sin(wy * 5)) * 0.07f;
+                var (dx, ax) = EdgeWeight(u + du);
+                var (dy, ay) = EdgeWeight(v + dv);
+                if (!blend) ax = ay = 0;
+                // Each pixel takes one terrain's art, never a colour mix: a crossfade turns
+                // dark spruce on snow into grey haze, a dithered pick leaves scattered trees.
+                int nx = ax > Dither(px, py, 1) ? dx : 0;
+                int ny = ay > Dither(px, py, 2) ? dy : 0;
+                pixels[y * Resolution + x] = Sample(neighbors.At(nx, ny), px, py, art);
             }
-            float u = (x+0.5f)/Resolution, v = (y+0.5f)/Resolution;
-            // The same continuous world-space displacement on both sides of an
-            // edge prevents straight seams, including four-terrain junctions.
-            float wx = (px+0.5f)/Resolution, wy = (py+0.5f)/Resolution;
-            float du = MathF.Sin(wy*11 + MathF.Sin(wx*7))*0.07f;
-            float dv = MathF.Sin(wx*13 + MathF.Sin(wy*5))*0.07f;
-            var (dx, ax) = EdgeWeight(u+du);
-            var (dy, ay) = EdgeWeight(v+dv);
-            if (!blend) ax = ay = 0;
-            // Each pixel takes one terrain's art, never a colour mix: a crossfade turns
-            // dark spruce on snow into grey haze, a dithered pick leaves scattered trees.
-            int nx = ax > Dither(px, py, 1) ? dx : 0;
-            int ny = ay > Dither(px, py, 2) ? dy : 0;
-            pixels[y*Resolution+x] = Sample(neighbors.At(nx, ny), px, py, art);
-        }
         return pixels;
     }
 
@@ -157,12 +163,12 @@ public static class TerrainRenderer
     {
         unchecked
         {
-            uint h = (uint)(px*374761393 + py*668265263 + salt*982451653);
-            h = (h ^ (h >> 13))*1274126177u;
+            uint h = (uint)(px * 374761393 + py * 668265263 + salt * 982451653);
+            h = (h ^ (h >> 13)) * 1274126177u;
             h ^= h >> 16;
-            float wx = px/(float)Resolution, wy = py/(float)Resolution;
-            float wave = 0.5f + 0.5f*MathF.Sin(wx*17 + MathF.Sin(wy*9 + salt))*MathF.Sin(wy*15 + MathF.Sin(wx*7));
-            return h/4294967296f*0.6f + wave*0.4f;
+            float wx = px / (float)Resolution, wy = py / (float)Resolution;
+            float wave = 0.5f + 0.5f * MathF.Sin(wx * 17 + MathF.Sin(wy * 9 + salt)) * MathF.Sin(wy * 15 + MathF.Sin(wx * 7));
+            return h / 4294967296f * 0.6f + wave * 0.4f;
         }
     }
 
@@ -170,9 +176,9 @@ public static class TerrainRenderer
     {
         const float width = 0.22f;
         int direction = position < 0.5f ? -1 : 1;
-        float distance = direction < 0 ? position : 1-position;
-        float t = Math.Clamp((distance+width)/(2*width), 0, 1);
-        return (direction, 1-t*t*(3-2*t));
+        float distance = direction < 0 ? position : 1 - position;
+        float t = Math.Clamp((distance + width) / (2 * width), 0, 1);
+        return (direction, 1 - t * t * (3 - 2 * t));
     }
 
     internal static Color Sample(TerrainType terrain, int px, int py, IReadOnlyDictionary<TerrainType, Art[]> art)
@@ -182,11 +188,11 @@ public static class TerrainRenderer
 
     private static Color SampleArt(Art[] variants, int px, int py)
     {
-        const int span = Resolution*2;
-        int tx = (int)Math.Floor((double)px/span), ty = (int)Math.Floor((double)py/span);
+        const int span = Resolution * 2;
+        int tx = (int)Math.Floor((double)px / span), ty = (int)Math.Floor((double)py / span);
         var tile = variants[VariantIndex(tx, ty, variants.Length)];
-        int x = (px-tx*span)*tile.Width/span, y = (py-ty*span)*tile.Height/span;
-        return tile.Pixels[y*tile.Width+x];
+        int x = (px - tx * span) * tile.Width / span, y = (py - ty * span) * tile.Height / span;
+        return tile.Pixels[y * tile.Width + x];
     }
 
     // Keep the authoring tool's world-position hash in sync.
@@ -195,7 +201,7 @@ public static class TerrainRenderer
         if (count <= 1) return 0;
         unchecked
         {
-            int h = x*73856093 ^ y*19349663;
+            int h = x * 73856093 ^ y * 19349663;
             h ^= h >> 13;
             h *= 1274126177;
             h ^= h >> 16;

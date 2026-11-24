@@ -4,7 +4,7 @@ public class CoreTests
 {
     static World Play(int seed)
     {
-        var world = World.New(seed);
+        var world = TestWorlds.New(seed);
         // Real weather can kill an unsheltered agent with no fire; determinism holds either way.
         bool Alive() => Body.IsAlive(world.Agent(AgentId.Player).Body);
         Sim.Step(world, new Wait(AgentId.Player), 600);
@@ -23,8 +23,8 @@ public class CoreTests
     [Fact]
     public void DifferentSeeds_GiveDifferentRngStreams()
     {
-        Assert.NotEqual(World.New(1).Rng("fire").NextUlong(), World.New(2).Rng("fire").NextUlong());
-        Assert.NotEqual(World.New(1).Rng("fire").NextUlong(), World.New(1).Rng("body").NextUlong());
+        Assert.NotEqual(TestWorlds.New(1).Rng("fire").NextUlong(), TestWorlds.New(2).Rng("fire").NextUlong());
+        Assert.NotEqual(TestWorlds.New(1).Rng("fire").NextUlong(), TestWorlds.New(1).Rng("body").NextUlong());
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class CoreTests
     {
         var world = Play(42);
         string json = Save.ToJson(world);
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
 
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.True(json.Length < 1_000_000, $"Save is {json.Length} bytes");
@@ -43,7 +43,7 @@ public class CoreTests
     [Fact]
     public void Wait_DrainsAndAdvancesClock()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         var result = Sim.Step(world, new Wait(AgentId.Player), 60);
 
         Assert.Equal(60, world.Minute);
@@ -58,7 +58,7 @@ public class CoreTests
     [Fact]
     public void WaitingTooLong_EmitsTiredThenInterruptsOnExhaustion()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North); // mild: this is about sleep, not cold
         var result = Sim.Step(world, new Wait(AgentId.Player), 24 * 60);
 
@@ -72,7 +72,7 @@ public class CoreTests
     [Fact]
     public void Sleep_StopsWhenFullyRested()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         Sim.Step(world, new Wait(AgentId.Player), 120); // 780 of 960 left; sleep refills 2/min
         var result = Sim.Step(world, new Sleep(AgentId.Player), 600);
 
@@ -88,7 +88,7 @@ public class CoreTests
     [Fact]
     public void AtZeroEnergy_ThePlayerDropsAsleep_AndCanOnlySleepItOut()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         var body = world.Agent(AgentId.Player).Body;
         body.EnergyMinutes = 0;
@@ -119,7 +119,7 @@ public class CoreTests
         const int minutes = 600;
         World Make()
         {
-            var w = World.New(3);
+            var w = TestWorlds.New(3);
             w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
             w.Agent(AgentId.Player).Body.EnergyMinutes = 0;
             return w;
@@ -152,7 +152,7 @@ public class CoreTests
     [Fact]
     public void Rest_DoesNotRestoreEnergy_OnlySleepDoes()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         Sim.Step(world, new Rest(AgentId.Player), 60);
         Assert.Equal(840, world.Agent(AgentId.Player).Body.EnergyMinutes);
     }
@@ -160,7 +160,7 @@ public class CoreTests
     [Fact]
     public void BleedingOut_EmitsDiedAndInterrupts_ThenTheDeadCannotAct()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         Effects.Add(world.Agent(AgentId.Player).Body, EffectKind.Bleeding, 1.0);
         var result = Sim.Step(world, new Wait(AgentId.Player), 600);
 
@@ -172,9 +172,9 @@ public class CoreTests
     [Fact]
     public void Cold_ReachesTheBodyThroughWeather()
     {
-        var warm = World.New(1);
+        var warm = TestWorlds.New(1);
         warm.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, 20, 0, 0, 0, WindDirection.North);
-        var cold = World.New(1);
+        var cold = TestWorlds.New(1);
         cold.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -30, 0.5, 0, 0, WindDirection.North);
         Sim.Step(warm, new Wait(AgentId.Player), 120);
         Sim.Step(cold, new Wait(AgentId.Player), 120);
@@ -184,7 +184,7 @@ public class CoreTests
     [Fact]
     public void InvalidInput_Throws()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         Assert.Throws<ArgumentOutOfRangeException>(() => Sim.Step(world, new Wait(AgentId.Player), 0));
         Assert.Throws<KeyNotFoundException>(() => Sim.Step(world, new Wait(new AgentId(world.NextAgentId)), 1)); // never made
     }

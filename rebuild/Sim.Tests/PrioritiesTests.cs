@@ -7,7 +7,7 @@ public class PrioritiesTests
     [Fact]
     public void Of_ReadsEachStatsPriority_OffThePersonAsTheyAre()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var p = w.Agent(AgentId.Player);
         Items.Pack(w, AgentId.Player).Kg.Remove(Resource.Water);
         var b = p.Body;

@@ -98,7 +98,7 @@ public class Phase3GateTests
                     int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
                     if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
                     foreach (var (r, kg) in pack.Kg.ToList())
-                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new Stash(P, r, kg), 1);
+                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new PutDown(P, r, kg), 1);
                     var dir = tile == camp ? Direction.East : Direction.West;
                     for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
                         S(new Travel(P, dir, Pace.Careful), 30);
@@ -113,9 +113,13 @@ public class Phase3GateTests
         }
     }
 
+    /// The busy day (Run(Steps)), built once for the tests that only read it. A test that looks for objects
+    /// shared in memory builds its own: a save/load copy would hide them.
+    internal static readonly SharedWorld BusyDay = new(() => Run(Steps).World);
+
     internal static (World World, Tally Tally) Run(int steps, int saveEvery = 0)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         // An NPC living on its own mind beside all this: its mind, memory and work in hand are saved state too.
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
@@ -123,7 +127,7 @@ public class Phase3GateTests
         var t = new Tally();
         for (int i = 0; i < steps; i++)
         {
-            if (saveEvery > 0 && i % saveEvery == 0) w = Save.FromJson(Save.ToJson(w));
+            if (saveEvery > 0 && i % saveEvery == 0) w = TestWorlds.Load(Save.ToJson(w));
             Play(w, i, t);
         }
         return (w, t);
@@ -132,7 +136,7 @@ public class Phase3GateTests
     /// The mixed run's events, every one the player's steps raised, with the herds' and the NPC's.
     internal static List<WorldEvent> RunCollecting(int steps)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
         foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));

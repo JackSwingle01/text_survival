@@ -1,5 +1,5 @@
 {
-  "Version": 23,
+  "Version": 27,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -15,31 +15,9 @@
             "DirectionX": 0,
             "DirectionY": -1,
             "NorthSouthTraffic": 1,
-            "EastWestTraffic": 0
+            "EastWestTraffic": 0,
+            "SnowFallenM": 0.7925709090576951
           }
-        },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
         },
         "Pools": {
           "1": {
@@ -56,55 +34,33 @@
             "Grazed": {}
           }
         },
-        "Stash": {
+        "Pile": {
           "Kg": {
             "Oak": 34.97920517535081
           },
           "Gear": []
         },
-        "StashCause": {
+        "PileCause": {
           "Who": 1,
           "What": "dropped by a person, pack full"
         },
-        "StashId": 1
+        "PileId": 1
       },
       "7,42": {
         "Tracks": {
           "Human": {
             "Minute": 82,
             "Heading": 3,
-            "Traffic": 2.8841451852062714,
+            "Traffic": 2.6176562125542073,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.045735816732055956,
-            "DirectionY": -0.9298810019383272,
-            "NorthSouthTraffic": 0.9298810019383272,
-            "EastWestTraffic": 1.9542641832679442
+            "DirectionX": -0.14539404885615748,
+            "DirectionY": -0.7630502614103649,
+            "NorthSouthTraffic": 0.7630502614103649,
+            "EastWestTraffic": 1.8546059511438426,
+            "SnowFallenM": 1.1215786030652104
           }
         },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.5609629230242762,
-              "FrozenFractionPct": 0.1272478071445237
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.041463514991129324,
-              "CompactionPct": 0.04474511829143293,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.264783194690255,
-          "WaterDrainedM": 0.11796450034405591,
-          "WaterEvaporatedM": 0.007235458223766969,
-          "WaterOverflowedM": 0.04625183432822394,
-          "LastUpdatedMinute": 165
-        },
-        "Stash": {
+        "Pile": {
           "Kg": {
             "Pine": 2
           },
@@ -119,47 +75,25 @@
             }
           ]
         },
-        "StashCause": {
+        "PileCause": {
           "Who": 0,
-          "What": "stashed by the player"
+          "What": "put down by the player"
         },
-        "StashId": 0
+        "PileId": 0
       },
       "8,42": {
         "Tracks": {
           "Human": {
             "Minute": 82,
             "Heading": 3,
-            "Traffic": 1.946852225982204,
+            "Traffic": 1.8738214134087077,
             "HeaviestIndividual": 1,
-            "DirectionX": -0.05314777401779591,
+            "DirectionX": -0.12617858659129244,
             "DirectionY": 0,
             "NorthSouthTraffic": 0,
-            "EastWestTraffic": 1.946852225982204
+            "EastWestTraffic": 1.8738214134087077,
+            "SnowFallenM": 0.801127573618012
           }
-        },
-        "Ground": {
-          "Layers": [
-            {
-              "Material": 0,
-              "ThicknessM": 0.35,
-              "CompactionPct": 0,
-              "WaterSaturationPct": 0.446495348259833,
-              "FrozenFractionPct": 0.03439394182648681
-            },
-            {
-              "Material": 1,
-              "ThicknessM": 0.02954832858165671,
-              "CompactionPct": 0.04469459049309967,
-              "WaterSaturationPct": 0,
-              "FrozenFractionPct": 0
-            }
-          ],
-          "WaterAddedM": 0.20488085335018244,
-          "WaterDrainedM": 0.11573727356676665,
-          "WaterEvaporatedM": 0.006170541153386771,
-          "WaterOverflowedM": 0.009101958291151393,
-          "LastUpdatedMinute": 165
         }
       }
     },
@@ -676,7 +610,7 @@
                 "ForageDensity": 0.38,
                 "Fire": 1,
                 "FireHours": 0.3,
-                "Stash": {
+                "Pile": {
                   "Pine": 2
                 },
                 "Shelter": "Overhang",
@@ -1282,7 +1216,7 @@
                 "ForageDensity": 1.013609329260508,
                 "Fire": 5,
                 "FireHours": 0.5,
-                "Stash": {
+                "Pile": {
                   "Oak": 35
                 },
                 "SearchedHours": 0.09374999999999999,
@@ -2462,21 +2396,21 @@
     "Encounters": [],
     "Trails": {
       "7,41|7,42": {
-        "Wear": 1,
+        "Amount": 0.05,
         "Minute": 5
       },
       "7,42|7,43": {
-        "Wear": 15,
+        "Amount": 0.55,
         "Minute": 170
       },
       "7,42|8,42": {
-        "Wear": 1.9712764101863662,
+        "Amount": 0.09651984126984128,
         "Minute": 82
       }
     },
     "TracksSweptHour": 1,
     "NextCarcassId": 0,
-    "NextStashId": 2,
+    "NextPileId": 2,
     "NextShelterId": 1,
     "Shelters": {
       "7,42": {
@@ -2516,7 +2450,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "unstashed",
+          "kind": "pickedup",
           "Who": 1,
           "Resource": 22,
           "Kg": 0.019999999999999574,
@@ -2525,7 +2459,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "stashed",
+          "kind": "putonpile",
           "Who": 1,
           "Resource": 8,
           "Kg": 6.65208906854712,
@@ -2533,7 +2467,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "unstashed",
+          "kind": "pickedup",
           "Who": 1,
           "Resource": 22,
           "Kg": 0.7099999999999973,
@@ -2573,7 +2507,7 @@
           "Tile": "7,42"
         },
         {
-          "kind": "stashed",
+          "kind": "putonpile",
           "Who": 0,
           "Resource": 6,
           "Kg": 2,

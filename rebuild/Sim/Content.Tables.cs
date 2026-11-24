@@ -717,15 +717,15 @@ public static partial class Content
         IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, bool detail)
     {
         if (d.Found is not { Count: > 0 } || d.Found.Any(string.IsNullOrWhiteSpace)) yield return "no found lines";
-        int shapes = (d.Work != null ? 1 : 0) + (d.Shelter != null ? 1 : 0) + (d.Carcass != null ? 1 : 0) + (d.Stash ? 1 : 0);
-        if (shapes != 1) { yield return "a find is a stock (work), a shelter, a carcass or a stash, one of them"; yield break; }
+        int shapes = (d.Work != null ? 1 : 0) + (d.Shelter != null ? 1 : 0) + (d.Carcass != null ? 1 : 0) + (d.Pile ? 1 : 0);
+        if (shapes != 1) { yield return "a find is a stock (work), a shelter, a carcass or a pile, one of them"; yield break; }
         if (d.Loot != null && !loot.ContainsKey(d.Loot)) yield return $"no loot table '{d.Loot}'";
         if (d.Outcomes != null)
         {
             if (detail) yield return "a detail has no outcomes";
-            if (!d.Stash && d.Work != StockKind.Salvage) yield return "only a salvage or a stash has outcomes";
+            if (!d.Pile && d.Work != StockKind.Salvage) yield return "only a salvage or a pile has outcomes";
             if (d.Loot != null || d.Items != null) yield return "outcomes stand in place of loot and items";
-            if (d.Stash != (d.Minutes == 0)) yield return d.Stash ? "a stash has no minutes" : $"minutes {d.Minutes}";
+            if (d.Pile != (d.Minutes == 0)) yield return d.Pile ? "a pile has no minutes" : $"minutes {d.Minutes}";
             if (d.Outcomes.Count == 0) yield return "no outcomes";
             foreach (var o in d.Outcomes)
             {
@@ -742,10 +742,10 @@ public static partial class Content
             if (d.Items != null || d.Minutes != 0 || d.Loot != null) yield return "a carcass has no items, minutes or loot";
             yield break;
         }
-        if (d.Stash)
+        if (d.Pile)
         {
-            if (detail) yield return "a detail is not a stash";
-            if (d.Loot == null || d.Items != null || d.Minutes != 0) yield return "a stash holds a loot table, with no items or minutes";
+            if (detail) yield return "a detail is not a pile";
+            if (d.Loot == null || d.Items != null || d.Minutes != 0) yield return "a pile holds a loot table, with no items or minutes";
             yield break;
         }
         if (d.Shelter != null)

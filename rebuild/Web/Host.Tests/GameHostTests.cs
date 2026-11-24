@@ -429,7 +429,7 @@ public class GameHostTests
         var h = new GameHost();
         var v = Parse(h.NewGame(Seed));
         Assert.Contains(v.PackVerbs, x => x.Kind == "takeoff");
-        Assert.Contains(v.PackVerbs, x => x.Kind == "stash");
+        Assert.Contains(v.PackVerbs, x => x.Kind == "putdown");
         var go = v.Walk.First(w => w.Refused == null && !w.Careful);
         var after = Run(h, go, chunk: 3);
         Assert.Contains(after.Log, l => l.Text.StartsWith("You reach ", StringComparison.Ordinal) && l.Icon == "ui/follow");
@@ -440,8 +440,16 @@ public class GameHostTests
 
     // ---- the ground on the map: in sight as it is, out of sight as last seen ----
 
+    /// Nothing stores ground per tile, so a scene's ground is set on the tile's whole class (Ground.SetClassState).
+    static void EditGround(World w, TileId t, Action<GroundState> edit)
+    {
+        var g = Ground.At(w, t);
+        edit(g);
+        Ground.SetClassState(w, t, g);
+    }
+
     static void Snow(World w, TileId t, double depthM) =>
-        Ground.CatchUp(w, t).Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 });
+        EditGround(w, t, g => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = depthM, CompactionPct = 0.3, FrozenFractionPct = 1 }));
 
     static TileId InSightOfPlayer(World w)
     {
@@ -464,7 +472,7 @@ public class GameHostTests
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // ground is kept once it has lived any time
         Snow(w, t, 0.4);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes); // the next look sees it
-        double seenCm = Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1);
+        double seenCm = Math.Round(Ground.Underfoot(w, t).SnowDepthM * 100, 1);
         Assert.True(seenCm > 30, $"{seenCm} cm");
 
         var m = Map.Of(w);
@@ -472,19 +480,19 @@ public class GameHostTests
             .First(f => m.TerrainAt(f).IsPassable() && m.SiteAt(f) == null && Math.Abs(f.X - t.X) + Math.Abs(f.Y - t.Y) > 2 * Sight.MaxTiles);
         p.Crossing = null;
         Sim.Step(w, new Wait(AgentId.Player), 1);
-        Ground.CatchUp(w, t).Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow); // gone while nobody looked
+        EditGround(w, t, g => g.Layers.RemoveAll(l => l.Material == SurfaceMaterial.Snow)); // gone while nobody looked
 
         var loaded = new GameHost();
         var v = Parse(loaded.Load(h.Save()));
         Assert.DoesNotContain(Index(w, t), v.Map.Visible);
-        Assert.Equal(0, Ground.SurfaceNow(loaded.World, t).SnowDepthM);
+        Assert.Equal(0, Ground.Underfoot(loaded.World, t).SnowDepthM);
         var remembered = v.Map.Surface.Single(s => s.I == Index(w, t));
         Assert.Equal(seenCm, remembered.SnowCm);
     }
 
     // ---- routes and prints on the map ----
 
-    static void Wear(World w, TileId a, TileId b, double wear) => w.Trails[new EdgeId(a, b)] = new TrailWear(wear, w.Minute);
+    static void Tread(World w, TileId a, TileId b, double trodden) => w.Trails[new EdgeId(a, b)] = new EdgeTrodden(trodden, w.Minute);
 
     static TileId NeighbourInSight(World w, TileId t)
     {
@@ -512,9 +520,9 @@ public class GameHostTests
         var p = w.Agent(AgentId.Player);
         var a = InSightOfPlayer(w);
         var b = NeighbourInSight(w, a);
-        Wear(w, a, b, Tracks.PathAt + 1);
+        Tread(w, a, b, Tracks.PathAt + 0.05);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
-        Wear(w, a, b, Tracks.TrailAt + 1); // after the look
+        Tread(w, a, b, Tracks.TrailAt + 0.05); // after the look
         Assert.Contains(Trail(a, b, "trail"), Sent(Parse(h.View())));
 
         var m = Map.Of(w);
@@ -523,7 +531,7 @@ public class GameHostTests
         p.Crossing = null;
         Sim.Step(w, new Wait(AgentId.Player), 1);
         var far = Enumerable.Range(0, m.Width).Select(x => new TileId(x, m.Height - 1)).First(t => !Memories.Of(p).Explored!.Contains(t));
-        Wear(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 1); // never seen
+        Tread(w, far, Map.Step(far, Direction.North), Tracks.TrailAt + 0.05); // never seen
 
         var v = Parse(new GameHost().Load(h.Save()));
         Assert.DoesNotContain(Index(w, a), v.Map.Visible);
@@ -547,7 +555,7 @@ public class GameHostTests
         var w = h.World;
         var here = w.Agent(AgentId.Player).Tile;
         var west = Map.Step(here, Direction.West);
-        Tracks.RecordMove(w, west, here, TrackMaker.Paw, 3);
+        for (int i = 0; i < 3; i++) Tracks.RecordMove(w, west, here, TrackMaker.Paw);
         var t = Parse(h.View()).Map.Tracks.Single(t => t.X == here.X && t.Y == here.Y && t.Maker == "paw");
         Assert.Equal("east", t.Heading);
         Assert.Equal("heading", t.Pattern);
@@ -566,7 +574,7 @@ public class GameHostTests
         var m = Map.Of(w);
         var far = Enumerable.Range(1, 20).Select(d => new TileId(here.X + MapView.TrackReadTiles + d, here.Y))
             .First(t => m.InBounds(t) && m.TerrainAt(t).IsPassable() && m.TerrainAt(Map.Step(t, Direction.East)).IsPassable());
-        Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof, 5);
+        for (int i = 0; i < 5; i++) Tracks.RecordMove(w, Map.Step(far, Direction.East), far, TrackMaker.Hoof);
         var v = Parse(h.View());
         Assert.NotEmpty(Tracks.Read(w, far));
         Assert.All(v.Map.Tracks, t => Assert.True(Math.Max(Math.Abs(t.X - here.X), Math.Abs(t.Y - here.Y)) <= MapView.TrackReadTiles, $"prints at {t.X},{t.Y}"));
@@ -629,11 +637,11 @@ public class GameHostTests
 
         var v = Parse(h.View());
         Assert.Contains(Index(w, t), v.Map.Visible);
-        Assert.Equal(Math.Round(Ground.SurfaceNow(w, t).SnowDepthM * 100, 1), v.Map.Surface.Single(s => s.I == Index(w, t)).SnowCm);
+        Assert.Equal(Math.Round(Ground.Underfoot(w, t).SnowDepthM * 100, 1), v.Map.Surface.Single(s => s.I == Index(w, t)).SnowCm);
         int width = Map.Of(w).Width;
         foreach (var i in v.Map.Visible)
         {
-            var g = Ground.SurfaceNow(w, new TileId(i % width, i / width));
+            var g = Ground.Underfoot(w, new TileId(i % width, i / width));
             var s = v.Map.Surface.SingleOrDefault(x => x.I == i);
             Assert.Equal(Math.Round(g.SnowDepthM * 100, 1), s?.SnowCm ?? 0);
             Assert.Equal(Math.Round(g.WaterDepthM * 100, 1), s?.WaterCm ?? 0);

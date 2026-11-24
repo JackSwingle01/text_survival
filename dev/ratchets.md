@@ -70,3 +70,51 @@ suite; others: `dotnet build` and `dotnet test`).
 When empty: change the `format` job in `.github/workflows/ci.yml` to check every C# file in the
 repository (`dotnet format whitespace . --folder --verify-no-changes`), not only the ones a PR
 touches, and drop its "Ratchet" comment.
+
+## fast-test-time
+
+- **batch:** 3
+
+```bash
+{ grep -v -e '^#' -e '^$' rebuild/Sim.Tests/slow-fast-tests.txt || true; }
+```
+
+Get each test under 5 s in the Release fast suite, then delete its line from
+`rebuild/Sim.Tests/slow-fast-tests.txt`. First time it alone
+(`dotnet test rebuild/Sim.Tests -c Release --filter "FullyQualifiedName~<name>"`) and find where the
+time goes. The usual cause: the test steps `World.New(seed)`, so every minute it waits or works also
+simulates every animal on the map. Keep what the test checks, and cut what it doesn't: a world without
+the animals when animals aren't its subject (a `TestKit` helper if none exists), a hand-built or
+smaller world, fewer simulated minutes. Change no `rebuild/Sim` behaviour to do it. A test whose
+subject is a long run by nature (populated days, a season, a month's budget) is tagged
+`[Trait("Category", TestCategories.Slow)]` instead, so it runs nightly; if no other fast test checks
+the same rule, add a quick sibling that does, on a small world. Check: the fast suite
+(`dotnet test rebuild/Sim.Tests -c Release --filter "Category!=Slow" --logger "trx;LogFileName=$PWD/fast.trx"`)
+is green, and
+`python3 .github/scripts/test_durations.py fast.trx --allow rebuild/Sim.Tests/slow-fast-tests.txt`
+passes with the lines removed.
+
+When empty: delete `rebuild/Sim.Tests/slow-fast-tests.txt` and the `--allow` argument in the
+"Fast tests stay fast" step of `.github/workflows/ci.yml`, and drop that step's "Ratchet" comment.
+
+## test-worlds
+
+- **batch:** 1
+
+```bash
+awk '/NotYetOnTestWorlds = new\(\)/{f=1;next} f&&/^ *};/{exit} f' rebuild/Sim.Tests/Architecture/TestWorldSourceTests.cs |
+  { grep -oP '\["\K[^"]+' || true; } |
+  while read -r f; do find rebuild/Sim.Tests -name "$f" -not -path '*/obj/*' -not -path '*/bin/*'; done
+```
+
+In each file, change every direct `World.New(`, `Save.FromJson(` and `Map.Generate(` call to
+`TestWorlds.New`, `TestWorlds.Load` or `TestWorlds.Map` (`rebuild/Sim.Tests/TestWorlds.cs`), except in a
+test whose subject is world generation or loading (it compares generated maps, checks a save's bytes, or
+loads a save to compare with a straight run), or a search over 20 or more seeds. Then take the file off
+`NotYetOnTestWorlds` in `rebuild/Sim.Tests/Architecture/TestWorldSourceTests.cs`; if any direct calls
+are left, list the file in `MayCallDirectly` with their count and which of those reasons holds. Change no
+`rebuild/Sim` code. Check: `TestWorldSourceTests` passes, and so does the fast suite
+(`dotnet test rebuild/Sim.Tests -c Release --filter "Category!=Slow"`).
+
+When empty: delete `NotYetOnTestWorlds` and pass `MayCallDirectly` alone to `CountRatchet` in
+`TestsGetTheirWorlds_FromTestWorlds`.

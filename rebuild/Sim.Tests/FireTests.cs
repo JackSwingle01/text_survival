@@ -214,7 +214,7 @@ public class FireTests
 
     static World LitCamp(int seed = 1)
     {
-        var world = World.New(seed);
+        var world = TestWorlds.New(seed);
         TestKit.Supply(world);
         // Striker with birch bark is 95%; retry so the test never depends on one roll.
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
@@ -227,7 +227,7 @@ public class FireTests
     [Fact]
     public void StartFire_KeepsWhatThePitHasNoRoomFor()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         TestKit.Supply(world);
         var pit = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(pit, Resource.Kindling, Fire.MaxFuelKg(PitType.Open) - 0.03); // cold, and nearly full
@@ -262,7 +262,7 @@ public class FireTests
     {
         var world = LitCamp();
         Assert.Equal("the fire is not hot enough for bone", Sim.Step(world, new AddFuel(P, Resource.Bone, 1), 1).InterruptedReason);
-        var empty = World.New(1);
+        var empty = TestWorlds.New(1);
         Assert.Equal("no fire here", Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1).InterruptedReason);
     }
 
@@ -318,6 +318,6 @@ public class FireTests
         }
         string json = Play();
         Assert.Equal(json, Play());
-        Assert.Equal(json, Save.ToJson(Save.FromJson(json)));
+        Assert.Equal(json, Save.ToJson(TestWorlds.Load(json)));
     }
 }

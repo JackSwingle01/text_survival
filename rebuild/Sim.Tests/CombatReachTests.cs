@@ -8,9 +8,9 @@ public class CombatReachTests
     static CombatUnit Me(Encounter e) => Combat.UnitOf(e, P);
     static CombatUnit B(Encounter e) => e.Units.First(u => u.Team == 1);
 
-    static (World W, Encounter E) PlayerVs(Species species, int distanceM, string? weapon, int seed = 1)
+    static (World W, Encounter E) PlayerVs(Species species, int distanceM, string? weapon, World? world = null)
     {
-        var (w, t) = CombatTests.Field(seed);
+        var (w, t) = CombatTests.Field(world ?? TestWorlds.New(1));
         var herd = CombatTests.Herd(w, species, 1, t);
         CombatTests.Normalize(w, herd);
         Gear? g = weapon == null ? null : Items.Make(weapon);
@@ -56,7 +56,7 @@ public class CombatReachTests
         int braced = 0;
         for (int seed = 1; seed <= 60; seed++)
         {
-            var (w, e) = PlayerVs(Species.Wolf, 6, "wooden_spear", seed);
+            var (w, e) = PlayerVs(Species.Wolf, 6, "wooden_spear", World.New(seed));
             var wolf = B(e);
             wolf.State = FighterState.Pressing;
             wolf.BoldnessModifier = 10; // it comes on whatever it meets
@@ -81,7 +81,7 @@ public class CombatReachTests
     {
         for (int seed = 1; seed <= 30; seed++)
         {
-            var (w, e) = PlayerVs(Species.Wolf, 6, weapon, seed);
+            var (w, e) = PlayerVs(Species.Wolf, 6, weapon, World.New(seed));
             var wolf = B(e);
             wolf.State = FighterState.Pressing;
             wolf.BoldnessModifier = 10;
@@ -99,7 +99,7 @@ public class CombatReachTests
         int struck = 0;
         for (int seed = 1; seed <= 30; seed++)
         {
-            var (w, e) = PlayerVs(Species.Mammoth, 4, null, seed);
+            var (w, e) = PlayerVs(Species.Mammoth, 4, null, World.New(seed));
             B(e).State = FighterState.Standoff;
             var events = new List<WorldEvent>();
             Combat.Apply(w, e, Me(e), CombatAction.Advance, events);

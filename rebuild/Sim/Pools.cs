@@ -28,20 +28,20 @@ public sealed record ShelterFind(ShelterDef Shelter, double RevealAtHours, doubl
 public sealed record CarcassFind(string Name, Species Animal, double HarvestedPct, double RevealAtHours, IReadOnlyList<string>? Found = null,
     double PlacementHeightM = 0.4) : PoolDef(Name);
 
-/// Something somebody hid: finding it puts what it holds on the tile as a stash (Pools.Search).
-public sealed record StashFind(string Name, IReadOnlyList<StockItem> Items, IReadOnlyList<Gear> Gear, double RevealAtHours, IReadOnlyList<string>? Found = null,
+/// Something somebody hid: finding it puts what it holds on the tile as a pile (Pools.Search).
+public sealed record PileFind(string Name, IReadOnlyList<StockItem> Items, IReadOnlyList<Gear> Gear, double RevealAtHours, IReadOnlyList<string>? Found = null,
     double PlacementHeightM = 0.3) : PoolDef(Name);
 
 /// How a stock is worked: harvest (no impairment check), salvage (slowed by bad legs), detail (a light look).
 public enum StockKind { Harvest, Salvage, Detail }
 
-/// What a discovery or detail makes (Content/discoveries.json): a stock, a natural shelter, a carcass or a stash.
-/// Loot: a salvage's or a stash's contents as a loot table (loot.json), in place of Items. Found: the lines read on finding it.
-/// Outcomes: what a salvage or a stash may turn out to hold, one drawn by weight, in place of Loot.
+/// What a discovery or detail makes (Content/discoveries.json): a stock, a natural shelter, a carcass or a pile.
+/// Loot: a salvage's or a pile's contents as a loot table (loot.json), in place of Items. Found: the lines read on finding it.
+/// Outcomes: what a salvage or a pile may turn out to hold, one drawn by weight, in place of Loot.
 public sealed record FindDef(string Name, StockKind? Work = null, int Minutes = 0, IReadOnlyList<FindItem>? Items = null,
     ShelterKind? Shelter = null, double? Insulation = null, double InsulationSpread = 0, double? Overhead = null, double OverheadSpread = 0,
     double? Wind = null, double WindSpread = 0, double? InsulationCap = null, double? OverheadCap = null, double? WindCap = null,
-    string? Loot = null, CarcassRow? Carcass = null, bool Stash = false, IReadOnlyList<string>? Found = null,
+    string? Loot = null, CarcassRow? Carcass = null, bool Pile = false, IReadOnlyList<string>? Found = null,
     IReadOnlyList<FindOutcome>? Outcomes = null);
 
 /// One way a find can turn out: its loot tables rolled together (none: nothing there), each scaled by Scale (kilos and
@@ -91,7 +91,7 @@ public sealed class TreeState : PoolState
     public long ClearedMinute { get; set; }
 }
 
-/// A carcass or stash find whose contents are on the tile: whoever finds it next finds what is left of them.
+/// A carcass or pile find whose contents are on the tile: whoever finds it next finds what is left of them.
 public sealed class LaidState : PoolState;
 
 public sealed class StockState : PoolState
@@ -292,7 +292,7 @@ public static class Pools
                 case StockPool stock: yield return stock with { RevealAtHours = reveal }; break;
                 case ShelterFind find: yield return find with { RevealAtHours = reveal }; break;
                 case CarcassFind find: yield return find with { RevealAtHours = reveal }; break;
-                case StashFind find: yield return find with { RevealAtHours = reveal }; break;
+                case PileFind find: yield return find with { RevealAtHours = reveal }; break;
                 case null: break;
                 default: throw new InvalidOperationException($"No reveal for a {made.GetType().Name}");
             }
@@ -315,13 +315,13 @@ public static class Pools
         if (d.Outcomes != null)
         {
             var (held, kept, found) = RollOutcome(d, rng);
-            return d.Stash ? new StashFind(d.Name, held, kept, revealAtHours, found)
+            return d.Pile ? new PileFind(d.Name, held, kept, revealAtHours, found)
                 : new StockPool(d.Name, d.Work!.Value, d.Minutes, held, revealAtHours, PlacementHeightM(d.Work.Value), kept.Count > 0 ? kept : null, Found: found);
         }
-        if (d.Stash)
+        if (d.Pile)
         {
             var (held, kept) = RollLoot(Content.Loot[d.Loot!], rng);
-            return new StashFind(d.Name, held, kept, revealAtHours, d.Found);
+            return new PileFind(d.Name, held, kept, revealAtHours, d.Found);
         }
         var work = d.Work ?? throw new InvalidOperationException($"{d.Name} is neither stock nor shelter");
         if (d.Loot != null)
@@ -465,7 +465,7 @@ public static class Pools
             StockPool s => s.Found,
             ShelterFind f => f.Found,
             CarcassFind f => f.Found,
-            StashFind f => f.Found,
+            PileFind f => f.Found,
             _ => null,
         };
         if (found is not { Count: > 0 }) return null;
@@ -673,17 +673,17 @@ public static class Pools
 
     /// Discovery is the agent's memory, not the tile's. Forage, timber and a named site's stock in
     /// plain sight (RevealAtHours 0) are not hidden; every other stock and every shelter find is.
-    public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 } or ShelterFind or CarcassFind or StashFind;
+    public static bool IsHidden(PoolDef def) => def is StockPool { RevealAtHours: > 0 } or ShelterFind or CarcassFind or PileFind;
 
-    /// What finding this pool lays on the tile in its place (a carcass, a stash): once found, it is that location feature, not a pool.
-    public static bool LaysItsOwnFeature(PoolDef def) => def is CarcassFind or StashFind;
+    /// What finding this pool lays on the tile in its place (a carcass, a pile): once found, it is that location feature, not a pool.
+    public static bool LaysItsOwnFeature(PoolDef def) => def is CarcassFind or PileFind;
 
     static (double RevealAtHours, double PlacementHeightM) Hiding(PoolDef def) => def switch
     {
         StockPool s => (s.RevealAtHours, s.PlacementHeightM),
         ShelterFind f => (f.RevealAtHours, f.PlacementHeightM),
         CarcassFind f => (f.RevealAtHours, f.PlacementHeightM),
-        StashFind f => (f.RevealAtHours, f.PlacementHeightM),
+        PileFind f => (f.RevealAtHours, f.PlacementHeightM),
         _ => throw new InvalidOperationException($"{def.Name} is not hidden"),
     };
 
@@ -709,7 +709,7 @@ public static class Pools
             if (mind.Memory.Discovered.Contains(id)) continue;
             var (revealAt, height) = Hiding(pools[i]);
             double hours = mind.Memory.SearchHours.GetValueOrDefault(id)
-                + perceptionWeightedHours * Ground.SearchFactor(world, tile, 0, height);
+                + perceptionWeightedHours * Ground.Underfoot(world, tile).SearchFactor(0, height);
             if (hours >= revealAt)
             {
                 mind.Memory.SearchHours.Remove(id);
@@ -719,7 +719,7 @@ public static class Pools
                 {
                     case ShelterFind find: Shelters.Found(world, id, find, events); break;
                     case CarcassFind find: LayCarcass(world, id, find); break;
-                    case StashFind find: LayStash(world, id, find); break;
+                    case PileFind find: LayPile(world, id, find); break;
                 }
             }
             else mind.Memory.SearchHours[id] = hours;
@@ -734,12 +734,12 @@ public static class Pools
         Combat.LeaveCarcass(world, id.Tile, find.Animal, body, new Cause(null, FoundDead), find.HarvestedPct);
     }
 
-    static void LayStash(World world, PoolId id, StashFind find)
+    static void LayPile(World world, PoolId id, PileFind find)
     {
         if (FoundByAnyoneElse(world, id)) return;
-        var stash = Items.StashAt(world, id.Tile, new Cause(null, $"hidden in the {Names.Lower(find.Name)}"));
-        foreach (var item in find.Items) Items.Add(stash, item.Resource, item.Units * item.KgPerUnit);
-        stash.Gear.AddRange(find.Gear.Select(g => new Gear { Kind = g.Kind, Durability = g.Durability, MaxDurability = g.MaxDurability }));
+        var pile = Items.PileAt(world, id.Tile, new Cause(null, $"hidden in the {Names.Lower(find.Name)}"));
+        foreach (var item in find.Items) Items.Add(pile, item.Resource, item.Units * item.KgPerUnit);
+        pile.Gear.AddRange(find.Gear.Select(g => new Gear { Kind = g.Kind, Durability = g.Durability, MaxDurability = g.MaxDurability }));
     }
 
     public const string FoundDead = "found dead";

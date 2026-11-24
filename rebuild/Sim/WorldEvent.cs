@@ -24,8 +24,8 @@ namespace Survival;
 [JsonDerivedType(typeof(CrossedThePass), "crossed")]
 [JsonDerivedType(typeof(Gathered), "gathered")]
 [JsonDerivedType(typeof(Dropped), "dropped")]
-[JsonDerivedType(typeof(Stashed), "stashed")]
-[JsonDerivedType(typeof(Unstashed), "unstashed")]
+[JsonDerivedType(typeof(PutOnPile), "putonpile")]
+[JsonDerivedType(typeof(PickedUp), "pickedup")]
 [JsonDerivedType(typeof(PoolDiscovered), "pooldiscovered")]
 [JsonDerivedType(typeof(Scavenged), "scavenged")]
 [JsonDerivedType(typeof(TutorialShown), "tutorialshown")]
@@ -70,11 +70,11 @@ public sealed record Gathered(long Minute, AgentId Who, TileId Tile, string What
 public sealed record Scavenged(long Minute, AgentId Who, TileId Tile, Species? Animal, string Remains) : WorldEvent(Minute, Tile);
 public sealed record TutorialShown(long Minute, AgentId Who, TileId Tile, Tutorial Tutorial,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Kg = null) : WorldEvent(Minute, Tile);
-/// More than the pack could hold: the rest went on the tile's stash.
+/// More than the pack could hold: the rest went on the tile's pile.
 public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
-public sealed record Stashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
+public sealed record PutOnPile(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
 /// Taken: by someone whose camp this was not, as it stood when they took it (Journal.IsNotable).
-public sealed record Unstashed(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken) : WorldEvent(Minute, Tile);
+public sealed record PickedUp(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken) : WorldEvent(Minute, Tile);
 /// A hidden pool found by searching. Only this agent now knows it.
 public sealed record PoolDiscovered(long Minute, AgentId Who, PoolId Pool, string Name) : WorldEvent(Minute, Pool.Tile);
 public sealed record TreeFelled(long Minute, AgentId Who, PoolId Pool) : WorldEvent(Minute, Pool.Tile);

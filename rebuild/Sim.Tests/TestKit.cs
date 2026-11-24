@@ -12,6 +12,15 @@ static class TestKit
         ((NpcMind)agent.Mind).TargetFatKg = agent.Body.FatKg;
     }
 
+    /// Changes the ground a tile reads from now on. Nothing stores ground per tile, so this changes its whole ground
+    /// class (Ground.SetClassState): every tile sharing it reads the change.
+    public static void EditGround(World world, TileId tile, Action<GroundState, SubstrateProfile> edit)
+    {
+        var state = Ground.At(world, tile);
+        edit(state, Ground.Substrate(Map.Of(world), tile));
+        Ground.SetClassState(world, tile, state);
+    }
+
     /// 15 January, 09:00: a minute when the lakes and rivers are ice (Map.IsFrozen). World minute 0, 1 July, is open water.
     public const long JanuaryMinute = 198 * 1440;
 
@@ -39,6 +48,16 @@ static class TestKit
             Items.Add(pack, r, kg);
         return world;
     }
+}
+
+/// A warm-up world several tests build alike, built once per test run (even under parallel tests) and
+/// handed to each test as its own save/load copy, so one test's changes never reach another. The copy loads
+/// through TestWorlds.Load, onto the seed's shared map.
+sealed class SharedWorld(Func<World> build)
+{
+    readonly Lazy<string> json = new(() => Save.ToJson(build()));
+
+    public World Copy() => TestWorlds.Load(json.Value);
 }
 
 /// Animals a test spawned together, in id order. Where one id is wanted, they stand for the first.

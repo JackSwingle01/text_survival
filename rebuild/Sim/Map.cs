@@ -20,26 +20,23 @@ public sealed class TileState
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<TrackMaker, Track>? Tracks { get; set; }
-    /// Snow, water and ice on the ground. Owned by Ground; null until the tile is first observed.
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public GroundState? Ground { get; set; }
     /// Pools something has drawn from, by index into Pools.At. Owned by Pools.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<int, PoolState>? Pools { get; set; }
     /// Things left here: camp storage and whatever a full pack dropped. Unlimited. Owned by Items.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public Inventory? Stash { get; set; }
-    /// Who made the stash: whoever first put something down here. Goes with the stash. Owned by Items.
+    public Inventory? Pile { get; set; }
+    /// Who made the pile: whoever first put something down here. Goes with the pile. Owned by Items.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public Cause? StashCause { get; set; }
-    /// The stash's own id (World.NextStashId): a new one each time a stash is begun here. Goes with the stash. Owned by Items.
+    public Cause? PileCause { get; set; }
+    /// The pile's own id (World.NextPileId): a new one each time a pile is begun here. Goes with the pile. Owned by Items.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public int? StashId { get; set; }
+    public int? PileId { get; set; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<Carcass>? Carcasses { get; set; }
     /// Nothing here differs from generation, so the tile can leave World.Tiles.
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsEmpty => Tracks == null && Ground == null && Pools == null && Stash == null && StashCause == null && StashId == null && Carcasses == null;
+    public bool IsEmpty => Tracks == null && Pools == null && Pile == null && PileCause == null && PileId == null && Carcasses == null;
 }
 
 /// Trees is stated on every row, null where none stand, so a forest cannot lose its timber to a typo.
@@ -129,6 +126,11 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
     public IReadOnlyDictionary<TileId, LocationDef> Sites => _sites;
     public EdgeType? EdgeBetween(TileId a, TileId b) => edges.TryGetValue(MapGen.EdgeKey(a, b), out var e) ? e : null;
+
+    /// Map.BaseTraversalMinutes by tile, 0 until first read: a pure function of the map, read on every crossing
+    /// priced, and dear to work out (TraversalModifier seeds a LegacyRng). Two readers at once write the same value.
+    readonly int[] baseTraversalMinutes = new int[width * height];
+    internal ref int BaseTraversalMinutesCell(TileId t) => ref baseTraversalMinutes[t.Y * Width + t.X];
 }
 
 /// The world's terrain and how tiles connect. Terrain is a pure function of the seed.
@@ -240,6 +242,12 @@ public static class Map
     }
 
     public static int BaseTraversalMinutes(GeneratedMap m, TileId t)
+    {
+        ref int kept = ref m.BaseTraversalMinutesCell(t);
+        return kept != 0 ? kept : kept = WorkOutBaseTraversalMinutes(m, t);
+    }
+
+    static int WorkOutBaseTraversalMinutes(GeneratedMap m, TileId t)
     {
         int terrainBase = m.TerrainAt(t).BaseTraversalMinutes();
         int hazardBonus = (int)Math.Floor(TerrainHazardLevel(m, t) * 5);

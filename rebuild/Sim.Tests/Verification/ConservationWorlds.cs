@@ -7,29 +7,31 @@ static class ConservationWorlds
 {
     public static readonly AgentId P = AgentId.Player;
 
-    /// Seed 17 with nobody in it but the player, saved once: loading it costs about a millisecond,
+    /// Seed 17 with nobody in it but the player, built once: loading a copy costs about a millisecond,
     /// generating it a few hundred.
-    static readonly Lazy<string> Template = new(() =>
+    static readonly SharedWorld Template = new(() =>
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
-        return Save.ToJson(w);
+        return w;
     });
+
+    static World Load() => Template.Copy();
 
     /// The bare world under a pinned sky at this air temperature (°C), still at minute 0.
     public static World Bare(double tempC)
     {
-        var w = Save.FromJson(Template.Value);
+        var w = Load();
         w.FixedWeather = new(0, WeatherCondition.Cloudy, tempC, 0.1, 0, 0.8, WindDirection.North);
         return w;
     }
 
     /// The bare world under the seed's own weather: the sky every system reads in the game.
-    public static World Seeded() => Save.FromJson(Template.Value);
+    public static World Seeded() => Load();
 
     public static TileId Camp(World w) => Map.Of(w).Camp;
 
-    /// Kilograms of each resource held as items: every pack, every stash, and every cut piece
+    /// Kilograms of each resource held as items: every pack, every pile, and every cut piece
     /// waiting on a carcass. Carcass ledgers (uncut Remaining) and fires are not items.
     public static SortedDictionary<Resource, double> ItemKg(World w)
     {
@@ -41,13 +43,13 @@ static class ConservationWorlds
         foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) Add(pack.Kg);
         foreach (var ts in w.Tiles.Values)
         {
-            if (ts.Stash is { } stash) Add(stash.Kg);
+            if (ts.Pile is { } pile) Add(pile.Kg);
             foreach (var c in ts.Carcasses ?? []) Add(c.Pending);
         }
         return t;
     }
 
-    /// Every piece of gear, by kind: in packs, worn by any member of any agent, and on stashes.
+    /// Every piece of gear, by kind: in packs, worn by any member of any agent, and on piles.
     public static SortedDictionary<string, int> GearCount(World w)
     {
         var t = new SortedDictionary<string, int>();
@@ -57,7 +59,7 @@ static class ConservationWorlds
             if (Items.PackOf(a) is { } pack) Add(pack.Gear);
             foreach (var b in a.Members) Add(b.Worn);
         }
-        foreach (var ts in w.Tiles.Values) if (ts.Stash is { } stash) Add(stash.Gear);
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) Add(pile.Gear);
         return t;
     }
 

@@ -42,7 +42,7 @@ public class WhereThingsGoTests
 
     /// The ratchet over counts per file: a file over its count fails with each hit, under it fails until its
     /// count is lowered, so the count is always today's.
-    static List<string> CountRatchet(IEnumerable<(string File, int Line, string Text)> hits, IReadOnlyDictionary<string, (int Count, string Why)> known,
+    internal static List<string> CountRatchet(IEnumerable<(string File, int Line, string Text)> hits, IReadOnlyDictionary<string, (int Count, string Why)> known,
         string listName, string rule, string fix)
     {
         var problems = new List<string>();
@@ -61,7 +61,7 @@ public class WhereThingsGoTests
         return problems;
     }
 
-    static IEnumerable<(string File, int Line, string Text)> Hits(string file, string code, Regex pattern) =>
+    internal static IEnumerable<(string File, int Line, string Text)> Hits(string file, string code, Regex pattern) =>
         pattern.Matches(code).Select(m => (file, LineOf(code, m.Index), LineAt(code, LineOf(code, m.Index))));
 
     static void AssertNone(List<string> problems) => Assert.True(problems.Count == 0, string.Join("\n", problems));
@@ -77,7 +77,7 @@ public class WhereThingsGoTests
     {
         ["Graze"] = "a herd eating forage",
         ["Feed"] = "a herd eating a carcass",
-        ["Raid"] = "a herd raiding a stash",
+        ["Raid"] = "a herd raiding a pile",
         ["Watering"] = "an animal drinking where it stands",
     };
 
@@ -227,7 +227,6 @@ public class WhereThingsGoTests
         ["Skill"] = Unconverted,
         ["Species"] = Unconverted,
         ["Structure"] = Unconverted,
-        ["SurfaceMaterial"] = Unconverted,
         ["TissueKind"] = Unconverted,
         ["ToolType"] = Unconverted,
         ["TrackMaker"] = Unconverted,

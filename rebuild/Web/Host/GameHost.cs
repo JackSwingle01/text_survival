@@ -221,7 +221,7 @@ public sealed class GameHost
     static string ChangeIcon(Change c) => c.Kind switch
     {
         ChangeKind.Fire => c.Now is "Cold" or "Embers" or null ? "embers" : "fire",
-        ChangeKind.Stash => "ui/storage",
+        ChangeKind.Pile => "ui/storage",
         ChangeKind.Carcass => "carcass",
         ChangeKind.Shelter => "shelter",
         _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),

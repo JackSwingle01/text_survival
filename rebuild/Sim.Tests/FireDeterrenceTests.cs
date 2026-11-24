@@ -45,7 +45,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
 
     // ---- on the map: the hold ----
 
-    static readonly GeneratedMap HoldMap = Map.Generate(1000);
+    static readonly GeneratedMap HoldMap = TestWorlds.Map(1000);
 
     /// A night on open ground: the player resting on one tile, a pack of three on the next whose land
     /// runs onto the player's tile, so it walks that way whenever it patrols.

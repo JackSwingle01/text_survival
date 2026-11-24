@@ -15,7 +15,11 @@ public static partial class Fauna
     {
         public override bool Threat(TileId tile) => mind.Sightings?.Exists(s => s.Who != null && s.Tile == tile) == true;
         public override bool OpenWater(TileId tile) => Work.HasUnfrozenWater(world, tile);
-        public override GroundSeen Ground(TileId tile) => Survival.Ground.WaterEstimate(world, tile);
+        public override GroundSeen Ground(TileId tile)
+        {
+            var surface = Survival.Ground.Underfoot(world, tile);
+            return new GroundSeen(surface.SnowDepthM, surface.DrinkableWaterM);
+        }
     }
 
     /// A forecast: what an animal drinks a minute where it stands (Work.WaterAt, from what it knows).
@@ -183,24 +187,22 @@ public static partial class Fauna
         return Planner.Choose(world, animal.Id, view, ask, sourceAt, routeAway, only);
     }
 
-    /// Kin on the tile, or crossing to it (read on every tile a plan weighs, so counted, not listed).
+    /// Kin standing on the tile or one of the 8 around it, or crossing onto one of them: a herd
+    /// spread over a few tiles while it grazes stays one herd. One crossing stands on the tile it left, so two rings are read.
     static bool KinAt(World world, Agent animal, TileId tile)
     {
-        if (KinStanding(world, animal, tile, tile)) return true;
-        foreach (var d in Map.Directions)
-            if (KinStanding(world, animal, Map.Step(tile, d), tile)) return true;
-        return false;
-    }
-
-    static bool KinStanding(World world, Agent animal, TileId on, TileId tile)
-    {
-        var standing = Nearby.At(world, on);
-        for (int i = 0; i < standing.Count; i++)
-        {
-            var k = world.Agents[standing[i]];
-            if (k.Id != animal.Id && IsKin(animal, k) && (k.Tile == tile && !Leaving(k, tile) || k.Crossing is { } c && Map.Step(c.From, c.Dir) == tile))
-                return true;
-        }
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dy = -2; dy <= 2; dy++)
+            {
+                var standing = Nearby.At(world, new TileId(tile.X + dx, tile.Y + dy));
+                for (int i = 0; i < standing.Count; i++)
+                {
+                    var k = world.Agents[standing[i]];
+                    if (k.Id == animal.Id || !IsKin(animal, k)) continue;
+                    var at = k.Crossing is { } c ? Map.Step(c.From, c.Dir) : k.Tile;
+                    if (Math.Abs(at.X - tile.X) <= 1 && Math.Abs(at.Y - tile.Y) <= 1) return true;
+                }
+            }
         return false;
     }
 

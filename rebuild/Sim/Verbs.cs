@@ -114,7 +114,7 @@ public static class Verbs
                 if (kg > 0 && Items.Resources[r].Category == ResourceCategory.Food)
                     carried.Add(($"Eat {Names.Of(r)}", new Eat(who, r, Portion(agent.Body, r, kg)), Work.EatMinutes));
             foreach (var (r, kg) in pack.Kg)
-                if (kg > 0) carried.Add(($"Put down {Names.Of(r)}", new Stash(who, r, kg), 1));
+                if (kg > 0) carried.Add(($"Put down {Names.Of(r)}", new PutDown(who, r, kg), 1));
             // By kind: Wear and TakeOff name a kind, so two of one kind are one verb.
             foreach (var kind in pack.Gear.Where(g => Items.Def(g).Slot != null).Select(g => g.Kind).Distinct())
                 carried.Add(($"Wear {Names.GearWords(kind)}", new Wear(who, kind), 1));
@@ -170,7 +170,7 @@ public static class Verbs
     {
         LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
         LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)) && !Pools.LaysItsOwnFeature(Pools.Def(world, new PoolId(t.Tile, t.Index))),
-        LocationFeatureKind.Carcass or LocationFeatureKind.Stash or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
+        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item => true,
     };
 
     /// What a thing on a tile is called, the same whoever looks (and with no one there to look).
@@ -180,7 +180,7 @@ public static class Verbs
         LocationFeatureKind.Body => "a body",
         LocationFeatureKind.Pool => Pools.Def(world, new PoolId(t.Tile, t.Index)).Name,
         LocationFeatureKind.Carcass => Carcasses.Find(world, t.Tile, t.Index)!.Animal,
-        LocationFeatureKind.Stash => "stash",
+        LocationFeatureKind.Pile => "pile",
         LocationFeatureKind.Fire => $"fire ({Names.Of(Fire.Phase(world.Fires[new FireId(t.Index)]))})",
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)!.Name,
         LocationFeatureKind.Track => t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
@@ -199,7 +199,7 @@ public static class Verbs
             LocationFeatureKind.Body or LocationFeatureKind.Track => [],
             LocationFeatureKind.Pool => PoolVerbs(world, who, t),
             LocationFeatureKind.Carcass => CarcassVerbs(world, who, t),
-            LocationFeatureKind.Stash => [.. world.Tiles[t.Tile].Stash!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new Unstash(who, x.Key, x.Value), 1))],
+            LocationFeatureKind.Pile => [.. world.Tiles[t.Tile].Pile!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new PickUp(who, x.Key, x.Value), 1))],
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
             LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
@@ -216,7 +216,7 @@ public static class Verbs
             StockPool s => (s.Kind switch { StockKind.Harvest => "Harvest", StockKind.Salvage => "Salvage", StockKind.Detail => "Examine" },
                 new Gather(who, t.Index), WorkMinutes),
             ShelterFind => null, // once found it stands as a shelter, its own location feature
-            CarcassFind or StashFind => null,
+            CarcassFind or PileFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),
         };
         return verb is { } v ? [v] : [];

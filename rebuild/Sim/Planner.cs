@@ -33,7 +33,10 @@ public static class Planner
 
     public const int MaxRouteMinutes = 1440;
 
-    /// travel + amount ÷ rate + kcal ÷ the earning rate, x (1 + cohesion) with no kin there; threats refused below Critical; only there, if given.
+    /// Each total x 1 ± up to this, so agents with the same view don't all choose alike in one minute.
+    public const double Noise = 0.05;
+
+    /// travel + amount ÷ rate + kcal ÷ the earning rate, x noise, x (1 + cohesion) with no kin there; threats refused below Critical; only there, if given.
     public static Plan Choose(World world, AgentId who, WorldView view, Asking ask, Func<TileId, Source?> sourceAt, bool routeAway = true,
         TileId? only = null)
     {
@@ -41,10 +44,12 @@ public static class Planner
         var here = agent.Tile;
         bool careless = ask.Priority == Priority.Critical;
         double kcalPerMinute = Traversal.KcalPerMinute(world, agent);
+        var rng = world.Rng("planner", who);
         double Total(TileId t, int minutes)
         {
             if (!careless && view.Threat(t) || sourceAt(t) is not { } s || s.PerMinute <= 0) return double.PositiveInfinity;
             double total = minutes + ask.Amount / s.PerMinute + (minutes * kcalPerMinute + ask.Amount * s.KcalPerUnit) / ask.EarnKcalPerMinute;
+            total *= 1 + Noise * (2 * rng.NextDouble() - 1);
             return ask.KinAt(t) ? total : total * (1 + ask.Cohesion);
         }
         double stay = Total(here, 0);
@@ -54,7 +59,7 @@ public static class Planner
         TileId? bestTile = null;
         var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: careless ? null : view.Threat, until: (t, minutes) =>
         {
-            if (minutes + ask.Amount / ask.BestPerMinute >= Math.Min(best, stay / StayFactor)) return true;
+            if ((minutes + ask.Amount / ask.BestPerMinute) * (1 - Noise) >= Math.Min(best, stay / StayFactor)) return true;
             if (t == here || only is TileId o && t != o) return false;
             double total = Total(t, minutes);
             if (total < best || total == best && bestTile is { } b && t.CompareTo(b) < 0) (best, bestTile) = (total, t);

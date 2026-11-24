@@ -75,7 +75,7 @@ public static class Remains
     }
 
     /// At the top of every clock hour. A scattered person leaves the world's agents; their gear lies
-    /// beside the bones as a stash, and a torch they carried goes out. The player's body stays (Map.Outcome reads it).
+    /// beside the bones as a pile, and a torch they carried goes out. The player's body stays (Map.Outcome reads it).
     public static void Hour(World world)
     {
         if (world.Minute % 60 != 0) return;
@@ -101,7 +101,7 @@ public static class Remains
         if (dead.Mind is PersonMind person) Items.AddAll(kit, person.Pack);
         kit.Gear.AddRange(body.Worn);
         if (kit.Kg.Count > 0 || kit.Gear.Count > 0)
-            Items.AddAll(Items.StashAt(world, dead.Tile, new Cause(dead.Id, $"what {Cause.Describe(world, dead.Id)} carried, beside {bones.Animal.ToLowerInvariant()} bones")), kit);
+            Items.AddAll(Items.PileAt(world, dead.Tile, new Cause(dead.Id, $"what {Cause.Describe(world, dead.Id)} carried, beside {bones.Animal.ToLowerInvariant()} bones")), kit);
         Agents.Remove(world, dead.Id);
     }
 }

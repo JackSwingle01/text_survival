@@ -28,7 +28,7 @@ _Avoid_: optional, luxury
 
 **Source**:
 A place where a stat can be met right now, with what it offers there: grazing, open water, snow, a
-den, a carcass, a stash.
+den, a carcass, a pile, a cache.
 _Avoid_: offer, patch, spot
 
 **Route**:
@@ -79,9 +79,46 @@ _Avoid_: drive off, take, challenge
 Contest, toward an ally: the same claim, answered by that person's mind and their opinion of you.
 
 **Interact**:
-The single verb shown for a location feature that offers several (a fire, a carcass, a stash, a
-shelter); it opens that feature's menu.
+The single verb shown for a location feature that offers several (a fire, a carcass, a pile, a
+cache, a shelter); it opens that feature's menu.
 _Avoid_: use, open
+
+**Pile**:
+Whatever items lie on a tile, outside any cache: no limit and no protection. Any animal whose diet
+takes a food in it can eat it.
+_Avoid_: stash, supplies, ground items
+
+**Cache**:
+A location feature that holds food up to a capacity and keeps out every animal except those with an
+ability it lists (flies, climbs, digs, strong, hands). Built or found; food buried in snow is a cache that
+diggers get into.
+_Avoid_: storage, stash, camp storage
+
+**Ability**:
+What a species' body lets it do to get at food: flies, climbs, digs, strong, hands. People have hands,
+and every cache lets hands in.
+_Avoid_: capability (that is what tools give a person), access
+
+**Dirty**:
+An effect on a body that builds with time, sweat and carcass work and only adds to its scent. It does
+not fade on its own; washing removes it, with Bloody.
+_Avoid_: sweaty, grimy, unwashed
+
+**Exposed**:
+Of food: reachable by a given animal, because it lies in a pile or in a cache that animal gets into.
+Worked out each time, never stored.
+_Avoid_: unprotected, unguarded
+
+**Scent**:
+What a source gives off to an animal's nose: a strength (per food, for blood and bleeding, for a
+carcass) scaled by a cache's scent multiplier, carried further downwind than upwind and read through
+the species' sense of smell. Piles and caches are found only by scent or by standing on their tile.
+_Avoid_: smell radius, signal (signal is the wider set: noise, scent, fire light)
+
+**Diet**:
+Which foods an animal eats from piles, caches and carcasses: carnivore, omnivore or herbivore. What a
+herbivore grazes from the ground is its own list per species.
+_Avoid_: browser, grazer (as diets)
 
 ## Items
 
@@ -137,7 +174,7 @@ condition, item, verb, terrain or discovery.
 _Avoid_: feature on its own for something at a place (say location feature)
 
 **Location feature**:
-Anything at a place that can be seen, used or taken from: a fire, a shelter, a stash, a carcass, a
+Anything at a place that can be seen, used or taken from: a fire, a shelter, a pile, a cache, a carcass, a
 stand of trees, a berry bush, forage ground, a lake, a rock overhang. Location features are told apart
 by the verbs they offer, not by sub-kinds.
 _Avoid_: thing, structure, landmark, site feature, object
@@ -151,6 +188,19 @@ _Avoid_: pool, patch, resource node
 A location feature that keeps weather off a person, built or natural: a lean-to, a pitched tent, a
 rock overhang, a cave.
 _Avoid_: structure, building
+
+**Surface**:
+The ground at a place as it is: snow depth, the top snow's packing, slush, crust, mud, dampness,
+standing liquid and its ice. One read gives it (underfoot at a place), and every effect of the
+ground (traversal, footing hazard, search, wetting, drinkable water) is worked out from it alone.
+_Avoid_: surface summary, ground state (the column the physics steps, which only Ground and its tests read)
+
+**Trodden**:
+How packed by feet a place's snow is, from 0 to 1. An edge's trodden amount comes from completed
+crossings, each walker by its weight, saturating so the first count most; it settles away in about a
+month, and snow fallen on it since its last stamp hides it until the next. Read at an edge's half of a
+tile, it raises the top snow's packing. Trail tiers (trace, path, trail) are derived from it.
+_Avoid_: path wear, trail wear
 
 **Discovery**:
 A location feature or items hidden at a place until searching turns them up.
@@ -209,12 +259,12 @@ somewhere its kin aren't costs it more, and under attack it holds with them.
 _Avoid_: herding instinct, sociality
 
 **Camp**:
-A place a person has set up to live from for now, with a fire, a stash or a shelter. Camps are
+A place a person has set up to live from for now, with a fire, a pile, a cache or a shelter. Camps are
 temporary, and a person may have several.
 _Avoid_: home, base
 
 **Memory**:
-What a person has seen and remembers of the world: their map, the ground as last seen, stashes,
+What a person has seen and remembers of the world: their map, the ground as last seen, piles and caches,
 fires, dangers. It can be out of date or wrong.
 _Avoid_: beliefs, knowledge, explored
 

@@ -23,7 +23,7 @@ file with `fetch` calls to the same five operations.
 - **Views are plain data**, rebuilt on every call from the player's side of the world: `Verbs.At`, the
   player's memory (explored tiles, remembered places, sightings), `Sight` for what is in view now,
   `Priorities.Of` for the vitals and alerts, the clock and sky, the fire on the tile, trip terms and odds.
-  The map never reads the truth of a tile out of sight: the ground it carries is `Ground.SurfaceNow` in
+  The map never reads the truth of a tile out of sight: the ground it carries is `Ground.Underfoot` in
   sight and the player's memory of it (`Memory.Explored`) out of sight.
 - **The words are Sim's.** Names come from `Names` (`Sim/Content/names.json`), journal and receipt lines
   from `Narration`, odds factors and make outcomes are already in words, and a job's end is Sim's
@@ -58,7 +58,7 @@ player's `MapDto`, built by `Host/MapView.cs` from the other side: `MapView.Reme
 memory, `MapView.Truth` every tile known and in sight, every print and worn route. The page hands it to
 the same renderer (terrain.js, ground-state.js), so whatever the map gains, ravines and routes included,
 the observer draws too. The page fetches `observe.map()` when the view's minute has passed
-the map it holds, at most every 2 s; actors, places (fires, shelters, carcasses, stashes) and the log
+the map it holds, at most every 2 s; actors, places (fires, shelters, carcasses, piles) and the log
 come with every view. The rate it achieves is shown beside the clock; Sim's own speed
 is the ceiling (about 26-40 game minutes a second in the AOT build with a populated valley).
 

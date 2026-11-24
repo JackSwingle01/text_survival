@@ -13,9 +13,9 @@ namespace Survival.Tests.Verification;
 ///              - raw cooked[r] - cut pieces weathered away with their carcass[r]
 ///
 /// Every term is read off something other than the inventories: events (Ate, Drank, FuelAdded,
-/// FireStartFailed), the carcasses' own YieldKg, the fire's charcoal, the pit's room. Moves (stash,
-/// unstash, a full pack dropping to the ground, cut pieces waiting on a carcass, wearing, a skeleton
-/// scattering into a stash) have no term: they must net to zero. Gear by kind is constant.
+/// FireStartFailed), the carcasses' own YieldKg, the fire's charcoal, the pit's room. Moves (put down,
+/// pick up, a full pack dropping to the ground, cut pieces waiting on a carcass, wearing, a skeleton
+/// scattering into a pile) have no term: they must net to zero. Gear by kind is constant.
 /// Raids and work-pool gathering are separate properties below.
 public class ConservationItemsTests
 {
@@ -25,13 +25,13 @@ public class ConservationItemsTests
     static readonly Resource[] Fuels = [Resource.Birch, Resource.Pine, Resource.Kindling, Resource.Tinder];
     static readonly Species[] Prey = [Species.Caribou, Species.Hare, Species.Fox, Species.Wolf, Species.Bison];
 
-    public enum OpKind { Stash, Unstash, Eat, Drink, Cook, Butcher, AddFuel, StartFire, Wear, Wait, MeltSnow, GatherCharcoal }
+    public enum OpKind { PutDown, PickUp, Eat, Drink, Cook, Butcher, AddFuel, StartFire, Wear, Wait, MeltSnow, GatherCharcoal }
 
     public sealed record Op(OpKind Kind, int Res, double Kg, int Minutes, int Mode);
 
-    /// The scene: sky, what the player carries and has stashed, a carcass, a fire, a dead person.
+    /// The scene: sky, what the player carries and has put down, a carcass, a fire, a dead person.
     public sealed record Scene(
-        double TempC, double[] PackKg, double[] StashKg, bool Knife, int CarcassSpecies, int CarcassSeed,
+        double TempC, double[] PackKg, double[] PileKg, bool Knife, int CarcassSpecies, int CarcassSeed,
         int CarcassAgeMinutes, double PitBirchKg, int DeadDays, Op[] Ops);
 
     static readonly Gen<Op> OpGen = Gen.Select(
@@ -49,7 +49,7 @@ public class ConservationItemsTests
         Gen.Frequency((1, Gen.Const(0.0)), (2, Gen.Double[0.5, 8])),
         Gen.Frequency((2, Gen.Const(0)), (1, Gen.Int[3, 25])),
         OpGen.Array[1, 25],
-        (t, pack, stash, knife, sp, seed, age, pit, dead, ops) => new Scene(t, pack, stash, knife, sp, seed, age, pit, dead, ops));
+        (t, pack, pile, knife, sp, seed, age, pit, dead, ops) => new Scene(t, pack, pile, knife, sp, seed, age, pit, dead, ops));
 
     static World Build(Scene s)
     {
@@ -63,12 +63,12 @@ public class ConservationItemsTests
         // A spare garment for Wear to swap with what is worn.
         pack.Gear.Add(Items.Make(Items.GearKinds.First(kv => kv.Value.Slot != null).Key));
         for (int i = 0; i < PackResources.Length; i++)
-            if (s.StashKg[i] > 0) Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), PackResources[i], s.StashKg[i]);
+            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), PackResources[i], s.PileKg[i]);
 
         long start = Math.Max(s.CarcassAgeMinutes, s.DeadDays * 1440L);
         if (s.DeadDays > 0)
         {
-            // A person dead this many days, on the next tile over: scatters into a stash when their time comes.
+            // A person dead this many days, on the next tile over: scatters into a pile when their time comes.
             var npc = Npc.Spawn(w, Map.Step(camp, Direction.East));
             var body = w.Agent(npc).Body;
             body.BloodPct = 0;
@@ -92,8 +92,8 @@ public class ConservationItemsTests
         var r = PackResources[op.Res];
         return op.Kind switch
         {
-            OpKind.Stash => new Stash(P, r, op.Kg),
-            OpKind.Unstash => new Unstash(P, r, op.Kg),
+            OpKind.PutDown => new PutDown(P, r, op.Kg),
+            OpKind.PickUp => new PickUp(P, r, op.Kg),
             OpKind.Eat => new Eat(P, Foods[op.Res % Foods.Length], op.Kg),
             OpKind.Drink => new Drink(P, Math.Clamp(op.Kg / 4, 0.05, 1)),
             OpKind.Cook => new Cook(P, op.Res % 2 == 0 ? Resource.RawMeat : Resource.RawFish, op.Kg),
@@ -219,23 +219,23 @@ public class ConservationItemsTests
 
     // ---- raids: the flock's take is the only sink, and it is bounded ----
 
-    public sealed record RaidScene(int Members, double[] StashKg, int Minutes);
+    public sealed record RaidScene(int Members, double[] PileKg, int Minutes);
 
-    static readonly Resource[] RaidStash =
+    static readonly Resource[] RaidPile =
         [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat, Resource.Berries, Resource.Birch, Resource.Hide];
 
     static readonly Gen<RaidScene> RaidScenes = Gen.Select(Gen.Int[1, 8],
-        Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[RaidStash.Length], Gen.Int[60, 3000],
+        Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[RaidPile.Length], Gen.Int[60, 3000],
         (m, kg, min) => new RaidScene(m, kg, min));
 
-    /// A stash nobody keeps, a carrion flock beside it: only what the flock eats leaves, never more
+    /// A pile nobody keeps, a carrion flock beside it: only what the flock eats leaves, never more
     /// than RaidKgPerMember (0.05 kg) a member a minute, and nothing else moves.
     static void Raid(RaidScene s)
     {
         var w = Bare(5);
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
-        for (int i = 0; i < RaidStash.Length; i++)
-            if (s.StashKg[i] > 0) Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), RaidStash[i], s.StashKg[i]);
+        for (int i = 0; i < RaidPile.Length; i++)
+            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
         Agents.SpawnGroup(w, Species.Raven, tile, s.Members);
         var before = ItemKg(w);
         var gear = GearCount(w);
@@ -268,7 +268,7 @@ public class ConservationItemsTests
         (k, fill, m, f) => new GatherScene(k, fill, m, f));
 
     /// Work.Minute's haul (WorkSession.Got, the declared source) lands whole: in the pack up to its
-    /// room, the rest on the tile's stash (Items.Receive), and nothing else moves.
+    /// room, the rest on the tile's pile (Items.Receive), and nothing else moves.
     static void Gathering(GatherScene s)
     {
         var w = Bare(5);

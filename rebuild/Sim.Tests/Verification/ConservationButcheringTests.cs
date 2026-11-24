@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 ///
 ///   carried + pending + remaining + waste (+ rotted) = the carcass's ledger when it died
 ///
-/// carried is measured off the inventories (packs and stashes), pending and remaining off the
+/// carried is measured off the inventories (packs and piles), pending and remaining off the
 /// carcass, rotted is soft tissue Remains.Hour took off a carcass gone to bones (declared sink).
 /// waste is what is left over, and must be non-negative: that is the cap, yield never above what
 /// the carcass held, at any skill, session pattern, tool, mode, room or age. The carcass's own
@@ -87,12 +87,12 @@ public class ConservationButcheringTests
         };
     }
 
-    /// Packs and stashes only: the items a butcher has carried off (no cut piece still waiting).
+    /// Packs and piles only: the items a butcher has carried off (no cut piece still waiting).
     static SortedDictionary<Resource, double> Carried(World w)
     {
         var t = new SortedDictionary<Resource, double>();
         foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var (r, kg) in pack.Kg) AddTo(t, r, kg);
-        foreach (var ts in w.Tiles.Values) if (ts.Stash is { } st) foreach (var (r, kg) in st.Kg) AddTo(t, r, kg);
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } st) foreach (var (r, kg) in st.Kg) AddTo(t, r, kg);
         return t;
     }
 
@@ -139,7 +139,7 @@ public class ConservationButcheringTests
     }
 
     /// Sessions in the chunk plan, cycling, until the carcass is butchered or the plan's budget runs
-    /// out. A full pack is emptied onto the stash only when the plan says so (or the carcass waits).
+    /// out. A full pack is emptied onto the pile only when the plan says so (or the carcass waits).
     static Run Butcher(Scene s, bool topUp, Action<Run, string>? check, List<string>? log = null, int budgetMinutes = 4000, int maxSessions = 60)
     {
         var run = Build(s);
@@ -158,7 +158,7 @@ public class ConservationButcheringTests
             if (Carcasses.Find(w, Camp(w), run.CarcassId) == null) break; // butchered (or weathered away)
             if (step.InterruptedReason == Work.PackFull || chunk.Unload)
                 foreach (var r in CarcassResources)
-                    if (Items.Have(Items.Pack(w, P), r) > 0 && Sim.IsAlive(w.Agent(P))) Sim.Step(w, new Stash(P, r, Items.Have(Items.Pack(w, P), r)), 1);
+                    if (Items.Have(Items.Pack(w, P), r) > 0 && Sim.IsAlive(w.Agent(P))) Sim.Step(w, new PutDown(P, r, Items.Have(Items.Pack(w, P), r)), 1);
             if (step.InterruptedReason == Work.PackFull && !chunk.Unload) break; // nowhere to put it: the rest waits on the carcass
             if (step.InterruptedReason == Work.TooDark && step.MinutesElapsed == 0 && Sim.IsAlive(w.Agent(P)))
             {
@@ -169,7 +169,7 @@ public class ConservationButcheringTests
             if (chunk.GapMinutes > 0 && Sim.IsAlive(w.Agent(P))) Sim.Step(w, new Wait(P), chunk.GapMinutes);
             if (chunk.SaveLoad)
             {
-                run.W = Save.FromJson(Save.ToJson(w));
+                run.W = TestWorlds.Load(Save.ToJson(w));
                 run.C = Carcasses.Find(run.W, Camp(run.W), run.CarcassId)!;
             }
             check?.Invoke(run, $"after session {sessions}'s break");

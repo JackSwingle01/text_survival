@@ -10,11 +10,11 @@ public class FoodTests
 
     static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * 1320;
 
-    /// Lichen, twigs and grass on every tile of the strip: what browsers and grazers eat.
+    /// Lichen, grass and berries on every tile of the strip: what browsers, grazers and bears eat.
     internal static World Pasture(params TileId[] water)
     {
         var w = PlannerTests.Strip(water: water);
-        var pool = new ForagePool("pasture", 1.0, [new(Resource.Usnea, 1, 0.1, 0.2), new(Resource.Tinder, 1, 0.1, 0.2)]);
+        var pool = new ForagePool("pasture", 1.0, [new(Resource.Usnea, 1, 0.1, 0.2), new(Resource.Tinder, 1, 0.1, 0.2), new(Resource.Berries, 1, 0.1, 0.2)]);
         foreach (var t in w.PoolCache!.Keys.ToList()) w.PoolCache[t] = [pool];
         return w;
     }
@@ -98,5 +98,57 @@ public class FoodTests
         Assert.True(fed, "it never fed at the carcass");
         Assert.True(drank, "it never went to drink");
         Assert.True(back, "it never came back to its kill");
+    }
+
+    /// What a minute's grazing pays the animal where it stands, read from its body: kcal held after, less before, plus its burn.
+    static double AteInAMinute(World w, Agent a)
+    {
+        double before = KcalHeld(a.Body), burn = Fauna.BurnKcalPerMinute(a.Body);
+        Sim.Advance(w, 1);
+        return KcalHeld(a.Body) - before + burn;
+    }
+
+    /// Five hungry caribou on a fresh tile that holds seven: company below capacity costs nothing, so each eats its full rate.
+    [Fact]
+    public void FiveCaribou_OnAFreshTileForSeven_AllEatAtTheFullRate()
+    {
+        var w = Pasture();
+        var herd = Enumerable.Range(0, 5).Select(_ => Hungry(w, Species.Caribou, T(20))).ToList();
+        double full = SpeciesTable.Of(Species.Caribou).GrazeKcalPerMinute;
+        Assert.All(herd, a => Assert.Equal(full, Fauna.GrazeHere(w, a)!.Value.PerMinute, 9));
+        double before = herd.Sum(a => KcalHeld(a.Body)), burn = herd.Sum(a => Fauna.BurnKcalPerMinute(a.Body));
+        Sim.Advance(w, 1);
+        Assert.All(herd, a => Assert.Equal(T(20), a.Tile));
+        Assert.Equal(5 * full, herd.Sum(a => KcalHeld(a.Body)) - before + burn, 1);
+    }
+
+    /// A mammoth and a caribou on one fresh tile: together they load it past its seven caribou, and each loses the same share
+    /// of its own rate, so the mammoth still eats about seven times what the caribou does (by intake, not by head).
+    [Fact]
+    public void AMammothAndACaribou_ShareATile_ByIntake_NotByHead()
+    {
+        var w = Pasture();
+        var mammoth = Hungry(w, Species.Mammoth, T(20));
+        var caribou = Hungry(w, Species.Caribou, T(20));
+        double m = Fauna.GrazeHere(w, mammoth)!.Value.PerMinute, c = Fauna.GrazeHere(w, caribou)!.Value.PerMinute;
+        double mFull = SpeciesTable.Of(Species.Mammoth).GrazeKcalPerMinute, cFull = SpeciesTable.Of(Species.Caribou).GrazeKcalPerMinute;
+        Assert.True(c < cFull, $"the caribou eats {c:F2}, its full rate: the tile is not over capacity");
+        Assert.Equal(m / mFull, c / cFull, 9);
+        Assert.Equal(m, AteInAMinute(w, mammoth), 2);
+    }
+
+    /// A hungry caribou on bare ground between a near pasture with no kin and a farther one with kin on the tile beside it:
+    /// kin within one tile spare it the cohesion cost, so it goes to the farther one (decision on #83, 2026-11-24).
+    [Fact]
+    public void ACaribou_NextToATileWithKin_PaysNoCohesionCostThere()
+    {
+        var w = PlannerTests.Strip();
+        var pool = new ForagePool("pasture", 1.0, [new(Resource.Usnea, 1, 0.1, 0.2)]);
+        w.PoolCache![T(13)] = [pool];
+        w.PoolCache[T(18)] = [pool];
+        foreach (var _ in Enumerable.Range(0, 2)) PlannerTests.Animal(w, Species.Caribou, T(18, 2)); // fed, on bare ground beside it
+        var caribou = Hungry(w, Species.Caribou, T(10));
+        Sim.Advance(w, 1);
+        Assert.Equal(T(18), Fauna.MindOf(caribou).Plan?.At);
     }
 }

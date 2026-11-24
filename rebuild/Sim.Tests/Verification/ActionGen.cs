@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, MeltSnow, Cook, Stash, Unstash, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -67,7 +67,7 @@ static class ActionGen
             (3, Gen.Const(Act.Wait)), (1, Gen.Const(Act.Rest)), (1, Gen.Const(Act.Sleep)), (3, Gen.Const(Act.Travel)),
             (4, Gen.Const(Act.Gather)), (2, Gen.Const(Act.StartFire)), (2, Gen.Const(Act.AddFuel)), (1, Gen.Const(Act.LightTorch)), (1, Gen.Const(Act.WalkAbout)),
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.MeltSnow)), (1, Gen.Const(Act.Cook)),
-            (1, Gen.Const(Act.Stash)), (1, Gen.Const(Act.Unstash)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
+            (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
             (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
 
@@ -79,7 +79,7 @@ static class ActionGen
 
     public static World MakeWorld(Setup s)
     {
-        var w = World.New(s.Seed);
+        var w = TestWorlds.New(s.Seed);
         if (s.Mild) w.FixedWeather = MildSky;
         var camp = Map.Of(w).Camp;
         if (s.Npc) NpcBench.Spawn(w, camp); // before anything else is born, so its id is fixed
@@ -151,13 +151,13 @@ static class ActionGen
             case Act.WalkAbout: return new WalkAbout(P);
             case Act.Cook:
                 return new Cook(P, PickOf(Held(r => r is Resource.RawMeat or Resource.RawFish), pick, Resource.RawMeat), 0.2 + pick % 5 * 0.2);
-            case Act.Stash:
-                return new Stash(P, PickOf(Held(_ => true), pick, Resource.Kindling), 0.1 + pick % 5 * 0.2);
-            case Act.Unstash:
+            case Act.PutDown:
+                return new PutDown(P, PickOf(Held(_ => true), pick, Resource.Kindling), 0.1 + pick % 5 * 0.2);
+            case Act.PickUp:
                 {
-                    var stash = w.Tiles.GetValueOrDefault(tile)?.Stash;
-                    var there = stash?.Kg.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList() ?? [];
-                    return new Unstash(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
+                    var pile = w.Tiles.GetValueOrDefault(tile)?.Pile;
+                    var there = pile?.Kg.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList() ?? [];
+                    return new PickUp(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
                 }
             case Act.Butcher:
                 {
@@ -209,7 +209,7 @@ static class ActionGen
     // ---- running ----
 
     /// Activities whose minutes may be split across steps: repeating them carries on where the last
-    /// step left off. The others act once when they start (light, eat, stash, a round), so two steps
+    /// step left off. The others act once when they start (light, eat, put down, a round), so two steps
     /// of them are two acts, not one act cut in half; they always run as one step.
     /// A fight is splittable too: every minute of a Fight step is one round of the same action.
     public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or WalkAbout or Butcher or Build or ImproveShelter or Fight or Make;
@@ -264,14 +264,14 @@ static class ActionGen
             }
             trace.Add($"{step}: {activity} for {minutes} -> {done} min in {steps} step(s), {reason ?? "ran out"}");
             Valid(w, step);
-            if (mode is Mode.Saved or Mode.ChunkedSaved && s.Saves.Contains(step)) w = Save.FromJson(Save.ToJson(w));
+            if (mode is Mode.Saved or Mode.ChunkedSaved && s.Saves.Contains(step)) w = TestWorlds.Load(Save.ToJson(w));
         }
         return new Outcome(Save.ToJson(w), events, trace, acts);
     }
 
     static (World, Agent) Reload(World w)
     {
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         return (loaded, loaded.Agent(P));
     }
 

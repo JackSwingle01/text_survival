@@ -1,0 +1,28 @@
+# #96: Long-run herd checks: invariants over seeds, not one seeded run
+
+Hypothesis:
+- Changes: Sim.Tests only — HerdTests.cs (HerdLongRun: per-minute net-progress measure, three seeds), IndividualsTests.cs (CohesionGate sampled every minute; newborn-knows-its-pack as a hand-built world), KillChainTests.cs (arrivals: player kept alive by a tended fire, back to 100 days, several seeds; an arrival-lands-out-of-sight scenario), a new NetProgress measure with its own unit test.
+- Affects: no Sim behaviour. What the long runs observe: "stuck" becomes "wanting to move for 2 days without getting more than one tile from where it began", sampled every minute, instead of "on one tile at every hourly sample".
+- Stays green: the fast suite; the existing scenario tests APackHunt_SendsTheRestOfThePreyHerdRunning and APack_KeepsOnToWhereItLastSmelledPrey (already hand-built in #94).
+- First red: NetProgressTests catching a 20-minute two-tile bounce, which the old hourly tile check reads as one tile.
+
+Revised: seams decided without a person (unattended run): the world (World.New emptied, Agents.Spawn/SpawnGroup, Sim.Advance, read the world) for every scenario; NetProgress, a test-side measure, through its own Sample(world)/Worst interface so its test drives it with a real world.
+Revised (review): a one-tile radius misses a bounce between tiles two apart and a small loop → the radius is measured across the three seeds per state before it is fixed; the unit test adds an A↔C bounce.
+Revised (review): a unit test of the tracker alone would miss a wrong state or canWalk read in the harness → NetProgress reads the world itself (Sample(w)), and its test teleports a real patrolling wolf between two tiles every 10 minutes; minutes a fight holds the animal are not counted.
+Revised (review): a pup in a hand-built world is still a per-day roll → caribou pinned on one-tile land within range so capacity is far over the pack, more wolves, the pup picked as the new wolf on its mother's land.
+Revised (review): one player on open land covers too little of it for "out of sight" to fail without the rule → the scenario is checked by removing the clearance rule; if it still passes, more of the open land is put in sight.
+Revised (review): a fire lowers resolve but cannot guarantee the player lives → the arrivals run asserts the player lived all 100 days, a death fails loudly.
+Revised (review): APackHunt_SendsTheRestOfThePreyHerdRunning ran in the populated valley → the valley is emptied first, as the scent test does.
+Revised (review): the cohesion average is not aliased the way a maximum is, and re-deriving "alone" would drift from Fauna.HerdOf → it keeps HerdOf and samples every 7 minutes (coprime with the hour) instead of every 60.
+Revised: measured per minute over 60 days (seeds 5, 17, 42), the worst wanting-to-move within one tile is 1.08, 1.84, 1.21 days (all hyenas patrolling; grazing at most 1.48), under the unchanged 2-day limit; within two tiles it is 5.45, 4.38, 4.62 days, within three 6.92, 4.39, 4.69, every one a hyena patrolling a small patch → the radius stays one tile, which catches the ticket's two-tile bounce; whether a hyena ranging a 5-tile patch for five days is stuck is a design question for the PR, not this ticket's to settle.
+Follow-up: a bounce between tiles two apart is not caught at a one-tile radius; widening it waits on the hyena question above.
+Revised: births and arrivals are rolled only at midnight, and a hand-built world living whole days cost 2.5 s a day in Debug (60 bison on a tile) → the pup and arrival scenarios move the clock to the minute before each midnight and live through it (0.6 s and 1 s).
+Revised: AWolfBornIntoAPack_IsOfThePack (pre-existing, Slow, seed 17's whole valley for up to 40 days) → a hand-built world (eight wolves and three strangers on neighbouring dens, 60 bison pinned within range, fed packs); its assertions unchanged; no longer Slow. Fails with Fauna.Inherit removed.
+Revised: APackHunt_SendsTheRestOfThePreyHerdRunning (pre-existing) now empties the valley first; fails with the bystanders' AfterEncounter removed. APack_KeepsOnToWhereItLastSmelledPrey unchanged; fails with Stalk's remembered Foray removed.
+Revised: Herds_ArriveWhereTheValleyIsEmpty (pre-existing, seed 123, 80 days) → seeds 123, 17, 42, one class each, a pit kept burning on the player's tile every hour; the player watched all 200 days on every seed (22, 24, 21 arrivals), so the check is back to 100 days. New An_Arrival_ComesInOutOfEveryonesSight (player and an NPC) fails with the people clearance removed from ArrivalLand.
+Revised: HerdLongRunTests (seed 17) and HerdLongRunSeed5Tests renamed to HerdLongRunSeed5/17/42Tests on a shared HerdLongRun.Run, one minute a step.
+Revised: CohesionGate measured every 7 minutes: worst species alone 2.3% (seed 123 megaloceros), limit 10% unchanged.
+Follow-up: IndividualsTests.ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun (pre-existing, untagged) takes 9 s in Debug, over the 5 s Slow line.
+Revised (review): NetProgress's comment said a minute it cannot walk counts as neither progress nor wanting, but it starts the count afresh → the comment says what it does; RadiusTiles and WantsToMove private, the tuple's state named LastState, minutes and tiles named in HerdLongRun and the pup test.
+Revised (review): ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun (pre-existing, 9 s) → tagged Slow, as the ticket asks of every test of 5 s or more.
+Revised (review): the keep-alive line, the empty-valley loop and the jump to the minute before midnight each repeat across test files → left as they are: each is one line and the files already repeat the first two.

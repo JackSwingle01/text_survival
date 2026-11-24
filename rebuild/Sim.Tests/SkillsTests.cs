@@ -9,7 +9,7 @@ public class SkillsTests
 
     static World Mild17()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         return w;
     }
@@ -35,7 +35,7 @@ public class SkillsTests
     public void TheFirstAttempt_DoesNotGrantALevel()
     {
         Assert.True(Skills.XpToNext(0) > 0);
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var events = new List<WorldEvent>();
         Skills.Award(w, w.Agent(P), Skill.Firecraft, Skills.FireFailureXp, events);
         Assert.Equal(0, Skills.Level(w.Agent(P), Skill.Firecraft));
@@ -54,7 +54,7 @@ public class SkillsTests
     [Fact]
     public void LevelUp_EmitsAWorldEvent_WhereThePersonStands_AndCarriesTheRestOver()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         var me = w.Agent(P);
         var events = new List<WorldEvent>();
         Skills.Award(w, me, Skill.Foraging, Skills.XpToNext(0) + Skills.XpToNext(1) + 2, events);
@@ -67,7 +67,7 @@ public class SkillsTests
     [Fact]
     public void AnAnimal_LearnsNothing()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var wolves = Agents.Spawn(w, Species.Wolf, Map.Of(w).Camp);
         var events = new List<WorldEvent>();
         Skills.Award(w, w.Agent(wolves), Skill.Foraging, 100, events);
@@ -85,7 +85,7 @@ public class SkillsTests
         bool lit = false, missed = false;
         for (int seed = 0; seed < 60 && !(lit && missed); seed++)
         {
-            var w = World.New(3);
+            var w = TestWorlds.New(3);
             Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
             Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
             Items.Add(Items.Pack(w, P), Resource.Pine, 2);
@@ -111,7 +111,7 @@ public class SkillsTests
     {
         for (int seed = 0; seed < 60; seed++)
         {
-            var w = World.New(3);
+            var w = TestWorlds.New(3);
             Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
             Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
             Items.Add(Items.Pack(w, P), Resource.Pine, 2);
@@ -140,7 +140,7 @@ public class SkillsTests
         {
             string? Run(bool look)
             {
-                var w = World.New(3);
+                var w = TestWorlds.New(3);
                 var tile = w.Agent(P).Tile;
                 Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
                 Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
@@ -208,7 +208,7 @@ public class SkillsTests
     [Fact]
     public void AnNpc_LearnsByTheSameRules()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var npc = Npc.Spawn(w, Map.Of(w).Camp);
         NpcDriver.Live(w, npc, 2 * 1440);
         var skills = ((NpcMind)w.Agent(npc).Mind).Skills;
@@ -220,7 +220,7 @@ public class SkillsTests
     [Fact]
     public void Firecraft_IsATermOnTheOddsSheet()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         SetLevel(w, P, Skill.Firecraft, 5);
         var odds = Fire.StartOdds(w, w.Agent(P), ToolType.HandDrill, Resource.Tinder);
         var term = Assert.Single(odds.Terms, t => t.Factor == "Firecraft");
@@ -276,10 +276,10 @@ public class SkillsTests
     [Fact]
     public void Skills_RoundTripThroughASave()
     {
-        var w = World.New(1);
+        var w = TestWorlds.New(1);
         Skills.Award(w, w.Agent(P), Skill.Cooking, 7.25, []);
         string json = Save.ToJson(w);
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.Equal((1, 2.25), (Skills.Level(loaded.Agent(P), Skill.Cooking), Progress(loaded, P, Skill.Cooking)!.Xp));
     }
@@ -290,7 +290,7 @@ public class SkillsTests
         var one = Mild17();
         SetLevel(one, P, Skill.Foraging, 0);
         Progress(one, P, Skill.Foraging)!.Xp = Skills.XpToNext(0) - 0.5; // levels up half an hour in
-        var many = Save.FromJson(Save.ToJson(one));
+        var many = TestWorlds.Load(Save.ToJson(one));
         var levelled = Sim.Step(one, new Gather(P, 0), 120).Events.OfType<SkillLeveledUp>().Single();
         var events = new List<WorldEvent>();
         for (int i = 0; i < 120; i++) events.AddRange(Sim.Step(many, new Gather(P, 0), 1, more: i < 119).Events);

@@ -2,12 +2,11 @@ using System.Text.Json;
 
 namespace Survival;
 
-/// A save in any other format is refused, never half-read: no migrations until the first release
-/// (documentation/decisions/2026-11-21-save-compatibility-from-first-release.md). Changing it: documentation/save-format.md.
+/// A save in any other format is refused, never half-read, and none is migrated: documentation/save-format.md.
 public static class Save
 {
     /// The format this build writes and reads. Raise it with any change to what a save holds.
-    public const int FormatVersion = 23;
+    public const int FormatVersion = 27;
 
     static readonly JsonSerializerOptions Options = new() { WriteIndented = false };
 
