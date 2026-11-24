@@ -144,6 +144,10 @@ A dead limb or pole, gathered by hand: the wood for spears, hafts and frames, an
 axe.
 _Avoid_: log, pole, limb
 
+**Hide strip**:
+A piece cut from a cured hide, a few to a hide: for small garments and for mending.
+_Avoid_: scrap, patch, leather
+
 **Firewood**:
 Wood cut to burn, only ever made with an axe, from a felled tree or big deadfall.
 _Avoid_: log, chopped wood, split wood
