@@ -101,3 +101,10 @@ get the outcome you want from an issue you write:
   triage; remove it to take an issue out of the build queue and send it back to triage.
 - To pause the agent, disable either workflow in the Actions tab: triage stops labelling, or the
   build stops building and the labelled issues wait.
+
+### Merge conflicts
+
+`.github/workflows/resolve-conflicts.yml` merges `main` into every open, non-draft PR that conflicts
+with it, on each push to `main` and hourly: Opus resolves, builds, tests and pushes one merge commit.
+A PR it can't resolve gets a comment and `needs-user`; remove the label to try again. Mark a PR draft
+to keep it off your branch.
