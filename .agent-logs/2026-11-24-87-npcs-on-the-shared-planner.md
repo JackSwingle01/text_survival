@@ -1,0 +1,21 @@
+# #87: NPCs find sources through the shared planner
+
+Hypothesis:
+- Changes: `Npc.cs` (a Memory-backed `WorldView`; water, food and rest choices through `Planner.Choose`; `NpcGoal` → `NpcPlan`, `mind.Goal` → `mind.Plan`, the tree's private `Plan` → `Tree`), `Planner.cs` (an optional accept filter for the NPC's warmth filter), `Work.cs` (people drink unfrozen standing water: one `CanDrinkHere` for the Drink refusal, the verb menu and the water priority), `NpcBenchReport.cs` (forage hours), the save fixture (the goal field is renamed).
+- Affects: today `ForWater` walks to the nearest remembered `TileMemory.Water` tile that `Survives` passes, else melts snow at camp; `ForFood` builds a one-leaf-per-source tree through `Quickest` (minutes per net unit over `FromHere`); `ForRest` walks to camp when energy covers the walk + 30 minutes, else sleeps where it is. `Drink` needs pack water or `HasOpenWater` (rivers, lakes, site water), never a pond. The requirement tree for fire makings keeps `Quickest`.
+- Stays green: `NpcTests`, `PlannerTests`, `SaveTests`, `SaveFixtureTests`, `WhereThingsGoTests.NpcUsesOnlyThePublicInterface`, `ForecastTests`.
+- First red: a new `NpcTests` pond test fails on "no water here": a thirsty NPC beside a rain pond with no pack water is refused Drink.
+
+Revised (review): the planner's search was unbounded for people (10-tile box lost, `Offers` on every settled tile to 1440 minutes) → `WorldView.InRange` (all ground for animals; within 10 tiles of here or camp for an NPC), refused by the planner's route search at every priority.
+Revised (review): `Trip.Routes` started inside the planner's callbacks allocates a fresh scratch → `FromHere()` and `ToSite(Camp)` are built before `Planner.Choose`, so the warmth filter only reads cached maps.
+Revised (review): the planner refuses threatened tiles, which today's NPC routes exempt at here and camp → `MemoryView.Threat` is false at here and camp, so a predator seen near camp still lets it go home to sleep.
+Revised (review): `Planner.Choose` returned Stay without the NPC's warmth filter → the accept filter runs on staying too.
+Revised (review): a remembered pond can be ice or gone on arrival → the NPC's own tile is read as it is (`Work.CanDrinkHere`), and a stored source that pays nothing on arrival is chosen again.
+Revised (review): `OfTwoEqualSources_ItGoesToTheNearer` passed for either source (both east) → it also asserts the plan's source is the nearer tile.
+Revised: seams → the spec's seam 1, through the world: `Npc.Decide` and `Sim.Advance` in `NpcTests`, as today's tests drive it; no new seam.
+Revised: NPCs price kcal at an earning rate of +∞ (minutes alone, as their search does today), cohesion 0 → no balance change from the planner's kcal term; whether people should weigh walking kcal is left open (Follow-up below).
+Follow-up: `Npc.Offers` still prices pools, trees and carcasses away from here with the true world (`Pools.At`, `Carcasses.Find`, `Work.ExpectedGatherAt`), as before this ticket; public members, so the interface test can't see it. Pricing them from `TileMemory` alone would make NPC food fully Memory-bound.
+Follow-up: whether NPCs should weigh walking kcal in the planner's choice (an earning rate for people) is a balance call for Jack.
+Revised: with the planner's ±5% noise on the total, the forage four tiles out beat the one two tiles out (amount ÷ rate dwarfs the walk, so the noise outweighs it) and `OfTwoEqualSources_ItGoesToTheNearer` failed → `Asking.Noise` (default `Planner.Noise`); NPCs ask with none, since the noise is there so agents sharing one view don't choose alike, and an NPC plans from a memory of its own. No draw is made at zero, so NPCs take nothing from the `planner:` stream.
+Revised: a wrong-memory test at night failed because a person can't travel in the dark → it runs by day with the remembered pond out of sight (14 tiles from the NPC, 4 from its camp, so within its range).
+Revised: pre-existing tests changed for the rename only: `NpcTests` (`ACommittedPlan_…`, `APlansOwnStat…`, `APlanPastIts…`, `mind.Plan`), `SaveTests` (`NpcPlan`), `NpcBenchReport` (trace says plan, and a forage h/day column); `PlannerTests.Width` made internal for the new NPC tests; the save fixture regenerated (the field is now `Plan`, and its NPC's first 170 minutes differ with the new food choice).

@@ -10,6 +10,9 @@ public abstract class WorldView
     public abstract bool OpenWater(TileId tile);
 
     public abstract GroundSeen Ground(TileId tile);
+
+    /// The ground it plans over, whatever the priority: all of it for an animal, near its camp for a person.
+    public virtual bool InRange(TileId tile) => true;
 }
 
 public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
@@ -17,8 +20,9 @@ public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
 /// A forecast of what a source pays: the stat's units a minute (ml of water, energy minutes), and the kcal each unit costs.
 public readonly record struct Source(double PerMinute, double KcalPerUnit = 0);
 
+/// Noise: each total x 1 ± up to this; none for one who plans from a view of its own (an NPC's memory).
 public sealed record Asking(Stat Stat, Priority Priority, double Amount, double EarnKcalPerMinute, double Cohesion, Func<TileId, bool> KinAt,
-    double BestPerMinute = double.PositiveInfinity);
+    double BestPerMinute = double.PositiveInfinity, double Noise = Planner.Noise);
 
 /// The source's tile, the tiles walked onto to it (none: here), and what it pays; none: nothing pays, so it stays put until it plans again.
 public sealed record Plan(
@@ -36,9 +40,10 @@ public static class Planner
     /// Each total x 1 ± up to this, so agents with the same view don't all choose alike in one minute.
     public const double Noise = 0.05;
 
-    /// travel + amount ÷ rate + kcal ÷ the earning rate, x noise, x (1 + cohesion) with no kin there; threats refused below Critical; only there, if given.
+    /// travel + amount ÷ rate + kcal ÷ the earning rate, x noise, x (1 + cohesion) with no kin there; threats refused below Critical;
+    /// only there, if given; accept, if given, passes the source it would take (an NPC's warmth filter), staying included.
     public static Plan Choose(World world, AgentId who, WorldView view, Asking ask, Func<TileId, Source?> sourceAt, bool routeAway = true,
-        TileId? only = null)
+        TileId? only = null, Func<TileId, bool>? accept = null)
     {
         var agent = world.Agent(who);
         var here = agent.Tile;
@@ -49,20 +54,21 @@ public static class Planner
         {
             if (!careless && view.Threat(t) || sourceAt(t) is not { } s || s.PerMinute <= 0) return double.PositiveInfinity;
             double total = minutes + ask.Amount / s.PerMinute + (minutes * kcalPerMinute + ask.Amount * s.KcalPerUnit) / ask.EarnKcalPerMinute;
-            total *= 1 + Noise * (2 * rng.NextDouble() - 1);
+            if (ask.Noise > 0) total *= 1 + ask.Noise * (2 * rng.NextDouble() - 1);
             return ask.KinAt(t) ? total : total * (1 + ask.Cohesion);
         }
         double stay = Total(here, 0);
+        if (accept != null && !double.IsInfinity(stay) && !accept(here)) stay = double.PositiveInfinity;
         Plan Stay() => double.IsInfinity(stay) ? new Plan(ask.Stat, ask.Priority, null, []) : new Plan(ask.Stat, ask.Priority, here, [], sourceAt(here)!.Value.PerMinute);
         if (!routeAway) return Stay();
         double best = double.PositiveInfinity;
         TileId? bestTile = null;
-        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: careless ? null : view.Threat, until: (t, minutes) =>
+        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Refused(view, careless), until: (t, minutes) =>
         {
-            if ((minutes + ask.Amount / ask.BestPerMinute) * (1 - Noise) >= Math.Min(best, stay / StayFactor)) return true;
+            if ((minutes + ask.Amount / ask.BestPerMinute) * (1 - ask.Noise) >= Math.Min(best, stay / StayFactor)) return true;
             if (t == here || only is TileId o && t != o) return false;
             double total = Total(t, minutes);
-            if (total < best || total == best && bestTile is { } b && t.CompareTo(b) < 0) (best, bestTile) = (total, t);
+            if ((total < best || total == best && bestTile is { } b && t.CompareTo(b) < 0) && accept?.Invoke(t) != false) (best, bestTile) = (total, t);
             return only != null;
         });
         if (bestTile is TileId source && best * StayFactor < stay)
@@ -74,8 +80,10 @@ public static class Planner
     {
         if (world.Agent(who).Tile == to) return null;
         bool reached = false;
-        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: priority == Priority.Critical ? null : view.Threat,
+        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Refused(view, priority == Priority.Critical),
             until: (t, _) => reached = t == to);
         return reached ? new Plan(stat, priority, to, [.. routes.RouteTo(to)]) : null;
     }
+
+    static Func<TileId, bool> Refused(WorldView view, bool careless) => careless ? t => !view.InRange(t) : t => !view.InRange(t) || view.Threat(t);
 }

@@ -55,30 +55,30 @@ public class NpcTests(ITestOutputHelper output)
         Assert.IsType<AddFuel>(a);
     }
 
-    /// Water at Critical outranks a food goal at Want, with no water to hand: the goal gives way to the water.
+    /// Water at Critical outranks a food plan at Want, with no water to hand: the plan gives way to the water.
     [Fact]
-    public void ACommittedGoal_IsDropped_WhenAnotherStatReachesAWorsePriority()
+    public void ACommittedPlan_IsDropped_WhenAnotherStatReachesAWorsePriority()
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        mind.Goal = new NpcGoal(Stat.Food, Priority.Want, w.Minute, 600);
+        mind.Plan = new NpcPlan(Stat.Food, Priority.Want, w.Minute, 600);
         npc.Body.HydrationMl = 0.1 * Body.MaxHydrationMl;
         var (a, _) = Decide(w, npc);
-        output.WriteLine($"{a}, goal {mind.Goal}");
-        Assert.NotNull(mind.Goal);
-        Assert.Equal((Stat.Water, Priority.Critical), (mind.Goal!.Stat, mind.Goal.Priority));
+        output.WriteLine($"{a}, plan {mind.Plan}");
+        Assert.NotNull(mind.Plan);
+        Assert.Equal((Stat.Water, Priority.Critical), (mind.Plan!.Stat, mind.Plan.Priority));
     }
 
-    /// A goal whose own stat worsens is held at the worse priority.
+    /// A plan whose own stat worsens is held at the worse priority.
     [Fact]
-    public void AGoalsOwnStatWorsening_RaisesItsPriority()
+    public void APlansOwnStatWorsening_RaisesItsPriority()
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        mind.Goal = new NpcGoal(Stat.Water, Priority.Want, w.Minute, 600);
+        mind.Plan = new NpcPlan(Stat.Water, Priority.Want, w.Minute, 600);
         npc.Body.HydrationMl = 0.1 * Body.MaxHydrationMl;
         Decide(w, npc);
-        Assert.Equal(Priority.Critical, mind.Goal?.Priority);
+        Assert.Equal(Priority.Critical, mind.Plan?.Priority);
     }
 
     /// Out on a trip for food when thirst turns Critical, it gives the trip up for the water it carries.
@@ -90,23 +90,23 @@ public class NpcTests(ITestOutputHelper output)
         var mind = MindOf(a);
         var out1 = MapGen.Neighbors(mind.Camp).First(t => Map.Blocked(Map.Of(w), mind.Camp, t) == null);
         a.Tile = out1;
-        mind.Goal = new NpcGoal(Stat.Food, Priority.Need, w.Minute, 600);
+        mind.Plan = new NpcPlan(Stat.Food, Priority.Need, w.Minute, 600);
         a.Body.HydrationMl = 0.12 * Body.MaxHydrationMl;
         var (act, _) = Decide(w, a);
-        Assert.False(act is Gather { Focus: ForageFocus.Food } || mind.Goal?.Stat == Stat.Food, $"kept to the food trip: {act}");
+        Assert.False(act is Gather { Focus: ForageFocus.Food } || mind.Plan?.Stat == Stat.Food, $"kept to the food trip: {act}");
         Assert.False(act is Gather { Focus: ForageFocus.Food }, $"kept foraging: {act}");
     }
 
-    /// A goal outlives its forecast only so long: past its budget it is dropped and planned afresh.
+    /// A plan outlives its forecast only so long: past its budget it is dropped and planned afresh.
     [Fact]
-    public void AGoalPastItsTimeBudget_IsPlannedAfresh()
+    public void APlanPastItsTimeBudget_IsPlannedAfresh()
     {
         var (w, npc) = Alone(5);
         var mind = MindOf(npc);
-        var stale = new NpcGoal(Stat.Food, Priority.Want, w.Minute - 500, 60);
-        mind.Goal = stale;
+        var stale = new NpcPlan(Stat.Food, Priority.Want, w.Minute - 500, 60);
+        mind.Plan = stale;
         Decide(w, npc);
-        Assert.True(mind.Goal == null || mind.Goal.StartedMinute == w.Minute, $"the stale goal ran on: {mind.Goal}");
+        Assert.True(mind.Plan == null || mind.Plan.StartedMinute == w.Minute, $"the stale plan ran on: {mind.Plan}");
     }
 
     // ---- the tree ----
@@ -162,7 +162,53 @@ public class NpcTests(ITestOutputHelper output)
         var (a, _) = Decide(w, npc);
         output.WriteLine($"{a}");
         Assert.Equal(Direction.East, Assert.IsType<Travel>(a).Dir);
-        Assert.Equal(Stat.Food, MindOf(npc).Goal?.Stat);
+        Assert.Equal(Stat.Food, MindOf(npc).Plan?.Stat);
+        Assert.Equal(near[1], MindOf(npc).Plan?.At);
+    }
+
+    // ---- water from the shared planner ----
+
+    /// After two days' rain on the plain, a thirsty NPC with nothing in its pack drinks from the pond it stands in.
+    [Fact]
+    public void AfterRain_ItDrinksFromAnOpenPond()
+    {
+        var w = PlannerTests.Strip(sky: new WeatherSample(0, WeatherCondition.Rainy, 12, 0.1, 0.8, 0.8, WindDirection.North));
+        Sim.Advance(w, 2 * 1440);
+        var at = new TileId(20, 1);
+        Assert.True(Ground.Underfoot(w, at).DrinkableWaterM >= Work.MinStandingWaterM, "no pond stood on the plain");
+        var npc = w.Agent(Npc.Spawn(w, at));
+        MindOf(npc).Pack.Kg.Remove(Resource.Water);
+        npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
+        double before = npc.Body.HydrationPct;
+        Sim.Advance(w, 60);
+        Assert.True(npc.Body.HydrationPct > before + 0.2, $"hydration {before:F2} -> {npc.Body.HydrationPct:F2}");
+    }
+
+    /// Remembering a pond fourteen tiles east, out of sight, that the world does not hold, a thirsty NPC sets out for it:
+    /// it acts on its memory, not on the world.
+    [Fact]
+    public void AWrongMemoryOfAPond_IsWhatItActsOn()
+    {
+        var w = PlannerTests.Strip();
+        var (start, camp, pond) = (new TileId(2, 2), new TileId(12, 2), new TileId(16, 2));
+        var npc = w.Agent(Npc.Spawn(w, start, camp));
+        var mind = MindOf(npc);
+        mind.Pack.Kg.Remove(Resource.Water);
+        npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
+        Assert.True(MapGen.Manhattan(start, pond) > Sight.OpenGroundTiles, "the pond is in sight");
+        Assert.Equal(0, Ground.Underfoot(w, pond).DrinkableWaterM);
+        var explored = mind.Memory.Explored = new GroundMemory(PlannerTests.Width, 5);
+        for (int x = 0; x < PlannerTests.Width; x++)
+            for (int y = 1; y <= 3; y++)
+            {
+                var t = new TileId(x, y);
+                var s = SeenSurface.Of(Ground.Underfoot(w, t));
+                explored.Remember(t, t == pond ? s with { WaterDepthM = 0.1, Iced = false } : s, w.Minute);
+            }
+        var (a, _) = Npc.Decide(w, npc, []);
+        output.WriteLine($"{a}, plan {mind.Plan}");
+        Assert.Equal(Direction.East, Assert.IsType<Travel>(a).Dir);
+        Assert.Equal(pond, mind.Plan?.At);
     }
 
     // ---- interrupts and danger ----
@@ -193,7 +239,7 @@ public class NpcTests(ITestOutputHelper output)
         b.Worn.Clear();
         b.CoreTempF = 97.7;
         Npc.Decide(w, w.Agent(npc), []);
-        Assert.Equal(Stat.Warmth, MindOf(w.Agent(npc)).Goal?.Stat);
+        Assert.Equal(Stat.Warmth, MindOf(w.Agent(npc)).Plan?.Stat);
     }
 
     // ---- a day lived on the scheduler ----
@@ -328,7 +374,7 @@ public class NpcTests(ITestOutputHelper output)
             {
                 Sim.Advance(w, 1);
                 var a = w.Agent(npc);
-                did.Add($"{w.Minute} {a.Tile} {a.Doing?.Activity} {MindOf(a).Goal?.Stat} {MindOf(a).Camp}");
+                did.Add($"{w.Minute} {a.Tile} {a.Doing?.Activity} {MindOf(a).Plan?.Stat} {MindOf(a).Camp}");
                 if (look) foreach (var id in w.Fires.Keys.ToList()) if (w.Fires.ContainsKey(id)) Fire.CatchUp(w, id, []);
             }
             return did;

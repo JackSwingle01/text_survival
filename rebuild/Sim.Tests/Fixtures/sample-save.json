@@ -6,15 +6,15 @@
     "7,41": {
       "Tracks": {
         "Human": {
-          "Minute": 5,
-          "Heading": 0,
-          "Traffic": 1,
+          "Minute": 170,
+          "Heading": 2,
+          "Traffic": 1.5489438563049884,
           "HeaviestIndividual": 1,
           "DirectionX": 0,
-          "DirectionY": -1,
-          "NorthSouthTraffic": 1,
+          "DirectionY": 0.45105614369501157,
+          "NorthSouthTraffic": 1.5489438563049884,
           "EastWestTraffic": 0,
-          "SnowFallenM": 0.7925709090576951
+          "SnowFallenM": 0.8113955710903923
         }
       },
       "Pools": {
@@ -23,13 +23,6 @@
           "MinutesWorked": 0,
           "Felled": 0,
           "ClearedMinute": 0
-        },
-        "0": {
-          "kind": "forage",
-          "HoursForaged": 0.016666666666666666,
-          "LastForagedMinute": 167,
-          "ClueDraw": 1,
-          "Grazed": {}
         }
       },
       "Pile": {
@@ -47,15 +40,15 @@
     "7,42": {
       "Tracks": {
         "Human": {
-          "Minute": 82,
-          "Heading": 3,
-          "Traffic": 2.6176562125542073,
+          "Minute": 170,
+          "Heading": 2,
+          "Traffic": 2.9307533830260204,
           "HeaviestIndividual": 1,
-          "DirectionX": -0.14539404885615748,
-          "DirectionY": -0.7630502614103649,
-          "NorthSouthTraffic": 0.7630502614103649,
-          "EastWestTraffic": 1.8546059511438426,
-          "SnowFallenM": 1.1215786030652104
+          "DirectionX": -0.10724099305116955,
+          "DirectionY": 0.43718282539501263,
+          "NorthSouthTraffic": 1.5628171746049873,
+          "EastWestTraffic": 1.3679362084210331,
+          "SnowFallenM": 1.1359537995265419
         }
       },
       "Pile": {
@@ -684,7 +677,7 @@
           },
           "Sightings": {
             "1": {
-              "Tile": "7,41",
+              "Tile": "7,42",
               "Species": 0,
               "Count": 1,
               "Minute": 170
@@ -707,7 +700,7 @@
     },
     "1": {
       "Id": 1,
-      "Tile": "7,41",
+      "Tile": "7,42",
       "Species": 0,
       "Members": [
         {
@@ -1053,18 +1046,13 @@
           "StructuralKg": 34,
           "FatKg": 11.449394004618185,
           "MuscleKg": 25.84,
-          "CoreTempF": 98.41287675301108,
+          "CoreTempF": 98.41294671607882,
           "CaloriesKcal": 1204.4366222222302,
           "EnergyMinutes": 4,
           "HydrationMl": 3962.430555555521,
           "MinutesWithoutHunger": 172,
-          "ClothingHeatBufferPct": 0.804524802449794,
+          "ClothingHeatBufferPct": 0.8082539711540284,
           "Effects": [
-            {
-              "Kind": 8,
-              "Severity": 0.0022894175698130736,
-              "RequiresTreatment": false
-            },
             {
               "Kind": 14,
               "Severity": 0.4222222222222222,
@@ -1104,11 +1092,12 @@
       "Mind": {
         "kind": "npc",
         "Camp": "7,41",
-        "Goal": {
+        "Plan": {
           "Stat": "Warmth",
           "Priority": "Need",
           "StartedMinute": 170,
-          "BudgetMinutes": 90
+          "BudgetMinutes": 90,
+          "At": null
         },
         "TargetFatKg": 8.554727280554182,
         "TargetFatMinute": 166,
@@ -1140,7 +1129,7 @@
         "Memory": {
           "Discovered": [],
           "SearchHours": {
-            "7,41#2": 0.08588334358388733
+            "7,41#2": 0.019430373794458073
           },
           "Places": {
             "3,42": {
@@ -1217,8 +1206,7 @@
               "Pile": {
                 "Oak": 35
               },
-              "SearchedHours": 0.09374999999999999,
-              "Foraged": true
+              "SearchedHours": 0.020833333333333332
             },
             "7,42": {
               "SeenMinute": 166,
@@ -1226,7 +1214,7 @@
               "ForageDensity": 0.38,
               "Fire": 1,
               "Shelter": "Overhang",
-              "SearchedHours": 0.010416666666666666
+              "SearchedHours": 0.020833333333333332
             },
             "7,43": {
               "SeenMinute": 166,
@@ -1303,10 +1291,6 @@
           "Firecraft": {
             "Level": 0,
             "Xp": 2
-          },
-          "Foraging": {
-            "Level": 0,
-            "Xp": 0.08333333333333333
           }
         }
       },
@@ -2332,11 +2316,11 @@
     "fire:1": {
       "State": 5266574129258148755
     },
-    "focus:1": {
-      "State": 4515275339733669097
-    },
     "make:0": {
       "State": 11656051548387474417
+    },
+    "planner:1": {
+      "State": 15738591542735220047
     },
     "travel:0": {
       "State": 12184350808930138095
@@ -2345,7 +2329,7 @@
       "State": 12184349709418509854
     },
     "work:1": {
-      "State": 5660358563173171919
+      "State": 11585691137858028565
     }
   },
   "Fires": {
@@ -2374,19 +2358,19 @@
     },
     "1": {
       "Tile": "7,41",
-      "LastUpdatedMinute": 172,
+      "LastUpdatedMinute": 170,
       "Pit": 0,
       "UnburnedKg": {},
       "BurningKg": {
-        "Tinder": 0.019753560755794732,
-        "Kindling": 0.6326232196221023
+        "Tinder": 0.02261983674805498,
+        "Kindling": 0.6761900816259723
       },
       "HasEmbers": false,
       "EmberDurationHours": 0,
       "EmberHoursRemaining": 0,
       "EmberStartTempF": 300,
-      "LastBurningTempF": 416.710776474701,
-      "BurnedSinceLitKg": 1.4476232196221024,
+      "LastBurningTempF": 416.4920728059221,
+      "BurnedSinceLitKg": 1.4011900816259721,
       "CharcoalKg": 0,
       "CarriedBy": null,
       "TorchMinutesLeft": 0,
@@ -2402,8 +2386,8 @@
   "Encounters": [],
   "Trails": {
     "7,41|7,42": {
-      "Amount": 0.05,
-      "Minute": 5
+      "Amount": 0.09438988095238096,
+      "Minute": 170
     },
     "7,42|7,43": {
       "Amount": 0.55,
@@ -2414,7 +2398,7 @@
       "Minute": 82
     }
   },
-  "TracksSweptHour": 1,
+  "TracksSweptHour": 2,
   "NextCarcassId": 0,
   "NextPileId": 2,
   "NextShelterId": 1,
