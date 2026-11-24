@@ -946,7 +946,7 @@ public class HerdTests(ITestOutputHelper output)
 public static class HerdLongRun
 {
     /// Review 3: a herd that chased meat off its land stood behind a mountain for forty days. No animal
-    /// that can walk spends more than two days wanting to move (patrolling, grazing on, fleeing) without
+    /// that can walk spends more than two days wanting to move (patrolling, fleeing, grazing with a way planned) without
     /// getting more than a tile from where it last made progress, read every minute (NetProgress):
     /// resting and feeding, a pack may lie up at a big kill for a fortnight. Every pack that lives hunts.
     const int Days = 60, MaxDaysStuck = 2, RadiusTiles = 1;
