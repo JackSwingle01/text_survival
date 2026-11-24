@@ -78,9 +78,7 @@ public sealed class ForageState : PoolState
     public long LastForagedMinute { get; set; }
     /// Which draw of clues the ground shows now (Clues.At): a search or a walk about moves it on.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ClueDraw { get; set; }
-    /// Herd grazing per resource: level 0-1 as of Minute, regrowing linearly after. Sorted: records are dropped
-    /// when they have grown back (Pools.DropRegrown), and a hash table's order then depends on what was dropped
-    /// before, which a load does not know. A list, so the hourly sweep walks it without allocating.
+    /// Herd grazing per resource: level 0-1 as of Minute, regrowing linearly after. Sorted, as records are dropped (DropRegrown).
     public SortedList<Resource, Grazing> Grazed { get; init; } = [];
 }
 public readonly record struct Grazing(double Level, long Minute);
@@ -424,14 +422,11 @@ public static class Pools
     public static void SetGrazed(World world, PoolId id, Resource r, double level) =>
         StateFor(world, id, () => new ForageState()).Grazed[r] = new Grazing(Math.Clamp(level, 0, 1), world.Minute);
 
-    /// Drops what has grown back on a tile: grazing whose level has regrown to zero, then a forage state nobody
-    /// has searched and nothing grazes, then the tile's empty set of pools. Each reads the same gone as kept
-    /// (GrazedLevel, ForageDensity and the clue draw all fall back to the land as generated), so the save holds
-    /// only what differs. Called by the hourly sweep (Tracks.Sweep).
+    /// Drops grazing regrown to zero, then a forage state with nothing searched or grazed, then the tile's empty
+    /// pools: each reads the same gone as kept, so the save holds only what differs (Tracks.Sweep, hourly).
     internal static void DropRegrown(World world, TileState tile)
     {
         if (tile.Pools is not { } pools) return;
-        // Backwards by position, so a drop moves nothing still to be looked at.
         for (int p = pools.Count - 1; p >= 0; p--)
         {
             if (pools.Values[p] is not ForageState forage) continue;

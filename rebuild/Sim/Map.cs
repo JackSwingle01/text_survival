@@ -20,8 +20,8 @@ public sealed class TileState
     /// Footprints, one sign per kind of maker. Owned by Tracks; null when the ground is clean.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedDictionary<TrackMaker, Track>? Tracks { get; set; }
-    /// Pools something has drawn from, by index into Pools.At. Owned by Pools. Sorted: a pool's state is dropped
-    /// when it has nothing left to say (Pools.DropRegrown), and a hash table's order would then differ after a load.
+    /// Pools something has drawn from, by index into Pools.At. Owned by Pools. Sorted: states are dropped
+    /// (Pools.DropRegrown), and a hash table's order would then differ after a load.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public SortedList<int, PoolState>? Pools { get; set; }
     /// Things left here: camp storage and whatever a full pack dropped. Unlimited. Owned by Items.
