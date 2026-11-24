@@ -72,6 +72,7 @@ public sealed class World
     internal NearbyIndex? Nearby;
     /// Owned by Trip.Routes: one search's working state, reused by the next.
     internal Trip.RouteScratch? RouteScratch;
+    internal HashSet<EdgeId>? TroddenEdges;
     internal (long Minute, Dictionary<(AgentId Who, TileId From, TileId To, Pace Pace), (int Minutes, double EncumbrancePct, double Speed)> Minutes)? StepMinutesCache;
 
     public static World New(int seed)

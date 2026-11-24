@@ -94,7 +94,9 @@ public static class Tracks
         // Saturating, as grazing does: the first crossings pack the most, and each packs a share of what is still loose.
         var edge = new EdgeId(from, to);
         double settled = TroddenAt(world, edge, now);
+        var trodden = TroddenEdges(world); // before the write: after it, the count differs
         world.Trails[edge] = new EdgeTrodden(settled + (1 - settled) * Math.Min(1, StampPct * individualDepth), now);
+        trodden.Add(edge);
         Trip.Forget(world, from, to);
     }
 
@@ -204,8 +206,13 @@ public static class Tracks
             // Ground never lets go of a tile it has observed; worked pools, piles and carcasses are kept too.
             Map.Tidy(world, tile);
         }
+        var trodden = TroddenEdges(world);
         foreach (var (edge, _) in world.Trails.ToList())
-            if (TroddenAt(world, edge, now) <= 0) world.Trails.Remove(edge);
+            if (TroddenAt(world, edge, now) <= 0)
+            {
+                world.Trails.Remove(edge);
+                trodden.Remove(edge);
+            }
     }
 
     // ---- trodden edges ----
@@ -223,7 +230,20 @@ public static class Tracks
 
     /// Whether anything has walked the edge between neighbours a and b: only then does its half of a tile read differently.
     public static bool IsTrodden(World world, TileId a, TileId b) =>
-        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && world.Trails.ContainsKey(new EdgeId(a, b));
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && TroddenEdges(world).Contains(new EdgeId(a, b));
+
+    /// Trails' edges, never saved: a SortedDictionary lookup boxes its key until the JIT optimises it. A write from
+    /// outside Tracks is caught by the count, so a remove and an add with no read between would not be.
+    static HashSet<EdgeId> TroddenEdges(World world)
+    {
+        var edges = world.TroddenEdges ??= [];
+        if (edges.Count != world.Trails.Count)
+        {
+            edges.Clear();
+            edges.UnionWith(world.Trails.Keys);
+        }
+        return edges;
+    }
 
     static double TroddenAt(World world, EdgeId edge, long now)
     {
