@@ -34,8 +34,8 @@ perception. A verb is refused when the faculty it needs is at zero, and takes lo
 faculty is below a fresh body's. The slowing is gradual from the first wound, so the player feels an
 injury worsen and mend. A refusal says why.
 
-A body is read in tiers, each reading only the one below, so nothing leaks: a short night no longer
-takes your strength, and losing blood still does.
+A body is read in tiers, each reading only the one below, so nothing leaks: a foggy head no
+longer drains your strength through vitality, and losing blood still weakens you.
 
 ## User Stories
 
@@ -77,8 +77,8 @@ takes your strength, and losing blood still does.
 
 ### What reaches what
 
-17. As a player, I want a short night to cost my attention and my hands and not my strength, so that
-    tiredness feels like tiredness.
+17. As a player, I want a foggy head to stop draining my strength and speed by a second route, so that
+    a blow to the head or a short night costs me once and not twice.
 18. As a player, I want lost blood and failing breath to weaken my limbs and my head, so that bleeding
     out makes me weak.
 19. As a player, I want a blow to the head to make my hands clumsy and my senses dull, so that being
@@ -256,8 +256,8 @@ takes your strength, and losing blood still does.
   matches what stepping does, and the travel test that a body which cannot walk is refused.
 - **The body's faculties** is the second seam: build a body (wounds, blood, effects, build, load) and
   read the four faculties, vitality and alive. It covers no working leg as speed at zero and any
-  working limb above zero, blood and breath feeding the capacities, a short night leaving strength
-  whole, strength above zero when unconscious, vitality ignoring surroundings and leaving out a faculty
+  working limb above zero, blood and breath feeding the capacities, lowered consciousness alone
+  leaving strength and speed unchanged, strength above zero when unconscious, vitality ignoring surroundings and leaving out a faculty
   the species lacks, and alive holding for a body whose faculties are all at zero. Prior art: the body
   tests, which move up one tier from reading capacities.
 - **Properties over any body** hold the bounds, at those two seams. For a body with any wounds, blood,
@@ -304,7 +304,9 @@ takes your strength, and losing blood still does.
   - eating and drinking gated by speed for a body without hands. Without some such rule every animal
     is refused food, because a four-legged body's manipulation is zero today.
 - Until the deprivation ticket, deprivation still subtracts from moving and manipulation. So a body
-  with one working leg can still be made lame by thirst and tiredness together, as it can today. The
+  with one working leg can still be made lame by thirst and tiredness together, as it can today. For
+  the same reason a tired body still loses about a quarter of its strength through its limbs; a short
+  night leaving strength whole is that ticket's promise, not this one's. The
   grilling leaned toward deprivation reaching the limbs only through consciousness; that is the next
   ticket's to settle.
 - The balance moves even with no effect retuned, because vitality leaves the four formulas. A model of
