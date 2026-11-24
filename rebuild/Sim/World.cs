@@ -67,6 +67,7 @@ public sealed class World
     internal bool ReplanEveryDecision;
     internal Dictionary<Diet, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
+    internal double? MeanForageDensityCache;
     internal SortedSet<TileId>? CarcassTiles;
     internal NearbyIndex? Nearby;
     /// Owned by Trip.Routes: one search's working state, reused by the next.

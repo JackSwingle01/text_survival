@@ -3,9 +3,8 @@ namespace Survival;
 /// Herd behaviour rates are a model, so they live in code beside the behaviours, not in content.
 /// Season days are Weather.DayOfYear, inclusive. Over capacity the birth rate runs backwards (Thin).
 /// CapacityPerScore: members per unit of forage score, or per kg of living prey near the den for a meat-eater.
-/// StarveDays: null for what never starves. Arrival: null for what never comes from outside.
-public sealed record RenewalRow(int SeasonStartDay, int SeasonEndDay, double BirthsPerHeadPerDay, double CapacityPerScore, int? StarveDays,
-    ArrivalRow? Arrival);
+/// Arrival: null for what never comes from outside. Hunger kills from the body (Body.LiveNeeds), never here.
+public sealed record RenewalRow(int SeasonStartDay, int SeasonEndDay, double BirthsPerHeadPerDay, double CapacityPerScore, ArrivalRow? Arrival);
 
 /// A herd coming into the valley: the valley carries ValleyPerScore members per unit of its score.
 public sealed record ArrivalRow(double ValleyPerScore, int MinMembers, int MaxMembers, int MinTiles, int MaxTiles);
@@ -16,27 +15,25 @@ public static partial class Fauna
     /// because the valley's prey are a few dozen head; arrivals keep a species from dying out between seasons.
     static RenewalRow? RenewalOf(Species s) => s switch
     {
-        Species.Caribou => new(135, 190, 0.030, 0.045, null, new(0.0035, 5, 15, 128, 192)),
-        Species.Bison => new(130, 190, 0.020, 0.023, null, new(0.0066, 3, 8, 240, 400)),
-        Species.Megaloceros => new(140, 190, 0.020, 0.033, null, new(0.0014, 2, 3, 48, 96)),
-        Species.Mammoth => new(120, 200, 0.004, 0.032, null, null),
-        Species.Wolf => new(110, 150, 0.020, 1.0 / 700, 14, new(1.0 / 3500, 3, 8, 48, 80)),
-        // Hyenas and the carrion flock find something when no kill is near, so they never starve; they thin only over capacity.
-        Species.Hyena => new(110, 170, 0.015, 1.0 / 850, null, new(1.0 / 3200, 3, 6, 64, 112)),
-        Species.Raven => new(100, 180, 0.020, 0.05, null, new(0.0040, 3, 6, 150, 250)),
+        Species.Caribou => new(135, 190, 0.030, 0.045, new(0.0035, 5, 15, 128, 192)),
+        Species.Bison => new(130, 190, 0.020, 0.023, new(0.0066, 3, 8, 240, 400)),
+        Species.Megaloceros => new(140, 190, 0.020, 0.033, new(0.0014, 2, 3, 48, 96)),
+        Species.Mammoth => new(120, 200, 0.004, 0.032, null),
+        Species.Wolf => new(110, 150, 0.020, 1.0 / 700, new(1.0 / 3500, 3, 8, 48, 80)),
+        Species.Hyena => new(110, 170, 0.015, 1.0 / 850, new(1.0 / 3200, 3, 6, 64, 112)),
+        Species.Raven => new(100, 180, 0.020, 0.05, new(0.0040, 3, 6, 150, 250)),
         // A bear's cub leaves as a herd of its own on its mother's land (Born).
-        Species.Bear => new(100, 140, 0.004, 0.022, null, new(0.0012, 1, 1, 64, 128)),
-        Species.CaveBear => new(100, 140, 0.004, 0.022, null, null), // its den is a cave
-        // A dead megafauna hunter stays dead and none arrive; saber-tooths forage, so never starve. People and small game are not herds.
+        Species.Bear => new(100, 140, 0.004, 0.022, new(0.0012, 1, 1, 64, 128)),
+        Species.CaveBear => new(100, 140, 0.004, 0.022, null), // its den is a cave
+        // A dead megafauna hunter stays dead and none arrive. People and small game are not herds.
         Species.SaberTooth or Species.Human or Species.Hare or Species.Fox => null,
     };
 
     public const int PreyRangeTiles = ForayRadiusTiles;
-    const double StarveDeathPerDay = 0.3;
     const double ArrivalsPerDay = 0.05; // at the valley's full deficit
 
     /// Once a day, at midnight. Each animal rolls on its own stream (renewal) in id order, arrivals on the valley's.
-    /// An animal in a fight neither starves, thins nor gives birth that day.
+    /// An animal in a fight neither thins nor gives birth that day.
     public static void Renew(World world, List<WorldEvent> events)
     {
         if (Weather.MinuteOfDay(world.Minute) != 0) return;
@@ -45,7 +42,6 @@ public static partial class Fauna
         {
             if (!world.Agents.ContainsKey(herd.Id) || Combat.EncounterOf(world, herd.Id) != null || RenewalOf(herd.Species) is not RenewalRow row) continue;
             var rng = world.Rng("renewal", herd.Id);
-            if (Starve(world, herd, row, rng, events)) continue;
             double capacity = CapacityOf(world, herd), current = CurrentFor(world, herd);
             if (current > capacity && Thins(herd.Species))
             {
@@ -60,16 +56,6 @@ public static partial class Fauna
     }
 
     static double Deficit(double capacity, double current) => capacity <= 0 ? 0 : Math.Max(0, (capacity - current) / capacity);
-
-    /// Returns whether the animal starved.
-    static bool Starve(World world, Agent herd, RenewalRow row, Rng rng, List<WorldEvent> events)
-    {
-        var mind = MindOf(herd);
-        if (row.StarveDays is not int days || world.Minute - mind.LastFedMinute <= days * 1440L) return false;
-        if (rng.NextDouble() >= StarveDeathPerDay) return false;
-        Lose(world, herd, events);
-        return true;
-    }
 
     /// What lives on kills follows them down. Grazers, browsers and bears only stop giving birth when full.
     /// A herd Populate put over capacity should not starve, and a cave bear's land (cave floor) carries nothing measurable.

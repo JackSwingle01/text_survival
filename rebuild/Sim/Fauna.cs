@@ -21,7 +21,7 @@ public sealed record HerdMind : Mind
     public TileId? FleeFrom { get; set; }
     /// Where a hungry pack is making for off its land: a far point when starving, or a lost scent (Stalk). Cleared when it eats.
     public TileId? Foray { get; set; }
-    /// A meat-eater too long without starves (Fauna.Renew).
+    /// When it last ate (the observer shows it); hunger itself is its body's.
     public long LastFedMinute { get; set; }
     /// Familiarity 0-1 with each animal it knows, kept only by a closed-group species (Fauna.IsKin); null otherwise.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -63,7 +63,9 @@ public static partial class Fauna
     /// What a wild animal burns over its basal rate, day in, day out: field metabolism is 1.6-3 times
     /// basal (research §1; Nagy 1999). The low end, since fights and flight charge their own work.
     const double FieldMetabolismFactor = 1.6;
-    const double GrazingRatePerKgPerHour = 0.0001;
+    /// Grazed level a kcal eaten takes off a resource: 0.0001 a kg-hour for a 110 kg body eating 13 kcal a minute. Every
+    /// body grazes a tile down by what it eats, not by its mass, so a mammoth thins a tile by its intake, not its bulk.
+    const double GrazedLevelPerKcal = 0.0001 / 60 * 110 / 13;
     const int PackPatrolEveryMinutes = 30, PackPatrolTimeoutMinutes = 120;
     const double StarvingHunger = 0.8;
     const int StarvingPatrolEveryMinutes = 5, ForayRadiusTiles = 40;
@@ -101,7 +103,6 @@ public static partial class Fauna
     }
 
     static long StateMinutes(World world, HerdMind mind) => world.Minute - mind.StateSinceMinute;
-    static double MassKg(Agent herd) => herd.Members.Sum(b => b.WeightKg);
 
     /// 0 fed to 1 starving: how far its calorie stores are from full. Derived, never stored, so every minute
     /// lived and every burst of a fight cost a herd food, fleeing and watching included.
@@ -121,12 +122,12 @@ public static partial class Fauna
 
     static void Burn(BodyState body) => Body.SpendKcal(body, BurnKcalPerMinute(body));
 
-    /// A living animal's minute: its burn, its water and rest, and mending while nothing is harming it (as a person heals).
+    /// A living animal's minute: its burn, its water, rest and hunger, and mending while fed and nothing is harming it (as a person heals).
     internal static void Live(World world, Agent animal, BodyState body, bool sleeping)
     {
         Burn(body);
         Body.LiveNeeds(body, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
-        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0)) Mend(body);
+        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0) && body.CaloriesPct > Body.RegenMinCaloriesPct) Mend(body);
     }
 
     /// Its store's room plus the fat lost below its kind's build: a starved wolf gorges, and the surplus goes back on as fat.
@@ -254,39 +255,136 @@ public static partial class Fauna
         return null;
     }
 
-    // An eaten-out tile still feeds in full. Research §5.5 would scale the intake by the forage left,
-    // which leaves herds wandering far more.
-    static void GrazeMinute(World world, Agent herd)
+    /// What it takes, and the pool grazed down by what it took (GrazedLevelPerKcal, GrazeAt).
+    static void GrazeMinute(World world, Agent animal)
     {
-        var mind = MindOf(herd);
-        double intake = SpeciesTable.Of(herd.Species).GrazeKcalPerMinute;
-        bool ate = false;
-        foreach (var b in herd.Members.Where(Body.IsAlive))
-        {
-            double kcal = Math.Min(intake, RoomKcal(herd, b));
-            if (kcal <= 0) continue;
-            Body.Eat(b, kcal);
-            ate = true;
-        }
-        if (ate) mind.LastFedMinute = world.Minute; // Renewal's starvation reads it: only food counts
-        var diet = DietOf(herd.Species);
-        if (ForageHere(world, herd.Tile) is not (PoolId id, ForagePool pool)) return;
+        if (GrazeHere(world, animal) is not { } graze) return;
+        var body = animal.Body;
+        double kcal = Math.Min(graze.PerMinute, RoomKcal(animal, body));
+        if (kcal <= 0) return;
+        Body.Eat(body, kcal);
+        MindOf(animal).LastFedMinute = world.Minute;
+        var diet = DietOf(animal.Species);
+        if (ForageHere(world, animal.Tile) is not (PoolId id, ForagePool pool)) return;
         double dietFactor = diet == Diet.Omnivore ? 5.0 : 1.0; // bears are efficient foragers
-        double mass = MassKg(herd);
         foreach (var r in Eats(diet).Where(r => pool.Items.Any(i => i.Resource == r)))
         {
             double level = Pools.GrazedLevel(world, id, r);
             if (level >= 0.95) continue;
-            Pools.SetGrazed(world, id, r, Math.Min(1.0, level + mass / 60.0 * GrazingRatePerKgPerHour * dietFactor * (1 - level)));
+            Pools.SetGrazed(world, id, r, Math.Min(1.0, level + kcal * GrazedLevelPerKcal * dietFactor * (1 - level)));
         }
+    }
+
+    /// A forecast: the kcal a minute's grazing pays it where it stands (GrazeAt).
+    public static Source? GrazeHere(World world, Agent animal) => GrazeAt(world, animal, animal.Tile);
+
+    /// Its full rate shared among its diet's resources on the tile's forage, each by what is left of it (1 - grazed level),
+    /// times min(1, capacity / load) (TileCapacity, Load); null where nothing it eats grows. Below capacity company costs
+    /// nothing; past it every grazer's share falls. A meat-eater's grazing is the small game it lives on between kills,
+    /// there on any ground at an average tile's capacity (a saber-tooth's, until it hunts: #84).
+    static Source? GrazeAt(World world, Agent animal, TileId tile)
+    {
+        double rate = SpeciesTable.Of(animal.Species).GrazeKcalPerMinute;
+        if (rate <= 0) return null;
+        var eats = Eats(DietOf(animal.Species));
+        double left = 1, density = 0;
+        ForagePool? pool = null;
+        if (eats.Count > 0)
+        {
+            if (ForageHere(world, tile) is not (PoolId id, ForagePool p)) return null;
+            pool = p;
+            // Read on every tile a food plan weighs, so counted, not listed, and indexed (an interface's enumerator is boxed).
+            double sum = 0;
+            int count = 0;
+            for (int i = 0; i < eats.Count; i++)
+            {
+                if (!Grows(p, eats[i])) continue;
+                sum += 1 - Pools.GrazedLevel(world, id, eats[i]);
+                count++;
+            }
+            if (count == 0) return null;
+            left = sum / count;
+            density = p.Density;
+        }
+        if (left <= 0) return null;
+        double capacity = TileCapacity(pool == null ? 1 : density / MeanForageDensity(world), left);
+        return new Source(rate * left * Math.Min(1, capacity / Load(world, animal, tile, eats, pool)));
+    }
+
+    static bool Grows(ForagePool pool, Resource r)
+    {
+        for (int i = 0; i < pool.Items.Count; i++) if (pool.Items[i].Resource == r) return true;
+        return false;
+    }
+
+    /// The intake a tile of average forage holds: twenty caribou's (20 x 13 kcal a minute), about three mammoths'.
+    const double AverageTileKcalPerMinute = 260;
+
+    /// The intake a tile holds, scaled by the forage on it now: its richness against the valley's mean, times what is
+    /// left of what this grazer eats there.
+    static double TileCapacity(double richness, double left) => AverageTileKcalPerMinute * richness * left;
+
+    /// The mean forage density over the valley's open land, ungrazed. Fixed at generation, so worked out once and never saved.
+    static double MeanForageDensity(World world)
+    {
+        if (world.MeanForageDensityCache is { } mean) return mean;
+        double sum = 0;
+        int count = 0;
+        foreach (var t in OpenLand(world))
+            if (ForageHere(world, t) is (_, ForagePool p)) { sum += p.Density; count++; }
+        return (world.MeanForageDensityCache = count > 0 ? sum / count : 1).Value;
+    }
+
+    /// A grazer's intake as load on a tile: its species' rate scaled by its weight against the species', to the 3/4 power.
+    static double Intake(Agent a)
+    {
+        var row = SpeciesTable.Of(a.Species);
+        return row.GrazeKcalPerMinute * Math.Pow(a.Body.WeightKg / row.WeightKg, 0.75);
+    }
+
+    /// Its intake and that of the living animals on the tile now that graze what it would there, one stepping onto it
+    /// counted there and not where it left: those with a plan to come later don't count.
+    static double Load(World world, Agent animal, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    {
+        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool);
+        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool);
+        return load;
+    }
+
+    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    {
+        var here = Nearby.At(world, on);
+        double load = 0;
+        for (int i = 0; i < here.Count; i++)
+        {
+            var other = world.Agents[here[i]];
+            if (other.Id == animal.Id || other.Mind is not HerdMind || SpeciesTable.Of(other.Species).GrazeKcalPerMinute <= 0
+                || !(other.Crossing is { } c ? Map.Step(c.From, c.Dir) == tile : other.Tile == tile) || !Sim.IsAlive(other)) continue;
+            if (Shares(eats, Eats(DietOf(other.Species)), pool)) load += Intake(other);
+        }
+        return load;
+    }
+
+    /// Both graze a resource growing there; two meat-eaters share the small game.
+    static bool Shares(IReadOnlyList<Resource> eats, IReadOnlyList<Resource> theirs, ForagePool? pool)
+    {
+        if (eats.Count == 0 || theirs.Count == 0) return eats.Count == theirs.Count;
+        if (pool == null) return false;
+        for (int i = 0; i < eats.Count; i++)
+            if (Grows(pool, eats[i]))
+                for (int j = 0; j < theirs.Count; j++) if (theirs[j] == eats[i]) return true;
+        return false;
     }
 
     static (PoolId, ForagePool)? ForageHere(World world, TileId tile) =>
         Pools.At(world, tile) is [ForagePool pool, ..] ? (new PoolId(tile, 0), pool) : null;
 
-    /// Where nothing grows, grazing is only standing about, which nothing bars.
-    static Refusal? GrazeRefusal(World world, Agent herd) =>
-        ForageHere(world, herd.Tile) is (PoolId id, _) ? Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Pool, id.Tile, id.Index)) : null;
+    static Refusal? GrazeRefusal(World world, Agent herd)
+    {
+        if (GrazeHere(world, herd) == null) return new("nothing here it eats");
+        return ForageHere(world, herd.Tile) is (PoolId id, _) && Eats(DietOf(herd.Species)).Count > 0
+            ? Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Pool, id.Tile, id.Index)) : null;
+    }
 
     public static double GrazedLevelHere(World world, Agent herd)
     {
@@ -310,11 +408,13 @@ public static partial class Fauna
     public static double MeatHere(World world, TileId tile) =>
         world.Tiles.GetValueOrDefault(tile)?.Carcasses?.Sum(c => Remains.MeatKg(world, tile, c)) ?? 0;
 
-    /// No faster than 0.1 kg a minute a head; the carrion flock picks at a dead person's body once the carcasses are bare.
+    const double FeedKgPerMinute = 0.1;
+
+    /// No faster than FeedKgPerMinute a head; the carrion flock picks at a dead person's body once the carcasses are bare.
     static void FeedMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
-        double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, 0.1 * herd.Members.Count), eaten = 0;
+        double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, FeedKgPerMinute * herd.Members.Count), eaten = 0;
         foreach (var c in Edible(world, herd))
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
         if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Carrion)

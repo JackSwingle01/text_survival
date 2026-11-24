@@ -75,8 +75,8 @@ public static partial class Body
     public static void Cover(BodyState body, Running running, double metres) =>
         SpendKcal(body, running.Motion.RunCostJPerKgM * metres * (body.WeightKg + running.CarriedKg) / JoulesPerKcal);
 
-    /// Store first, then the reserves in starvation's order (ReserveBurn). Past both floors a person's
-    /// heart answers on the next minute lived (ProcessLethal), an animal starves through Fauna.Renew.
+    /// Store first, then the reserves in starvation's order (ReserveBurn). Past both floors the heart
+    /// answers on the next minute lived (a person's ProcessLethal, an animal's LiveNeeds).
     /// Returns what could not be paid.
     public static double SpendKcal(BodyState body, double kcal)
     {

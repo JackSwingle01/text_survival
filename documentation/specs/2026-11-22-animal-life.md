@@ -259,16 +259,31 @@ Animals and people share one body model and one way of looking for what they nee
 
 - **Cohesion** reuses the species' existing `cohesion` field, already read by combat as morale. It
   becomes one number for how strongly an animal sticks with its group, read by combat and the planner.
-- **Going alone costs more.** For a source with none of the animal's kin present, the choice's total
-  minutes are multiplied by (1 + cohesion). A caribou at cohesion 1 would rather take twice as long
-  with the herd. A bear at 0 doesn't care. Closed-group species count only familiar animals as kin.
-- **Crowding.** A grazing source's yield is divided by the grazers on the tile now. Animals heading
-  there don't count. A whole herd re-deciding in the same minute and moving together is intended:
-  that's following the herd.
-- **What splits a herd.** Crowding cuts each animal's share until the next tile alone beats staying,
-  even after paying the cohesion cost. Bodies differ, so animals re-decide at different minutes, and
-  groups spread until each one's intake is about equal while cohesion keeps them in clumps. The
-  cohesion gate measures whether this happens; there is no split or merge rule.
+- **Going alone costs more.** For a source with none of the animal's kin on its tile or the 8 tiles
+  around it (standing there, or crossing onto one of them), the choice's total minutes are multiplied
+  by (1 + cohesion). A caribou at cohesion 1 would rather take twice as long with the herd. A bear at
+  0 doesn't care. Closed-group species count only familiar animals as kin. Counting the tiles around
+  lets a herd spread over several tiles while it grazes and stay one herd.
+- **Crowding: a tile capacity, counted by intake** (amended 2026-11-24, #83 and #132; it replaces
+  "yield ÷ grazers", which capped herds at about 2.5).
+  - **Load.** Each grazer standing on the tile (or stepping onto it) that eats a resource growing
+    there adds its intake: its species' grazing rate × (its weight ÷ its species' weight)^0.75. A
+    mammoth loads a tile like about 7 caribou. Animals heading there later don't count; a whole herd
+    re-deciding in the same minute and moving together is intended: that's following the herd.
+  - **Capacity.** 20 caribou's intake (20 × 13 = 260 kcal/min, about 3 mammoths) on a tile of
+    average forage, scaled by the forage left on it now: × the tile's forage density ÷ the valley's
+    mean ungrazed density × the mean (1 − grazed level) over the resources the grazer eats there. A
+    fresh rich meadow holds more than 20, a half-eaten one fewer. (At 7, one mammoth filled a tile.)
+  - **Payout.** The full rate × (1 − grazed level) × min(1, capacity ÷ load). Below capacity company
+    costs nothing; past it everyone's share falls.
+  - If animals turn out to leave tiles too eagerly, the fallback is capacity by the tile's richness,
+    without the grazed level.
+- **A little noise in choices.** Each candidate's total in the choice is multiplied by 1 ± up to 5%,
+  drawn from the world's seeded streams, so animals with the same view don't all choose alike in the
+  same minute, and runs stay deterministic through save and load.
+- **What splits a herd.** Past capacity, crowding cuts each animal's share until the next tile beats
+  staying; as a tile is eaten its capacity shrinks. Herd size comes from kin reach, the land and
+  predators, not from a split or merge rule. The cohesion gate measures whether this happens.
 - **Vigilance stays in detection and combat.** The planner doesn't score it. It is one function owned
   by the detection code (today's prey-noticing curve), read by the hunt and by combat alike.
 - Predators: the choice of hunting ground counts pack size through the kill-chance forecast below. A
@@ -362,8 +377,13 @@ Four separate pieces, shared by NPCs and animals.
 ### Grazing
 
 - Intake scales with what's left of the resources this diet eats on the tile: the full rate times
-  (1 − grazed level), summed over them.
+  the mean (1 − grazed level) over them, so a fresh tile pays the full rate (#83), times the crowding
+  factor above.
 - A tile with no pool for the diet gives nothing.
+- A tile is grazed down by what is eaten from it, not by the eater's mass (amended 2026-11-24, #83):
+  each kcal takes the same grazed level off, set so a 110 kg grazer eating 13 kcal a minute grazes
+  down as the old mass rule had it. By mass, a mammoth stripped about 6½ times the forage a caribou
+  does for each kcal it got, and re-planned every half hour.
 - Leaving an eaten-out tile isn't a threshold. It falls out of the choice: grazing slowly here becomes
   more expensive than walking somewhere better.
 
@@ -525,15 +545,21 @@ They become one system:
     - packs avoid each other;
     - NPCs drink from an open pond.
   - **The cohesion gate:** 60 days on several seeds, in Release, tagged Slow. Every metric is per
-    species. It fails if:
+    species, measured after a 3-day warm-up so the populated start isn't counted. Amended 2026-11-24
+    (#83): the gate fails only on what means the model is broken, allocation over twice its ceiling
+    or an open-group species alone more than 25% of the time. Every other limit below is a band: a
+    run outside one reports it, and it becomes a follow-up to tune, not a failure. The bands:
     - more than 10% of an open-group species' animals are alone on average;
-    - any herd holds over 60% of its species' living animals once there are more than 20;
+    - any herd holds over 60% of its species' living animals, once there are more than 20, in more
+      than half of the looks (a herd big for a while and then splitting, or gathered briefly at
+      water, is behaviour; one that never splits is a blob);
     - herds never split or join (a minimum rate of splits and joins, so a frozen lockstep fails);
     - animals change tile far more often than they need to (tile changes per animal per day, to catch
       oscillation);
     - an outsized share of a species stands on the single busiest water tile;
     - predator kills per week fall outside a band;
-    - starvation and thirst deaths per species fall outside a band;
+    - starvation and thirst deaths per species fall outside a band (ravens, hyenas and wolves are
+      exempt until #85 and #84 replace their stand-ins);
     - the number of wolf packs isn't stable, or rival packs merge, or a pack present on day 1 isn't
       still 2 or more familiar wolves on day 60 unless it was killed off;
     - allocation is over 3× today's herd baseline, measured with the real planner (route searches,
@@ -541,8 +567,12 @@ They become one system:
 
     The bands are set in the ticket from a first run and stated in its work log.
 
-    The first planner ticket must pass it before anything else builds on individuals. If it can't,
-    the fallback is herd agents with split and merge rules, and this spec is revisited.
+    For the gate a herd is the animals of a species on a connected group of occupied tiles (8
+    neighbours), not one tile: "alone" is a herd of one, and the biggest herd is the largest such
+    group. Combat sides and everything else that reads the derived herd stay per tile.
+
+    The first planner ticket must pass its hard limits before anything else builds on individuals.
+    If it can't, the fallback is herd agents with split and merge rules, and this spec is revisited.
   - **The stored-path benchmark:** the same seeds, re-planning every decision against stored paths
     with the five interrupts. Compare time, allocation and moves, and record the result in the
     ticket's work log.
