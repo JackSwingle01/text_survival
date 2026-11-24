@@ -108,18 +108,12 @@ public static partial class Fauna
     static bool SideFoughtThisMinute(World world, Agent animal) =>
         Combat.Side(world, animal).Any(a => MindOf(a).LastEncounterMinute == world.Minute);
 
-    /// Before its state is asked: kin leaving its tile take it with them (the interrupt); alone, it waits for kin
+    /// Before its role's rules: kin leaving its tile take it with them (the interrupt); alone, it waits for kin
     /// coming to it or goes to the nearest it can make out. Feeding and hunting hold it.
     static (Activity, int)? Cohere(World world, Agent animal, HerdMind mind)
     {
-        if (SpeciesTable.Of(animal.Species).Cohesion <= 0 || mind.State is HerdState.Feeding or HerdState.Hunting || !CanMove(animal)) return null;
-        if (Following(world, animal) is ({ } going, { } lead))
-        {
-            // Where the one it follows is making for, so that when it leads in turn it leads them on, not back.
-            var theirs = MindOf(lead);
-            if (theirs.Territory.Count > 0 && mind.Territory.IndexOf(theirs.Territory[theirs.TerritoryIndex]) is int at and >= 0) mind.TerritoryIndex = at;
-            return (new Travel(animal.Id, going), UntilArrived);
-        }
+        if (SpeciesTable.Of(animal.Species).Cohesion <= 0 || mind.Choice is Feed or Hunt || !CanMove(animal)) return null;
+        if (Following(world, animal) is ({ } going, _)) return (new Travel(animal.Id, going), UntilArrived);
         if (SideCount(world, animal) > 1 || world.Minute % KinLookEveryMinutes != 0) return null;
         var near = Nearby.Within(world, animal.Tile, KinSenseTiles).Where(k => IsKin(animal, k)).ToList();
         if (near.Count == 0) return null;
@@ -162,16 +156,4 @@ public static partial class Fauna
     }
 
     static bool Leaving(Agent animal, TileId tile) => animal.Crossing is { } c && c.From == tile && animal.Tile == tile;
-
-    /// The herd's drift chance, a share each; a step where no kin are or are going costs 1 + cohesion times as much.
-    static (Activity, int)? Drift(World world, Agent animal, HerdMind mind, double chancePerMinute)
-    {
-        if (!Roll(world, animal, chancePerMinute / SideCount(world, animal))) return null;
-        var step = PatrolStep(world, animal, mind);
-        if (step is not ({ } activity, _) || activity is not Travel t) return step;
-        var to = Map.Step(animal.Tile, t.Dir);
-        bool kinThere = Nearby.Within(world, to, 1).Any(k => IsKin(animal, k) && (k.Tile == to && !Leaving(k, to) || k.Crossing is { } c && Map.Step(c.From, c.Dir) == to));
-        double cohesion = SpeciesTable.Of(animal.Species).Cohesion;
-        return kinThere || cohesion <= 0 || Roll(world, animal, 1 / (1 + cohesion)) ? step : null;
-    }
 }

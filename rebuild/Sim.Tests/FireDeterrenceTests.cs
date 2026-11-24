@@ -47,8 +47,8 @@ public class FireDeterrenceTests(ITestOutputHelper output)
 
     static readonly GeneratedMap HoldMap = TestWorlds.Map(1000);
 
-    /// A night on open ground: the player resting on one tile, a pack of three on the next whose land
-    /// runs onto the player's tile, so it walks that way whenever it patrols.
+    /// A night on open ground: the player resting on one tile, a pack of three on the next whose den is
+    /// the player's tile, worn out, so it makes for its den to sleep there.
     static (World W, TileId Here, AgentId Pack) Camp(int seed)
     {
         var m = HoldMap;
@@ -58,12 +58,12 @@ public class FireDeterrenceTests(ITestOutputHelper output)
         var next = MapGen.Neighbors(here).First();
         var w = new World { Seed = seed, GeneratedMap = m, Minute = 13 * 60 }; // 22:00
         w.Agents[P] = new Agent { Id = P, Tile = here };
-        var pack = Agents.SpawnGroup(w, Species.Wolf, next, 3, [here, next]);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, next, 3, den: here);
         foreach (var wolf in pack)
         {
             CombatTests.Normalize(w, wolf);
             TestKit.SetHunger(w.Agent(wolf), 0.5);
-            ((HerdMind)w.Agent(wolf).Mind).State = HerdState.Patrolling;
+            w.Agent(wolf).Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes; // under Need, above Critical: a fire still holds it off
         }
         return (w, here, pack[0]);
     }
@@ -92,7 +92,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
             me.HydrationMl = Body.MaxHydrationMl;
             Sim.Step(w, new Rest(P), 1);
             if (w.Agent(pack).Tile == here) return (minute, pit == null ? 0 : Fire.IntensityPct(pit));
-            Assert.Equal(next, w.Agent(pack).Tile); // held, it waits on the next tile, not somewhere else on its land
+            Assert.Equal(next, w.Agent(pack).Tile); // held, it waits on the next tile, not somewhere else
         }
         return (null, pit == null ? 0 : Fire.IntensityPct(pit));
     }

@@ -35,13 +35,11 @@ public static partial class Fauna
     /// A forecast: what an animal drinks a minute where it stands (Work.WaterAt, from what it knows).
     public static Source? WaterHere(World world, Agent animal) => Work.WaterAt(new AnimalView(world, MindOf(animal)), animal.Tile, animal.Body);
 
-    static TileId? Den(Agent animal, HerdMind mind) => IsPredator(animal.Species) && mind.Territory.Count > 0 ? mind.Territory[0] : null;
-
     /// A forecast: the rest a minute's sleep here buys, in energy minutes (Body.EnergyDeltaPerMinute).
     public static double RestPerMinute(Agent animal, TileId tile) =>
         Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(animal.Species).SleepHoursPerDay) * SleepFactor(animal, tile);
 
-    static double SleepFactor(Agent animal, TileId tile) => Den(animal, MindOf(animal)) is TileId den && den != tile ? OpenSleepFactor : 1;
+    static double SleepFactor(Agent animal, TileId tile) => MindOf(animal).Den is TileId den && den != tile ? OpenSleepFactor : 1;
 
     /// Outside its active hours it would rather rest: from below rested, until full.
     static (Stat Stat, Priority Priority)? Due(World world, Agent animal, HerdMind mind)
@@ -102,11 +100,11 @@ public static partial class Fauna
         {
             // Nothing to eat nor roam to: a meat-eater waits for kin coming, else lives on its state, keeping the plan.
             if (stat == Stat.Food && !IsPrey(animal.Species)) return IsClosedGroup(animal.Species) && KinComing(world, animal) ? Wait(animal) : null;
-            return GiveWay(world, animal, mind, events) ?? (stat == Stat.Rest ? Sleep(world, animal, mind) : Wait(animal));
+            return GiveWay(world, animal, mind, events) ?? (stat == Stat.Rest ? Rest(animal) : Wait(animal));
         }
         return stat switch
         {
-            Stat.Rest => Sleep(world, animal, mind),
+            Stat.Rest => Rest(animal),
             Stat.Food => Eat(world, animal, mind),
             _ => (new Watering(animal.Id), 1),
         };
@@ -121,7 +119,7 @@ public static partial class Fauna
         if (!closed || FleeDirection(world, animal, threat, events) is not Direction away)
         {
             StartFleeing(world, mind, threat);
-            return Flee(world, animal, mind, BehaviorOf(animal.Species), events);
+            return Flee(world, animal, mind, events);
         }
         StartFleeing(world, mind, animal.Tile);
         return (new Travel(animal.Id, away), UntilArrived);
@@ -135,8 +133,6 @@ public static partial class Fauna
             return QuarryHere(world, animal) is Agent prey && Refusal(world, new Hunt(animal.Id, prey.Id)) == null && !SideFoughtThisMinute(world, animal)
                 ? (new Hunt(animal.Id, prey.Id), 1) : Wait(animal);
         bool meat = carcass > graze;
-        var state = meat ? HerdState.Feeding : HerdState.Grazing;
-        if (mind.State != state) Become(world, mind, state);
         return meat ? (new Feed(animal.Id), 1) : GrazeRefusal(world, animal) == null ? (new Graze(animal.Id), 1) : Wait(animal);
     }
 
@@ -205,7 +201,7 @@ public static partial class Fauna
         return best;
     }
 
-    /// Whether a predator that comes for people (its state machine's Stalk) senses one it would come for now.
+    /// Whether a predator that comes for people (ComeForPeople) senses one it would come for now.
     static bool WouldComeForSomeone(World world, Agent predator, List<WorldEvent> events)
     {
         if (BehaviorOf(predator.Species) != HerdBehavior.Pack || Hunger(predator) <= ComesForPeopleHunger || MindOf(predator).Fear > Tags.AfraidLevel) return false;
@@ -302,11 +298,7 @@ public static partial class Fauna
         throw new ArgumentException($"{to} is not a step from {from}");
     }
 
-    static (Activity, int) Sleep(World world, Agent animal, HerdMind mind)
-    {
-        if (mind.State != HerdState.Resting) Become(world, mind, HerdState.Resting);
-        return Rest(animal);
-    }
+    static (Activity, int) Sleep(World world, Agent animal, HerdMind mind) => Rest(animal);
 
     /// The five interrupts (and a plan's own end), or null while it holds; staying put is weighed again every two hours, or on food sensed.
     static string? Interrupt(World world, Agent animal, HerdMind mind, Stat stat, Priority priority, bool foodSeen, List<WorldEvent> events)
@@ -351,7 +343,7 @@ public static partial class Fauna
         double best = stat == Stat.Food ? Math.Max(row.GrazeKcalPerMinute, IsPrey(animal.Species) ? 0 : FeedKcalPerMinute) : double.PositiveInfinity;
         var hunting = stat == Stat.Food && Combat.Hunts(animal.Species) ? Hunting(world, animal) with { Together = PackReady(world, animal, priority) } : default;
         var ask = new Asking(stat, priority, amount, earn, row.Cohesion, t => KinAt(world, animal, t), best);
-        var den = Den(animal, mind);
+        var den = mind.Den;
         Func<TileId, Source?> sourceAt = stat switch
         {
             Stat.Water => t => Work.WaterAt(view, t, body),

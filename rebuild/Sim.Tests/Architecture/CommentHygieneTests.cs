@@ -65,7 +65,6 @@ public class CommentHygieneTests
         ["Names.cs"] = 11,
         ["Nearby.cs"] = 13,
         ["Pools.cs"] = 11,
-        ["Populate.cs"] = 11,
         ["Remains.cs"] = 14,
         ["Renewal.cs"] = 16,
         ["Report.cs"] = 11,

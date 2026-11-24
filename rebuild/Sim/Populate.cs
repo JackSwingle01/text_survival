@@ -1,39 +1,36 @@
 namespace Survival;
 
 /// Fills the valley with herds at world creation, seeded by its own stream.
-// Dens are authored sites (Content) that herds are anchored on. A megafauna herd killed off stays
-// dead for the run. Herds leave real prints, so no territory details are placed as pools.
+// Dens are authored sites (Content) that predators are put at; a megafauna herd killed off stays dead for the run.
 public static partial class Fauna
 {
     /// Herds start more than 2.4 km from camp.
     public const int SafeZoneTiles = 24;
+
+    /// Predators are put this far apart: the ground around one is off-limits to the next.
+    public const int SpacingTiles = 6;
 
     public static void Populate(World world)
     {
         var m = Map.Of(world);
         var rng = world.Rng("populate");
         var interior = InteriorTiles(m);
-        // Predators keep out of each other's land; prey graze anywhere outside the safe zone.
         var available = interior.Where(p => MapGen.Manhattan(p, m.Camp) > SafeZoneTiles).ToList();
-        // Prey land may overlap a pack's, so packs meet prey on their own land.
         var preyLand = available.ToList();
-        var wolfLand = new HashSet<TileId>();
+        var wolfGround = new HashSet<TileId>();
 
-        void Herd(Species species, TileId start, List<TileId> territory, int animals) =>
-            Agents.SpawnGroup(world, species, start, animals, territory);
-
-        // Every Wolf Den has a pack, first, its land grown around the den, so a den may sit inside camp's safe zone.
+        // Every Wolf Den has a pack, first, so a den may sit inside camp's safe zone.
         var wolfDens = SitesNamed(m, "wolf_den");
         for (int i = 0, packs = Math.Max(1 + rng.NextInt(2), wolfDens.Count); i < packs; i++)
         {
             bool den = i < wolfDens.Count;
             if (!den && available.Count == 0) break;
             var start = den ? wolfDens[i] : available[rng.NextInt(available.Count)];
-            var land = Territory(m, start, den ? Around(m, start, 10) : available, 48 + rng.NextInt(33), rng);
-            if (land.Count < 3) continue;
-            Herd(Species.Wolf, start, land, 3 + rng.NextInt(6));
-            wolfLand.UnionWith(land);
-            available.RemoveAll(land.ToHashSet().Contains);
+            var ground = Reach(m, start, den ? Around(m, start, SpacingTiles) : available, SpacingTiles);
+            if (ground.Count < 3) continue;
+            Agents.SpawnGroup(world, Species.Wolf, start, 3 + rng.NextInt(6));
+            wolfGround.UnionWith(ground);
+            available.RemoveAll(ground.ToHashSet().Contains);
         }
         // Only the start is taken: bears overlap. Every Bear Cave holds one.
         var bearCaves = SitesNamed(m, "bear_cave");
@@ -42,66 +39,56 @@ public static partial class Fauna
             bool den = i < bearCaves.Count;
             if (!den && available.Count == 0) break;
             var start = den ? bearCaves[i] : available[rng.NextInt(available.Count)];
-            var land = Territory(m, start, den ? Around(m, start, 12) : available, 64 + rng.NextInt(65), rng);
-            if (land.Count < 3) continue;
-            Herd(rng.NextDouble() < 0.5 ? Species.CaveBear : Species.Bear, start, land, 1);
+            if (Reach(m, start, den ? Around(m, start, SpacingTiles) : available, SpacingTiles).Count < 3) continue;
+            Agents.SpawnGroup(world, rng.NextDouble() < 0.5 ? Species.CaveBear : Species.Bear, start, 1);
             available.Remove(start);
         }
         for (int i = 0, herds = 2 + rng.NextInt(2); i < herds && preyLand.Count >= 8; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(m, start, preyLand, 128 + rng.NextInt(65), rng);
-            if (land.Count < 6) continue;
-            Herd(Species.Caribou, start, land, 5 + rng.NextInt(11));
+            if (Reach(m, start, preyLand, SpacingTiles).Count >= 6) Agents.SpawnGroup(world, Species.Caribou, start, 5 + rng.NextInt(11));
         }
         int large = 8 + rng.NextInt(8);
         for (int i = 0; i < large / 2 && preyLand.Count > 0; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(m, start, preyLand, 48 + rng.NextInt(49), rng);
-            if (land.Count >= 3) Herd(Species.Megaloceros, start, land, 2 + rng.NextInt(2));
+            if (Reach(m, start, preyLand, SpacingTiles).Count >= 3) Agents.SpawnGroup(world, Species.Megaloceros, start, 2 + rng.NextInt(2));
         }
         for (int i = 0; i < large - large / 2 && preyLand.Count > 0; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            var land = Territory(m, start, preyLand, 240 + rng.NextInt(161), rng);
-            if (land.Count >= 3) Herd(Species.Bison, start, land, 3 + rng.NextInt(6));
+            if (Reach(m, start, preyLand, SpacingTiles).Count >= 3) Agents.SpawnGroup(world, Species.Bison, start, 3 + rng.NextInt(6));
         }
-        // Saber-tooths stay off the packs' land.
+        // Saber-tooths stay off the packs' ground.
         for (int i = 0, cats = 1 + rng.NextInt(2); i < cats && available.Count > 0; i++)
         {
-            var valid = available.Where(p => !wolfLand.Contains(p)).ToList();
+            var valid = available.Where(p => !wolfGround.Contains(p)).ToList();
             if (valid.Count == 0) valid = available;
             var start = valid[rng.NextInt(valid.Count)];
-            var land = Territory(m, start, available, 96 + rng.NextInt(65), rng);
-            if (land.Count < 4) continue;
-            Herd(Species.SaberTooth, start, land, 1);
-            available.RemoveAll(land.ToHashSet().Contains);
+            var ground = Reach(m, start, available, SpacingTiles);
+            if (ground.Count < 4) continue;
+            Agents.SpawnGroup(world, Species.SaberTooth, start, 1);
+            available.RemoveAll(ground.ToHashSet().Contains);
         }
-        // Hyenas start just outside a wolf pack's land.
-        var hyenaZone = available.Where(p => !wolfLand.Contains(p) && MapGen.Neighbors(p).Any(wolfLand.Contains)).ToList();
+        // Hyenas start just outside a wolf pack's ground.
+        var hyenaZone = available.Where(p => !wolfGround.Contains(p) && MapGen.Neighbors(p).Any(wolfGround.Contains)).ToList();
         if (hyenaZone.Count < 3) hyenaZone = available.ToList();
-        // A start boxed in by the packs' land and ravines is struck off and another drawn, so the valley still gets its packs.
+        // A start boxed in by the packs' ground and ravines is struck off and another drawn, so the valley still gets its packs.
         for (int i = 0, packs = 1 + rng.NextInt(2); i < packs && hyenaZone.Count > 0;)
         {
             var start = hyenaZone[rng.NextInt(hyenaZone.Count)];
-            var land = Territory(m, start, available, 64 + rng.NextInt(49), rng);
-            if (land.Count < 3) { hyenaZone.Remove(start); continue; }
+            var ground = Reach(m, start, available, SpacingTiles);
+            if (ground.Count < 3) { hyenaZone.Remove(start); continue; }
             i++;
-            Herd(Species.Hyena, start, land, 3 + rng.NextInt(4));
-            hyenaZone.RemoveAll(land.ToHashSet().Contains);
+            Agents.SpawnGroup(world, Species.Hyena, start, 3 + rng.NextInt(4));
+            hyenaZone.RemoveAll(ground.ToHashSet().Contains);
         }
-        if (SitesNamed(m, "bone_hollow") is [var hollow, ..])
-        {
-            var land = Territory(m, hollow, Around(m, hollow, 40), 192 + rng.NextInt(97), rng);
-            Herd(Species.Mammoth, hollow, land.Count < 8 ? [hollow] : land, 8 + rng.NextInt(5));
-        }
+        if (SitesNamed(m, "bone_hollow") is [var hollow, ..]) Agents.SpawnGroup(world, Species.Mammoth, hollow, 8 + rng.NextInt(5));
         PopulateCaves(world, m, rng);
         PopulateOpportunists(world, m, interior);
     }
 
-    /// Ravens and foxes: one group of each per ~1,500 open tiles, sized and landed as one arriving (RenewalOf's
-    /// arrival row), ravens first, so they land where the carrion flock did. Drawn on their own stream after every other herd, so they move nothing else's placement.
+    /// Ravens, then foxes: a group per ~1,500 open tiles, sized as one arriving, on their own stream so they move nothing else.
     static void PopulateOpportunists(World world, GeneratedMap m, List<TileId> interior)
     {
         var rng = world.Rng("populate carrion");
@@ -111,8 +98,8 @@ public static partial class Fauna
             for (int i = 0, groups = Math.Max(2, interior.Count / 1500); i < groups && interior.Count > 0; i++)
             {
                 var start = interior[rng.NextInt(interior.Count)];
-                var land = Territory(m, start, interior, arrival.MinTiles + rng.NextInt(arrival.MaxTiles - arrival.MinTiles + 1), rng);
-                if (land.Count >= 3) Agents.SpawnGroup(world, species, start, arrival.MinMembers + rng.NextInt(arrival.MaxMembers - arrival.MinMembers + 1), land);
+                int members = arrival.MinMembers + rng.NextInt(arrival.MaxMembers - arrival.MinMembers + 1);
+                if (Reach(m, start, interior, SpacingTiles).Count >= 3) Agents.SpawnGroup(world, species, start, members);
             }
         }
     }
@@ -146,8 +133,7 @@ public static partial class Fauna
         return tiles;
     }
 
-    /// One roll per cave system. Half stand empty; of the rest, most hold a cave bear and some a few
-    /// hyenas, denned on a floor tile and ranging only where the cave connects.
+    /// One roll per cave system: half stand empty, most of the rest hold a cave bear, some a few hyenas, on a floor tile.
     static void PopulateCaves(World world, GeneratedMap m, Rng rng)
     {
         var caves = new SortedDictionary<int, List<TileId>>();
@@ -158,7 +144,7 @@ public static partial class Fauna
                 if (m.CaveIdAt(t) is int id && m.CaveAt(t) != Cave.None)
                     (caves.TryGetValue(id, out var list) ? list : caves[id] = []).Add(t);
             }
-        foreach (var (caveId, tiles) in caves)
+        foreach (var (_, tiles) in caves)
         {
             var floors = tiles.Where(t => m.CaveAt(t) == Cave.Floor).ToList();
             if (floors.Count == 0) continue;
@@ -166,38 +152,19 @@ public static partial class Fauna
             if (roll < 0.5) continue;
             var species = roll < 0.8 ? Species.CaveBear : Species.Hyena;
             var den = floors[rng.NextInt(floors.Count)];
-            // Grown through real connections, so no territory crosses a cave wall.
-            var land = new List<TileId> { den };
-            var reached = new HashSet<TileId> { den };
-            for (int i = 0; i < land.Count; i++)
-                foreach (var n in MapGen.Neighbors(land[i]))
-                    if (m.InBounds(n) && m.CaveIdAt(n) == caveId && Map.Blocked(m, land[i], n) == null && reached.Add(n)) land.Add(n);
-            Agents.SpawnGroup(world, species, den, species == Species.CaveBear ? 1 : 2 + rng.NextInt(3), land);
+            Agents.SpawnGroup(world, species, den, species == Species.CaveBear ? 1 : 2 + rng.NextInt(3));
         }
     }
 
-    /// A random flood fill from the start through the allowed tiles, up to the target size, across only
-    /// the edges a herd can walk, so no territory takes in land beyond a ravine or cliff its herd cannot reach.
-    static List<TileId> Territory(GeneratedMap m, TileId start, List<TileId> allowed, int targetSize, Rng rng)
+    /// The allowed tiles within radius a walker reaches from the start, breadth first so no roll is spent: a penned start reaches few.
+    static List<TileId> Reach(GeneratedMap m, TileId start, List<TileId> allowed, int radius)
     {
         var open = allowed.ToHashSet();
-        var land = new List<TileId> { start };
-        var taken = new HashSet<TileId> { start };
-        var frontier = new List<TileId> { start };
-        while (land.Count < targetSize && frontier.Count > 0)
-        {
-            int pick = rng.NextInt(frontier.Count);
-            var current = frontier[pick];
-            frontier.RemoveAt(pick);
-            foreach (var n in MapGen.Neighbors(current))
-            {
-                if (land.Count >= targetSize) break;
-                if (!open.Contains(n) || taken.Contains(n) || Map.Blocked(m, current, n) != null) continue;
-                taken.Add(n);
-                land.Add(n);
-                frontier.Add(n);
-            }
-        }
-        return land;
+        var reached = new List<TileId> { start };
+        var seen = new HashSet<TileId> { start };
+        for (int i = 0; i < reached.Count; i++)
+            foreach (var n in MapGen.Neighbors(reached[i]))
+                if (open.Contains(n) && MapGen.Manhattan(n, start) <= radius && Map.Blocked(m, reached[i], n) == null && seen.Add(n)) reached.Add(n);
+        return reached;
     }
 }

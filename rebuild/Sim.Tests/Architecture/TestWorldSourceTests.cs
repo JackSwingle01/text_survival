@@ -18,7 +18,7 @@ public class TestWorldSourceTests
         ["SaveTests.cs"] = (8, "the save format and loading are the subject"),
         ["ContentTests.cs"] = (1, "a search over seeds"),
         ["PoolsTests.cs"] = (5, "searches over seeds 1-40"),
-        ["HerdTests.cs"] = (5, "searches over 24, 60 and 200 seeds, and the valley's population is the subject"),
+        ["HerdTests.cs"] = (4, "searches over 24 and 200 seeds, and the valley's population is the subject"),
         ["WeatherTests.cs"] = (1, "a search over 20 seeds"),
         ["CombatTests.cs"] = (1, "a search over 20 seeds"),
         ["CombatFlightTests.cs"] = (2, "searches over 60 and 300 seeds"),

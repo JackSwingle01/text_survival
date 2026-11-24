@@ -2,7 +2,7 @@ using Survival;
 using Xunit;
 
 /// NetProgress, the long runs' "nothing gets stuck" measure, read off a real world: a wolf is put on
-/// the tiles a path names, one minute at a time, in the state it names.
+/// the tiles a path names, one minute at a time, wanting to move as the test sets it.
 public class NetProgressTests
 {
     static (World W, Agent Wolf, TileId Start) OneWolf()
@@ -13,14 +13,15 @@ public class NetProgressTests
         return (w, w.Agent(Agents.Spawn(w, Species.Wolf, start)), start);
     }
 
-    /// Walks the wolf where tileAt says each minute, wanting to move as patrolling does, and reads the
-    /// measure every minute.
-    static NetProgress Walk(Agent wolf, World w, int minutes, Func<int, TileId> tileAt, HerdState state = HerdState.Patrolling, int radiusTiles = 1)
+    /// Walks the wolf where tileAt says each minute, wanting to move (running from where it stands) unless told
+    /// it is still, and reads the measure every minute.
+    static NetProgress Walk(Agent wolf, World w, int minutes, Func<int, TileId> tileAt, bool wanting = true, int radiusTiles = 1)
     {
         var progress = new NetProgress(radiusTiles);
         for (int minute = 0; minute < minutes; minute++)
         {
-            (wolf.Tile, Fauna.MindOf(wolf).State) = (tileAt(minute), state);
+            wolf.Tile = tileAt(minute);
+            if (wanting && Fauna.MindOf(wolf).Plan == null) Fauna.MindOf(wolf).FleeFrom = wolf.Tile;
             progress.Sample(w);
         }
         return progress;
@@ -67,17 +68,18 @@ public class NetProgressTests
     public void AnAnimalGrazingWhereItStands_IsNotCounted()
     {
         var (w, wolf, a) = OneWolf();
-        Assert.Equal(0, Walk(wolf, w, 1440, _ => a, HerdState.Grazing).Worst.Minutes);
+        Fauna.MindOf(wolf).Plan = new Plan(Stat.Food, Priority.Need, a, []);
+        Assert.Equal(0, Walk(wolf, w, 1440, _ => a, wanting: false).Worst.Minutes);
     }
 
-    /// Grazing with a way planned and getting nowhere along it is stuck, as patrolling is.
+    /// Grazing with a way planned and getting nowhere along it is stuck, as running is.
     [Fact]
     public void AnAnimalGrazingWithAWayAhead_ThatGetsNowhere_IsStuck()
     {
         var (w, wolf, a) = OneWolf();
         var there = Map.Step(Map.Step(a, Direction.North), Direction.North);
         Fauna.MindOf(wolf).Plan = new Plan(Stat.Food, Priority.Need, there, [Map.Step(a, Direction.North), there]);
-        Assert.Equal(1440, Walk(wolf, w, 1440, _ => a, HerdState.Grazing).Worst.Minutes);
+        Assert.Equal(1440, Walk(wolf, w, 1440, _ => a, wanting: false).Worst.Minutes);
     }
 
     /// Lying up is not wanting to move: a pack resting at a kill for a fortnight is not stuck.
@@ -85,6 +87,6 @@ public class NetProgressTests
     public void AnAnimalResting_IsNotCounted()
     {
         var (w, wolf, a) = OneWolf();
-        Assert.Equal(0, Walk(wolf, w, 1440, _ => a, HerdState.Resting).Worst.Minutes);
+        Assert.Equal(0, Walk(wolf, w, 1440, _ => a, wanting: false).Worst.Minutes);
     }
 }

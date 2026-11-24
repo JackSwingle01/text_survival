@@ -207,7 +207,7 @@ public class NpcTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
-        Agents.Spawn(w, Species.CaveBear, next, [next]);
+        Agents.Spawn(w, Species.CaveBear, next);
         Items.Add(Items.PileAt(w, camp), Resource.Birch, 40);
         Pit(w, camp, Resource.Kindling, 3);
         bool slept = false;

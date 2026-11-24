@@ -484,8 +484,8 @@ public static class Memories
     }
 
     static HashSet<TileId> Dens(World world) =>
-        world.Agents.Values.Where(a => a.Mind is HerdMind { Territory.Count: > 0 } && Fauna.IsPredator(a.Species))
-            .Select(a => ((HerdMind)a.Mind).Territory[0]).ToHashSet();
+        world.Agents.Values.Where(a => a.Mind is HerdMind { Den: not null } && Fauna.IsPredator(a.Species))
+            .Select(a => ((HerdMind)a.Mind).Den!.Value).ToHashSet();
 
     static string Kg(double kg) => kg.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 }

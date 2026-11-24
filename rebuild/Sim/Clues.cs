@@ -113,7 +113,7 @@ public static class Clues
         bool Tagged(params string[] words) => words.Any(w => Tags.Contains(w, StringComparison.OrdinalIgnoreCase));
 
         IReadOnlyList<Agent>? near;
-        IReadOnlyList<Agent> Near => near ??= [.. world.Agents.Values.Where(a => a.Mind is HerdMind h && Sim.IsAlive(a) && (a.Tile == tile || h.Territory.Contains(tile)))];
+        IReadOnlyList<Agent> Near => near ??= [.. AnimalsNear(world, tile)];
 
         public bool GameNear => Near.Count > 0;
         public bool PredatorsNear => Near.Any(a => Fauna.IsPredator(a.Species));
@@ -140,11 +140,14 @@ public static class Clues
         };
     }
 
-    /// Whether this kind of animal lives about here: a live herd of it holding the tile, or small game, which has no herds
-    /// and is taken to be everywhere.
+    /// A live one of its kind within RangesNearTiles, or small game, taken to be everywhere.
     public static bool RangesNear(World world, TileId tile, Species s) =>
-        SpeciesTable.Of(s).IsSmall
-        || world.Agents.Values.Any(a => a.Mind is HerdMind h && a.Species == s && Sim.IsAlive(a) && (a.Tile == tile || h.Territory.Contains(tile)));
+        SpeciesTable.Of(s).IsSmall || AnimalsNear(world, tile).Any(a => a.Species == s);
+
+    public const int RangesNearTiles = 10;
+
+    static IEnumerable<Agent> AnimalsNear(World world, TileId tile) =>
+        Nearby.Within(world, tile, RangesNearTiles).Where(a => a.Mind is HerdMind && Sim.IsAlive(a));
 
     /// A bear, by what it is rather than its name: a lone hunter that eats anything.
     static bool IsBear(Species s) => Fauna.BehaviorOf(s) == HerdBehavior.Solitary && SpeciesTable.Of(s).Diet == Diet.Omnivore;

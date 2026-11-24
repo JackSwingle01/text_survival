@@ -1621,12 +1621,12 @@
       ],
       "Mind": {
         "kind": "herd",
-        "Territory": [
-          "19,42"
-        ],
-        "TerritoryIndex": 0,
-        "State": 0,
-        "StateSinceMinute": 1,
+        "Den": "19,42",
+        "Choice": {
+          "kind": "rest",
+          "Who": 2
+        },
+        "FledMinute": -1000000,
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,
@@ -1956,12 +1956,12 @@
       ],
       "Mind": {
         "kind": "herd",
-        "Territory": [
-          "19,42"
-        ],
-        "TerritoryIndex": 0,
-        "State": 0,
-        "StateSinceMinute": 1,
+        "Den": "19,42",
+        "Choice": {
+          "kind": "rest",
+          "Who": 3
+        },
+        "FledMinute": -1000000,
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,
@@ -2280,12 +2280,7 @@
       ],
       "Mind": {
         "kind": "herd",
-        "Territory": [
-          "22,42"
-        ],
-        "TerritoryIndex": 0,
-        "State": 1,
-        "StateSinceMinute": 172,
+        "FledMinute": -1000000,
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,

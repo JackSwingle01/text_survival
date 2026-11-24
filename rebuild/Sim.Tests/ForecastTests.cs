@@ -540,7 +540,7 @@ public class ForecastTests
         var w = PlannerTests.Strip();
         Sim.Advance(w, 3 * 60); // noon: outside a wolf's hours
         var at = new TileId(20, 1);
-        var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, at, [atItsDen ? at : new TileId(30, 1)]));
+        var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, at, atItsDen ? at : new TileId(30, 1)));
         wolf.Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes;
         double rest = Fauna.RestPerMinute(wolf, at), before = wolf.Body.EnergyMinutes;
         Assert.Equal(Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(Species.Wolf).SleepHoursPerDay) * (atItsDen ? 1 : 0.75), rest, 9);

@@ -156,7 +156,7 @@ public static class Report
         {
             var a = group[0];
             if (a.Id == AgentId.Player || !Sim.IsAlive(a)) continue; // the dead are signs, above
-            string state = a.Mind is HerdMind h ? h.State.ToString() : a.Mind.GetType().Name;
+            string state = a.Mind is HerdMind h ? h.Choice?.GetType().Name ?? "deciding" : a.Mind.GetType().Name;
             Add(a.Tile, a.Mind is HerdMind ? "herd" : "person", FindCategory.Agent, null, $"{a.Species} x{group.Count}, {state} ({a.Id})");
         }
 

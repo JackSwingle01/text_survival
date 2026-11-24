@@ -216,7 +216,6 @@ public class WhereThingsGoTests
         ["ForageFocus"] = Unconverted,
         ["Formation"] = Unconverted,
         ["FrontType"] = Unconverted,
-        ["HerdState"] = Unconverted,
         ["Pace"] = Unconverted,
         ["PitType"] = Unconverted,
         ["Precipitation"] = Unconverted,
@@ -285,7 +284,6 @@ public class WhereThingsGoTests
     {
         ["Combat.cs"] = (2, "SelectFormation picks a formation per species"),
         ["CombatAftermath.cs"] = (1, "mammoth ivory and hide are not in butchering.json"),
-        ["Fauna.cs"] = (11, "stealth, the scavenger flee list and DetectionRangeTiles per species"),
         ["Populate.cs"] = (12, "herd counts and placements per species"),
         ["Renewal.cs"] = (14, "the population table and IsMegafauna per species"),
     };

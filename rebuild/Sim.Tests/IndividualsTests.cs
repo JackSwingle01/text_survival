@@ -45,11 +45,7 @@ public class IndividualsTests(ITestOutputHelper output)
             var ours = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var theirs = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             Agents.Spawn(w, Species.Caribou, tile);
-            foreach (var wolf in ours.Concat(theirs).Select(w.Agent))
-            {
-                TestKit.SetHunger(wolf, 0.9);
-                Fauna.MindOf(wolf).State = HerdState.Patrolling;
-            }
+            foreach (var wolf in ours.Concat(theirs).Select(w.Agent)) TestKit.SetHunger(wolf, 0.9);
             var events = new List<WorldEvent>();
             for (int i = 0; i < 120 && !events.OfType<EncounterEnded>().Any(e => ours.Contains(e.Agent) || theirs.Contains(e.Agent)); i++)
                 events.AddRange(Sim.Advance(w, 1));
@@ -76,11 +72,7 @@ public class IndividualsTests(ITestOutputHelper output)
             var tile = Quiet(w);
             var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
             var herd = Agents.SpawnGroup(w, Species.Caribou, tile, 10);
-            foreach (var wolf in pack.Select(w.Agent))
-            {
-                TestKit.SetHunger(wolf, 0.9);
-                Fauna.MindOf(wolf).State = HerdState.Patrolling;
-            }
+            foreach (var wolf in pack.Select(w.Agent)) TestKit.SetHunger(wolf, 0.9);
             for (int i = 0; i < 120; i++)
             {
                 var ended = Sim.Advance(w, 1).OfType<EncounterEnded>().Where(e => herd.Contains(e.Agent)).ToList();
@@ -92,7 +84,7 @@ public class IndividualsTests(ITestOutputHelper output)
                 hunts++;
                 Assert.All(bystanders, c =>
                 {
-                    Assert.Equal(HerdState.Fleeing, Fauna.MindOf(c).State);
+                    Assert.True(Fauna.Fleeing(Fauna.MindOf(c)), $"caribou {c.Id} saw its herd attacked and does not run");
                     Assert.True(Fauna.MindOf(c).Fear > 0, $"caribou {c.Id} saw its herd attacked and is not afraid");
                 });
                 break;
@@ -123,7 +115,6 @@ public class IndividualsTests(ITestOutputHelper output)
         var pack = Agents.SpawnGroup(w, Species.Wolf, tile, 3);
         foreach (var wolf in pack.Select(w.Agent)) TestKit.SetHunger(wolf, 0.95);
         var caribou = Agents.Spawn(w, Species.Caribou, at);
-        Fauna.MindOf(w.Agent(caribou)).State = HerdState.Resting;
         var killed = new List<Killed>();
         for (int i = 0; i < 6 * 60 && killed.Count == 0; i++) killed.AddRange(Sim.Advance(w, 1).OfType<Killed>().Where(k => k.Agent == caribou));
         var kill = Assert.Single(killed);
@@ -235,12 +226,12 @@ public class IndividualsTests(ITestOutputHelper output)
             .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apartTiles, t.Y)));
         var strangersDen = Map.Step(den, Direction.North);
         var grazing = new TileId(den.X + apartTiles, den.Y);
-        Agents.SpawnGroup(w, Species.Bison, grazing, 60, [grazing]);
-        var pack = Agents.SpawnGroup(w, Species.Wolf, den, 8, [den]);
-        var strangers = Agents.SpawnGroup(w, Species.Wolf, strangersDen, 3, [strangersDen]);
+        Agents.SpawnGroup(w, Species.Bison, grazing, 150);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, den, 8);
+        var strangers = Agents.SpawnGroup(w, Species.Wolf, strangersDen, 3);
         var wolves = pack.Concat(strangers).ToList();
-        double capacity = Fauna.CapacityOf(w, w.Agent(pack[0]));
-        Assert.True(capacity >= 3 * wolves.Count, $"the land carries {capacity:0.0} wolves");
+        double capacity = Fauna.Capacity(w, Species.Wolf);
+        Assert.True(capacity >= 3 * wolves.Count, $"the valley carries {capacity:0.0} wolves");
 
         Agent? pup = null;
         int day = 0;
@@ -255,11 +246,10 @@ public class IndividualsTests(ITestOutputHelper output)
             // straight to the minute before, and lives through midnight.
             w.Minute += 1440 - Weather.MinuteOfDay(w.Minute) - 1;
             Sim.Advance(w, 2);
-            // A pup has a copy of its mother's land; a pack that arrives comes to land of its own.
-            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && !wolves.Contains(a.Id)
-                && Fauna.MindOf(a).Territory.SequenceEqual([den]));
+            // A pup dens at its mother's den; a pack that arrives dens where it came in, off the packs' dens.
+            pup = w.Agents.Values.FirstOrDefault(a => a.Species == Species.Wolf && !wolves.Contains(a.Id) && Fauna.MindOf(a).Den == den);
         }
-        output.WriteLine($"a pup on day {day} of the season, on land carrying {capacity:0.0} wolves");
+        output.WriteLine($"a pup on day {day} of the season, in a valley carrying {capacity:0.0} wolves");
         Assert.NotNull(pup);
         Assert.All(pack.Where(w.Agents.ContainsKey).Select(w.Agent), wolf =>
         {

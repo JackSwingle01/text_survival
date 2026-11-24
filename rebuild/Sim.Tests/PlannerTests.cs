@@ -161,8 +161,7 @@ public class PlannerTests
     static double RestShare(Species species, int fromHour, int toHour, int days = 3)
     {
         var w = Strip();
-        var land = Enumerable.Range(5, 30).Select(x => T(x, 2)).ToList();
-        var pack = Agents.SpawnGroup(w, species, T(20, 2), 4, land).Select(w.Agent).ToList();
+        var pack = Agents.SpawnGroup(w, species, T(20, 2), 4).Select(w.Agent).ToList();
         int resting = 0, counted = 0;
         for (int i = 0; i < days * 1440; i++)
         {
