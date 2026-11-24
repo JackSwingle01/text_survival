@@ -36,7 +36,10 @@ Checked:
 - `publish_baselines.sh` against a local bare repo, three runs: it creates the branch with the one
   file that held measurements, then adds the other and keeps the first when the new one is only a
   header, then commits nothing when nothing changed; main and the local branches are untouched.
-- `nightly.yml` parses as YAML. actionlint was not run here; CI runs it on the PR.
+- `nightly.yml` parses as YAML.
+
+Revised: actionlint (CI) refused `runner.temp` in the bench job's `env` (the runner context is not known
+at job level) -> the Bench step exports `NPC_BENCH_OUT` itself.
 Not checked: any of it on a runner: how long 20 seeds by 60 days take there (#87's "after" took 18
 minutes beside other work), the artifact download between jobs, and the push to `baselines`, which a
 branch ruleset on the repo could refuse. The first nightly run after merge shows all three in its summary.
