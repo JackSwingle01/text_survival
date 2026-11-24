@@ -136,7 +136,7 @@ only way to cure a hide or dry food.
 41. As a player, I want the receipt on returning to camp to list what finished and at what time, so that
     coming back pays off and I can see what my fire did.
 42. As a player, I want the receipt to say when a fire went out with food still on it, so that I learn
-    how much fuel a job needs.
+    how much fuel cooking needs.
 43. As a player, I want the camp tile to show that something is working and to mark when something is
     ready, so that the map tells me where to go.
 
@@ -373,8 +373,8 @@ only way to cure a hide or dry food.
 - Ownership of what sits at a station, and NPCs taking each other's food. Deferred to the NPC work.
 - Spoiling, freezing and wetness on things, and anything burning or overcooking.
 - A smoked food as its own resource. A rack by a fire is faster; it makes the same dried food.
-- Transformations that need no station (water freezing in a pile, meat drying where it lies). The
-  definition allows them; nothing here builds them.
+- Changes that need no station (meat drying where it lies). The glossary's definition of a
+  transformation requires a station, so this would widen it; nothing here builds them.
 - Cooking quality and what the Cooking skill pays (short-loop feature 8).
 - Unattended meat smell as its own edge: it is covered by food at a station being exposed.
 - A source of raw fish (#62).
