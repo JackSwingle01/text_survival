@@ -27,8 +27,14 @@ Revised (review): a run joins the concurrency group when queued, before `select`
 so an event that would skip could cancel a real waiting run and then do nothing. Skipping events now
 get a group of their own (`issue-triage-skip-<run id>`, `issue-build-skip-<run id>`).
 
+Revised (review): a failed usage probe read as headroom, so a Claude outage would fail every build in turn
+and park the whole ready queue. A failed probe now stops the queue with the label kept.
+
+Revised (review): triage did not skip `agent-working` issues, so removing `ready-for-agent` mid-build (or
+an old issue-agent run at cutover) could get an issue built twice. Triage now skips them.
+
 Checked: actionlint on both workflows; the `list` and `ready` queues against fake issues (ready,
-ready with `needs-user`, ready with an open PR, ready from someone without write access, blocked).
+ready with `needs-user`, ready with an open PR, ready from someone without write access, blocked, agent-working).
 Not checked: a live run. Both workflows only take effect once on main.
 
 Follow-up: a build refused at the Haiku probe because usage is high still marks the run red ("Stop

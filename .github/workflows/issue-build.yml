@@ -152,11 +152,20 @@ jobs:
           prompt: "Reply with the single word ok."
           claude_args: --model claude-haiku-5-5 --max-turns 1
 
+      # A probe that fails says Claude is unreachable, not that the plan has room: building anyway
+      # would fail and park this issue, then the next, and so on through the whole queue.
       - name: Headroom
         id: headroom
         env:
           EXEC: ${{ steps.probe.outputs.execution_file }}
-        run: python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
+          PROBE: ${{ steps.probe.outcome }}
+        run: |
+          if [ "$PROBE" != "success" ]; then
+            echo "headroom=false" >> "$GITHUB_OUTPUT"
+            echo "why=the usage check failed ($PROBE), so Claude may be unreachable; see the Read plan usage step's log" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 .github/scripts/plan_limits.py "$EXEC" "$MAX_PLAN_UTILIZATION" >> "$GITHUB_OUTPUT"
 
       - name: Mark working
         if: steps.headroom.outputs.headroom == 'true'
@@ -345,9 +354,11 @@ jobs:
         if: always()
         env:
           HEADROOM: ${{ steps.headroom.outputs.headroom }}
+          HEADROOM_WHY: ${{ steps.headroom.outputs.why }}
           BUILD_REJECTED: ${{ steps.build_usage.outputs.rejected }}
         run: |
-          if [ "$HEADROOM" != "true" ]; then
+          if [ -n "$HEADROOM_WHY" ]; then why="no build started: $HEADROOM_WHY"
+          elif [ "$HEADROOM" != "true" ]; then
             why="no build started: plan usage is at or over $MAX_PLAN_UTILIZATION, or a step before the build failed"
           elif [ "$BUILD_REJECTED" = "true" ]; then
             why="the build hit a usage limit; its work so far is in the issue-$ISSUE-work artifact"

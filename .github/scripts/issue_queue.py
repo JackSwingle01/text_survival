@@ -27,6 +27,7 @@ import sys
 REPO = os.environ["GITHUB_REPOSITORY"]
 NEEDS_USER = "needs-user"
 READY = "ready-for-agent"
+WORKING = "agent-working"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 # Issues the daily ratchet run (.github/workflows/ratchet.yml) files with this repo's GITHUB_TOKEN.
@@ -114,9 +115,14 @@ def labels_of(issue):
 
 
 def triage_skip_reason(issue, repo):
-    """An issue triage already found ready waits for the build; remove the label to triage it again."""
-    if READY in labels_of(issue):
+    """An issue triage already found ready waits for the build; remove the label to triage it again.
+    An issue a build is working on has no pushed branch yet, so only its label says it is taken. A label
+    left by a killed build holds its issue back until the next build run clears it, at most an hour."""
+    labels = labels_of(issue)
+    if READY in labels:
         return f"labelled {READY}: waiting for the build"
+    if WORKING in labels:
+        return f"labelled {WORKING}: a build is working on it"
     return skip_reason(issue, repo)
 
 
