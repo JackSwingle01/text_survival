@@ -183,7 +183,7 @@ public class SubstrateTests
     [Fact]
     public void SignsAt_AgreesWithTheFindDump()
     {
-        var (w, _) = Phase3GateTests.Run(160);
+        var w = Phase3GateTests.BusyDay.Copy();
         var finds = Report.Finds(w);
         int signRows = 0;
         foreach (var t in w.Tiles.Keys.Concat(w.Agents.Values.Select(a => a.Tile)).Distinct())
@@ -226,7 +226,7 @@ public class SubstrateTests
     [Fact]
     public void LocationFeaturesSignsAndTags_NeverChangeTheWorld()
     {
-        var (w, _) = Phase3GateTests.Run(160);
+        var w = Phase3GateTests.BusyDay.Copy();
         var camp = Map.Of(w).Camp;
         // Somewhere snowed under and never looked at: Tags peeks at the ground without keeping it.
         var hidden = HiddenStockTile(w, camp, 40, untouched: true);

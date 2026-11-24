@@ -221,6 +221,7 @@ public class ArchitectureTests
     [Fact]
     public void ABusyWorld_HasNoObjectReachableTwice()
     {
+        // Its own live build, never Phase3GateTests.BusyDay: a save/load copy would split a shared object in two.
         var (world, _) = Phase3GateTests.Run(160);
         // The NPC is in it, caught with work in hand: its mind and its work session are walked too.
         var npc = world.Agents.Values.Single(a => a.Mind is NpcMind);

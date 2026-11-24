@@ -113,6 +113,10 @@ public class Phase3GateTests
         }
     }
 
+    /// The busy day (Run(Steps)), built once for the tests that only read it. A test that looks for objects
+    /// shared in memory builds its own: a save/load copy would hide them.
+    internal static readonly SharedWorld BusyDay = new(() => Run(Steps).World);
+
     internal static (World World, Tally Tally) Run(int steps, int saveEvery = 0)
     {
         var w = World.New(17);

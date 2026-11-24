@@ -18,16 +18,20 @@ public class ReportTests
         return w;
     }
 
+    /// Seed 17's lived world, built once for the tests that only start from it.
+    static readonly SharedWorld LivedOnce = new(() => Lived());
+
+    /// An independent build against the shared one: the same seed and steps give the same dump.
     [Fact]
     public void Dump_is_deterministic()
     {
-        Assert.Equal(Report.DumpText(Lived()), Report.DumpText(Lived()));
+        Assert.Equal(Report.DumpText(Lived()), Report.DumpText(LivedOnce.Copy()));
     }
 
     [Fact]
     public void Dump_covers_every_kind_present_and_distribution_counts_every_row()
     {
-        var w = Lived();
+        var w = LivedOnce.Copy();
         var finds = Report.Finds(w);
         var kinds = finds.Select(f => f.Kind).ToHashSet();
         foreach (var kind in new[] { "carcass", "pile", "fire pit", "shelter", "bedding", "place", "stock", "worked forage", "tracks", "herd" })
@@ -47,7 +51,7 @@ public class ReportTests
     [Fact]
     public void Reports_change_nothing_in_the_world()
     {
-        var w = Lived();
+        var w = LivedOnce.Copy();
         var m = Map.Of(w);
         var tile = Map.Step(m.Camp, Direction.East);
         if (Shelters.At(w, tile, []) == null) Shelters.Place(w, tile, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
