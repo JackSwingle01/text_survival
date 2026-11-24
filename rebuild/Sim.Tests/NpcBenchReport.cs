@@ -7,7 +7,7 @@ using Xunit.Abstractions;
 /// run; NPC_BENCH_OUT appends each seed's line to a file as that seed finishes (finish order, so sort it), so
 /// seeds can be split across processes and a seed that never ends hides no other. It runs only with
 /// NPC_BENCH set: NPC_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter NpcBenchReport
-/// The nightly run publishes main's (.github/workflows/nightly.yml, the npc-bench job).
+/// The nightly run keeps main's on the `baselines` branch (.github/workflows/nightly.yml).
 public class NpcBenchReport(ITestOutputHelper output)
 {
     static readonly int[] FixedSeeds = [1, 3, 5, 7, 11, 17, 42, 777, 2024];

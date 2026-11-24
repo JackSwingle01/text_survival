@@ -12,9 +12,15 @@ name: Nightly
 # one cause in the same code. While that issue is open, the next failing run rewrites it. It carries
 # the `nightly` label. The issue agent does not pick it up: github-actions wrote it, and
 # issue_queue.py lets through only that bot's `ratchet` issues.
-# - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds, published as the `npc-bench` artifact:
-#   main's is the baseline a change to NPCs is compared with (.github/scripts/npc_bench_baseline.sh
-#   prints the newest). It reports and never gates: its result is not in the run's issue.
+# - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds. It reports and never gates: its result is
+#   not in the run's issue.
+# Baselines. A run on main commits what it measured to the `baselines` branch (the baseline job,
+# .github/scripts/publish_baselines.sh): npc-bench.txt, and cohesion-gate.txt, the lines the cohesion
+# gate printed in the slow job. A change is compared with those instead of measuring main again
+# (`git fetch origin baselines`, then `git show FETCH_HEAD:npc-bench.txt`). A branch is fetched with
+# git alone; an artifact needs a token that may read Actions, and expires. A run on a branch uploads
+# the same two files as artifacts (`npc-bench`, `cohesion-gate`) and its summary shows them: that
+# branch's "after".
 # Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
 # (a branch's failures are in its log; they open no issue).
 
@@ -82,6 +88,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      # What the cohesion gate printed, by seed: main's goes to the `baselines` branch (the baseline job).
+      - name: Cohesion gate lines
+        if: always() && matrix.name == 'slow'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/gate"
+          {
+            echo "Cohesion gate: $GITHUB_REF_NAME at $GITHUB_SHA, $(date -u +%Y-%m-%d), Release"
+            python3 .github/scripts/test_output.py "$RUNNER_TEMP/results" CohesionGate
+          } > "$RUNNER_TEMP/gate/cohesion-gate.txt"
+          { echo '```'; cat "$RUNNER_TEMP/gate/cohesion-gate.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always() && matrix.name == 'slow'
+        with:
+          name: cohesion-gate
+          path: ${{ runner.temp }}/gate/cohesion-gate.txt
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Fail the run when a test failed
         if: steps.test.outputs.exit != '0'
         shell: bash
@@ -90,7 +115,6 @@ jobs:
           exit 1
 
   # Too long for an issue build (30 minutes a command there), so it runs here and builds read main's.
-  # On a branch (workflow_dispatch with --ref) the same artifact is that branch's "after".
   npc-bench:
     name: NPC bench
     runs-on: ubuntu-latest
@@ -125,6 +149,31 @@ jobs:
           name: npc-bench
           path: ${{ runner.temp }}/npc-bench/npc-bench.txt
           retention-days: 30
+
+  # However the tests went: a failing night still measured something, and a file with no measurements
+  # leaves the branch's last one in place. `contents: write` is for the push to `baselines` alone.
+  baseline:
+    name: publish main's baselines
+    needs: [test, npc-bench]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - shell: bash
+        run: |
+          set -euo pipefail
+          new="$RUNNER_TEMP/new"
+          mkdir -p "$new"
+          for name in npc-bench cohesion-gate; do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$new" || true
+          done
+          bash .github/scripts/publish_baselines.sh "$new" | tee -a "$GITHUB_STEP_SUMMARY"
 
   report:
     name: one issue for the run's failures
