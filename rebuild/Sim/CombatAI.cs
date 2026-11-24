@@ -319,7 +319,7 @@ public static partial class Combat
 
     /// The living people on the target's tile, the target left out.
     static List<Agent> PeopleWith(World world, Agent target) =>
-        Nearby.At(world, target.Tile).Select(world.Agent).Where(a => a.Id != target.Id && a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
+        Nearby.At(world, target.Tile).Where(a => a.Id != target.Id && a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
 
     /// The best working weapon in a person's pack (WeaponWorth), or null.
     public static Gear? BestWeapon(Agent person) =>
@@ -329,7 +329,7 @@ public static partial class Combat
     /// hold), or null when nobody alive stands there.
     public static double? ResolveOnTile(World world, Agent herd, TileId tile)
     {
-        var people = Nearby.At(world, tile).Select(world.Agent).Where(a => a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
+        var people = Nearby.At(world, tile).Where(a => a.Mind is PersonMind && Sim.InTheWorld(world, a)).ToList();
         return people.Count == 0 ? null : people.Max(p => ResolveToward(world, herd, p));
     }
 

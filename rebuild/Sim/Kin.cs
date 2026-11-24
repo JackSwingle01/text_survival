@@ -21,8 +21,8 @@ public static partial class Fauna
     public static List<Agent> HerdOf(World world, Agent animal)
     {
         var herd = new List<Agent> { animal };
-        foreach (var id in Nearby.At(world, animal.Tile))
-            if (world.Agents[id] is var other && other.Tile == animal.Tile && IsKin(animal, other)) herd.Add(other);
+        foreach (var other in Nearby.At(world, animal.Tile))
+            if (other.Tile == animal.Tile && IsKin(animal, other)) herd.Add(other);
         return herd;
     }
 
@@ -31,10 +31,9 @@ public static partial class Fauna
     {
         var groups = new List<List<Agent>>();
         var placed = new HashSet<AgentId>();
-        foreach (var id in Nearby.At(world, tile))
+        foreach (var a in Nearby.At(world, tile))
         {
-            if (placed.Contains(id)) continue;
-            var a = world.Agents[id];
+            if (placed.Contains(a.Id)) continue;
             var group = a.Mind is HerdMind && Sim.IsAlive(a) ? HerdOf(world, a).Where(k => !placed.Contains(k.Id)).ToList() : [a];
             placed.UnionWith(group.Select(k => k.Id));
             groups.Add(group);
@@ -96,8 +95,9 @@ public static partial class Fauna
     static int SideCount(World world, Agent animal)
     {
         int count = 1;
-        foreach (var id in Nearby.At(world, animal.Tile))
-            if (Combat.OnSide(world, animal, world.Agents[id])) count++;
+        var here = Nearby.At(world, animal.Tile);
+        for (int i = 0; i < here.Count; i++)
+            if (Combat.OnSide(world, animal, here[i])) count++;
         return count;
     }
 
@@ -110,16 +110,16 @@ public static partial class Fauna
         {
             if (++going[(int)dir] > (best is var (b, _) ? going[(int)b] : 0)) best = (dir, best is var (d, l) && d == dir ? l : other);
         }
-        foreach (var id in Nearby.At(world, animal.Tile))
+        var here = Nearby.At(world, animal.Tile);
+        for (int i = 0; i < here.Count; i++)
         {
-            var other = world.Agents[id];
+            var other = here[i];
             if (Leaving(other, animal.Tile) && Combat.OnSide(world, animal, other)) Count(going, ref best, other.Crossing!.Dir, other);
         }
         // Kin that just left (a flight ends within its own turn); those before it in id order see it a minute late.
         foreach (var n in MapGen.Neighbors(animal.Tile))
-            foreach (var id in Nearby.At(world, n))
+            foreach (var other in Nearby.At(world, n))
             {
-                var other = world.Agents[id];
                 if (other.LastLeft is { } left && left.From == animal.Tile && left.Minute >= world.Minute - 1 && other.Tile == n
                     && IsKin(animal, other) && !Sim.Held(world, other.Id)) Count(going, ref best, left.Dir, other);
             }

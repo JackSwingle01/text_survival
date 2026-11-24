@@ -38,7 +38,7 @@ public sealed class Agent
             if (field == value) return;
             var from = field;
             field = value;
-            Index?.Moved(Id, from, value);
+            Index?.Moved(this, from, value);
         }
     }
     /// The Nearby index this agent was last put in; never saved.

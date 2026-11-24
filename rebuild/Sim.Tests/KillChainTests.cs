@@ -864,7 +864,7 @@ public class KillChainTests
             foreach (var a in w.Agents.Values)
             {
                 var truth = w.Agents.Values.Where(b => b.Tile == a.Tile).Select(b => b.Id).ToList();
-                Assert.Equal(truth, Nearby.At(w, a.Tile));
+                Assert.Equal(truth, Nearby.At(w, a.Tile).Select(b => b.Id));
                 var within = w.Agents.Values.Where(b => MapGen.Manhattan(b.Tile, a.Tile) <= 6).Select(b => b.Id).ToList();
                 Assert.Equal(within, Nearby.Within(w, a.Tile, 6).Select(b => b.Id).ToList());
             }
