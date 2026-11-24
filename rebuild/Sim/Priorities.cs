@@ -121,7 +121,7 @@ public static class Priorities
         var agent = world.Agent(who);
         var body = agent.Body;
         var pack = Items.PackOf(agent);
-        double waterL = Work.HasOpenWater(world, agent.Tile) ? double.PositiveInfinity : pack != null ? Items.Have(pack, Resource.Water) : 0;
+        double waterL = Work.CanDrinkHere(world, agent.Tile) ? double.PositiveInfinity : pack != null ? Items.Have(pack, Resource.Water) : 0;
         bool food = pack != null && pack.Kg.Any(x => x.Value > 0 && Items.Resources[x.Key].Category == ResourceCategory.Food
             && x.Key is not (Resource.RawMeat or Resource.RawFish));
         double hoursLeftToday = (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0;

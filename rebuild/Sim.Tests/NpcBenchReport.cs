@@ -35,7 +35,7 @@ public class NpcBenchReport(ITestOutputHelper output)
         var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
         var agent = w.Agent(npc);
         int fires = 0, felled = 0, refused = 0, injuries = 0, reversals = 0, coldNights = 0, hunts = 0, campMoves = 0;
-        double kcal = 0, lowestCoreF = agent.Body.CoreTempF;
+        double kcal = 0, forageMinutes = 0, lowestCoreF = agent.Body.CoreTempF;
         (long Minute, TileId From)? lastMove = null;
         bool didSince = false;
         var camp = Memories.CampOf(w, agent);
@@ -51,8 +51,9 @@ public class NpcBenchReport(ITestOutputHelper output)
                 var b = agent.Body;
                 int clock = Weather.MinuteOfDay(w.Minute);
                 trace.WriteLine($"{w.Minute / 1440.0,6:0.00} {clock / 60:00}:{clock % 60:00} at {agent.Tile.X - mind.Camp.X:+0;-0;0},{agent.Tile.Y - mind.Camp.Y:+0;-0;0} " +
-                    $"camp {mind.Camp} goal {mind.Goal?.Stat}/{mind.Goal?.Priority} core {b.CoreTempF:0.0} water {b.HydrationPct:0.00} energy {b.EnergyPct:0.00} kcal {b.CaloriesKcal:0} | {now}");
+                    $"camp {mind.Camp} plan {mind.Plan?.Stat}/{mind.Plan?.Priority} core {b.CoreTempF:0.0} water {b.HydrationPct:0.00} energy {b.EnergyPct:0.00} kcal {b.CaloriesKcal:0} | {now}");
             }
+            if (Sim.ActivityOf(agent) is Gather { Focus: ForageFocus.Food }) forageMinutes++;
             foreach (var e in Sim.Advance(w, 1))
             {
                 if (trace != null && e is not (Moved or EffectStarted or EffectEnded) && e.ToString()!.Contains(npc.ToString()))
@@ -85,7 +86,7 @@ public class NpcBenchReport(ITestOutputHelper output)
         bool alive = Sim.IsAlive(agent);
         double lived = w.Minute / 1440.0;
         return $"seed {seed,7}: {(alive ? "alive" : "dead "),-5} day {lived,5:0.0}{(alive ? "" : $" ({Body.CauseOfDeath(agent.Body).What})"),-18} " +
-               $"fat {agent.Body.FatKg,4:0.0} kg, lowest core {lowestCoreF:0.0}F, {kcal / Math.Max(1, lived),5:0} kcal/day, " +
+               $"fat {agent.Body.FatKg,4:0.0} kg, lowest core {lowestCoreF:0.0}F, {kcal / Math.Max(1, lived),5:0} kcal/day, forage {forageMinutes / 60 / Math.Max(1, lived):0.0} h/day, " +
                $"fires {fires}, felled {felled}, fights {hunts}, injuries {injuries}, nights without a flame {coldNights}, " +
                $"camp moves {campMoves}, reversals {reversals}, refused {refused}";
     }
