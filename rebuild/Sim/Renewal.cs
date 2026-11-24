@@ -22,11 +22,12 @@ public static partial class Fauna
         Species.Wolf => new(110, 150, 0.020, 1.0 / 700, new(1.0 / 3500, 3, 8, 48, 80)),
         Species.Hyena => new(110, 170, 0.015, 1.0 / 850, new(1.0 / 3200, 3, 6, 64, 112)),
         Species.Raven => new(100, 180, 0.020, 0.05, new(0.0040, 3, 6, 150, 250)),
+        Species.Fox => new(100, 150, 0.010, 0.01, new(0.0008, 1, 2, 64, 128)),
         // A bear's cub leaves as a herd of its own on its mother's land (Born).
         Species.Bear => new(100, 140, 0.004, 0.022, new(0.0012, 1, 1, 64, 128)),
         Species.CaveBear => new(100, 140, 0.004, 0.022, null), // its den is a cave
         // A dead megafauna hunter stays dead and none arrive. People and small game are not herds.
-        Species.SaberTooth or Species.Human or Species.Hare or Species.Fox => null,
+        Species.SaberTooth or Species.Human or Species.Hare => null,
     };
 
     public const int PreyRangeTiles = 40;
@@ -59,7 +60,7 @@ public static partial class Fauna
 
     /// What lives on kills follows them down. Grazers, browsers and bears only stop giving birth when full.
     /// A herd Populate put over capacity should not starve, and a cave bear's land (cave floor) carries nothing measurable.
-    static bool Thins(Species s) => BehaviorOf(s) is HerdBehavior.Pack or HerdBehavior.Scavenger or HerdBehavior.Carrion;
+    static bool Thins(Species s) => BehaviorOf(s) is HerdBehavior.Pack or HerdBehavior.Scavenger or HerdBehavior.Opportunist;
 
     /// The birth rate run backwards, so a species falls toward capacity as fast as it would grow toward it.
     static void Thin(World world, Agent herd, double p, Rng rng, List<WorldEvent> events)

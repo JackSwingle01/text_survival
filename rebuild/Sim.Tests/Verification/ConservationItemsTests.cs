@@ -217,7 +217,7 @@ public class ConservationItemsTests
     [Trait("Category", TestCategories.Slow)]
     public void Items_AreNeitherMadeNorLost_Many() => Scenes.Check(Run, iter: 1500);
 
-    // ---- raids: the flock's take is the only sink, and it is bounded ----
+    // ---- raids: the ravens' take is the only sink, and it is bounded ----
 
     public sealed record RaidScene(int Members, double[] PileKg, int Minutes);
 
@@ -228,7 +228,7 @@ public class ConservationItemsTests
         Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[RaidPile.Length], Gen.Int[60, 3000],
         (m, kg, min) => new RaidScene(m, kg, min));
 
-    /// A pile nobody keeps, a carrion flock beside it: only what the flock eats leaves, never more
+    /// A pile nobody keeps, ravens beside it: only what the ravens eat leaves, never more
     /// than RaidKgPerMember (0.05 kg) a member a minute, and nothing else moves.
     static void Raid(RaidScene s)
     {
@@ -247,7 +247,7 @@ public class ConservationItemsTests
         {
             double delta = after.GetValueOrDefault(r) - before.GetValueOrDefault(r);
             if (food.Contains(r)) { Assert.True(delta <= Tolerance, $"{r} grew {delta:R} in a raid"); taken -= delta; }
-            else Assert.True(Math.Abs(delta) <= Tolerance, $"{r} moved {delta:R}: the flock eats only meat and fish");
+            else Assert.True(Math.Abs(delta) <= Tolerance, $"{r} moved {delta:R}: the ravens eat only meat and fish");
         }
         Assert.True(taken <= 0.05 * s.Members * s.Minutes + Tolerance, $"took {taken:R} kg in {s.Minutes} min with {s.Members} members");
         Assert.Equal(gear, GearCount(w));

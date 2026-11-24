@@ -4,7 +4,7 @@ using Xunit.Abstractions;
 using Survival.Tests;
 
 /// Emergent-world build step 3, part A (the kill chain): stable ids, who killed what, the body and
-/// carcass pipeline, the carrion flock, the herds' access gate, and the caches that make whole-map
+/// carcass pipeline, ravens and foxes, the herds' access gate, and the caches that make whole-map
 /// passes cheap without changing a result. Herd renewal is RenewalTests.
 public class KillChainTests
 {
@@ -393,10 +393,10 @@ public class KillChainTests
         Assert.Equal(Save.ToJson(whole), Save.ToJson(stepped));
     }
 
-    // ---- the carrion flock ----
+    // ---- ravens and foxes ----
 
     [Fact]
-    public void The_Flock_FindsFlesh_CirclesIt_AndEats()
+    public void Ravens_FindFlesh_CircleIt_AndEat()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
@@ -404,19 +404,108 @@ public class KillChainTests
         var c = Caribou(w, tile);
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 6);
-        var flock = Animals.Spawn(w, Species.Raven, start, 5, [start, tile]);
+        var ravens = Animals.Spawn(w, Species.Raven, start, 5, [start, tile]);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
-        for (int i = 0; i < 6 * 60 && w.Agent(flock).Tile != tile; i++) Sim.Advance(w, 1);
-        Assert.Equal(tile, w.Agent(flock).Tile);
+        for (int i = 0; i < 6 * 60 && w.Agent(ravens).Tile != tile; i++) Sim.Advance(w, 1);
+        Assert.Equal(tile, w.Agent(ravens).Tile);
         Assert.True(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon), "circling flesh: a beacon");
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "carcass" && f.Text.Contains("ravens circling"));
-        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 1);
+        foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 1);
         Sim.Advance(w, 60);
-        Assert.True(Carcasses.MeatKg(c) < meat, "the flock ate nothing");
+        Assert.True(Carcasses.MeatKg(c) < meat, "the ravens ate nothing");
+    }
+
+    /// Flying there and feeding, a raven touches no ground: no prints on the way or at the kill (spec "Species", amended 2026-11-23).
+    [Fact]
+    public void A_Raven_LeavesNoPrints_FlyingOrFeeding()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        var c = Caribou(w, tile);
+        double meat = Carcasses.MeatKg(c);
+        var start = new TileId(tile.X, tile.Y + 5);
+        var raven = Animals.Spawn(w, Species.Raven, start, 1, [start, tile]);
+        TestKit.SetHunger(w.Agent(raven), 1);
+        for (int i = 0; i < 6 * 60 && w.Agent(raven).Tile != tile; i++) Sim.Advance(w, 1);
+        Assert.Equal(tile, w.Agent(raven).Tile);
+        Sim.Advance(w, 60);
+        Assert.True(Carcasses.MeatKg(c) < meat, "the raven ate nothing");
+        for (int y = start.Y; y >= tile.Y; y--) Assert.Empty(Tracks.Read(w, new TileId(tile.X, y)));
+        Assert.Empty(w.Trails);
+    }
+
+    /// A fox walks to the kill, leaving paw prints on the tiles it crossed.
+    [Fact]
+    public void A_Fox_WalksToFlesh_LeavingPawPrints_AndEats()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        var c = Caribou(w, tile);
+        double meat = Carcasses.MeatKg(c);
+        var start = new TileId(tile.X, tile.Y + 4);
+        var fox = Animals.Spawn(w, Species.Fox, start, 1, [start, tile]);
+        Assert.Null(Traversal.FlightMinutesPerTile(w.Agent(fox)));
+        var crossed = new HashSet<TileId> { start };
+        for (int i = 0; i < 6 * 60 && w.Agent(fox).Tile != tile; i++)
+        {
+            Sim.Advance(w, 1);
+            crossed.Add(w.Agent(fox).Tile);
+        }
+        Assert.Equal(tile, w.Agent(fox).Tile);
+        crossed.Remove(tile);
+        Assert.NotEmpty(crossed);
+        Assert.All(crossed, t => Assert.Contains(Tracks.Read(w, t), s => s.Maker == TrackMaker.Paw));
+        TestKit.SetHunger(w.Agent(fox), 1);
+        Sim.Advance(w, 60);
+        Assert.True(Carcasses.MeatKg(c) < meat, "the fox ate nothing");
+    }
+
+    /// While a pack holds its kill the ravens wait over it and take nothing.
+    [Fact]
+    public void Ravens_PerchWhileAPredatorHoldsTheKill()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        Caribou(w, tile);
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
+        foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
+        var ravens = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
+        foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.9);
+        double held = ravens.In(w).Sum(r => r.Body.CaloriesKcal);
+        for (int i = 0; i < 30; i++)
+        {
+            Sim.Advance(w, 1);
+            if (!w.Agents.Values.Any(a => a.Species == Species.Wolf && a.Tile == tile)) break;
+            Assert.All(ravens.In(w), r => Assert.Equal(tile, r.Tile));
+        }
+        Assert.True(ravens.In(w).Sum(r => r.Body.CaloriesKcal) <= held, "the ravens fed under the pack");
+    }
+
+    /// A hungry fox keeps off a kill a pack holds, from afar as on arriving, rather than walking up to it and away again.
+    [Fact]
+    public void A_HungryFox_KeepsOffAKillAPredatorHolds()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        Caribou(w, tile);
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
+        var start = new TileId(tile.X, tile.Y + 3);
+        var fox = Animals.Spawn(w, Species.Fox, start, 1, [start, tile]);
+        for (int i = 0; i < 120; i++)
+        {
+            foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
+            TestKit.SetHunger(w.Agent(fox), 0.7);
+            Sim.Advance(w, 1);
+            Assert.NotEqual(tile, w.Agent(fox).Tile);
+        }
     }
 
     [Fact]
-    public void The_Flock_FollowsAPredator_AndReadsAsRavensOverIt()
+    public void Ravens_FollowAPredator_AndReadAsRavensOverIt()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
@@ -424,50 +513,69 @@ public class KillChainTests
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).State = HerdState.Resting;
         var start = new TileId(tile.X - 5, tile.Y);
-        var flock = Animals.Spawn(w, Species.Raven, start, 4, [start, tile]);
-        for (int i = 0; i < 6 * 60 && w.Agent(flock).Tile != w.Agent(wolves).Tile; i++) Sim.Advance(w, 1);
-        Assert.Equal(w.Agent(wolves).Tile, w.Agent(flock).Tile);
-        var sign = Signs.At(w, w.Agent(flock).Tile).Single(s => s.Kind == SignKind.RavensOver);
+        var ravens = Animals.Spawn(w, Species.Raven, start, 4, [start, tile]);
+        for (int i = 0; i < 6 * 60 && w.Agent(ravens).Tile != w.Agent(wolves).Tile; i++) Sim.Advance(w, 1);
+        Assert.Equal(w.Agent(wolves).Tile, w.Agent(ravens).Tile);
+        var sign = Signs.At(w, w.Agent(ravens).Tile).Single(s => s.Kind == SignKind.RavensOver);
         Assert.Equal(wolves, sign.Cause!.Value.Who);
-        Assert.Equal(LocationFeatures.OfAgent(w, flock), sign.LocationFeature);
+        Assert.Equal(LocationFeatures.OfAgent(w, ravens), sign.LocationFeature);
         Assert.Contains(Report.Finds(w), f => f.Kind == "ravens" && f.Category == FindCategory.Sign);
     }
 
+    /// The signs that read ravens read only ravens: a fox by a pack or at flesh is not ravens circling.
     [Fact]
-    public void The_Flock_RaidsAnUnwatchedPile_ThroughAccess()
+    public void A_Fox_ReadsAsNoRavens()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        var c = Caribou(w, tile);
+        Animals.Spawn(w, Species.Fox, tile, 1, [tile]);
+        Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
+        Assert.DoesNotContain(Report.Finds(w), f => f.Text.Contains("ravens"));
+        var by = Map.Step(tile, Direction.North);
+        Animals.Spawn(w, Species.Wolf, by, 3);
+        Animals.Spawn(w, Species.Fox, by, 1, [by]);
+        Assert.DoesNotContain(Signs.At(w, by), s => s.Kind == SignKind.RavensOver);
+    }
+
+    [Fact]
+    public void Ravens_RaidAnUnwatchedPile_ThroughAccess()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(camp, Direction.West);
         Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
-        var flock = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
-        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
-        Assert.Null(Fauna.Refusal(w, new Raid(flock)));
+        var ravens = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
+        foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
+        Assert.Null(Fauna.Refusal(w, new Raid(ravens)));
         w.Agent(P).Tile = tile;
-        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock))?.Reason);
+        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(ravens))?.Reason);
         w.Agent(P).Tile = camp;
         Animals.Spawn(w, Species.Wolf, tile, 2);
-        Assert.Null(Fauna.Refusal(w, new Raid(flock))); // the guard gate is not wired
+        Assert.Null(Fauna.Refusal(w, new Raid(ravens))); // the guard gate is not wired
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(flock))?.Reason);
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(ravens))?.Reason);
         w.AccessGates = Access.Wired;
         foreach (var id in w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => a.Id).ToList()) Agents.Remove(w, id);
         Sim.Advance(w, 5 * 1440);
         Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < 5, "five days unwatched and nothing taken");
     }
 
-    /// The flock is its own kind, not the hyena: it never guards, hunts or threatens, and no pack hunts it.
-    [Fact]
-    public void The_Flock_IsNeitherPredatorNorPrey()
+    /// Ravens and foxes are their own kind, not the hyena: they never guard, hunt or threaten, and no pack hunts them.
+    [Theory]
+    [InlineData(Species.Raven)]
+    [InlineData(Species.Fox)]
+    public void RavensAndFoxes_AreNeitherPredatorNorPrey(Species species)
     {
-        Assert.False(Fauna.IsPredator(Species.Raven));
-        Assert.False(Fauna.IsPrey(Species.Raven));
+        Assert.False(Fauna.IsPredator(species));
+        Assert.False(Fauna.IsPrey(species));
         Assert.True(Fauna.IsPredator(Species.Hyena));
         Assert.Equal(HerdBehavior.Scavenger, Fauna.BehaviorOf(Species.Hyena));
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var c = Caribou(w, camp);
-        Animals.Spawn(w, Species.Raven, camp, 4);
+        Animals.Spawn(w, species, camp, 4);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, camp, c.Id)).HasFlag(Tag.Occupied));
     }
 
@@ -480,19 +588,19 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
         Caribou(w, tile);
-        var flock = Animals.Spawn(w, Species.Raven, tile, 3); // guards nothing, so the pack alone holds the tile
+        var ravens = Animals.Spawn(w, Species.Raven, tile, 3); // guards nothing, so the pack alone holds the tile
         var caribou = Animals.Spawn(w, Species.Caribou, tile, 2);
-        Assert.Null(Fauna.Refusal(w, new Feed(flock)));
+        Assert.Null(Fauna.Refusal(w, new Feed(ravens)));
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
-        Assert.Null(Fauna.Refusal(w, new Feed(flock))); // unwired: the pack changes nothing yet
+        Assert.Null(Fauna.Refusal(w, new Feed(ravens))); // unwired: the pack changes nothing yet
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(flock))?.Reason);
+        Assert.Equal("nothing here it can reach to eat", Fauna.Refusal(w, new Feed(ravens))?.Reason);
         Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Graze(caribou))?.Reason);
         Assert.Null(Fauna.Refusal(w, new Feed(wolves))); // the guard's own meal
         foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).Fear = 0.9; // an afraid pack holds nothing
-        Assert.Null(Fauna.Refusal(w, new Feed(flock)));
+        Assert.Null(Fauna.Refusal(w, new Feed(ravens)));
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
     }
 

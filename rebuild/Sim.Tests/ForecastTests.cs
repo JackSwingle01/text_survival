@@ -445,10 +445,10 @@ public class ForecastTests
         var w = Bare(-5);
         var m = Map.Of(w);
         var (west, east) = AcrossALake(w);
-        var flock = Agents.SpawnGroup(w, Species.Raven, west, 3)[0];
-        var routes = Trip.Routes(w, flock);
+        var raven = Agents.SpawnGroup(w, Species.Raven, west, 3)[0];
+        var routes = Trip.Routes(w, raven);
         Assert.Equal(Enumerable.Range(west.X + 1, 5).Select(x => new TileId(x, west.Y)), routes.RouteTo(east));
-        Assert.Equal(5 * Traversal.FlightMinutesPerTile(w.Agent(flock))!.Value, routes.Minutes[east]);
+        Assert.Equal(5 * Traversal.FlightMinutesPerTile(w.Agent(raven))!.Value, routes.Minutes[east]);
         Assert.DoesNotContain(routes.Reached, t => m.TerrainAt(t) == Terrain.Mountain);
         Assert.Contains(routes.Reached, t => MapGen.Neighbors(t).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Mountain));
 
@@ -465,11 +465,11 @@ public class ForecastTests
         // looked at first, so only the tie-break sends it west.
         var start = Camp(w);
         var corner = new TileId(start.X - 1, start.Y + 1);
-        var flock = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
-        var path = Trip.Routes(w, flock).RouteTo(corner);
+        var raven = Agents.SpawnGroup(w, Species.Raven, start, 3)[0];
+        var path = Trip.Routes(w, raven).RouteTo(corner);
         Assert.Equal([new TileId(start.X - 1, start.Y), corner], path); // (x-1, y) sorts before (x, y+1)
         var again = TestWorlds.Load(Save.ToJson(w));
-        Assert.Equal(path, Trip.Routes(again, flock).RouteTo(corner));
+        Assert.Equal(path, Trip.Routes(again, raven).RouteTo(corner));
     }
 
     // ---- Work and Fauna: what an animal's water and rest pay ----
