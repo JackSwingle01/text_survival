@@ -31,7 +31,10 @@ public class ContentTests
         Assert.All(Enum.GetValues<Species>(), s => Assert.True(t.Species.ContainsKey(s), $"{s} has no species row"));
         Assert.All(Enum.GetValues<Diet>(), d => Assert.True(t.Diets.ContainsKey(d), $"{d} has no diet"));
         Assert.All(Enum.GetValues<ShelterKind>(), k => Assert.True(t.ShelterKinds.ContainsKey(k), $"{k} has no shelter kind row"));
-        Assert.All(Enum.GetValues<Structure>(), s => Assert.True(t.Recipes.ContainsKey(s), $"{s} has no recipe"));
+        // Every shelter and bedding the old Build path made has a camp recipe placing it.
+        var camp = t.MakeRecipes.Where(r => r.Result.Placed).ToList();
+        Assert.Equal([ShelterKind.BranchFrame, ShelterKind.LogFrame, ShelterKind.SnowShelter, ShelterKind.HideTent], camp.Select(r => r.Result.Shelter).OfType<ShelterKind>().Order());
+        Assert.Equal([BeddingKind.Makeshift, BeddingKind.Padded, BeddingKind.MossPadded, BeddingKind.SleepingBag], camp.Select(r => r.Result.Bedding).OfType<BeddingKind>().Order());
         Assert.All(Enum.GetValues<BeddingKind>(), b => Assert.True(t.Beddings.ContainsKey(b), $"{b} has no bedding row"));
         Assert.All(Enum.GetValues<ButcherMode>(), m => Assert.True(t.Butchering.ContainsKey(m), $"{m} has no butchering row"));
         Assert.All(Enum.GetValues<Terrain>(), x => Assert.True(t.Terrains.ContainsKey(x), $"{x} has no terrain row"));
@@ -46,13 +49,10 @@ public class ContentTests
         var finds = t.Discoveries.Finds.Values.Concat(t.Discoveries.Details.Values).ToList();
         foreach (var g in finds.SelectMany(f => FlattenItems(f.Items ?? [])).Select(i => i.Gear).OfType<string>())
             Assert.True(t.Gear.ContainsKey(g), $"finds: no gear kind {g}");
-        // Resources named in recipes are materials with a piece weight; temperaments and substrates resolve.
-        foreach (var (s, r) in t.Recipes)
-            foreach (var (anyOf, kg) in r.Materials)
-            {
-                Assert.All(anyOf, res => Assert.True(t.ShelterMaterials.ContainsKey(res), $"{s}: {res} is no material"));
-                Assert.True(kg > 0, $"{s}: {kg} kg");
-            }
+        // Resources a camp recipe builds with are shelter materials; temperaments and substrates resolve.
+        foreach (var r in camp)
+            foreach (var m in r.Materials)
+                Assert.All(m.AnyOf, res => Assert.True(t.ShelterMaterials.ContainsKey(res), $"{r.Id}: {res} is no material"));
         foreach (var row in t.Terrains.Values)
         {
             Assert.True(t.Substrates.ContainsKey(row.Substrate), $"no substrate {row.Substrate}");
@@ -80,7 +80,7 @@ public class ContentTests
         Assert.Same(Content.Tables.Resources, Items.Resources);
         Assert.Same(Content.Tables.Fuels, Fire.Props);
         Assert.True(Content.LoadMilliseconds > 0);
-        foreach (var table in new object[] { Items.Resources, Items.GearKinds, Fire.Props, Shelters.Kinds, Shelters.Recipes, Shelters.Beddings,
+        foreach (var table in new object[] { Items.Resources, Items.GearKinds, Fire.Props, Shelters.Kinds, Shelters.Beddings,
             Content.Tables.Effects, Content.Tables.Species, Content.Tables.Terrains, Content.Tables.Forage })
             Assert.True(((System.Collections.IDictionary)table).IsReadOnly, $"{table.GetType().Name} can be written");
         // And everything inside them, however deep: no list or dictionary in a table can be cast back and written to.
@@ -274,7 +274,7 @@ public class ContentTests
     [InlineData("effects.json", "\"Wet\":", "\"Soggy\":", "no EffectKind 'Soggy'")]
     // A kind the code has with no row.
     [InlineData("fire.json", "  \"Mound\": { \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
-    [InlineData("shelters.json", "\"Tent\": { \"minutes\": 10", "\"Tents\": { \"minutes\": 10", "shelters.json recipes: no row for Tent")]
+    [InlineData("recipes.json", "\"shelter\": \"BranchFrame\"", "\"shelter\": \"BranchFrames\"", "no ShelterKind 'BranchFrames'")]
     [InlineData("effects.json", "\"Bloody\":", "\"Bloodied\":", "effects.json: no row for Bloody")]
     // A value that is no kind at all.
     [InlineData("accidents.json", "\"effect\": \"Dazed\", \"severity\": 0.2", "\"effect\": \"Concussed\", \"severity\": 0.2", "accidents.json")]
@@ -285,7 +285,6 @@ public class ContentTests
     [Theory]
     [InlineData("items.json", "{ \"kind\": \"hand_drill\" }", "{ \"kind\": \"hand_axe\" }", "no gear kind 'hand_axe'")]
     [InlineData("species.json", "\"temperament\": \"wolf\"", "\"temperament\": \"wolves\"", "no temperament 'wolves'")]
-    [InlineData("shelters.json", "\"anyOf\": [\"Kindling\"], \"pieces\": 4", "\"anyOf\": [\"Flint\"], \"pieces\": 4", "Flint is not a material")]
     [InlineData("shelters.json", "\"mammoth_hide_tent\": { \"name\"", "\"no_tent\": { \"name\"", "no tent gear kind 'no_tent'")]
     [InlineData("terrain.json", "\"substrate\": \"peat\"", "\"substrate\": \"bog\"", "no substrate 'bog'")]
     [InlineData("terrain.json", "\"table\": \"Wetland\"", "\"table\": \"Swamp\"", "no forage table 'Swamp'")]

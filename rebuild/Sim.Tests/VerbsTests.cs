@@ -316,15 +316,16 @@ public class VerbsTests
         Assert.Contains(boots, w.Agent(P).Body.Worn);
     }
 
-    /// Every structure is offered to build, refused with what it lacks (no hidden recipes), as Make's are.
+    /// Every camp recipe is offered to build, refused with what it lacks (no hidden recipes), as the rest are.
     [Fact]
     public void EveryStructure_IsOfferedToBuild()
     {
         var w = Camp(out _);
         Sim.Step(w, new Wait(P), 1);
-        var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Build).ToList();
-        Assert.Equal(Enum.GetValues<Structure>(), builds.Select(v => ((Build)v.Activity).What));
-        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Build(P, Structure.Tent)).Refused?.Reason); // the camp's overhang
+        var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Make m && Recipes.Get(m.Recipe).Result.Placed).ToList();
+        Assert.Equal(Recipes.All.Where(r => r.Result.Placed).Select(r => r.Id), builds.Select(v => ((Make)v.Activity).Recipe));
+        Assert.Equal("Build a branch frame shelter", builds.Single(v => v.Activity == new Make(P, "branch_frame")).Label);
+        Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Make(P, "tent")).Refused?.Reason); // the camp's overhang
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -338,7 +339,8 @@ public class VerbsTests
         w.Agent(P).Tile = open;
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
         Sim.Step(w, new Wait(P), 1);
-        var pitch = Verbs.At(w, P).Make.Single(v => v.Activity == new Build(P, Structure.Tent));
+        var pitch = Verbs.At(w, P).Make.Single(v => v.Activity == new Make(P, "tent"));
+        Assert.Equal("Pitch the tent", pitch.Label);
         Assert.True(pitch.Allowed, pitch.Refused?.Reason);
         AssertEveryVerbIsTrue(w, P);
     }

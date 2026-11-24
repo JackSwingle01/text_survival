@@ -155,7 +155,7 @@ public class SubstrateTests
         var east = new TileId(camp.X + 1, camp.Y);
         w.Agent(P).Tile = east;
         Items.Add(Items.Pack(w, P), Resource.Kindling, 10);
-        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
+        var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.True(w.Shelters.ContainsKey(east), $"{r.InterruptedReason} at {w.Minute}");
         Assert.Equal(new Cause(P, "built by the player"), w.Shelters[east].Cause);
     }
@@ -469,7 +469,7 @@ public class SubstrateTests
         w.Agent(P).Tile = east;
         Midday(w);
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
-        Sim.Step(w, new Build(P, Structure.Tent), 600);
+        Sim.Step(w, new Make(P, "tent"), 600);
         Assert.NotNull(w.Shelters[east].Tent);
         Assert.Equal(new Cause(P, "pitched by the player"), w.Shelters[east].Cause);
         Herd(w, Species.Bear, 1, east);

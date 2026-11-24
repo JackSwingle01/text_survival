@@ -139,7 +139,7 @@ public sealed class GameHost
     Job JobFor(Verb v, int? minutes)
     {
         var p = W.Agent(AgentId.Player);
-        bool chunked = v.Activity is Wait or Rest or Sleep or Travel or Make or Survival.Build or ImproveShelter || HeldWork(v.Activity);
+        bool chunked = v.Activity is Wait or Rest or Sleep or Travel or Make or ImproveShelter || HeldWork(v.Activity);
         if (minutes is int m && v.Durations?.Contains(m) != true)
             throw new ArgumentException($"'{v.Label}' does not run for {m} minutes");
         int? budget = minutes ?? (v.Minutes == Verbs.UntilDoneMinutes ? null : v.Minutes);

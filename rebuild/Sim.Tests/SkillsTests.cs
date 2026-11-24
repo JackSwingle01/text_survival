@@ -200,7 +200,7 @@ public class SkillsTests
     {
         var w = Mild17();
         w.Beddings.Remove(Map.Of(w).Camp); // the camp's own bed is better than a makeshift one
-        var r = Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 120);
+        var r = Sim.Step(w, new Make(P, "makeshift_bedding"), 120);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(Skills.CraftXpPerHour * r.MinutesElapsed / 60, Xp(w, Skill.Crafting), 6);
     }

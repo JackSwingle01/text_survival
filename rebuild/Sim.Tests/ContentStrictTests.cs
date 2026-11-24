@@ -30,7 +30,7 @@ public class ContentStrictTests
     [InlineData("species.json", "\"Grazer\": [ \"Tinder\" ]", "\"Grazer\": [ \"SphagnumMoss, Usnea\" ]", "no Resource 'SphagnumMoss, Usnea'")]
     // Case: the stock reader matches names ignoring it.
     [InlineData("items.json", "\"slot\": \"Chest\"", "\"slot\": \"chest\"", "no EquipSlot 'chest'")]
-    [InlineData("shelters.json", "\"anyOf\": [\"Kindling\"]", "\"anyOf\": [\"kindling\"]", "no Resource 'kindling'")]
+    [InlineData("recipes.json", "\"of\": \"Kindling\", \"kg\": 1.2", "\"of\": \"kindling\", \"kg\": 1.2", "no Resource 'kindling'")]
     [InlineData("forage.json", "\"resource\": \"Usnea\"", "\"resource\": \"usnea\"", "no Resource 'usnea'")]
     [InlineData("accidents.json", "\"effect\": \"Dazed\"", "\"effect\": \"dazed\"", "no EffectKind 'dazed'")]
     [InlineData("discoveries.json", "\"work\": \"Salvage\"", "\"work\": \"salvage\"", "no StockKind 'salvage'")]
@@ -67,7 +67,6 @@ public class ContentStrictTests
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
-    [InlineData("shelters.json", "\"materials\": [], \"needsLight\": false, \"shovelHelps\": true", "\"materials\": [], \"shovelHelps\": true", "needsLight")]
     [InlineData("terrain.json", ", \"trees\": { \"name\": \"Forest Trees\", \"minutesToFell\": 100 }", "", "trees")]
     public void Loader_RefusesAPermissiveDefault_LeftOut(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
@@ -163,7 +162,7 @@ public class ContentStrictTests
         Assert.False(Content.Tables.StartingClothes is List<KitGear>);
         Assert.False(Content.Tables.Sightings.Alert is List<double>);
         Assert.False(Content.Loot["AbandonedCamp"] is List<LootRoll>);
-        var materials = Shelters.Recipes[Structure.LogFrame].Materials;
+        var materials = Recipes.Get("log_frame").Materials;
         Assert.Throws<NotSupportedException>(() => ((IList)materials)[0] = materials[0]);
         Assert.Throws<NotSupportedException>(() => ((IDictionary<Resource, double>)Carcasses.ModeProps(ButcherMode.QuickStrip).YieldFactor).Clear());
     }

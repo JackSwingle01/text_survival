@@ -156,16 +156,6 @@
   "Hearing": "hearing",
   "Digestion": "digestion"
  },
- "Structure": {
-  "MakeshiftBedding": "makeshift bed",
-  "PaddedBedding": "padded bed",
-  "MossBedding": "moss bed",
-  "SleepingBag": "sleeping bag",
-  "BranchFrame": "branch frame shelter",
-  "LogFrame": "log frame shelter",
-  "SnowShelter": "snow shelter",
-  "Tent": "tent"
- },
  "Species": {
   "Human": "human",
   "Wolf": "wolf",
@@ -229,14 +219,17 @@
   "HuntingWeapon": "hunting weapon",
   "Lighting": "lighting",
   "Processing": "processing",
-  "Clothing": "clothing"
+  "Clothing": "clothing",
+  "Camp": "camp"
  },
  "Requirement": {
   "Light": "light",
   "Fire": "a fire burning",
   "Frost": "a frost",
   "Shelter": "shelter",
-  "Dry": "a roof or a dry sky"
+  "Dry": "a roof or a dry sky",
+  "NoShelter": "no shelter here yet",
+  "Tent": "a tent carried"
  },
  "TrackMaker": {
   "Human": "human",

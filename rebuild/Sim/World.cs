@@ -47,8 +47,8 @@ public sealed class World
     public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];
     /// Owned by Shelters.
     public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
-    /// Owned by Shelters.
-    public SortedDictionary<TileId, StructureProject> Projects { get; init; } = [];
+    /// Placed recipes' unfinished work. Owned by Making.
+    public SortedDictionary<TileId, TileProject> Projects { get; init; } = [];
     /// Shelter finds waiting for a taken tile: the index of the pool (Pools.At). Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// Owned by Journal.

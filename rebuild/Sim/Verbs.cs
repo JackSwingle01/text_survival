@@ -125,14 +125,20 @@ public static class Verbs
         if (pack != null)
         {
             foreach (var r in Recipes.All)
-                make.Add((Making.ProjectFor(pack, r.Id) != null ? $"Go on making {Names.Lower(r.Name)}" : $"Make {Names.Lower(r.Name)}", new Make(who, r.Id), UntilDoneMinutes));
-            var building = world.Projects.GetValueOrDefault(agent.Tile)?.Building;
-            foreach (var s in Enum.GetValues<Structure>())
-                make.Add((s == Structure.Tent ? (building == s ? "Go on pitching the tent" : "Pitch the tent")
-                    : building == s ? $"Go on building the {Names.Of(s)}" : $"Build a {Names.Of(s)}", new Build(who, s), UntilDoneMinutes));
+                make.Add((MakeLabel(r, Making.MinutesDone(world, agent, r) != null), new Make(who, r.Id), UntilDoneMinutes));
             foreach (var p in pack.Projects ?? []) make.Add(($"Abandon the unfinished {Names.Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe), 1));
         }
         return new Here(who, agent.Tile, features, walk, [.. tile.Select(Ready)], [.. carried.Select(Ready)], [.. make.Select(Ready)]);
+
+        static string MakeLabel(Recipe r, bool begun) => (r.Result.Placed, r.Requires.Contains(Requirement.Tent), begun) switch
+        {
+            (true, true, false) => "Pitch the tent",
+            (true, true, true) => "Go on pitching the tent",
+            (true, false, false) => $"Build a {Names.Lower(r.Name)}",
+            (true, false, true) => $"Go on building the {Names.Lower(r.Name)}",
+            (false, _, false) => $"Make {Names.Lower(r.Name)}",
+            (false, _, true) => $"Go on making {Names.Lower(r.Name)}",
+        };
 
         Verb Ready((string Label, Activity Activity, int Minutes) v)
         {

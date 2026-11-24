@@ -112,6 +112,12 @@ public class MakeTests
     [InlineData("\"fail:waste_material:Flint:.5=.08\"", "\"fail:waste_material:Bone:.5=.08\"", "stone_tipped_spear: Bone is not an input")]
     [InlineData("\"fail:break_tool:Cutting=.02\"", "\"fail:break_tool:Digging=.02\"", "stone_tipped_spear: Digging is not a tool it uses")]
     [InlineData("\"fail=.05\", \"fail:waste", "\"fail=.3\", \"fail:waste", "stone_tipped_spear: outcomes' odds add up to")]
+    // Camp work placed on the tile.
+    [InlineData("\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 30", "\"requires\": [\"Light\"], \"minutes\": 30", "branch_frame: a shelter needs NoShelter")]
+    [InlineData("\"result\": { \"shelter\": \"HideTent\" }", "\"result\": { \"shelter\": \"HideTent\", \"named\": \"Tent\" }", "tent: a shelter is named, unless it is the tent carried")]
+    [InlineData("\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": []", "\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": [\"fail=.1\"]", "makeshift_bedding: a placed result has no outcomes")]
+    [InlineData("\"fasterBy\": 2, \"requires\": []", "\"fasterBy\": 1, \"requires\": []", "makeshift_bedding: fasterBy 1")]
+    [InlineData("\"requires\": [\"Light\"], \"minutes\": 40", "\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 40", "stone_tipped_spear: NoShelter and Tent are for a placed result")]
     public void ABrokenRecipe_DoesNotLoad(string from, string to, string why) =>
         Assert.Contains(why, Broken(from, to));
 
@@ -431,7 +437,7 @@ public class MakeTests
         var w = Noon(out var pack);
         Items.Add(pack, Resource.Stone, 0.3);
         Items.Add(pack, Resource.Kindling, 1.0);
-        var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then building (Build) and abandoning
+        var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then abandoning
         Assert.Equal(Recipes.All.Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe));
         var rock = make.Single(v => v.Activity == new Make(P, "sharp_rock"));
         Assert.Equal("Make sharp rock", rock.Label);
@@ -515,7 +521,7 @@ public class MakeTests
         for (bool progress = true; progress;)
         {
             progress = false;
-            foreach (var r in Recipes.All.Where(r => !made.Contains(r.Id)).ToList())
+            foreach (var r in Carried.Where(r => !made.Contains(r.Id)).ToList())
             {
                 if (!MakeOne(r, 0)) continue;
                 made.Add(r.Id);
@@ -530,8 +536,11 @@ public class MakeTests
                 foreach (var res in pack.Kg.Keys.Where(land.Contains).ToList()) pack.Kg.Remove(res);
             }
         }
-        Assert.Equal(Recipes.All.Select(r => r.Id).Order(), made.Order());
+        Assert.Equal(Carried.Select(r => r.Id).Order(), made.Order());
     }
+
+    /// Camp work needs a shovel and a tent no recipe makes yet; ShelterTests builds each.
+    static readonly IReadOnlyList<Recipe> Carried = [.. Recipes.All.Where(r => !r.Result.Placed)];
 
     static void KeepTheFireUp(World w, Inventory pack)
     {

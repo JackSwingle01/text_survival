@@ -6,10 +6,14 @@
 //   inputs: { "of": "A|B", "kg": n } is kilos of any of those resources, taken in the order listed;
 //     { "item": kind } is one piece of that gear kind, consumed into the result;
 //   tools: capabilities the pack must give (each used once per finished piece); faster: capabilities
-//     that speed the work when carried (optional);
-//   requires: what the place must have to start and to go on (Light, Fire, Frost, Shelter, Dry);
+//     that speed the work when carried (optional), each by fasterBy (optional, 1.5 if not given);
+//   requires: what the place must have to start and to go on (Light, Fire, Frost, Shelter, Dry,
+//     NoShelter); Tent is a tent carried, checked to start, and the tent goes into the work;
 //   minutes: the work for someone whole, warm and dry;
-//   result: { "gear": kind } for one piece, or { "resource": r, "kg": n };
+//   result: { "gear": kind } for one piece, or { "resource": r, "kg": n }; or, placed on the tile,
+//     { "shelter": ShelterKind, "named": its name } (the tent carried, if it needs one) or
+//     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
+//     go on with; its materials are used up when the work starts, and it has no outcomes;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
 //     save_material:<input>:<share>, extra_product:<gear or resource>:<n>, injury:<BodyTarget>:<damage>,
@@ -143,5 +147,34 @@
  "hide_boots": { "name": "Hide boots", "category": "Clothing",
   "inputs": [ { "of": "CuredHide", "kg": 0.8 }, { "of": "Sinew", "kg": 0.1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 35,
   "result": { "gear": "hide_boots" },
-  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] }
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+
+ // ---- camp: placed on the tile, the project left there for anyone to go on with ----
+ "makeshift_bedding": { "name": "Makeshift bed", "category": "Camp",
+  "inputs": [], "tools": [], "faster": ["Digging"], "fasterBy": 2, "requires": [], "minutes": 45,
+  "result": { "bedding": "Makeshift" }, "outcomes": [] },
+ "padded_bedding": { "name": "Padded bed", "category": "Camp",
+  "inputs": [ { "of": "PlantFiber", "kg": 1.0 }, { "of": "Hide", "kg": 1.0 } ], "tools": [], "requires": ["Light"], "minutes": 45,
+  "result": { "bedding": "Padded" }, "outcomes": [] },
+ "moss_bedding": { "name": "Moss bed", "category": "Camp",
+  "inputs": [ { "of": "SphagnumMoss", "kg": 1.2 }, { "of": "PineNeedles", "kg": 0.24 }, { "of": "Hide", "kg": 1.0 } ], "tools": [], "requires": ["Light"], "minutes": 50,
+  "result": { "bedding": "MossPadded" }, "outcomes": [] },
+ // 15 minutes' setup and three hours' sewing.
+ "sleeping_bag": { "name": "Sleeping bag", "category": "Camp",
+  "inputs": [ { "of": "CuredHide", "kg": 4.0 }, { "of": "Sinew", "kg": 0.6 } ], "tools": [], "requires": ["Light"], "minutes": 195,
+  "result": { "bedding": "SleepingBag" }, "outcomes": [] },
+ "branch_frame": { "name": "Branch frame shelter", "category": "Camp",
+  "inputs": [ { "of": "Kindling", "kg": 1.2 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
+  "result": { "shelter": "BranchFrame", "named": "Branch Frame Shelter" }, "outcomes": [] },
+ "log_frame": { "name": "Log frame shelter", "category": "Camp",
+  "inputs": [ { "of": "Pine|Birch|Oak", "kg": 6.0 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
+  "result": { "shelter": "LogFrame", "named": "Log Frame Shelter" }, "outcomes": [] },
+ // 15 minutes' setup and two hours' digging.
+ "snow_shelter": { "name": "Snow shelter", "category": "Camp",
+  "inputs": [], "tools": ["Digging"], "faster": ["Digging"], "fasterBy": 2, "requires": ["Light", "NoShelter", "Frost"], "minutes": 135,
+  "result": { "shelter": "SnowShelter", "named": "Snow shelter" }, "outcomes": [] },
+ // The tent carried is the one pitched, with whatever work was put into it.
+ "tent": { "name": "Tent", "category": "Camp",
+  "inputs": [], "tools": [], "requires": ["NoShelter", "Tent"], "minutes": 10,
+  "result": { "shelter": "HideTent" }, "outcomes": [] }
 }

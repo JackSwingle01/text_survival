@@ -99,7 +99,7 @@ public static class Narration
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),
             EncounterEnded x => ($"The fight is over: {EncounterResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
             WoundedEscaped x => ($"A wounded {Names.Of(x.Species)} gets away.", Tone.Bad),
-            Built x => ($"{Does(x.Who, x.What == Structure.Tent ? "pitch" : "build")} the {Names.Of(x.What)}.", Tone.Good),
+            Built x => ($"{Does(x.Who, Recipes.Get(x.Recipe).Requires.Contains(Requirement.Tent) ? "pitch" : "build")} the {Names.Lower(Recipes.Get(x.Recipe).Name)}.", Tone.Good),
             ShelterCollapsed x => ($"The {Names.Lower(x.Name)} comes down.", Tone.Bad),
             SkillLeveledUp x => ($"{Names.Title(x.Skill)} rises to {x.Level}.", Tone.Rare),
             Made x => MadeLine(world, x),
