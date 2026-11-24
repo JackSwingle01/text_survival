@@ -41,7 +41,7 @@ public sealed class World
     public long TracksSweptHour { get; set; } = -1;
     public int NextCarcassId { get; set; }
     /// Never reused, so a ref held to one never points at a later one on the same tile (LocationFeature). Owned by Items and Shelters.
-    public int NextStashId { get; set; }
+    public int NextPileId { get; set; }
     public int NextShelterId { get; set; }
     /// Owned by Shelters.
     public SortedDictionary<TileId, ShelterState> Shelters { get; init; } = [];

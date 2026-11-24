@@ -68,7 +68,7 @@ public class NarrationTests
     public void AReceiptsChanges_AndSigns_ReadInWords()
     {
         Assert.Equal("The fire was roaring. Now it is embers.", Narration.Change(new Change(ChangeKind.Fire, "fire", "Roaring", "Embers")));
-        Assert.Equal("The birch bark in the stash is gone.", Narration.Change(new Change(ChangeKind.Stash, "BirchBark", "1.0", null)));
+        Assert.Equal("The birch bark in the pile is gone.", Narration.Change(new Change(ChangeKind.Pile, "BirchBark", "1.0", null)));
         var sign = new TrackSign(TrackMaker.Paw, 0.9, 3, TrafficPattern.Heading, Direction.North, 60, 0.02, 3, 0);
         Assert.Equal("Paw prints, heading north, fresh.", Narration.Sign(sign));
     }

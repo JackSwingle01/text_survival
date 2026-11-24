@@ -1,5 +1,8 @@
 # Save compatibility starts with the first build someone else plays
 
+**Superseded 2026-11-24** by `2026-11-24-no-save-migrations-until-the-rebuild-is-finished.md`: no
+migrations until the rebuild is finished, whoever plays it before then.
+
 Saves carry a format version from now on (`Save.FormatVersion`), and a fixture test loads a fixed
 sample save, so every format change is deliberate and visible in review
 (`documentation/save-format.md`). Until a build is handed to someone else to play, a format change

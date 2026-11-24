@@ -570,24 +570,24 @@ public class MemoryTests
         Assert.Contains(morning.Changes, c => c.Kind == ChangeKind.Fire && c.Now == nameof(FirePhase.Cold));
     }
 
-    /// The receipt's differences: a stash emptied while away, a carcass come and gone.
+    /// The receipt's differences: a pile emptied while away, a carcass come and gone.
     [Fact]
-    public void Receipt_ListsWhatChangedInTheStash()
+    public void Receipt_ListsWhatChangedInThePile()
     {
         var w = Mild17();
         var camp = Map.Of(w).Camp;
-        Items.Add(Items.StashAt(w, camp), Resource.DriedMeat, 2);
+        Items.Add(Items.PileAt(w, camp), Resource.DriedMeat, 2);
         Sim.Step(w, new Wait(P), 1);
-        Assert.Equal(2, Memory(w, P, camp)!.Stash![Resource.DriedMeat]);
+        Assert.Equal(2, Memory(w, P, camp)!.Pile![Resource.DriedMeat]);
         Put(w, P, OutOfView(w, camp));
         Sim.Step(w, new Wait(P), 30);
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
-        Sim.Step(w, new Unstash(npc, Resource.DriedMeat, 1), 1);
+        Sim.Step(w, new PickUp(npc, Resource.DriedMeat, 1), 1);
         Put(w, npc, ((NpcMind)w.Agent(npc).Mind).Camp);
         Put(w, P, camp);
         var r = Assert.Single(Sim.Step(w, new Wait(P), 1).Events.OfType<Noticed>()).Receipt;
-        Assert.Contains(r.Changes, c => c is { Kind: ChangeKind.Stash, Subject: nameof(Resource.DriedMeat), Was: "2.0", Now: "1.0" });
-        Assert.Contains(r.Happened.OfType<Unstashed>(), u => u.Who == npc && u.Kg == 1);
+        Assert.Contains(r.Changes, c => c is { Kind: ChangeKind.Pile, Subject: nameof(Resource.DriedMeat), Was: "2.0", Now: "1.0" });
+        Assert.Contains(r.Happened.OfType<PickedUp>(), u => u.Who == npc && u.Kg == 1);
     }
 
     /// Nothing changed, nothing to say: coming back to an unchanged tile gives no receipt.
@@ -610,8 +610,8 @@ public class MemoryTests
         Assert.True(Journal.Staked(w, camp));
         Assert.False(Journal.Staked(w, field));
         var events = new List<WorldEvent>();
-        for (int i = 0; i < Journal.MaxEntriesPerTile + 5; i++) events.Add(new Stashed(i, P, camp, Resource.Stone, 1));
-        events.Add(new Stashed(3, P, field, Resource.Stone, 1));
+        for (int i = 0; i < Journal.MaxEntriesPerTile + 5; i++) events.Add(new PutOnPile(i, P, camp, Resource.Stone, 1));
+        events.Add(new PutOnPile(3, P, field, Resource.Stone, 1));
         events.Add(new Moved(3, P, field, camp)); // a walk through is not news
         int filed = 0;
         Journal.File(w, events, ref filed);
@@ -622,7 +622,7 @@ public class MemoryTests
         string json = Save.ToJson(w);
         var loaded = Save.FromJson(json);
         Assert.Equal(json, Save.ToJson(loaded));
-        Assert.IsType<Stashed>(loaded.Journal[camp][^1]);
+        Assert.IsType<PutOnPile>(loaded.Journal[camp][^1]);
     }
 
     /// A full journal lets go of what happened longest ago, not what was filed first: catch-up files
@@ -646,9 +646,9 @@ public class MemoryTests
         Assert.Contains(kept, e => e.Minute == 700);
     }
 
-    /// Review: only fuel and stash chores made way, so 31 failed strikes, meals or cooked meat pushed
+    /// Review: only fuel and pile chores made way, so 31 failed strikes, meals or cooked meat pushed
     /// out the fire going out. Everything not notable goes before anything notable: the fire dying, a
-    /// shelter down, a wound, a kill, and the stash taken by someone whose camp it is not.
+    /// shelter down, a wound, a kill, and the pile taken by someone whose camp it is not.
     [Fact]
     public void ADayOfMealsAndMisses_KeepsWhatMattered_InTheJournal()
     {
@@ -659,7 +659,7 @@ public class MemoryTests
         {
             new FireDied(100, new FireId(0), camp),
             new Injured(101, P, camp, "Left Leg", DamageType.Pierce, 1),
-            new Unstashed(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
+            new PickedUp(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
             new Killed(103, new AgentId(99), Species.Caribou, 100, camp, P),
         };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
@@ -668,7 +668,7 @@ public class MemoryTests
                 0 => new FireStartFailed(200 + i, P, camp, 0.1),
                 1 => new Ate(200 + i, P, camp, Resource.Berries, 0.1, 50),
                 2 => new FireLit(200 + i, new FireId(1), camp, P),
-                _ => new Unstashed(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
+                _ => new PickedUp(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
             });
         int filed = 0;
         Journal.File(w, events, ref filed);
@@ -676,13 +676,13 @@ public class MemoryTests
         Assert.Equal(Journal.MaxEntriesPerTile, kept.Count);
         Assert.Contains(kept, e => e is FireDied);
         Assert.Contains(kept, e => e is Injured);
-        Assert.Contains(kept, e => e is Unstashed u && u.Who == stranger);
+        Assert.Contains(kept, e => e is PickedUp u && u.Who == stranger);
         Assert.Contains(kept, e => e is Killed);
         Assert.Equal(200 + 3 * Journal.MaxEntriesPerTile - 1, kept[^1].Minute); // and the latest of the rest
     }
 
-    /// Chores make way first: a night of feeding the fire and fetching from the stash cannot push out
-    /// the fire going out (review: an overnight FireDied evicted by FuelAdded and Stashed).
+    /// Chores make way first: a night of feeding the fire and fetching from the pile cannot push out
+    /// the fire going out (review: an overnight FireDied evicted by FuelAdded and PutOnPile).
     [Fact]
     public void ABusyNight_KeepsTheFireDying_InTheJournal()
     {
@@ -690,7 +690,7 @@ public class MemoryTests
         var camp = Map.Of(w).Camp;
         var events = new List<WorldEvent> { new FireDied(100, new FireId(0), camp) };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
-            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new Stashed(200 + i, P, camp, Resource.Pine, 1));
+            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new PutOnPile(200 + i, P, camp, Resource.Pine, 1));
         int filed = 0;
         Journal.File(w, events, ref filed);
         var kept = w.Journal[camp];

@@ -207,13 +207,13 @@ public class ForageRestoreTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void FindingAStashFind_PutsWhatItHoldsOnTheTile()
+    public void FindingAPileFind_PutsWhatItHoldsOnTheTile()
     {
-        var w = WithPools(Forage, new StashFind("Hidden Cache", [new StockItem(Resource.Pine, 1, 2.5)], [Items.Make("fire_striker")], 0.01));
+        var w = WithPools(Forage, new PileFind("Hidden Cache", [new StockItem(Resource.Pine, 1, 2.5)], [Items.Make("fire_striker")], 0.01));
         Sim.Step(w, new Gather(P, 0), 30);
-        var stash = w.Tiles[Camp(w)].Stash!;
-        Assert.Equal(2.5, Items.Have(stash, Resource.Pine), 6);
-        Assert.Single(stash.Gear);
+        var pile = w.Tiles[Camp(w)].Pile!;
+        Assert.Equal(2.5, Items.Have(pile, Resource.Pine), 6);
+        Assert.Single(pile.Gear);
     }
 
     [Fact]

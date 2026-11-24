@@ -87,15 +87,15 @@ public class WorkTests
         Assert.Contains(said, t => Clues.Table.Failures[^1].Lines.Contains(t));
     }
 
-    /// A stash emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
+    /// A pile emptied goes back to null, so a tile with nothing else on it can leave World.Tiles.
     [Fact]
-    public void AnEmptiedStash_IsGone()
+    public void AnEmptiedPile_IsGone()
     {
         var w = WithPools(Forage);
         var camp = Map.Of(w).Camp;
-        Sim.Step(w, new Stash(P, Resource.Kindling, 99), 1);
-        Assert.NotNull(w.Tiles[camp].Stash);
-        Sim.Step(w, new Unstash(P, Resource.Kindling, 99), 1);
+        Sim.Step(w, new PutDown(P, Resource.Kindling, 99), 1);
+        Assert.NotNull(w.Tiles[camp].Pile);
+        Sim.Step(w, new PickUp(P, Resource.Kindling, 99), 1);
         Assert.False(w.Tiles.ContainsKey(camp)); // nothing else differs here, so the tile goes too
     }
 

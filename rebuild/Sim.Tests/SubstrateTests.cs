@@ -46,12 +46,12 @@ public class SubstrateTests
         var w = Camp(out var camp);
         TestKit.Supply(w);
         PlayerKill(w, camp);
-        Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
+        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
         Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
         var things = LocationFeatures.At(w, camp).ToList();
         Assert.Equal(things.OrderBy(t => t).ToList(), things);
         var kinds = things.Select(t => t.Kind).ToHashSet();
-        foreach (var k in new[] { LocationFeatureKind.Agent, LocationFeatureKind.Carcass, LocationFeatureKind.Pool, LocationFeatureKind.Stash, LocationFeatureKind.Shelter })
+        foreach (var k in new[] { LocationFeatureKind.Agent, LocationFeatureKind.Carcass, LocationFeatureKind.Pool, LocationFeatureKind.Pile, LocationFeatureKind.Shelter })
             Assert.Contains(k, kinds);
         // A pit is a thing; a carried torch never is.
         if (Fire.PitAt(w, camp) is FireId pit) Assert.Contains(new LocationFeature(LocationFeatureKind.Fire, camp, pit.Value), things);
@@ -131,22 +131,22 @@ public class SubstrateTests
     }
 
     [Fact]
-    public void Stashes_FirePitsAndShelters_KeepWhoMadeThem()
+    public void Piles_FirePitsAndShelters_KeepWhoMadeThem()
     {
         var w = Camp(out var camp);
         TestKit.Supply(w);
-        var away = new TileId(camp.X + 6, camp.Y); // an NPC to name, out of the way of the player's stash
+        var away = new TileId(camp.X + 6, camp.Y); // an NPC to name, out of the way of the player's pile
         var npc = Npc.Spawn(w, away, away);
         Assert.Equal(new Cause(null, Cause.Natural), w.Shelters[camp].Cause);
 
-        Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
-        Assert.Equal(new Cause(P, "stashed by the player"), w.Tiles[camp].StashCause);
-        // The stash keeps its maker while it stands; emptied, it is gone with its cause.
-        Items.Add(Items.StashAt(w, camp, new Cause(npc, "stashed by a person")), Resource.Oak, 1);
-        Assert.Equal(P, w.Tiles[camp].StashCause!.Value.Who);
-        Items.TakeFromStash(w, camp, Resource.Pine, 9);
-        Items.TakeFromStash(w, camp, Resource.Oak, 9);
-        Assert.Null(w.Tiles.GetValueOrDefault(camp)?.StashCause);
+        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
+        Assert.Equal(new Cause(P, "put down by the player"), w.Tiles[camp].PileCause);
+        // The pile keeps its maker while it stands; emptied, it is gone with its cause.
+        Items.Add(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.Oak, 1);
+        Assert.Equal(P, w.Tiles[camp].PileCause!.Value.Who);
+        Items.TakeFromPile(w, camp, Resource.Pine, 9);
+        Items.TakeFromPile(w, camp, Resource.Oak, 9);
+        Assert.Null(w.Tiles.GetValueOrDefault(camp)?.PileCause);
 
         for (int i = 0; i < 20 && Fire.PitAt(w, camp) == null; i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
@@ -192,7 +192,7 @@ public class SubstrateTests
                 string? kind = s.Kind switch
                 {
                     SignKind.Carcass => "carcass",
-                    SignKind.Stash => "stash",
+                    SignKind.Pile => "pile",
                     SignKind.FirePit => "fire pit",
                     SignKind.Shelter => "shelter",
                     SignKind.Prints => "tracks",
@@ -387,7 +387,7 @@ public class SubstrateTests
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("flint_knife"));
         var c = PlayerKill(w, camp);
-        Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
+        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
         Midday(w);
@@ -401,8 +401,8 @@ public class SubstrateTests
         var refusals = new (string Name, Func<string?> Refusal)[]
         {
             ("butcher", () => Work.Refusal(w, new Butcher(npc, c.Id))?.Reason),
-            ("unstash", () => Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))?.Reason),
-            ("stash", () => Work.Refusal(w, new Stash(npc, Resource.Birch, 1))?.Reason),
+            ("pick up", () => Work.Refusal(w, new PickUp(npc, Resource.Pine, 1))?.Reason),
+            ("put down", () => Work.Refusal(w, new PutDown(npc, Resource.Birch, 1))?.Reason),
             ("gather", () => Work.Refusal(w, new Gather(npc, 0))?.Reason),
             ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.Birch, 1))?.Reason),
             ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(npc))?.Reason),
@@ -421,7 +421,7 @@ public class SubstrateTests
     }
 
     /// The guard's exemptions (implemented with the gate, wired with it): a guard does not hold what
-    /// the viewer made (a stash, a fire, a shelter), a fire burning on the tile keeps it off, and a pack
+    /// the viewer made (a pile, a fire, a shelter), a fire burning on the tile keeps it off, and a pack
     /// that is afraid, running, or busy fighting someone else holds nothing. What the viewer killed is
     /// not exempt: a pack can take your kill.
     [Fact]
@@ -435,9 +435,9 @@ public class SubstrateTests
         var wolves = pack[0];
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "someone else's kill, with a pack on it");
         Assert.True(Tags.Of(w, t, npc).HasFlag(Tag.Occupied), "the viewer's own kill: the wolves have taken it");
-        var stash = Items.StashAt(w, camp, new Cause(npc, "stashed by a person"));
-        Items.Add(stash, Resource.Pine, 1);
-        var pile = LocationFeatures.StashAt(w, camp)!.Value;
+        var goods = Items.PileAt(w, camp, new Cause(npc, "put down by a person"));
+        Items.Add(goods, Resource.Pine, 1);
+        var pile = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.False(Tags.Of(w, pile, npc).HasFlag(Tag.Occupied), "what the viewer made");
         Assert.True(Tags.Of(w, pile, P).HasFlag(Tag.Occupied), "what someone else made");
 
@@ -489,7 +489,7 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All; // nothing there to gate: the thing's own refusal answers
         Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99))?.Reason);
         Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99))?.Reason);
-        Assert.Equal("no pine stashed here", Work.Refusal(w, new Unstash(P, Resource.Pine, 1))?.Reason);
+        Assert.Equal("no pine in the pile here", Work.Refusal(w, new PickUp(P, Resource.Pine, 1))?.Reason);
         Items.Add(Items.Pack(w, P), Resource.Pine, 1);
         Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1))?.Reason);
         Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P))?.Reason);
@@ -569,7 +569,7 @@ public class SubstrateTests
     public void EveryLocationFeatureRefusal_CallsAccess_InTheSource()
     {
         var dir = ArchitectureTests.SimSourceDir();
-        // Work's put-down (Stash) asks Access.PutDownRefusal; herds' Feed, Graze and Raid ask it too.
+        // Work's put-down (PutDown) asks Access.PutDownRefusal; herds' Feed, Graze and Raid ask it too.
         foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 4), ("Carrion.cs", 1) })
         {
             int n = Regex.Matches(File.ReadAllText(Path.Combine(dir, file)), @"Access\.Refusal\(").Count;

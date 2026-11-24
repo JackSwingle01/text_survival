@@ -77,7 +77,7 @@ public class WhereThingsGoTests
     {
         ["Graze"] = "a herd eating forage",
         ["Feed"] = "a herd eating a carcass",
-        ["Raid"] = "a herd raiding a stash",
+        ["Raid"] = "a herd raiding a pile",
         ["Watering"] = "an animal drinking where it stands",
     };
 

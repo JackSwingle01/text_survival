@@ -473,7 +473,7 @@ public class TracksTests
         Assert.False(w.Tiles.ContainsKey(a), "a clean tile is generation again: nothing to save");
         Assert.False(w.Tiles.ContainsKey(b));
         // Anything else on it keeps it, prints or not.
-        Items.StashAt(w, c);
+        Items.PileAt(w, c);
         w.Minute = 20_000;
         Tracks.RecordMove(w, a, b, TrackMaker.Human);
         Assert.True(w.Tiles.ContainsKey(c));

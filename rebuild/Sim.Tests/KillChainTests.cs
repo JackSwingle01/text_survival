@@ -27,21 +27,21 @@ public class KillChainTests
     // ---- stable ids ----
 
     [Fact]
-    public void A_Stash_BegunAgain_IsANewThing()
+    public void A_Pile_BegunAgain_IsANewThing()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
-        Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 1);
-        var first = LocationFeatures.StashAt(w, camp)!.Value;
-        Assert.Equal(1, Items.TakeFromStash(w, camp, Resource.Pine, 1));
+        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 1);
+        var first = LocationFeatures.PileAt(w, camp)!.Value;
+        Assert.Equal(1, Items.TakeFromPile(w, camp, Resource.Pine, 1));
         Assert.False(LocationFeatures.Exists(w, first));
-        Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Oak, 1);
-        var second = LocationFeatures.StashAt(w, camp)!.Value;
+        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Oak, 1);
+        var second = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.NotEqual(first, second);
-        Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old stash never names the new one");
+        Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old pile never names the new one");
         var loaded = Save.FromJson(Save.ToJson(w));
-        Assert.Equal(second, LocationFeatures.StashAt(loaded, camp));
-        Assert.Equal(w.NextStashId, loaded.NextStashId);
+        Assert.Equal(second, LocationFeatures.PileAt(loaded, camp));
+        Assert.Equal(w.NextPileId, loaded.NextPileId);
     }
 
     [Fact]
@@ -337,8 +337,8 @@ public class KillChainTests
         var bones = w.Tiles[camp].Carcasses!.Single(c => c.Animal == "Human");
         Assert.Equal(cause, bones.Cause);
         Assert.Equal(RemainsStage.Bones, Remains.StageOf(w, camp, bones));
-        Assert.Contains(w.Tiles[camp].Stash!.Gear, g => g.Kind == "stone_axe"); // what they carried lies beside them
-        Assert.Equal(npc, w.Tiles[camp].StashCause!.Value.Who);
+        Assert.Contains(w.Tiles[camp].Pile!.Gear, g => g.Kind == "stone_axe"); // what they carried lies beside them
+        Assert.Equal(npc, w.Tiles[camp].PileCause!.Value.Who);
     }
 
     /// Old bones can weather away while someone works on them: the work stops, nothing breaks.
@@ -629,11 +629,11 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var kill = Caribou(w, camp, new Cause(P, "the player's wooden spear"));
-        Items.Add(Items.StashAt(w, camp, new Cause(P, "stashed by the player")), Resource.Pine, 2);
+        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 2);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);
-        Assert.Null(Work.Refusal(w, new Unstash(P, Resource.Pine, 1)));
+        Assert.Null(Work.Refusal(w, new PickUp(P, Resource.Pine, 1)));
     }
 
     /// Review: an NPC that died holding a lit torch left it burning in the world's fires for good.
@@ -700,14 +700,14 @@ public class KillChainTests
     }
 
     [Fact]
-    public void The_Flock_RaidsAnUnwatchedStash_ThroughAccess()
+    public void The_Flock_RaidsAnUnwatchedPile_ThroughAccess()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(camp, Direction.West);
-        Items.Add(Items.StashAt(w, tile, new Cause(P, "stashed by the player")), Resource.RawMeat, 5);
+        Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
         var flock = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
-        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the stash tempts it
+        foreach (var raven in flock.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(flock)));
         w.Agent(P).Tile = tile;
         Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(flock))?.Reason);
@@ -719,7 +719,7 @@ public class KillChainTests
         w.AccessGates = Access.Wired;
         foreach (var id in w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => a.Id).ToList()) Agents.Remove(w, id);
         Sim.Advance(w, 5 * 1440);
-        Assert.True(Items.Have(w.Tiles[tile].Stash!, Resource.RawMeat) < 5, "five days unwatched and nothing taken");
+        Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < 5, "five days unwatched and nothing taken");
     }
 
     /// The flock is its own kind, not the hyena: it never guards, hunts or threatens, and no pack hunts it.
@@ -762,7 +762,7 @@ public class KillChainTests
         Assert.Null(Fauna.Refusal(w, new Graze(caribou)));
     }
 
-    /// Review: adding to a stash went through every gate and starting one through none. Putting down
+    /// Review: adding to a pile went through every gate and starting one through none. Putting down
     /// is one gate now: a guard bars it on someone else's pile, never on your own, begun or not.
     [Fact]
     public void Putting_Down_IsOneGate()
@@ -774,11 +774,11 @@ public class KillChainTests
         TestKit.Supply(w, npc);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
-        Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // a new pile: the player's own
-        Sim.Step(w, new Stash(P, Resource.Pine, 1), 1);
-        Assert.Null(Work.Refusal(w, new Stash(P, Resource.Pine, 1))); // still the player's own
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Stash(npc, Resource.Pine, 1))?.Reason); // someone else's
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Unstash(npc, Resource.Pine, 1))?.Reason);
+        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.Pine, 1))); // a new pile: the player's own
+        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
+        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.Pine, 1))); // still the player's own
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PutDown(npc, Resource.Pine, 1))?.Reason); // someone else's
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PickUp(npc, Resource.Pine, 1))?.Reason);
     }
 
     // ---- the caches ----

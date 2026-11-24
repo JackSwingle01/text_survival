@@ -60,8 +60,8 @@ foreach (string line in commands)
             case "melt": Run(new MeltSnow(AgentId.Player), Work.MeltSnowMinutes); break;
             case "butcher":
                 Run(new Butcher(AgentId.Player, int.Parse(parts[1]), parts.Length > 2 ? Enum.Parse<ButcherMode>(parts[2], ignoreCase: true) : null), 24 * 60); break;
-            case "stash": Run(new Stash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
-            case "take": Run(new Unstash(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
+            case "putdown": Run(new PutDown(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
+            case "take": Run(new PickUp(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), Kg(parts)), 1); break;
             case "wear": Run(new Wear(AgentId.Player, parts[1]), 1); break;
             case "takeoff": Run(new TakeOff(AgentId.Player, parts[1]), 1); break;
             case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
@@ -83,7 +83,7 @@ foreach (string line in commands)
             default:
                 Console.WriteLine("Commands: verbs, do N, wait N, rest N, sleep N, fire, fuel KIND KG, torch, charcoal, n/s/e/w [careful], go DIR [careful], " +
                                   "look, inv, forage [MIN] [FOCUS], gather POOL [MIN], drink, eat KIND [KG], cook KIND [KG], melt, " +
-                                  "butcher ID [MODE], stash KIND [KG], take KIND [KG], wear GEAR, takeoff GEAR, status, save [file], load [file], quit");
+                                  "butcher ID [MODE], putdown KIND [KG], take KIND [KG], wear GEAR, takeoff GEAR, status, save [file], load [file], quit");
                 continue;
         }
     }

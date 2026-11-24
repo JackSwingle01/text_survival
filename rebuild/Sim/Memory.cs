@@ -63,8 +63,8 @@ public sealed class TileMemory
     /// burning keeps the reckoning from beside it, which whoever reads it ages from VisitedMinute.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? FireHours { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SeenCarcass>? Carcasses { get; set; }
-    /// The stash by resource, to a tenth of a kilo.
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SortedDictionary<Resource, double>? Stash { get; set; }
+    /// The pile by resource, to a tenth of a kilo.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public SortedDictionary<Resource, double>? Pile { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Shelter { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public Danger Danger { get; set; }
     /// Perception-weighted hours spent searching here, foraging or walking through (Pools.Search): effort, whatever was found.
@@ -96,10 +96,10 @@ public enum Danger
 
 // ---- what a receipt says ----
 
-public enum ChangeKind { Fire, Stash, Carcass, Shelter }
+public enum ChangeKind { Fire, Pile, Carcass, Shelter }
 
 /// One difference between memory and what is there now. Was or Now is null for something that
-/// appeared or went: a carcass, a shelter, a resource in the stash, a fire pit.
+/// appeared or went: a carcass, a shelter, a resource in the pile, a fire pit.
 public sealed record Change(ChangeKind Kind, string Subject, string? Was, string? Now);
 
 /// "What happened here since you last saw it". Happened is the tile's
@@ -243,8 +243,8 @@ public static class Memories
     /// on arriving somewhere or waking. The tile underfoot is taken in every minute.
     public const int GlanceMinutes = 15;
     public const long SightingMemoryMinutes = 3 * 1440;
-    /// A stash is remembered to this, so what is there may be up to half of it less.
-    public const double StashPrecisionKg = 0.1;
+    /// A pile is remembered to this, so what is there may be up to half of it less.
+    public const double PilePrecisionKg = 0.1;
 
     public static Memory Of(Agent agent) =>
         (agent.Mind as PersonMind ?? throw new ArgumentException($"{agent.Id} is not a person and remembers nothing", nameof(agent))).Memory;
@@ -413,10 +413,10 @@ public static class Memories
         FirePhase? fire = pit != null ? Fire.Phase(pit) : null;
         var state = world.Tiles.GetValueOrDefault(tile);
         var carcasses = state?.Carcasses is { Count: > 0 } cs ? cs.Select(c => new SeenCarcass(c.Id, c.Animal)).OrderBy(c => c.Id).ToList() : null;
-        SortedDictionary<Resource, double>? stash = null;
-        if (state?.Stash is { } st)
+        SortedDictionary<Resource, double>? pile = null;
+        if (state?.Pile is { } st)
             foreach (var (r, kg) in st.Kg)
-                if (Math.Round(kg / StashPrecisionKg) > 0) (stash ??= [])[r] = Math.Round(kg / StashPrecisionKg) * StashPrecisionKg;
+                if (Math.Round(kg / PilePrecisionKg) > 0) (pile ??= [])[r] = Math.Round(kg / PilePrecisionKg) * PilePrecisionKg;
         string? shelter = Shelters.Peek(world, tile)?.Name;
 
         var happened = new List<WorldEvent>();
@@ -426,11 +426,11 @@ public static class Memories
         if (mem != null && since is long s)
         {
             if (mem.Fire != fire) changes.Add(new Change(ChangeKind.Fire, "fire", mem.Fire?.ToString(), fire?.ToString()));
-            foreach (var r in (mem.Stash?.Keys ?? Enumerable.Empty<Resource>()).Union(stash?.Keys ?? Enumerable.Empty<Resource>()).Order())
+            foreach (var r in (mem.Pile?.Keys ?? Enumerable.Empty<Resource>()).Union(pile?.Keys ?? Enumerable.Empty<Resource>()).Order())
             {
-                double was = mem.Stash?.GetValueOrDefault(r) ?? 0, nowKg = stash?.GetValueOrDefault(r) ?? 0;
+                double was = mem.Pile?.GetValueOrDefault(r) ?? 0, nowKg = pile?.GetValueOrDefault(r) ?? 0;
                 if (Math.Abs(was - nowKg) >= 0.1 - 1e-9)
-                    changes.Add(new Change(ChangeKind.Stash, r.ToString(), was > 0 ? Kg(was) : null, nowKg > 0 ? Kg(nowKg) : null));
+                    changes.Add(new Change(ChangeKind.Pile, r.ToString(), was > 0 ? Kg(was) : null, nowKg > 0 ? Kg(nowKg) : null));
             }
             var before = mem.Carcasses ?? [];
             var after = carcasses ?? [];
@@ -453,7 +453,7 @@ public static class Memories
         mem.Fire = fire;
         mem.FireHours = pit != null && Fire.IsActive(pit) ? Math.Round(Fire.FuelHours(pit), 1) : null;
         mem.Carcasses = carcasses;
-        mem.Stash = stash;
+        mem.Pile = pile;
         mem.Shelter = shelter;
         mem.Danger = Dens(world).Contains(tile) ? mem.Danger | Danger.Den : mem.Danger & ~Danger.Den;
         return new Receipt(agent.Id, tile, since, full, happened, changes, signs);
@@ -491,7 +491,7 @@ public static class Memories
 }
 
 /// A bounded per-tile list of world events, kept only for tiles someone has a stake in: a camp, a
-/// fire pit, a stash, a shelter or project of their own making, a carcass a person knows of.
+/// fire pit, a pile, a shelter or project of their own making, a carcass a person knows of.
 /// Written from the event stream, a minute at a time (Sim), so how steps are chunked cannot change it.
 public static class Journal
 {
@@ -521,8 +521,8 @@ public static class Journal
 
     /// What a place's story is made of: its fire going out, its shelter coming down, a death, a wound,
     /// a kill (a carcass appearing), a fight, a wounded animal getting away, something built, the pass
-    /// crossed, and its stash taken by someone whose camp it is not. Everything else - feeding the fire,
-    /// stashing, eating, cooking, strikes that failed, a fire lit - makes way for these, so no amount of
+    /// crossed, and its pile taken by someone whose camp it is not. Everything else - feeding the fire,
+    /// putting down, eating, cooking, strikes that failed, a fire lit - makes way for these, so no amount of
     /// it can push out the fire going out.
     // A carcass going (butchered away) has no filed event: Butchered is a step's tally (Files).
     public static bool IsNotable(World world, WorldEvent e) => e switch
@@ -531,7 +531,7 @@ public static class Journal
             or Built or CrossedThePass => true,
         // Whose camp it was when it was taken, not when the entry is weighed: a camp that moves on does not
         // turn its owner's old chores into thefts.
-        Unstashed u => u.Taken,
+        PickedUp u => u.Taken,
         _ => false,
     };
 
@@ -554,7 +554,7 @@ public static class Journal
     public static bool Staked(World world, TileId tile)
     {
         if (tile == Map.Of(world).Camp || Fire.PitAt(world, tile) != null || world.Projects.ContainsKey(tile)) return true;
-        if (world.Tiles.TryGetValue(tile, out var state) && state.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) return true;
+        if (world.Tiles.TryGetValue(tile, out var state) && state.Pile is { } pile && (pile.Kg.Count > 0 || pile.Gear.Count > 0)) return true;
         if (world.Shelters.TryGetValue(tile, out var shelter) && !Shelters.Kinds[shelter.Kind].IsNatural) return true;
         foreach (var a in world.Agents.Values)
         {

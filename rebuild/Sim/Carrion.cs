@@ -2,7 +2,7 @@ namespace Survival;
 
 /// The carrion flock (Species.Raven: ravens, a fox and a wolverine folded into one kind,
 /// emergent-world-design §4). It hunts nothing and guards nothing. Every interaction goes through the owning system (Carcasses.EatMeat,
-/// Remains.Pick, Items.TakeFromStash) via Access. Its signs (Tags.Beacon, RavensOver) are derived.
+/// Remains.Pick, Items.TakeFromPile) via Access. Its signs (Tags.Beacon, RavensOver) are derived.
 public static partial class Fauna
 {
     public const int CarrionRangeTiles = 10;
@@ -73,11 +73,11 @@ public static partial class Fauna
     static Refusal? RaidRefusal(World world, Agent herd)
     {
         if (BehaviorOf(herd.Species) != HerdBehavior.Carrion) return new("only the carrion flock raids");
-        if (LocationFeatures.StashAt(world, herd.Tile) is not LocationFeature stash) return new("no stash here");
-        var inv = world.Tiles[herd.Tile].Stash!;
-        if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the stash it eats");
+        if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("no pile here");
+        var inv = world.Tiles[herd.Tile].Pile!;
+        if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the pile it eats");
         if (Nearby.At(world, herd.Tile).Any(id => world.Agents[id] is { Mind: PersonMind } p && Sim.IsAlive(p))) return new("someone is keeping it");
-        return Access.Refusal(world, herd.Id, stash);
+        return Access.Refusal(world, herd.Id, pile);
     }
 
     static readonly Resource[] RaidFood = [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat];
@@ -89,7 +89,7 @@ public static partial class Fauna
         foreach (var r in RaidFood)
             if (want > taken)
             {
-                double kg = Items.TakeFromStash(world, herd.Tile, r, want - taken);
+                double kg = Items.TakeFromPile(world, herd.Tile, r, want - taken);
                 taken += kg;
                 kcal += kg * Items.Resources[r].KcalPerKg;
             }

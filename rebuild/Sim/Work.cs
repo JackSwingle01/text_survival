@@ -10,7 +10,7 @@ public sealed class WorkSession
     public required Activity Activity { get; init; }
     public int Minutes { get; set; }
     public Inventory Got { get; init; } = new();
-    /// What did not fit in the pack and went on the tile's stash.
+    /// What did not fit in the pack and went on the tile's pile.
     public Inventory Dropped { get; init; } = new();
     public PoolId? Pool { get; init; }
     public double TargetMinutes { get; init; }
@@ -38,7 +38,7 @@ public static class Work
     public const double MeltSnowLiters = 1.0;
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or Stash or Unstash or Wear or TakeOff or WalkAbout;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or PutDown or PickUp or Wear or TakeOff or WalkAbout;
 
     /// Keep Walking: five minutes walking the ground to notice new clues.
     public const int WalkAboutMinutes = 5;
@@ -201,7 +201,7 @@ public static class Work
                     {
                         TreePool when !Pools.HasTrees(world, id) => new("all the trees here have been felled"),
                         ShelterFind f => new($"the {f.Name} is shelter, not something to gather"),
-                        CarcassFind or StashFind => new("nothing like that here"), // found, it lies on the tile as itself
+                        CarcassFind or PileFind => new("nothing like that here"), // found, it lies on the tile as itself
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
                         _ => ToolRefusal(def, pack),
                     };
@@ -237,16 +237,16 @@ public static class Work
                 return HasCookingFire(world, agent.Tile) ? null : new("no fire to cook on", new MissingState(Lack.BurningFire));
             case MeltSnow:
                 return HasCookingFire(world, agent.Tile) ? null : new("no fire to melt snow on", new MissingState(Lack.BurningFire));
-            case Stash s:
-                if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Stash a positive amount");
-                // Putting down, on a stash already here or the first thing that makes one: one gate.
-                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is { } stashBarred) return stashBarred;
+            case PutDown s:
+                if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Put down a positive amount");
+                // Putting down, on a pile already here or the first thing that makes one: one gate.
+                if (Access.PutDownRefusal(world, agent.Id, agent.Tile) is { } pileBarred) return pileBarred;
                 return Items.Have(pack, s.Resource) > 0 ? null : new($"no {Names.Of(s.Resource)} to put down", new MissingResource(s.Resource, s.Kg));
-            case Unstash u:
+            case PickUp u:
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
-                var stash = world.Tiles.GetValueOrDefault(agent.Tile)?.Stash;
-                if (stash == null || Items.Have(stash, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} stashed here");
-                if (Access.Refusal(world, agent.Id, LocationFeatures.StashAt(world, agent.Tile)!.Value) is { } unstashBarred) return unstashBarred;
+                var pile = world.Tiles.GetValueOrDefault(agent.Tile)?.Pile;
+                if (pile == null || Items.Have(pile, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} in the pile here");
+                if (Access.Refusal(world, agent.Id, LocationFeatures.PileAt(world, agent.Tile)!.Value) is { } pickUpBarred) return pickUpBarred;
                 return Items.CarriedKg(agent) >= Items.CapacityKg(pack)
                     ? new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)))
                     : null;
@@ -322,7 +322,7 @@ public static class Work
 
     // ---- the session ----
 
-    /// Starts work Refusal allowed. Instant work (stash, wear, eating and drinking) happens here.
+    /// Starts work Refusal allowed. Instant work (putting down, wear, eating and drinking) happens here.
     public static WorkSession Begin(World world, Activity activity, List<WorldEvent> events)
     {
         if (Refusal(world, activity) is { } refused) throw new InvalidOperationException($"Work.Begin on a refused activity: {refused}");
@@ -376,19 +376,19 @@ public static class Work
                     events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
                     return new WorkSession { Activity = activity, TargetMinutes = DrinkMinutes };
                 }
-            case Stash s:
+            case PutDown s:
                 {
                     double kg = Items.Take(pack, s.Resource, s.Kg);
-                    Items.Add(Items.StashAt(world, agent.Tile, new Cause(agent.Id, $"stashed by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
-                    events.Add(new Stashed(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
+                    Items.Add(Items.PileAt(world, agent.Tile, new Cause(agent.Id, $"put down by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
+                    events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
                     return new WorkSession { Activity = activity };
                 }
-            case Unstash u:
+            case PickUp u:
                 {
-                    double kg = Items.TakeFromStash(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
+                    double kg = Items.TakeFromPile(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
                     Items.Add(pack, u.Resource, kg);
                     bool taken = agent.Mind is not PersonMind || Memories.CampOf(world, agent) != agent.Tile;
-                    events.Add(new Unstashed(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
+                    events.Add(new PickedUp(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
                     return new WorkSession { Activity = activity };
                 }
             case Wear w:
@@ -499,7 +499,7 @@ public static class Work
                 Items.Add(water, Resource.Water, MeltSnowLiters);
                 Keep(world, agent, s, water, events);
                 return Melted;
-            case Stash or Unstash or Wear or TakeOff:
+            case PutDown or PickUp or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
             case WalkAbout:
                 Pools.Search(world, agent, Traversal.TravelSearchPct * Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)) / 60.0, events);

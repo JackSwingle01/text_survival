@@ -120,7 +120,7 @@ public class NpcTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var pack = MindOf(npc).Pack;
         foreach (var t in Fire.Tinders) pack.Kg.Remove(t);
-        Items.Add(Items.StashAt(w, camp), Resource.Birch, 20);
+        Items.Add(Items.PileAt(w, camp), Resource.Birch, 20);
         w.Minute = 9 * 60; // evening: a fire is wanted tonight
         var moves = new List<(TileId To, bool Worked)>(); // where it stepped, and whether it did anything there before moving on
         bool lit = false;
@@ -156,8 +156,8 @@ public class NpcTests(ITestOutputHelper output)
                 if (m.InBounds(new TileId(camp.X + dx, camp.Y + dy))) w.PoolCache[new TileId(camp.X + dx, camp.Y + dy)] = [];
         w.PoolCache[near[1]] = [forage];
         w.PoolCache[near[4]] = [forage];
-        Items.Add(Items.StashAt(w, camp), Resource.Birch, 40); // warmth seen to: food is the Need, and its sources are the forage
-        Items.Add(Items.StashAt(w, camp), Resource.Tinder, 1);
+        Items.Add(Items.PileAt(w, camp), Resource.Birch, 40); // warmth seen to: food is the Need, and its sources are the forage
+        Items.Add(Items.PileAt(w, camp), Resource.Tinder, 1);
         npc.Body.CaloriesKcal = 0;
         var (a, _) = Decide(w, npc);
         output.WriteLine($"{a}");
@@ -207,7 +207,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
         Agents.Spawn(w, Species.CaveBear, next, [next]);
-        Items.Add(Items.StashAt(w, camp), Resource.Birch, 40);
+        Items.Add(Items.PileAt(w, camp), Resource.Birch, 40);
         Pit(w, camp, Resource.Kindling, 3);
         bool slept = false;
         while (w.Minute < 1440 && Body.IsAlive(w.Agent(npc).Body))

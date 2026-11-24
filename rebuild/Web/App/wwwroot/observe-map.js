@@ -86,7 +86,7 @@ export function createObserverMap(canvas, get) {
       ctx.drawImage(flat, sx(0), sy(0), m.width * s, m.height * s);
     }
 
-    // places: fires, shelters, carcasses, stashes
+    // places: fires, shelters, carcasses, piles
     const icons = s >= 16, sp = Math.min(32, s * 0.7);
     for (const p of V.places) {
       if (p.x < x0 - 1 || p.x > x1 + 1 || p.y < y0 - 1 || p.y > y1 + 1) continue;
@@ -100,7 +100,7 @@ export function createObserverMap(canvas, get) {
       if (!icons) continue;
       if (p.shelter) sprite('shelter', px + 2, py + 2, sp * 0.8);
       if (p.carcass) sprite('carcass', px + s - sp * 0.7, py + s - sp * 0.7, sp * 0.6);
-      if (p.stash) sprite('cache', px + 4, py + s - sp * 0.6, sp * 0.5);
+      if (p.pile) sprite('cache', px + 4, py + s - sp * 0.6, sp * 0.5);
       if (p.fire && p.fire !== 'Cold') sprite(burning ? 'fire' : 'embers', px + s - sp * 0.8, py + s - sp * 0.8, sp * 0.75);
     }
 

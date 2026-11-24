@@ -1,5 +1,5 @@
 {
-  "Version": 25,
+  "Version": 26,
   "World": {
     "Seed": 17,
     "FixedWeather": null,
@@ -34,17 +34,17 @@
             "Grazed": {}
           }
         },
-        "Stash": {
+        "Pile": {
           "Kg": {
             "Oak": 34.97920517535081
           },
           "Gear": []
         },
-        "StashCause": {
+        "PileCause": {
           "Who": 1,
           "What": "dropped by a person, pack full"
         },
-        "StashId": 1
+        "PileId": 1
       },
       "7,42": {
         "Tracks": {
@@ -60,7 +60,7 @@
             "SnowFallenM": 1.1215786030652104
           }
         },
-        "Stash": {
+        "Pile": {
           "Kg": {
             "Pine": 2
           },
@@ -75,11 +75,11 @@
             }
           ]
         },
-        "StashCause": {
+        "PileCause": {
           "Who": 0,
-          "What": "stashed by the player"
+          "What": "put down by the player"
         },
-        "StashId": 0
+        "PileId": 0
       },
       "8,42": {
         "Tracks": {
@@ -610,7 +610,7 @@
                 "ForageDensity": 0.38,
                 "Fire": 1,
                 "FireHours": 0.3,
-                "Stash": {
+                "Pile": {
                   "Pine": 2
                 },
                 "Shelter": "Overhang",
@@ -1216,7 +1216,7 @@
                 "ForageDensity": 1.013609329260508,
                 "Fire": 5,
                 "FireHours": 0.5,
-                "Stash": {
+                "Pile": {
                   "Oak": 35
                 },
                 "SearchedHours": 0.09374999999999999,
@@ -2408,7 +2408,7 @@
     },
     "TracksSweptHour": 1,
     "NextCarcassId": 0,
-    "NextStashId": 2,
+    "NextPileId": 2,
     "NextShelterId": 1,
     "Shelters": {
       "7,42": {
@@ -2448,7 +2448,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "unstashed",
+          "kind": "pickedup",
           "Who": 1,
           "Resource": 22,
           "Kg": 0.019999999999999574,
@@ -2457,7 +2457,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "stashed",
+          "kind": "putonpile",
           "Who": 1,
           "Resource": 8,
           "Kg": 6.65208906854712,
@@ -2465,7 +2465,7 @@
           "Tile": "7,41"
         },
         {
-          "kind": "unstashed",
+          "kind": "pickedup",
           "Who": 1,
           "Resource": 22,
           "Kg": 0.7099999999999973,
@@ -2505,7 +2505,7 @@
           "Tile": "7,42"
         },
         {
-          "kind": "stashed",
+          "kind": "putonpile",
           "Who": 0,
           "Resource": 6,
           "Kg": 2,

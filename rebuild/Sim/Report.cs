@@ -84,10 +84,10 @@ public static class Report
                         case CarcassFind cf when !FoundByAnyone(w, id):
                             Add(t, "carcass find", FindCategory.Resource, null, Invariant($"{cf.Name} ({cf.Animal}, {cf.HarvestedPct:P0} eaten), hidden"));
                             break;
-                        case StashFind sf when !FoundByAnyone(w, id):
-                            Add(t, "stash find", FindCategory.Resource, null, $"{sf.Name}, hidden");
+                        case PileFind sf when !FoundByAnyone(w, id):
+                            Add(t, "pile find", FindCategory.Resource, null, $"{sf.Name}, hidden");
                             break;
-                        case CarcassFind or StashFind: break; // found: the carcass or stash's own row says so
+                        case CarcassFind or PileFind: break; // found: the carcass or pile's own row says so
                         case ForagePool or TreePool: break; // the skeleton: see the class comment
                         default: throw new InvalidOperationException($"Report has no row for pool {pools[i].GetType().Name}");
                     }
@@ -121,10 +121,10 @@ public static class Report
                 case SignKind.RavensOver:
                     Add(t, "ravens", FindCategory.Sign, age, $"ravens over {sign.Cause?.What ?? "something"}", sign.Cause);
                     break;
-                case SignKind.Stash:
-                    var stash = w.Tiles[t].Stash!;
-                    Add(t, "stash", FindCategory.Resource, age, "stash: " + string.Join(", ",
-                        stash.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(stash.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
+                case SignKind.Pile:
+                    var pile = w.Tiles[t].Pile!;
+                    Add(t, "pile", FindCategory.Resource, age, "pile: " + string.Join(", ",
+                        pile.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(pile.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
                     break;
                 case SignKind.FirePit:
                     var f = w.Fires[new FireId(sign.LocationFeature.Index)];
@@ -214,7 +214,7 @@ public static class Report
         var tile = w.Tiles.GetValueOrDefault(p.Tile);
         foreach (var c in tile?.Carcasses ?? [])
             lines.Add(Invariant($"carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevelNow(w, p.Tile, c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left"));
-        if (tile?.Stash is { } stash && (stash.Kg.Count > 0 || stash.Gear.Count > 0)) lines.Add($"stash: {Items.Describe(stash)}");
+        if (tile?.Pile is { } pile && (pile.Kg.Count > 0 || pile.Gear.Count > 0)) lines.Add($"pile: {Items.Describe(pile)}");
         if (Work.HasOpenWater(w, p.Tile)) lines.Add("open water");
         return lines;
     }

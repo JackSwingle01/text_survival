@@ -237,8 +237,8 @@ public class CarcassTests
         Assert.Equal(Work.PackFull, Sim.Step(w, new Butcher(P, c.Id), 60).InterruptedReason); // refused: no room, nothing to cut
         for (int i = 0; i < 40 && !Carcasses.IsButchered(c); i++)
         {
-            Sim.Step(w, new Stash(P, Resource.RawMeat, 99), 1);
-            foreach (var res in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat }) Sim.Step(w, new Stash(P, res, 99), 1);
+            Sim.Step(w, new PutDown(P, Resource.RawMeat, 99), 1);
+            foreach (var res in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat }) Sim.Step(w, new PutDown(P, res, 99), 1);
             Sim.Step(w, new Butcher(P, c.Id), 60);
             w.Agent(P).Body.EnergyMinutes = Body.MaxEnergyMinutes;
             w.Agent(P).Body.CaloriesKcal = 1500; w.Agent(P).Body.HydrationMl = 3000;
@@ -399,19 +399,19 @@ public class CarcassTests
 
         var (small, c2) = Make("Caribou");
         Items.Pack(small, P).Gear.Add(Items.Make("flint_knife"));
-        var stash = new Inventory();
+        var pile = new Inventory();
         for (int session = 0; session < 20 && Carcasses.Find(small, Map.Of(small).Camp, c2.Id) != null; session++)
         {
             Sim.Step(small, new Butcher(P, c2.Id, ButcherMode.QuickStrip), 24 * 60);
             var pack = Items.Pack(small, P);
-            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(stash, r, Items.Take(pack, r, 999));
+            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(pile, r, Items.Take(pack, r, 999));
             Refresh(small);
         }
         Assert.Null(Carcasses.Find(small, Map.Of(small).Camp, c2.Id));
         // Bone and fat are cut at half weight in a quick strip, and do not rot: what was put back
         // must not be halved again. (Meat rots in the hours between, so it is not compared.)
-        Assert.Equal(Items.Have(bigPack, Resource.Bone), Items.Have(stash, Resource.Bone), 9);
-        Assert.Equal(Items.Have(bigPack, Resource.RawFat), Items.Have(stash, Resource.RawFat), 9);
+        Assert.Equal(Items.Have(bigPack, Resource.Bone), Items.Have(pile, Resource.Bone), 9);
+        Assert.Equal(Items.Have(bigPack, Resource.RawFat), Items.Have(pile, Resource.RawFat), 9);
     }
 
     /// A carcass keeps the mode it was first butchered in; asking for another is refused, not swapped.

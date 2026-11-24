@@ -114,7 +114,7 @@ public sealed class Encounter
     public Cell FireCell { get; set; }
     /// The unit that has just run from the player, waiting on whether the player gives chase.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? PendingFlight { get; set; }
-    /// Weapons thrown and lying on the grid, to be picked up; the aftermath stashes whatever is left.
+    /// Weapons thrown and lying on the grid, to be picked up; the aftermath piles whatever is left.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<DroppedWeapon>? Dropped { get; set; }
     /// Who watches the fight round by round (Combat.Watch); never saved.
@@ -761,7 +761,7 @@ public static partial class Combat
     static void Exert(World world, CombatUnit u) => Body.Burst(BodyOf(world, u), RunningOf(world, u));
 
     /// A thrown weapon: closer is surer, small targets are harder, and the weapon lands where the target
-    /// stands, to be picked up again (PickUp); the aftermath stashes it if nobody does.
+    /// stands, to be picked up again (PickUp); the aftermath piles it if nobody does.
     static ActionResult Throw(World world, Encounter enc, CombatUnit attacker, CombatUnit target, List<WorldEvent> events)
     {
         var weapon = attacker.Weapon ?? throw new InvalidOperationException("No weapon to throw");

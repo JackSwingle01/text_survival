@@ -179,7 +179,7 @@ public class ForageFollowupTests
     static List<PoolDef> Rolled(string find, int count) =>
         [.. Enumerable.Range(0, count).Select(i => Pools.Make(Content.Tables.Discoveries.Finds[find], Rng.ForSystem(i, $"find {find}"), 1))];
 
-    static IReadOnlyList<string> FoundOf(PoolDef p) => p switch { StockPool s => s.Found!, StashFind f => f.Found!, _ => throw new InvalidOperationException(p.Name) };
+    static IReadOnlyList<string> FoundOf(PoolDef p) => p switch { StockPool s => s.Found!, PileFind f => f.Found!, _ => throw new InvalidOperationException(p.Name) };
 
     [Theory]
     [InlineData("OldCampsite"), InlineData("KillSite"), InlineData("HiddenCache"), InlineData("BoneScatter"), InlineData("SquirrelCache"),

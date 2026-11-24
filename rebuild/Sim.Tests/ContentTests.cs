@@ -302,7 +302,7 @@ public class ContentTests
     [InlineData("items.json", "\"startingClothes\": [", "\"startingClothes\": [ null,", "items.json.startingClothes[0] is null")]
     [InlineData("discoveries.json", "\"Water\": [ \"frozen_puddle\"", "\"Water\": [ null, \"frozen_puddle\"", "discoveries.json.detailDraws.Water[0] is null")]
     [InlineData("effects.json", "\"Sweating\": { \"severityPerHour\": -2, \"treatmentAboveSeverity\": null }", "\"Sweating\": null", "effects.json.Sweating is null")]
-    [InlineData("discoveries.json", "\"shuffle\": [", "\"shuffle\": [ null,", "discoveries.json.finds.MedicineStash.items[1].shuffle[0] is null")]
+    [InlineData("discoveries.json", "\"shuffle\": [", "\"shuffle\": [ null,", "discoveries.json.finds.MedicineBundle.items[1].shuffle[0] is null")]
     public void Loader_RefusesANullElement_InEveryFile(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 

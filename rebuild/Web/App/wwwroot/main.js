@@ -44,7 +44,7 @@ const dirTo = (from, to) => Object.keys(DIRS).find(d => from.x + DIRS[d][0] === 
 
 const KIND_ICON = {
   wait: 'ui/clock', rest: 'ui/energy', sleep: 'ui/moon', fire: 'ui/fire', fuel: 'ui/fuel', torch: 'ui/torch', charcoal: 'ui/charcoal',
-  gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', cook: 'ui/meat', melt: 'ui/water', stash: 'ui/storage',
+  gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', cook: 'ui/meat', melt: 'ui/water', putdown: 'ui/storage',
   take: 'ui/storage', wear: 'ui/equip', takeoff: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
   make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', walkabout: 'ui/continue', other: 'ui/inspect',
 };
@@ -392,7 +392,7 @@ function renderPlace(d, v) {
   if (p?.fire) lines.push([p.fire === 'Embers' || p.fire === 'Cold' ? 'embers' : 'fire', `Fire: ${p.fire}`, ago(v.minute - p.seenMinute)]);
   if (p?.shelter) lines.push(['shelter', p.shelter, '']);
   if (p?.carcass) lines.push(['carcass', 'A carcass', '']);
-  if (p?.stash) lines.push(['cache', 'A stash', '']);
+  if (p?.pile) lines.push(['cache', 'A pile', '']);
   if (p?.den) lines.push(['danger', 'A den', '']);
   if (p?.hurt) lines.push(['ui/blood', 'You were hurt here', '']);
   for (const s of sights) lines.push([s.species, `${s.count > 1 ? `${s.count} × ` : ''}${s.species.split('/').pop()}`, ago(v.minute - s.minute)]);

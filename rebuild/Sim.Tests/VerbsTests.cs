@@ -105,18 +105,18 @@ public class VerbsTests
         return w.Tiles[tile].Carcasses!.MaxBy(c => c.Id)!;
     }
 
-    /// A stash of one thing shows taking it as its action; a stash of two is Interact.
+    /// A pile of one thing shows taking it as its action; a pile of two is Interact.
     [Fact]
-    public void AStash_OffersTakingEachThingInIt()
+    public void APile_OffersTakingEachThingInIt()
     {
         var w = Camp(out _);
         TestKit.Supply(w);
-        Sim.Step(w, new Stash(P, Resource.Pine, 2), 1);
-        Assert.Equal(new Unstash(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Stash).Action!.Activity);
-        Sim.Step(w, new Stash(P, Resource.Birch, 3), 1);
-        var stash = Listed(w, LocationFeatureKind.Stash);
-        Assert.True(stash.Interact);
-        Assert.Equal(new Activity[] { new Unstash(P, Resource.Pine, 2), new Unstash(P, Resource.Birch, 3) }, stash.Menu.Select(v => v.Activity));
+        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
+        Assert.Equal(new PickUp(P, Resource.Pine, 2), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
+        Sim.Step(w, new PutDown(P, Resource.Birch, 3), 1);
+        var pile = Listed(w, LocationFeatureKind.Pile);
+        Assert.True(pile.Interact);
+        Assert.Equal(new Activity[] { new PickUp(P, Resource.Pine, 2), new PickUp(P, Resource.Birch, 3) }, pile.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -289,8 +289,8 @@ public class VerbsTests
         var eat = Assert.Single(carried, v => v.Activity is Eat);
         Assert.Equal(Resource.Berries, ((Eat)eat.Activity).Food);
         Assert.Equal("Eat berries", eat.Label);
-        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<Stash>().Select(s => s.Resource));
-        Assert.All(carried.Select(v => v.Activity).OfType<Stash>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
+        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<PutDown>().Select(s => s.Resource));
+        Assert.All(carried.Select(v => v.Activity).OfType<PutDown>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
         Assert.Equal(new Wear(P, "fur_chest_wrap"), Assert.Single(carried, v => v.Activity is Wear).Activity);
         Assert.Equal(w.Agent(P).Body.Worn.Select(g => g.Kind), carried.Select(v => v.Activity).OfType<TakeOff>().Select(t => t.Gear));
         AssertEveryVerbIsTrue(w, P);

@@ -58,7 +58,7 @@ public static class Access
     static string OccupiedReason(World world, LocationFeature t, AgentId who) =>
         $"{Cause.Describe(world, Tags.Occupants(world, t, who).Min())} guards it";
 
-    /// What is put down lies on top, so snow or ice over a stash does not bar adding to it; only its occupant does.
+    /// What is put down lies on top, so snow or ice over a pile does not bar adding to it; only its occupant does.
     public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile) => PutDownRefusal(world, who, tile, world.AccessGates);
 
     public static Refusal? PutDownRefusal(World world, AgentId who, TileId tile, Gate gates)
@@ -66,7 +66,7 @@ public static class Access
         if (world.Agent(who).Tile != tile) return new(OutOfReach);
         if (!gates.HasFlag(Gate.Occupied)) return null;
         // A new pile is the putter's own, so no occupant bars it.
-        var pile = LocationFeatures.StashAt(world, tile);
+        var pile = LocationFeatures.PileAt(world, tile);
         if (pile == null) return null;
         return Tags.Occupants(world, pile.Value, who).Count > 0 ? new(OccupiedReason(world, pile.Value, who)) : null;
     }

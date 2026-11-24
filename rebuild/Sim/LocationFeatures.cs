@@ -5,7 +5,7 @@ namespace Survival;
 /// Every kind of location feature a sign, an access check or a verb can point at (emergent-world-design §3.1).
 /// Switches over it have no default arm and CS8509 is an error in Sim, so a new kind fails the build
 /// wherever it is not handled.
-public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Stash, Fire, Shelter, Track, Sign, Item }
+public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelter, Track, Sign, Item }
 
 /// One location feature in the world. Index must survive save and load and never shift when another is
 /// removed; per kind:
@@ -14,8 +14,8 @@ public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Stash, Fire, Shelt
 ///   a herd's dead become carcasses, Combat.Aftermath).
 /// - Carcass: Carcass.Id, never reused (World.NextCarcassId).
 /// - Pool: the index in Pools.At (generation order; pools are never removed).
-/// - Stash: TileState.StashId, new for each stash begun on the tile, so a ref to an emptied stash
-///   never names the next one. A stash set down by hand in a test has no id: NoId.
+/// - Pile: TileState.PileId, new for each pile begun on the tile, so a ref to an emptied pile
+///   never names the next one. A pile set down by hand in a test has no id: NoId.
 /// - Fire: the FireId of a pit. Carried torches are not on a tile and are not location features.
 /// - Shelter: ShelterState.Id, never reused; ShelterState.Unplaced for a find shown before it stands.
 /// - Track: (int)TrackMaker for that maker's prints; TrailIndexBase + (int)Direction for the desire
@@ -83,7 +83,7 @@ public static class LocationFeatures
         foreach (var c in state?.Carcasses ?? []) found.Add(new(LocationFeatureKind.Carcass, tile, c.Id));
         var pools = Pools.At(world, tile);
         for (int i = 0; i < pools.Count; i++) found.Add(new(LocationFeatureKind.Pool, tile, i));
-        if (state != null && StashOf(state, tile) is LocationFeature stash) found.Add(stash);
+        if (state != null && PileOf(state, tile) is LocationFeature pile) found.Add(pile);
         foreach (var (id, f) in world.Fires)
             if (f.CarriedBy == null && f.Tile == tile) found.Add(new(LocationFeatureKind.Fire, tile, id.Value));
         if (ShelterAt(world, tile) is LocationFeature shelter) found.Add(shelter);
@@ -109,7 +109,7 @@ public static class LocationFeatures
                 && Sim.IsAlive(a) == (t.Kind == LocationFeatureKind.Agent),
             LocationFeatureKind.Carcass => Carcasses.Find(world, t.Tile, t.Index) != null,
             LocationFeatureKind.Pool => t.Index >= 0 && t.Index < Pools.At(world, t.Tile).Count,
-            LocationFeatureKind.Stash => StashAt(world, t.Tile) == t,
+            LocationFeatureKind.Pile => PileAt(world, t.Tile) == t,
             LocationFeatureKind.Fire => world.Fires.TryGetValue(new FireId(t.Index), out var f) && f.CarriedBy == null && f.Tile == t.Tile,
             LocationFeatureKind.Shelter => ShelterAt(world, t.Tile) == t,
             LocationFeatureKind.Track => t.TrailDirection is Direction dir ? LocationFeature.Trail(t.Tile, dir) == t && TrailTo(world, t.Tile, dir) != TrailTier.None
@@ -125,12 +125,12 @@ public static class LocationFeatures
         if (!Exists(world, t)) throw new ArgumentException($"No {t} in the world", nameof(t));
     }
 
-    /// An empty pile is no stash.
-    public static LocationFeature? StashAt(World world, TileId tile) =>
-        world.Tiles.TryGetValue(tile, out var state) ? StashOf(state, tile) : null;
+    /// An empty pile is no pile.
+    public static LocationFeature? PileAt(World world, TileId tile) =>
+        world.Tiles.TryGetValue(tile, out var state) ? PileOf(state, tile) : null;
 
-    static LocationFeature? StashOf(TileState state, TileId tile) =>
-        state.Stash is { } s && (s.Kg.Count > 0 || s.Gear.Count > 0) ? new(LocationFeatureKind.Stash, tile, state.StashId ?? LocationFeature.NoId) : null;
+    static LocationFeature? PileOf(TileState state, TileId tile) =>
+        state.Pile is { } s && (s.Kg.Count > 0 || s.Gear.Count > 0) ? new(LocationFeatureKind.Pile, tile, state.PileId ?? LocationFeature.NoId) : null;
 
     public static LocationFeature? ShelterAt(World world, TileId tile) =>
         Shelters.Peek(world, tile) is { } s ? new(LocationFeatureKind.Shelter, tile, s.Id) : null;
