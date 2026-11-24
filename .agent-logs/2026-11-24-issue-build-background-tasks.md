@@ -27,3 +27,13 @@ its transcript should show `run_in_background` calls, no `sleep` polls, and a re
 Follow-up: if that build exits before a background sub-agent reports (what `claude-review.yml` saw), put
 the flag back and tell the build to wait in the foreground with `timeout` and `wait`.
 Follow-up: `NpcBenchReport` prints nothing until every seed has finished, so one stuck seed hides the rest.
+
+Revised: background tasks on -> off again, the first follow-up's fallback. The first build after the
+merge (#107) started its scout sub-agent in the background, wrote "Waiting for the scout's report" and
+ended its turn; a run with `--json-schema` is told to call StructuredOutput the moment a turn ends, so
+it answered needs_user 74 seconds in, with no code. The docs' "the run stays open for background work"
+does not hold once structured output is enforced. The flag is back; `BASH_MAX_TIMEOUT_MS` is 30 minutes
+(the default limit stays 2), and the prompt says to pass a `timeout` and wait in the foreground, with
+`&` and `wait` for commands side by side. The 30-minute rule for measurements stays.
+Not checked: a live run, again; the next build's transcript should show long commands with a `timeout`
+and no `sleep` polls.
