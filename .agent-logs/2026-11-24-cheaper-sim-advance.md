@@ -26,6 +26,20 @@ the issue agent and to work in the session; issue closed, branch renamed `cheape
 Revised: timing runs on a machine under load (load average 23) swung 2x between repetitions →
 report the best of five repetitions, alternating builds.
 
+Revised: Jack asked for the next low-risk ones after the PR opened → `SpeciesTable.Of` reads an array
+by the species' number (was a read-only dictionary through its interface, 3.9 %), and `Fauna.Load`
+asks `Shares` once per diet per call instead of once per neighbouring animal (`Shares` was 7.8 %; it
+depends only on the two diets and the pool). 193-197 → 186 us per minute. Saves after 30,000-60,000
+minutes of seeds 5, 17 and 99 hash the same as on `main`.
+
+Revised: planned to make `World.Rng(system, who)` cheaper (5.4 %) → left. Its cost is the stream-name
+string and two sorted-dictionary walks; skipping them needs a cache beside `World.Rngs`, which is
+public, mutable and saved, the same question as `World.Agents`. Making the "body" stream lazy in
+`Fauna.Live` would change which streams a save holds.
+
+Revised: a comment on each of `Nearby.cs` and `Fauna.cs` tripped the comment-ratio ratchet → removed;
+the names carry it (`sharesByDiet`).
+
 Follow-up: the remaining `world.Agent(id)` reads (Scheduler, Combat, `World.Rng(system, who)`) are
 about 4 % of `Sim.Advance`. Removing them means an id-keyed cache beside the sorted dictionary, which
 `World.Agents` being public and mutable cannot keep exact without changing its type: Jack's decision.

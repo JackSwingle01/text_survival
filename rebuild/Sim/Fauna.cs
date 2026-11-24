@@ -346,21 +346,26 @@ public static partial class Fauna
     /// counted there and not where it left: those with a plan to come later don't count.
     static double Load(World world, Agent animal, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
     {
-        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool);
-        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool);
+        Span<bool?> sharesByDiet = stackalloc bool?[DietCount];
+        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool, sharesByDiet);
+        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool, sharesByDiet);
         return load;
     }
 
-    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    static readonly int DietCount = Enum.GetValues<Diet>().Length;
+
+    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool, Span<bool?> sharesByDiet)
     {
         var here = Nearby.At(world, on);
         double load = 0;
         for (int i = 0; i < here.Count; i++)
         {
             var other = here[i];
-            if (other.Id == animal.Id || other.Mind is not HerdMind || SpeciesTable.Of(other.Species).GrazeKcalPerMinute <= 0
+            if (other.Id == animal.Id || other.Mind is not HerdMind) continue;
+            var row = SpeciesTable.Of(other.Species);
+            if (row.GrazeKcalPerMinute <= 0
                 || !(other.Crossing is { } c ? Map.Step(c.From, c.Dir) == tile : other.Tile == tile) || !Sim.IsAlive(other)) continue;
-            if (Shares(eats, Eats(DietOf(other.Species)), pool)) load += Intake(other);
+            if (sharesByDiet[(int)row.Diet] ??= Shares(eats, Eats(row.Diet), pool)) load += Intake(other);
         }
         return load;
     }
