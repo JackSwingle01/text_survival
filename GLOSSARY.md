@@ -160,7 +160,8 @@ _Avoid_: equipment, kit
 
 **Recipe**:
 How one thing is made: what goes in, the tools by capability, what the place must have, the work, the
-result, and what can go differently. Crafting and building are both recipes.
+result, and what can go differently. The work is done by a person or by a station. Crafting and
+building are both recipes.
 _Avoid_: blueprint, formula, craft option
 
 **Result**:
@@ -183,6 +184,17 @@ _Avoid_: result, status
 Work on a recipe that is not finished yet, keeping its progress: on the tile for something placed, as
 an unfinished item in the pack for something carried.
 _Avoid_: job, task, build in progress
+
+**Transformation**:
+Inputs at a station being turned into a recipe's result by the station, with no person working: meat
+cooking at a fire, a hide curing on a rack. It makes a different thing and never goes back, which is
+what tells it from an effect. Its rate comes from the exposure at the station.
+_Avoid_: job, project (a project is a person's work), process
+
+**Station**:
+A location feature that works transformations, with room for a set number at once: a fire, a curing
+rack.
+_Avoid_: workbench, slot (say a station's room), crafting station
 
 ## How the game is built
 

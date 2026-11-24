@@ -205,6 +205,15 @@ As with Don't Starve's crockpot: things produce at camp while you're away, so co
   `JobDone` event.
 - **Done when:** a job set before a 2 h trip shows on the receipt and lands in inventory, at the right
   minute, with no menu step.
+- *Amended 2026-11-24 (grilling for #54):*
+  - A "job" here is a **transformation**, worked by a **station** (`GLOSSARY.md`).
+  - Nothing is collected automatically. A finished thing stays at the fire until taken; the receipt,
+    the toast and the tile icon say it is ready. So "lands in inventory ... with no menu step" is
+    dropped from the done-when.
+  - Room does not scale with fire size. It is fixed by pit type (open 2, mound 3, stone 4), and the
+    fire's temperature sets how fast everything on it goes.
+  - Cooking and melting by hand are removed; the fire does them.
+  - The meat-smell edge is not optional: food at a fire or on a rack is exposed like a pile.
 
 ### 7. The Night as a Vigil
 

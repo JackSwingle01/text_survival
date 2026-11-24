@@ -62,6 +62,10 @@ Also decided by the user on 2026-11-22 (audit ids in brackets):
 - **Curing rack (ITM-21).** The old rack comes back: 4 items; hide 48 h, meat 24 h, berries 12 h,
   fish 16 h; it cures while you are away. Design session (3) also adds a less effective drying slot
   at a campfire.
+  *Amended 2026-11-24 (grilling for #54):* no drying slot at the campfire. The hours are for a dry,
+  still day: the rack's rate comes from the exposure at it, so a burning fire on the tile speeds it
+  (up to twice) and rain or snow on an uncovered rack stops it. Drying a hide by hand at a fire goes.
+  See decision "Transformations are recipes worked by a station, at a rate set by exposure".
 - **Hide scraping (ITM-22).** One whole hide becomes scraped hide. One hide is one garment's worth.
   *Amended 2026-11-24 (recipes spec):* the scraped hide is 0.8 × the hide's own weight, not a fixed 0.8 kg.
 - **Firecraft (FIR-4).** Keep the rebuild's +2% per level. The playtest's fire "death spiral" was the
@@ -86,7 +90,7 @@ Each waits until the restores before it are done.
 2. **Recipes that make sense:** done 2026-11-24, see
    `documentation/specs/2026-11-24-recipes-that-make-sense.md`.
 3. **The fire as a workbench:** the jobs in `dev/active/short-loop-plan.md` §6 and the campfire drying
-   slot, together with the curing rack.
+   slot, together with the curing rack. Grilled 2026-11-24 (#54); the spec follows.
 4. **Animal life** (after the foraging restore). The brief, decided by the user on 2026-11-22. Why:
    the user expects emergence from animals travelling to water and food, sleeping at their natural
    times, avoiding predators and seeking prey.
