@@ -355,7 +355,7 @@ _Avoid_: incapacitated, knocked out, downed
 
 **Faculty**:
 What a body can do right now, from its capacities and its build: strength, speed, dexterity,
-perception. Verbs read faculties; faculties read capacities.
+perception.
 _Avoid_: ability (that is what a species can get at), stat (that is a need), attribute, skill
 
 **Vitality**:
