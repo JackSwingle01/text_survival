@@ -25,3 +25,8 @@ Revised: ActionGen's Build act made a Build of any Structure → it makes a camp
 Revised: the comment ratchet put Make.cs at 12% over its 11% → trimmed the new comments.
 Follow-up: no NPC builds or makes anything today (no Build or Make in Npc.cs or Planner.cs), so "an NPC that builds a shelter today still does" holds vacuously; a test can only be written once NPCs choose camp work.
 Follow-up: the save fixture's sample world has no tile project, so the fixture does not pin TileProject's shape; ShelterTests' build-through-a-save covers the round trip. Extending SampleWorld with a half-built frame would pin it.
+Revised (review): `fasterBy` broke principles-code.md's Factor suffix for a multiplier → renamed FasterFactor (`fasterFactor` in data); this replaces the earlier `fasterBy` line.
+Revised (review): RecipeResult.Named did not say it is a shelter's name → renamed ShelterName (`shelterName` in data).
+Revised (review): the hypothesis said materials are destroyed at the start; they are held in TileProject.Materials, out of anyone's reach, and reported as Built.Spent at the finish; Memory.cs and main.js needed no change (the tile project still stakes the tile, and a placed recipe's verb kind is still "build").
+Follow-up: placed-recipe branches (r.Result.Placed) recur across Making, Verbs and ViewBuilder, and RecipeResult is a sum type of nullables checked only by the loader; a result type per kind would gather them once more placed recipes (pits, the hut) arrive.
+Follow-up: Requirement.Frost's refusal now reads "too warm to build in snow" for every recipe; a carried recipe needing a frost would want its own words.

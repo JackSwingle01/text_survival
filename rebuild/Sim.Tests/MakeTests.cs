@@ -114,9 +114,9 @@ public class MakeTests
     [InlineData("\"fail=.05\", \"fail:waste", "\"fail=.3\", \"fail:waste", "stone_tipped_spear: outcomes' odds add up to")]
     // Camp work placed on the tile.
     [InlineData("\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 30", "\"requires\": [\"Light\"], \"minutes\": 30", "branch_frame: a shelter needs NoShelter")]
-    [InlineData("\"result\": { \"shelter\": \"HideTent\" }", "\"result\": { \"shelter\": \"HideTent\", \"named\": \"Tent\" }", "tent: a shelter is named, unless it is the tent carried")]
+    [InlineData("\"result\": { \"shelter\": \"HideTent\" }", "\"result\": { \"shelter\": \"HideTent\", \"shelterName\": \"Tent\" }", "tent: a shelter is named, unless it is the tent carried")]
     [InlineData("\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": []", "\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": [\"fail=.1\"]", "makeshift_bedding: a placed result has no outcomes")]
-    [InlineData("\"fasterBy\": 2, \"requires\": []", "\"fasterBy\": 1, \"requires\": []", "makeshift_bedding: fasterBy 1")]
+    [InlineData("\"fasterFactor\": 2, \"requires\": []", "\"fasterFactor\": 1, \"requires\": []", "makeshift_bedding: fasterFactor 1")]
     [InlineData("\"requires\": [\"Light\"], \"minutes\": 40", "\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 40", "stone_tipped_spear: NoShelter and Tent are for a placed result")]
     public void ABrokenRecipe_DoesNotLoad(string from, string to, string why) =>
         Assert.Contains(why, Broken(from, to));

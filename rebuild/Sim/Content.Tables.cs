@@ -79,9 +79,9 @@ public static partial class Content
         Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
         IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null,
-        double? FasterBy = null);
+        double? FasterFactor = null);
     sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
-    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0, ShelterKind? Shelter = null, string? Named = null,
+    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0, ShelterKind? Shelter = null, string? ShelterName = null,
         BeddingKind? Bedding = null);
 
     /// Names the game's code asks for by name: they must be in the files.
@@ -354,7 +354,7 @@ public static partial class Content
             else if (r.Resource != null && r.Kg <= 0) problems.Add($"{at}: result {r.Resource} kg {r.Kg}");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
-            if (row.FasterBy is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterBy {by} is over 1, and only with a faster tool");
+            if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
                 if (caps.Contains(Capability.None) || caps.Distinct().Count() != caps.Count) problems.Add($"{at}: {name} names None or a capability twice");
             if (row.Requires.Distinct().Count() != row.Requires.Count) problems.Add($"{at}: a requirement listed twice");
@@ -390,7 +390,7 @@ public static partial class Content
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.Kg, r.Shelter, r.Named, r.Bedding), outcomes.AsReadOnly(), row.FasterBy ?? Making.FasterToolFactor));
+                new RecipeResult(r.Gear, r.Resource, r.Kg, r.Shelter, r.ShelterName, r.Bedding), outcomes.AsReadOnly(), row.FasterFactor ?? Making.FasterToolFactor));
         }
         return recipes.AsReadOnly();
     }
@@ -405,10 +405,10 @@ public static partial class Content
         if (row.Outcomes.Count > 0) yield return $"{at}: a placed result has no outcomes";
         if (r.Kg != 0) yield return $"{at}: a placed result has no kg";
         bool tent = row.Requires.Contains(Requirement.Tent);
-        if (r.Bedding != null && (r.Named != null || tent || row.Requires.Contains(Requirement.NoShelter))) yield return $"{at}: a bedding is not named, needs no tent and goes beside a shelter";
+        if (r.Bedding != null && (r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter))) yield return $"{at}: a bedding is not named, needs no tent and goes beside a shelter";
         if (r.Shelter != null && !row.Requires.Contains(Requirement.NoShelter)) yield return $"{at}: a shelter needs NoShelter";
         if (r.Shelter != null && tent != (r.Shelter == ShelterKind.HideTent)) yield return $"{at}: a tent's shelter is HideTent, and only a tent's";
-        if (r.Shelter != null && tent == (r.Named != null)) yield return $"{at}: a shelter is named, unless it is the tent carried";
+        if (r.Shelter != null && tent == (r.ShelterName != null)) yield return $"{at}: a shelter is named, unless it is the tent carried";
     }
 
     /// The most a recipe's outcomes may take of the odds before skill and hands move them: the plain

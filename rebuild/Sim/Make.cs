@@ -143,18 +143,18 @@ public enum Requirement { Light, Fire, Frost, Shelter, Dry, NoShelter, Tent }
 /// Taken from AnyOf in the order listed.
 public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg);
 
-/// A gear kind, kilos of a resource, or placed on the tile: a shelter (Named, or the tent) or a bedding.
-public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? Named = null, BeddingKind? Bedding = null)
+/// A gear kind, kilos of a resource, or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
+public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null)
 {
     public bool Placed => Shelter != null || Bedding != null;
 }
 
 /// (GLOSSARY: Recipe). Items are gear kinds consumed into the result. Tools are capabilities: a
-/// required one gates the recipe and wears once per piece; a faster one only speeds it, by FasterBy.
+/// required one gates the recipe and wears once per piece; a faster one only speeds it, by FasterFactor.
 public sealed record Recipe(
     string Id, string Name, MakeCategory Category, IReadOnlyList<MaterialInput> Materials, IReadOnlyList<string> Items,
     IReadOnlyList<Capability> Tools, IReadOnlyList<Capability> Faster, IReadOnlyList<Requirement> Requires, int Minutes,
-    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterBy = Making.FasterToolFactor);
+    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor);
 
 /// A placed recipe's unfinished work (GLOSSARY: Project), on its tile for anyone there to go on with.
 public sealed class TileProject
@@ -450,7 +450,7 @@ public static class Making
         if (r.Result.Bedding is BeddingKind bed) Shelters.PlaceBedding(world, tile, bed);
         else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
             Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
-        else Shelters.Place(world, tile, new ShelterDef(r.Result.Named!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
+        else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
         events.Add(new Built(world.Minute, agent.Id, tile, r.Id, new SortedDictionary<Resource, double>(p.Materials.Kg)));
         return Shelters.BuiltReason;
     }
@@ -460,7 +460,7 @@ public static class Making
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
-        foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterBy;
+        foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
         var c = Body.GetCapacities(agent.Body);
         if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
         double slow = (c.Manipulation < 0.5 ? 1.25 : 1.0) * (c.Consciousness < 0.5 ? 1.25 : 1.0);
