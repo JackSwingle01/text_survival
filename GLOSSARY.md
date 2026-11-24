@@ -127,12 +127,30 @@ Anything a person can carry: a resource or gear.
 _Avoid_: thing, object, loot
 
 **Resource**:
-A carried material, either discrete (counted in pieces, each with its own weight: a log, a stick, a
-stone) or continuous (measured as one amount: water, tinder, resin).
+A carried material, either discrete (counted in pieces, each with its own weight: a branch, a stick,
+a stone) or continuous (measured as one amount: water, tinder, resin).
 _Avoid_: divisible, bulk, stackable, stack
 
 **Piece**:
 One unit of a discrete resource.
+
+**Stick**:
+A small piece of dead wood, about a hand's span to an arm's length: kindling, and the handle of a small
+tool.
+_Avoid_: kindling (that is a stick's job in a fire), twig
+
+**Branch**:
+A dead limb or pole, gathered by hand: the wood for spears, hafts and frames, and fuel before you have an
+axe.
+_Avoid_: log, pole, limb
+
+**Hide strip**:
+A piece cut from a cured hide, a few to a hide: for small garments and for mending.
+_Avoid_: scrap, patch, leather
+
+**Firewood**:
+Wood cut to burn, only ever made with an axe, from a felled tree or big deadfall.
+_Avoid_: log, chopped wood, split wood
 
 **Gear**:
 A tool, weapon, garment or accessory, held one at a time, with its own condition that wears down.
