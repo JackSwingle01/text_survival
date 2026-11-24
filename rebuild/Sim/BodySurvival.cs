@@ -78,13 +78,15 @@ public static partial class Body
         ? MaxEnergyMinutes / (sleepHoursPerDay * 60)
         : -MaxEnergyMinutes / ((24 - sleepHoursPerDay) * 60);
 
-    /// An animal's minute of water and rest (no warmth; sleepFactor: how deep the sleep is where it lies): the loss, the store, and thirst's harm as LethalRates gives it.
+    /// An animal's minute of water and rest (no warmth; sleepFactor: how deep the sleep is where it lies): the loss, the store,
+    /// and thirst's and hunger's harm as LethalRates gives them, as ProcessLethal does a person's.
     public static void LiveNeeds(BodyState body, bool sleeping, double sleepHoursPerDay, double sleepFactor, Rng rng)
     {
-        double thirst = LethalRates(body).ThirstPerHour;
+        var (_, thirst, hunger) = LethalRates(body);
         body.HydrationMl = Math.Max(0, body.HydrationMl - WaterLossMlPerMinute(body, sleeping));
         body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + EnergyDeltaPerMinute(sleeping, sleepHoursPerDay) * (sleeping ? sleepFactor : 1), 0, MaxEnergyMinutes);
         if (thirst > 0) Damage(body, new DamageInfo(thirst / 60.0, DamageType.Internal, BodyTarget.Brain, By: Thirst), rng);
+        if (hunger > 0) Damage(body, new DamageInfo(hunger / 60.0, DamageType.Internal, BodyTarget.Heart, By: Starvation), rng);
     }
 
     public const double BaseCoreTempF = 98.6;
@@ -98,7 +100,9 @@ public static partial class Body
     public const double KcalPerKgFat = 7700;
     const double KcalPerKgMuscle = 1320;
 
-    const double RegenMinCaloriesPct = 0.10, RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
+    /// Healing needs the store this full, as an animal's mending does (Fauna.Live).
+    public const double RegenMinCaloriesPct = 0.10;
+    const double RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
     const double BaseHealingPerHour = 0.1;
     const double SurvivalEffectThresholdPct = 0.30;
 
