@@ -4,8 +4,10 @@ using Xunit.Abstractions;
 /// The NPC bench: a lone NPC at the start camp of each seed, lived on its own mind. It reports and never gates:
 /// how long each lived, what killed it, and the decisions worth a look. Fixed seeds plus fresh random ones each
 /// run, so nothing is fitted to particular seeds. NPC_BENCH_SEEDS (comma list) and NPC_BENCH_DAYS override the
-/// run; NPC_BENCH_OUT appends the lines to a file, so seeds can be split across processes. It runs only with
+/// run; NPC_BENCH_OUT appends each seed's line to a file as that seed finishes (finish order, so sort it), so
+/// seeds can be split across processes and a seed that never ends hides no other. It runs only with
 /// NPC_BENCH set: NPC_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter NpcBenchReport
+/// The nightly run keeps main's on the `baselines` branch (.github/workflows/nightly.yml).
 public class NpcBenchReport(ITestOutputHelper output)
 {
     static readonly int[] FixedSeeds = [1, 3, 5, 7, 11, 17, 42, 777, 2024];
@@ -20,13 +22,15 @@ public class NpcBenchReport(ITestOutputHelper output)
             ? [.. env.Split(',').Select(int.Parse)]
             : [.. FixedSeeds, .. Enumerable.Range(0, RandomSeeds).Select(_ => Random.Shared.Next(100_000, 1_000_000))];
         int days = int.TryParse(Environment.GetEnvironmentVariable("NPC_BENCH_DAYS"), out int d) ? d : DefaultDays;
-        var lines = seeds.AsParallel().AsOrdered().Select(seed => Run(seed, days)).ToList();
         var outFile = Environment.GetEnvironmentVariable("NPC_BENCH_OUT");
-        foreach (var line in lines)
+        var writing = new object();
+        var lines = seeds.AsParallel().AsOrdered().Select(seed =>
         {
-            output.WriteLine(line);
-            if (outFile is { Length: > 0 }) File.AppendAllText(outFile, line + Environment.NewLine);
-        }
+            string line = Run(seed, days);
+            if (outFile is { Length: > 0 }) lock (writing) File.AppendAllText(outFile, line + Environment.NewLine);
+            return line;
+        }).ToList();
+        foreach (var line in lines) output.WriteLine(line);
     }
 
     static string Run(int seed, int days)

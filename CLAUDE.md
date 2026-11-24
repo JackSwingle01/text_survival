@@ -29,6 +29,9 @@ For the clean-room rebuild (`rebuild/`):
 - Ratchets (a check with an exception list that only shrinks) are burned down by one daily run that
   files a batch at a time for the issue agent. When you add one, add its section to `dev/ratchets.md`.
 - `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
+- Main's numbers are measured nightly and kept on the `baselines` branch: the NPC bench (20 seeds, 60
+  days) and the cohesion gate's lines. `git fetch origin baselines`, then `git show
+  FETCH_HEAD:npc-bench.txt` or `FETCH_HEAD:cohesion-gate.txt`. Compare with those, not a "before" run.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
 - A quick test takes under 5 s on CI's runner, and CI fails one that doesn't. Make it quicker, or, if it
   has to step a world for hours or days to see what it checks, tag it
