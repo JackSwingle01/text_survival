@@ -63,7 +63,9 @@ public static partial class Fauna
     /// What a wild animal burns over its basal rate, day in, day out: field metabolism is 1.6-3 times
     /// basal (research §1; Nagy 1999). The low end, since fights and flight charge their own work.
     const double FieldMetabolismFactor = 1.6;
-    const double GrazingRatePerKgPerHour = 0.0001;
+    /// Grazed level a kcal eaten takes off a resource: the old mass rule's rate (0.0001 a kg-hour) for a 110 kg body
+    /// eating 13 kcal a minute, so a grazer that size grazes down as before, and every body by what it eats, not its mass.
+    const double GrazedLevelPerKcal = 0.0001 / 60 * 110 / 13;
     const int PackPatrolEveryMinutes = 30, PackPatrolTimeoutMinutes = 120;
     const double StarvingHunger = 0.8;
     const int StarvingPatrolEveryMinutes = 5, ForayRadiusTiles = 40;
@@ -253,7 +255,7 @@ public static partial class Fauna
         return null;
     }
 
-    /// What it takes, and the pool grazed down by its mass rule times the share of its full rate it took (GrazeAt).
+    /// What it takes, and the pool grazed down by what it took (GrazedLevelPerKcal, GrazeAt).
     static void GrazeMinute(World world, Agent animal)
     {
         if (GrazeHere(world, animal) is not { } graze) return;
@@ -264,13 +266,12 @@ public static partial class Fauna
         MindOf(animal).LastFedMinute = world.Minute;
         var diet = DietOf(animal.Species);
         if (ForageHere(world, animal.Tile) is not (PoolId id, ForagePool pool)) return;
-        double share = kcal / SpeciesTable.Of(animal.Species).GrazeKcalPerMinute;
         double dietFactor = diet == Diet.Omnivore ? 5.0 : 1.0; // bears are efficient foragers
         foreach (var r in Eats(diet).Where(r => pool.Items.Any(i => i.Resource == r)))
         {
             double level = Pools.GrazedLevel(world, id, r);
             if (level >= 0.95) continue;
-            Pools.SetGrazed(world, id, r, Math.Min(1.0, level + body.WeightKg / 60.0 * GrazingRatePerKgPerHour * dietFactor * (1 - level) * share));
+            Pools.SetGrazed(world, id, r, Math.Min(1.0, level + kcal * GrazedLevelPerKcal * dietFactor * (1 - level)));
         }
     }
 
@@ -316,8 +317,8 @@ public static partial class Fauna
         return false;
     }
 
-    /// The intake a tile of average forage holds: seven caribou's (7 x 13 kcal a minute). A mammoth loads it like seven.
-    const double AverageTileKcalPerMinute = 91;
+    /// The intake a tile of average forage holds: twenty caribou's (20 x 13 kcal a minute), about three mammoths'.
+    const double AverageTileKcalPerMinute = 260;
 
     /// The intake a tile holds, scaled by the forage on it now: its richness against the valley's mean, times what is
     /// left of what this grazer eats there.

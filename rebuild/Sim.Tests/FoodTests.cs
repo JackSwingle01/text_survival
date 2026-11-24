@@ -108,9 +108,9 @@ public class FoodTests
         return KcalHeld(a.Body) - before + burn;
     }
 
-    /// Five hungry caribou on a fresh tile that holds seven: company below capacity costs nothing, so each eats its full rate.
+    /// Five hungry caribou on a fresh tile that holds twenty: company below capacity costs nothing, so each eats its full rate.
     [Fact]
-    public void FiveCaribou_OnAFreshTileForSeven_AllEatAtTheFullRate()
+    public void FiveCaribou_OnAFreshTileForTwenty_AllEatAtTheFullRate()
     {
         var w = Pasture();
         var herd = Enumerable.Range(0, 5).Select(_ => Hungry(w, Species.Caribou, T(20))).ToList();
@@ -122,19 +122,38 @@ public class FoodTests
         Assert.Equal(5 * full, herd.Sum(a => KcalHeld(a.Body)) - before + burn, 1);
     }
 
-    /// A mammoth and a caribou on one fresh tile: together they load it past its seven caribou, and each loses the same share
-    /// of its own rate, so the mammoth still eats about seven times what the caribou does (by intake, not by head).
+    /// Four mammoths and a caribou on one fresh tile: together they load it past its twenty caribou, and each loses the same
+    /// share of its own rate, so a mammoth still eats about seven times what the caribou does (by intake, not by head).
     [Fact]
-    public void AMammothAndACaribou_ShareATile_ByIntake_NotByHead()
+    public void MammothsAndACaribou_ShareATile_ByIntake_NotByHead()
     {
         var w = Pasture();
         var mammoth = Hungry(w, Species.Mammoth, T(20));
+        for (int i = 0; i < 3; i++) Hungry(w, Species.Mammoth, T(20));
         var caribou = Hungry(w, Species.Caribou, T(20));
         double m = Fauna.GrazeHere(w, mammoth)!.Value.PerMinute, c = Fauna.GrazeHere(w, caribou)!.Value.PerMinute;
         double mFull = SpeciesTable.Of(Species.Mammoth).GrazeKcalPerMinute, cFull = SpeciesTable.Of(Species.Caribou).GrazeKcalPerMinute;
         Assert.True(c < cFull, $"the caribou eats {c:F2}, its full rate: the tile is not over capacity");
         Assert.Equal(m / mFull, c / cFull, 9);
         Assert.Equal(m, AteInAMinute(w, mammoth), 2);
+    }
+
+    /// A mammoth and a caribou, each alone on fresh pasture: each kcal eaten grazes its tile down by the same amount, so the
+    /// mammoth thins its tile by what it eats (about seven caribou's), not by its mass (about forty-five) (#83, 2026-11-24).
+    [Fact]
+    public void ATile_IsGrazedDown_ByWhatIsEaten_NotByTheEatersMass()
+    {
+        var w = Pasture();
+        var mammoth = Hungry(w, Species.Mammoth, T(30));
+        var caribou = Hungry(w, Species.Caribou, T(5));
+        double mKcal = Fauna.GrazeHere(w, mammoth)!.Value.PerMinute, cKcal = Fauna.GrazeHere(w, caribou)!.Value.PerMinute;
+        Sim.Advance(w, 1);
+        Assert.Equal((T(30), T(5)), (mammoth.Tile, caribou.Tile));
+        // Read back a minute later, after a minute's regrowth: add it back.
+        double Grazed(Agent a) => Fauna.Eats(SpeciesTable.Of(a.Species).Diet)
+            .Max(r => Pools.GrazedLevel(w, new PoolId(a.Tile, 0), r)) + 1.0 / 60 / Pools.ForageRespawnHours;
+        Assert.Equal(Grazed(mammoth) / mKcal, Grazed(caribou) / cKcal, 9);
+        Assert.True(Grazed(mammoth) / Grazed(caribou) < 10, "the mammoth grazed its tile down by its mass");
     }
 
     /// A hungry caribou on bare ground between a near pasture with no kin and a farther one with kin on the tile beside it:

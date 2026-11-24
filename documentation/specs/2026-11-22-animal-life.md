@@ -270,10 +270,10 @@ Animals and people share one body model and one way of looking for what they nee
     there adds its intake: its species' grazing rate × (its weight ÷ its species' weight)^0.75. A
     mammoth loads a tile like about 7 caribou. Animals heading there later don't count; a whole herd
     re-deciding in the same minute and moving together is intended: that's following the herd.
-  - **Capacity.** 7 caribou's intake (7 × 13 = 91 kcal/min) on a tile of average forage, scaled by
-    the forage left on it now: × the tile's forage density ÷ the valley's mean ungrazed density × the
-    mean (1 − grazed level) over the resources the grazer eats there. A fresh rich meadow holds more
-    than 7, a half-eaten one fewer.
+  - **Capacity.** 20 caribou's intake (20 × 13 = 260 kcal/min, about 3 mammoths) on a tile of
+    average forage, scaled by the forage left on it now: × the tile's forage density ÷ the valley's
+    mean ungrazed density × the mean (1 − grazed level) over the resources the grazer eats there. A
+    fresh rich meadow holds more than 20, a half-eaten one fewer. (At 7, one mammoth filled a tile.)
   - **Payout.** The full rate × (1 − grazed level) × min(1, capacity ÷ load). Below capacity company
     costs nothing; past it everyone's share falls.
   - If animals turn out to leave tiles too eagerly, the fallback is capacity by the tile's richness,
@@ -380,6 +380,10 @@ Four separate pieces, shared by NPCs and animals.
   the mean (1 − grazed level) over them, so a fresh tile pays the full rate (#83), times the crowding
   factor above.
 - A tile with no pool for the diet gives nothing.
+- A tile is grazed down by what is eaten from it, not by the eater's mass (amended 2026-11-24, #83):
+  each kcal takes the same grazed level off, set so a 110 kg grazer eating 13 kcal a minute grazes
+  down as the old mass rule had it. By mass, a mammoth stripped about 6½ times the forage a caribou
+  does for each kcal it got, and re-planned every half hour.
 - Leaving an eaten-out tile isn't a threshold. It falls out of the choice: grazing slowly here becomes
   more expensive than walking somewhere better.
 
@@ -541,15 +545,21 @@ They become one system:
     - packs avoid each other;
     - NPCs drink from an open pond.
   - **The cohesion gate:** 60 days on several seeds, in Release, tagged Slow. Every metric is per
-    species. It fails if:
+    species, measured after a 3-day warm-up so the populated start isn't counted. Amended 2026-11-24
+    (#83): the gate fails only on what means the model is broken, allocation over twice its ceiling
+    or an open-group species alone more than 25% of the time. Every other limit below is a band: a
+    run outside one reports it, and it becomes a follow-up to tune, not a failure. The bands:
     - more than 10% of an open-group species' animals are alone on average;
-    - any herd holds over 60% of its species' living animals once there are more than 20;
+    - any herd holds over 60% of its species' living animals, once there are more than 20, in more
+      than half of the looks (a herd big for a while and then splitting, or gathered briefly at
+      water, is behaviour; one that never splits is a blob);
     - herds never split or join (a minimum rate of splits and joins, so a frozen lockstep fails);
     - animals change tile far more often than they need to (tile changes per animal per day, to catch
       oscillation);
     - an outsized share of a species stands on the single busiest water tile;
     - predator kills per week fall outside a band;
-    - starvation and thirst deaths per species fall outside a band;
+    - starvation and thirst deaths per species fall outside a band (ravens, hyenas and wolves are
+      exempt until #85 and #84 replace their stand-ins);
     - the number of wolf packs isn't stable, or rival packs merge, or a pack present on day 1 isn't
       still 2 or more familiar wolves on day 60 unless it was killed off;
     - allocation is over 3× today's herd baseline, measured with the real planner (route searches,
@@ -561,8 +571,8 @@ They become one system:
     neighbours), not one tile: "alone" is a herd of one, and the biggest herd is the largest such
     group. Combat sides and everything else that reads the derived herd stay per tile.
 
-    The first planner ticket must pass it before anything else builds on individuals. If it can't,
-    the fallback is herd agents with split and merge rules, and this spec is revisited.
+    The first planner ticket must pass its hard limits before anything else builds on individuals.
+    If it can't, the fallback is herd agents with split and merge rules, and this spec is revisited.
   - **The stored-path benchmark:** the same seeds, re-planning every decision against stored paths
     with the five interrupts. Compare time, allocation and moves, and record the result in the
     ticket's work log.

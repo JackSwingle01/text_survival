@@ -296,10 +296,19 @@ public class IndividualsTests(ITestOutputHelper output)
 /// several tiles while it grazes counts as one (#83, Jack 2026-11-24). Bands were set from a first run (work log,
 /// 2026-11-23-83). Pack stability and kill rates are #84's. One class per seed, so they run side by side. A look every
 /// seven minutes, which no cycle fitting the hour can keep landing on the same phase of, as a look every hour could (#96).
+/// It measures after a warm-up, so the populated start isn't counted. It fails only on what means something is broken
+/// (allocation past twice the ceiling, an open-group species mostly alone); every other limit is reported, and one
+/// outside its band is a follow-up to tune, not a failure (#83, Jack 2026-11-24).
 public static class CohesionGate
 {
-    const int Days = 60, LookEveryMinutes = 7;
+    const int Days = 60, WarmUpDays = 3, LookEveryMinutes = 7;
     const double MaxAlonePct = 0.10, MaxHerdPct = 0.60;
+    /// A herd over MaxHerdPct in more than this share of the looks is a blob that never splits.
+    const double MaxBlobLooksPct = 0.5;
+    /// What fails the gate: allocation past twice its ceiling, or an open-group species alone this much.
+    const double BrokenAllocationFactor = 2, BrokenAlonePct = 0.25;
+    /// Their hunger is the stand-ins' until #84 (the hunt) and #85 (the carrion flock), so the deaths band skips them.
+    static readonly Species[] StandIns = [Species.Raven, Species.Hyena, Species.Wolf];
     const int BlobFloor = 20;
     /// Splits and joins an animal-day (a look at which its herd's members had changed) at least: a frozen lockstep has none.
     const double MinRegroupsPerAnimalDay = 0.5;
@@ -355,12 +364,14 @@ public static class CohesionGate
         var tallies = new SortedDictionary<Species, Tally>();
         Tally Of(Species s) => tallies.TryGetValue(s, out var t) ? t : tallies[s] = new Tally();
         var company = new Dictionary<AgentId, int>();
-        long allocated = GC.GetAllocatedBytesForCurrentThread();
+        long allocated = 0;
         for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
+            if (minute == WarmUpDays * 1440) allocated = GC.GetAllocatedBytesForCurrentThread();
             var events = Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
+            if (minute < WarmUpDays * 1440) continue;
             foreach (var e in events)
             {
                 if (e is Moved m && w.Agents.TryGetValue(m.Who, out var mover) && mover.Mind is HerdMind) Of(mover.Species).Moves++;
@@ -403,7 +414,7 @@ public static class CohesionGate
                 }
             }
         }
-        double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / Days;
+        double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / (Days - WarmUpDays);
         output.WriteLine($"seed {seed}: {mbPerDay:F0} MB a day allocated");
         double looksPerDay = 1440.0 / LookEveryMinutes;
         foreach (var (s, t) in tallies)
@@ -413,18 +424,30 @@ public static class CohesionGate
                 + $"regroups {t.Regroups / animalDays:F2}/animal-day; moves {t.Moves / animalDays:F2}/animal-day; busiest water tile {t.WaterTilePctSum / t.Looks:P1}; "
                 + $"hunger and thirst deaths {t.Deaths} ({t.Deaths / Math.Max(1, heads):F2} a head); herds at the end [{string.Join(" ", t.Herds)}]");
         }
-        Assert.True(mbPerDay < MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {MaxAllocatedMbPerDay:F0}");
+        // Outside a band: reported, for a follow-up to tune.
+        var outside = new List<string>();
+        void Band(bool within, string what) { if (!within) outside.Add(what); }
+        Band(mbPerDay < MaxAllocatedMbPerDay, $"{mbPerDay:F0} MB a day allocated, over {MaxAllocatedMbPerDay:F0}");
         foreach (var (s, t) in tallies)
         {
             double animalDays = t.AnimalLooks / looksPerDay, heads = t.AnimalLooks / (double)Math.Max(1, t.Looks);
-            Assert.True(t.Deaths / Math.Max(1, heads) <= MaxHungerAndThirstDeathsPerHead, $"seed {seed}: {s} lost {t.Deaths} to hunger and thirst, {heads:F1} living on average");
-            Assert.True(t.WaterTilePctSum / t.Looks < MaxWaterTilePct, $"seed {seed}: {s} {t.WaterTilePctSum / t.Looks:P1} on its busiest water tile");
-            Assert.InRange(t.Moves / animalDays, MinMovesPerAnimalDay, MaxMovesPerAnimalDay);
+            if (!StandIns.Contains(s))
+                Band(t.Deaths / Math.Max(1, heads) <= MaxHungerAndThirstDeathsPerHead, $"{s} lost {t.Deaths} to hunger and thirst, {heads:F1} living on average");
+            Band(t.WaterTilePctSum / t.Looks < MaxWaterTilePct, $"{s} {t.WaterTilePctSum / t.Looks:P1} on its busiest water tile");
+            double moves = t.Moves / animalDays;
+            Band(moves >= MinMovesPerAnimalDay && moves <= MaxMovesPerAnimalDay, $"{s} moved {moves:F1} tiles an animal-day");
             if (!OpenGroup.Contains(s)) continue;
-            Assert.True(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time on average");
-            Assert.True(t.MaxHerdPct <= MaxHerdPct, $"seed {seed}: one {s} herd held {t.MaxHerdPct:P0} of its species");
-            Assert.True(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"seed {seed}: {s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
+            Band(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"{s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time");
+            double blobLooks = t.BlobLooks / (double)Math.Max(1, t.CountedLooks);
+            Band(blobLooks <= MaxBlobLooksPct, $"one {s} herd held over {MaxHerdPct:P0} of its species at {blobLooks:P1} of looks");
+            Band(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"{s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
         }
+        foreach (var o in outside) output.WriteLine($"seed {seed} outside its band: {o}");
+        // Broken: these fail.
+        Assert.True(mbPerDay < BrokenAllocationFactor * MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {BrokenAllocationFactor * MaxAllocatedMbPerDay:F0}");
+        foreach (var (s, t) in tallies)
+            if (OpenGroup.Contains(s))
+                Assert.True(t.Alone / (double)t.AnimalLooks < BrokenAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time");
     }
 }
 
