@@ -54,20 +54,21 @@ Also decided by the user on 2026-11-22 (audit ids in brackets):
 - **Crafting in the dark (ITM-17).** The old behaviour: darkness, wet hands and injury slow crafting,
   never refuse. The slowdown is named and shown in the UI, with no warning text. Recipes that truly
   need a fire still need one.
-- **Recipe inputs (ITM-18).** Design session (2) below. The old recipes are the starting point, and
-  inputs are counted in discrete pieces.
+- **Recipe inputs (ITM-18), missing tool recipes (ITM-8).** Settled by design session (2), 2026-11-24:
+  `documentation/specs/2026-11-24-recipes-that-make-sense.md`.
 - **Crafted gear (ITM-19).** New gear goes into the pack. The rebuild's change stays.
 - **Camp builds and recipes (ITM-20).** Settled by decision "Resources are discrete or continuous":
   both count discrete resources in pieces.
 - **Curing rack (ITM-21).** The old rack comes back: 4 items; hide 48 h, meat 24 h, berries 12 h,
   fish 16 h; it cures while you are away. Design session (3) also adds a less effective drying slot
   at a campfire.
-- **Hide scraping (ITM-22).** The old way: one whole hide becomes 0.8 kg of scraped hide. One hide is
-  one garment's worth.
+- **Hide scraping (ITM-22).** One whole hide becomes scraped hide. One hide is one garment's worth.
+  *Amended 2026-11-24 (recipes spec):* the scraped hide is 0.8 × the hide's own weight, not a fixed 0.8 kg.
 - **Firecraft (FIR-4).** Keep the rebuild's +2% per level. The playtest's fire "death spiral" was the
   player's skill, not the game.
-- **Tinder bundle (FIR-5).** Birch bark and amadou make a bundle again, as a high-quality tinder, not
-  a fire starter. Every fire-starting chance is capped at 95%.
+- **Tinder bundle (FIR-5).** *Reversed 2026-11-24 (recipes spec):* no bundle. Birch bark and amadou
+  are better tinders on their own (+30%, +40%), and resin tinder (tinder + pine resin) is the best
+  (+45%). Every fire-starting chance is capped at 95%.
 - **Washing off blood (FIR-12).** Restored: 0.5 L of water and 5 minutes removes Bloody and leaves you
   slightly wet. Bloody still dries on its own too (decision "No effect needs a treatment the game
   doesn't have", amended 2026-11-22).
@@ -82,8 +83,8 @@ Each waits until the restores before it are done.
 
 1. **Predators and items:** what counts as exposed food, which caches protect it, how far scent
    reaches, and whether the rebuild's scavengers (ravens) stay.
-2. **Recipes that make sense:** rethink the recipes so a player would not find them strange or
-   illogical. The old recipes are the starting point; inputs are discrete pieces.
+2. **Recipes that make sense:** done 2026-11-24, see
+   `documentation/specs/2026-11-24-recipes-that-make-sense.md`.
 3. **The fire as a workbench:** the jobs in `dev/active/short-loop-plan.md` §6 and the campfire drying
    slot, together with the curing rack.
 4. **Animal life** (after the foraging restore). The brief, decided by the user on 2026-11-22. Why:
