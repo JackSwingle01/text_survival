@@ -1,0 +1,548 @@
+<title>Herd Split Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an instrument bench. The map is the specimen, the controls are a narrow rack beside it, readouts underneath. */
+:root {
+  --bg: #eef1ee; --panel: #f8faf8; --ink: #1d2622; --muted: #5f6d66; --line: #d3dad5;
+  --accent: #1f6f8b; --accent-ink: #ffffff; --good: #2e7d4f; --bad: #b23b2e; --warn: #9a6a00;
+  --bare: #8a8071; --lush: #2f6b3a; --mapbg: #d9ddd6; --water: #4f8fb8; --wolf: #2a1f1d; --blood: #b23b2e;
+  --display: "Archivo Narrow", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131917; --panel: #1a211f; --ink: #e3ebe6; --muted: #93a39b; --line: #2d3734;
+  --accent: #5fb4d3; --accent-ink: #0d1a20; --good: #5cc185; --bad: #ef7d6e; --warn: #e0b04a;
+  --bare: #4a4438; --lush: #3f8f4c; --mapbg: #222a27; --water: #2f6a92; --wolf: #f1e6e2; --blood: #ef7d6e; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #131917; --panel: #1a211f; --ink: #e3ebe6; --muted: #93a39b; --line: #2d3734;
+  --accent: #5fb4d3; --accent-ink: #0d1a20; --good: #5cc185; --bad: #ef7d6e; --warn: #e0b04a;
+  --bare: #4a4438; --lush: #3f8f4c; --mapbg: #222a27; --water: #2f6a92; --wolf: #f1e6e2; --blood: #ef7d6e; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 28px; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.lede { max-width: 78ch; color: var(--muted); margin: 4px 0 0; }
+.lede b { color: var(--ink); font-weight: 600; }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; min-width: 0; }
+.mapbox { position: relative; }
+canvas#map { width: 100%; height: auto; display: block; border-radius: 4px; background: var(--mapbg); cursor: crosshair; touch-action: manipulation; }
+.transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.clock { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; margin-left: auto; color: var(--muted); }
+button { font: 500 13px var(--body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.rack { display: grid; gap: 14px; }
+.field { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+.field label { font-size: 13px; }
+.field output { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.field input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.field .hint { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.check small { display: block; color: var(--muted); font-size: 11.5px; }
+select { font: 13px var(--body); padding: 5px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); width: 100%; }
+.readouts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 900px) { .readouts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.sizes { display: flex; align-items: flex-end; gap: 4px; height: 70px; margin-top: 14px; overflow-x: auto; }
+.sizes div { flex: 0 0 auto; min-width: 22px; background: var(--accent); color: var(--accent-ink); font: 500 11px var(--mono); text-align: center; border-radius: 2px 2px 0 0; padding-top: 2px; }
+@media (max-width: 480px) { .readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.metric { border-top: 2px solid var(--line); padding-top: 6px; min-width: 0; }
+.metric .k { font-size: 11.5px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.metric .v { font-family: var(--mono); font-size: 22px; font-variant-numeric: tabular-nums; }
+.metric .pill { font-size: 11px; font-family: var(--mono); padding: 1px 6px; border-radius: 10px; border: 1px solid currentColor; margin-left: 6px; vertical-align: 3px; }
+.metric.pass { border-top-color: var(--good); } .metric.pass .pill { color: var(--good); }
+.metric.fail { border-top-color: var(--bad); } .metric.fail .pill { color: var(--bad); }
+.metric canvas { width: 100%; height: 28px; display: block; margin-top: 4px; }
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; color: var(--muted); font-size: 11.5px; }
+td { font-family: var(--mono); }
+tr.chosen td { color: var(--accent); font-weight: 500; }
+.verdict { margin: 8px 0 0; font-size: 13px; }
+.log { font-family: var(--mono); font-size: 12px; display: grid; gap: 2px; max-height: 260px; overflow-y: auto; }
+.log div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; }
+.log .t { color: var(--muted); }
+.log .lead { color: var(--accent); }
+.log .wolf { color: var(--blood); }
+.log .warn { color: var(--warn); }
+.empty { color: var(--muted); font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; align-items: center; }
+.ramp { width: 90px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, var(--bare), var(--lush)); display: inline-block; vertical-align: middle; margin: 0 4px; }
+.tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; font: 12px var(--mono); white-space: nowrap; }
+.notes { font-size: 13px; color: var(--muted); max-width: 90ch; }
+.notes p { margin: 0 0 6px; }
+.notes b { color: var(--ink); font-weight: 600; }
+#cmp td.fail { color: var(--bad); } #cmp td.pass { color: var(--good); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Herd Split Bench</h1>
+    <p class="lede">Caribou on 100 m tiles, deciding like the #83 food planner at the game's values on main: 28-day linear regrowth, grazing down by body mass, at least 5 minutes a tile, bodies ±15%. Each animal picks the tile with the lowest <b>(travel + meal ÷ rate) × (1 + cohesion if no kin there)</b> and leaves only when that beats staying by the stay factor. A tile feeds up to its <b>capacity K</b> at full rate and shares past it. A <b>herd</b> here is a connected cluster of occupied tiles (outlined), not one tile. Caribou get thirsty and walk to <b>water</b>; a <b>wolf pack</b> stalks the herd it can most cheaply reach, and every caribou in sight has a chance each minute to spot it, so bigger herds see it sooner.</p>
+  </header>
+
+  <div class="bench">
+    <section class="panel mapbox" aria-label="Map">
+      <canvas id="map" width="1200" height="780"></canvas>
+      <div class="tip" id="tip" hidden></div>
+      <div class="transport">
+        <button class="primary" id="play">Pause</button>
+        <button id="stepBtn">Step 1 min</button>
+        <button id="hourBtn">+1 hour</button>
+        <button id="resetBtn">Restart</button>
+        <label for="speed" style="font-size:13px">Speed</label>
+        <select id="speed" style="width:auto">
+          <option value="1">1 min / frame</option>
+          <option value="5">5 min / frame</option>
+          <option value="20">20 min / frame</option>
+          <option value="60" selected>1 h / frame</option>
+          <option value="240">4 h / frame</option>
+        </select>
+        <span class="clock" id="clock">day 1 · 00:00</span>
+      </div>
+      <div class="legend">
+        <span>Forage <span class="ramp"></span> eaten-out → fresh</span>
+        <span>Dot colour = where the animal is headed</span>
+        <span>Outline = one herd (connected tiles), with its head count</span>
+        <span>Blue = water · dark ring = wolf pack (state shown) · × = kill</span>
+        <span>Click an animal to see its last decision</span>
+      </div>
+    </section>
+
+    <aside class="panel rack" aria-label="Controls">
+      <div>
+        <h2>Algorithm</h2>
+        <div class="seg" id="presets"></div>
+        <p class="hint" id="presetNote" style="font-size:12px;color:var(--muted);margin:8px 0 0"></p>
+      </div>
+      <div>
+        <h2>Start</h2>
+        <div class="seg" id="starts">
+          <button data-start="game">Game start: 3 herds of 5–15</button>
+          <button data-start="herd">N on one tile</button>
+          <button data-start="scattered">N scattered</button>
+        </div>
+      </div>
+      <div class="field"><label for="terrain">Land</label><span></span>
+        <select id="terrain" style="grid-column:1/-1">
+          <option value="valley">Valley: river meadows, poor uplands, rock</option>
+          <option value="meadows">Meadows: rich patches in poor ground</option>
+          <option value="uniform">Even: small-scale noise only</option>
+        </select>
+      </div>
+      <div class="field"><label for="capForage">Capacity K per tile</label><span></span>
+        <select id="capForage" style="grid-column:1/-1">
+          <option value="fixed">Fixed: K on every tile</option>
+          <option value="rich">By richness: K × the tile's pasture ÷ average</option>
+          <option value="now">By forage left: K × what's left now ÷ average</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="capBody"><span>Capacity counts body size<small>Each animal loads the tile by its intake (mass^0.75), not as one head.</small></span></label>
+      <div class="field"><label for="kinRadius">Kin count as present within</label><span></span>
+        <select id="kinRadius" style="grid-column:1/-1">
+          <option value="0">The same tile (spec)</option>
+          <option value="1">1 tile (next door)</option>
+          <option value="2">2 tiles</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="follow"><span>Kin leaving is an interrupt<small>Each animal on the tile weighs following against staying, the same minute.</small></span></label>
+      <label class="check"><input type="checkbox" id="arrivalReset"><span>Reset plan rate on arrival<small>As #83's code does: crowding found on arrival doesn't trigger a re-plan.</small></span></label>
+      <label class="check"><input type="checkbox" id="mealReplan"><span>A plan ends after one meal<small>Then a fresh full search, as #83's plans are for an amount.</small></span></label>
+      <label class="check"><input type="checkbox" id="loneHourly"><span>Alone: search again hourly<small>An animal with no kin in reach looks again each hour.</small></span></label>
+      <label class="check"><input type="checkbox" id="water"><span>Water and thirst<small>River (valley) and ponds. Thirsty caribou go to drink; kin leaving to drink pull along those half-thirsty.</small></span></label>
+      <label class="check"><input type="checkbox" id="wolves"><span>A pack of 3 wolves<small>Hunts when hungry: stalks, ambushes or chases, feeds, rests. Caribou avoid sources next to wolves they can see.</small></span></label>
+      <label class="check"><input type="checkbox" id="arrivals"><span>Replace kills with arrivals<small>A day after a kill, a caribou walks in from the map's edge.</small></span></label>
+      <div id="sliders" class="rack"></div>
+      <button id="compareBtn">Compare all algorithms (current tuning)</button>
+    </aside>
+  </div>
+
+  <section class="panel" aria-label="Readouts">
+    <h2>Last 24 hours · the cohesion gate's limits where they apply</h2>
+    <div class="readouts" id="readouts"></div>
+    <h2 style="margin-top:16px">Herd sizes now (heads; bar width = tiles it covers)</h2>
+    <div class="sizes" id="sizes"></div>
+  </section>
+
+  <div class="lower">
+    <section class="panel" aria-label="Decision">
+      <h2 id="decTitle">Decision</h2>
+      <div id="decision"><p class="empty">Click an animal on the map to see why it stayed or left.</p></div>
+    </section>
+    <section class="panel" aria-label="Events">
+      <h2>Events</h2>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <section class="panel" id="cmpPanel" hidden aria-label="Comparison">
+    <h2 id="cmpTitle">Comparison</h2>
+    <div class="tablewrap"><table id="cmp"></table></div>
+  </section>
+
+  <section class="panel notes" aria-label="About the model">
+    <h2>What this leaves out</h2>
+    <p>One species of prey and one pack. No rest, snow, terrain costs or days and nights. Wolves don't drink, and their hunting is a sketch: they pick the caribou that's cheapest to reach (distance × herd size), stalk at 4 min a tile, kill on an unseen approach at the ambush rate, otherwise chase at 1 min a tile and catch with 30% a minute when on the same tile. Caribou flee at 1 min a tile. Animals know every tile's forage (true world, as the spec says). Forage per tile is the tile's richness × (1 − grazed level). Richness comes from the chosen land layout and stands in for the game's terrain and forage pools. Grazing down follows Fauna.GrazeMinute with #83's eaten-share factor; regrowth follows Pools.GrazedLevel. An animal counts on the tile it is stepping onto, as in #83's code.</p>
+    <p>"Herd" here is a connected cluster of occupied tiles (8-neighbour), because at 100 m a herd of 30 caribou covers several tiles. The spec's per-tile herd is shown as "animals on its tile". The gate's limits shown: alone ≤ 10%, and the biggest herd ≤ 60% of the species once there are more than 20. Metrics average the last 24 sampled hours.</p>
+  </section>
+</div>
+
+<script>
+/*CORE*/
+</script>
+<script>
+(function () {
+  const BASE = { capForage: 'fixed', capBody: false, kinRadius: 0 };
+  const PRESETS = [
+    { key: 'chosen', label: 'Chosen: body size + kin next door', set: { ...BASE, capBody: true, kinRadius: 1 }, note: 'Capacity counts body intake, and kin on a neighbouring tile count as company. Pair with the follow interrupt, alone-hourly search and no arrival reset.' },
+    { key: 'fixed', label: 'Fixed K', set: { ...BASE }, note: 'Every tile feeds K heads at full rate and shares past K. Kin only on the same tile.' },
+    { key: 'body', label: 'K by body size', set: { ...BASE, capBody: true }, note: 'Capacity counts each animal\'s intake (mass^0.75), so big bodies fill a tile sooner.' },
+    { key: 'rich', label: 'K by richness', set: { ...BASE, capForage: 'rich' }, note: 'Rich pasture carries more: K × the tile\'s richness ÷ the map average.' },
+    { key: 'now', label: 'K by forage left', set: { ...BASE, capForage: 'now' }, note: 'Capacity falls as the tile is eaten: K × forage left now ÷ the map average.' },
+    { key: 'kin1', label: 'Kin next door', set: { ...BASE, kinRadius: 1 }, note: 'Fixed K, but kin on a neighbouring tile count as company.' },
+    { key: 'nowKin1', label: 'Forage left + kin next door', set: { ...BASE, capForage: 'now', kinRadius: 1 }, note: 'Capacity follows forage left, and kin next door count as company.' },
+  ];
+  const SLIDERS = [
+    ['animals', 'Animals (N)', 5, 150, 1, v => v, 'Used by the "N" starts.'],
+    ['K', 'Capacity K', 1, 30, 1, v => v, 'Heads a typical tile feeds at full rate.'],
+    ['noise', 'Score jitter', 0, 0.3, 0.01, v => '±' + Math.round(v * 100) + '%', 'Random jitter on every candidate\'s score.'],
+    ['cohesion', 'Cohesion', 0, 5, 0.1, v => v.toFixed(1), 'Going where no kin are costs ×(1 + cohesion). Caribou 1, bison 2.'],
+    ['stayFactor', 'Stay factor', 1, 2, 0.05, v => v.toFixed(2), 'A move must beat staying by this much. Planner.StayFactor is 1.25.'],
+    ['amount', 'Meal (min of eating)', 30, 600, 10, v => v, 'One plan\'s amount, at the fresh rate.'],
+    ['bodySpread', 'Body spread', 0, 0.3, 0.01, v => '±' + Math.round(v * 100) + '%', 'The game\'s is ±15% (average of two uniforms).'],
+    ['tileMin', 'Minutes per tile', 1, 20, 1, v => v, 'The game\'s floor is 5 per crossing; hills about 8.'],
+    ['radius', 'Search radius (tiles)', 2, 20, 1, v => v, ''],
+    ['grazeRate', 'Grazing per kg-hour', 0.00002, 0.0005, 0.00001, v => v.toFixed(5), 'Fauna.GrazingRatePerKgPerHour is 0.0001.'],
+    ['contrast', 'Rich vs poor contrast', 0.5, 4, 0.1, v => v.toFixed(1), 'Above 1 widens the gap between the best and worst ground.'],
+    ['ponds', 'Ponds', 0, 12, 1, v => v, 'Small pools of 1–4 tiles, besides the valley\'s river.'],
+    ['drinkHours', 'Hours between drinks', 4, 48, 1, v => v, 'A caribou goes for water once this long has passed.'],
+    ['huntDays', 'Wolves: days between hunts', 0.5, 6, 0.5, v => v, 'How long after feeding the pack starts hunting again.'],
+    ['watch', 'Caribou watchfulness', 0, 0.2, 0.005, v => v.toFixed(3), 'Chance a minute one caribou spots stalking wolves at the edge of its sight; higher closer. A herd rolls once per animal.'],
+    ['ambush', 'Ambush success', 0, 1, 0.05, v => Math.round(v * 100) + '%', 'A pack that reaches its quarry unseen kills it this often.'],
+    ['chaseLimit', 'Chase limit (min)', 0, 60, 1, v => v, 'Wolves give up a chase after this long.'],
+    ['fleeTiles', 'Flight distance (tiles)', 1, 15, 1, v => v, 'How far a startled herd runs before grazing again.'],
+    ['regrowDays', 'Days to regrow fully', 1, 60, 1, v => v, 'Pools.ForageRespawnHours is 672 (28 days), linear.'],
+    ['seed', 'Map seed', 1, 50, 1, v => v, ''],
+  ];
+
+  const p = Object.assign({}, HerdSim.DEFAULTS, { start: 'game' });
+  let preset = 'chosen', sim, playing = true, selected = -1, hover = -1;
+  const $ = id => document.getElementById(id);
+
+  // Controls
+  const presetBox = $('presets');
+  for (const pr of PRESETS) {
+    const b = document.createElement('button'); b.textContent = pr.label; b.dataset.key = pr.key;
+    b.onclick = () => { preset = pr.key; Object.assign(p, pr.set); syncControls(); restart(); };
+    presetBox.appendChild(b);
+  }
+  for (const b of $('starts').children) b.onclick = () => { p.start = b.dataset.start; syncControls(); restart(); };
+  const sliderBox = $('sliders');
+  for (const [key, label, min, max, step, fmt, hint] of SLIDERS) {
+    const f = document.createElement('div'); f.className = 'field';
+    f.innerHTML = `<label for="s-${key}">${label}</label><output id="o-${key}"></output><input type="range" id="s-${key}" min="${min}" max="${max}" step="${step}">` + (hint ? `<span class="hint">${hint}</span>` : '');
+    sliderBox.appendChild(f);
+    const input = f.querySelector('input');
+    input.oninput = () => { p[key] = +input.value; $('o-' + key).textContent = fmt(+input.value); markCustom(); restart(); };
+  }
+  $('terrain').onchange = e => { p.terrain = e.target.value; restart(); };
+  $('capForage').onchange = e => { p.capForage = e.target.value; markCustom(); restart(); };
+  $('kinRadius').onchange = e => { p.kinRadius = +e.target.value; markCustom(); restart(); };
+  const CHECKS = ['capBody', 'follow', 'arrivalReset', 'mealReplan', 'loneHourly', 'water', 'wolves', 'arrivals'];
+  for (const k of CHECKS) $(k).onchange = e => { p[k] = e.target.checked; markCustom(); restart(); };
+
+  function markCustom() {
+    const match = PRESETS.find(pr => Object.entries(pr.set).every(([k, v]) => p[k] === v));
+    preset = match ? match.key : 'custom'; syncControls(false);
+  }
+  function syncControls(sliders = true) {
+    for (const b of presetBox.children) b.setAttribute('aria-pressed', String(b.dataset.key === preset));
+    for (const b of $('starts').children) b.setAttribute('aria-pressed', String(b.dataset.start === p.start));
+    const pr = PRESETS.find(x => x.key === preset);
+    $('presetNote').textContent = pr ? pr.note : 'Custom mix of the settings below.';
+    $('terrain').value = p.terrain; $('capForage').value = p.capForage; $('kinRadius').value = String(p.kinRadius);
+    for (const k of CHECKS) $(k).checked = p[k];
+    if (sliders) for (const [key, , , , , fmt] of SLIDERS) { $('s-' + key).value = p[key]; $('o-' + key).textContent = fmt(p[key]); }
+  }
+
+  function restart() { sim = HerdSim.create(p); selected = -1; renderDecision(); draw(); readouts(); renderLog(); }
+
+  $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
+  $('stepBtn').onclick = () => { HerdSim.tick(sim); frame(true); };
+  $('hourBtn').onclick = () => { for (let i = 0; i < 60; i++) HerdSim.tick(sim); frame(true); };
+  $('resetBtn').onclick = restart;
+
+  // Map
+  const cv = $('map'), ctx = cv.getContext('2d');
+  let colors = {};
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['bare', 'lush', 'mapbg', 'ink', 'accent', 'line', 'panel', 'muted', 'water', 'wolf', 'blood']) colors[k] = cs.getPropertyValue('--' + k).trim();
+  }
+  function hex(c) { const m = c.replace('#', ''); return [0, 2, 4].map(i => parseInt(m.slice(i, i + 2), 16)); }
+  function mix(a, b, t) { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; }
+  const hue = t => `hsl(${(t * 137.508) % 360} 70% 52%)`;
+  function geom() { const cw = cv.width / sim.W, ch = cv.height / sim.H; return { cw, ch }; }
+  function slot(k, i, cw) { // position of the i-th of k animals inside a tile
+    if (k === 1) return [0, 0];
+    const ring = Math.min(cw * 0.32, 4 + k * 0.9), ang = i * 2.399963;
+    const r = ring * Math.sqrt((i + 0.5) / k); return [Math.cos(ang) * r, Math.sin(ang) * r];
+  }
+  function positions() {
+    const { cw, ch } = geom(), byTile = new Map(), pos = [];
+    for (const a of sim.agents) { if (!byTile.has(a.tile)) byTile.set(a.tile, []); byTile.get(a.tile).push(a); }
+    for (const [t, list] of byTile) list.forEach((a, i) => {
+      const [ox, oy] = slot(list.length, i, cw);
+      const tx = (t % sim.W + 0.5) * cw + ox, ty = (Math.floor(t / sim.W) + 0.5) * ch + oy;
+      let x = tx, y = ty;
+      if (a.step > 0) { const f = a.step / sim.p.tileMin; x = tx + ((a.px + 0.5) * cw - (t % sim.W + 0.5) * cw) * f; y = ty + ((a.py + 0.5) * ch - (Math.floor(t / sim.W) + 0.5) * ch) * f; }
+      pos[a.id] = [x, y];
+    });
+    return pos;
+  }
+  let lastPos = [];
+  function draw() {
+    const { cw, ch } = geom();
+    ctx.fillStyle = colors.mapbg; ctx.fillRect(0, 0, cv.width, cv.height);
+    for (let t = 0; t < sim.n; t++) {
+      const x = (t % sim.W) * cw, y = Math.floor(t / sim.W) * ch;
+      ctx.fillStyle = sim.water[t] ? colors.water : mix(colors.bare, colors.lush, HerdSim.forageAt(sim, t));
+      ctx.fillRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+    }
+    const pos = positions(); lastPos = pos;
+    ctx.lineWidth = 1.5;
+    for (const a of sim.agents) if (a.target !== a.tile || a.step > 0) {
+      const [x, y] = pos[a.id];
+      ctx.strokeStyle = hue(a.target); ctx.globalAlpha = 0.55; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo((a.target % sim.W + 0.5) * cw, (Math.floor(a.target / sim.W) + 0.5) * ch); ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+    // herds: outline each connected cluster, label its head count
+    ctx.font = '600 13px "IBM Plex Mono", monospace'; ctx.textAlign = 'left';
+    ctx.strokeStyle = colors.ink; ctx.lineWidth = 2; ctx.globalAlpha = 0.75;
+    for (const c of HerdSim.clusters(sim)) {
+      const set = new Set(c.tiles); let top = c.tiles[0];
+      for (const t of c.tiles) {
+        if (t < top) top = t;
+        const x = (t % sim.W) * cw, y = Math.floor(t / sim.W) * ch, tx = t % sim.W;
+        ctx.beginPath();
+        if (!set.has(t - sim.W)) { ctx.moveTo(x, y); ctx.lineTo(x + cw, y); }
+        if (!set.has(t + sim.W)) { ctx.moveTo(x, y + ch); ctx.lineTo(x + cw, y + ch); }
+        if (tx === 0 || !set.has(t - 1)) { ctx.moveTo(x, y); ctx.lineTo(x, y + ch); }
+        if (tx === sim.W - 1 || !set.has(t + 1)) { ctx.moveTo(x + cw, y); ctx.lineTo(x + cw, y + ch); }
+        ctx.stroke();
+      }
+      ctx.fillStyle = colors.ink; ctx.globalAlpha = 0.9;
+      ctx.fillText(c.count, (top % sim.W) * cw + 3, Math.floor(top / sim.W) * ch + 13);
+      ctx.globalAlpha = 0.75;
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = colors.blood; ctx.lineWidth = 3;
+    for (const c of sim.carcasses) {
+      const x = (c.tile % sim.W + 0.5) * cw, y = (Math.floor(c.tile / sim.W) + 0.5) * ch, r = cw * 0.28;
+      ctx.globalAlpha = Math.max(0.25, 1 - (sim.minute - c.minute) / (3 * 1440));
+      ctx.beginPath(); ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r); ctx.moveTo(x + r, y - r); ctx.lineTo(x - r, y + r); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    for (const a of sim.agents) {
+      const [x, y] = pos[a.id];
+      ctx.beginPath(); ctx.arc(x, y, a.mode === 'flee' ? 6 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = hue(a.target); ctx.fill();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = colors.ink; ctx.stroke();
+      if (a.id === selected) { ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = colors.accent; ctx.stroke(); }
+    }
+    const w = sim.wolves;
+    if (w) {
+      let x = (w.tile % sim.W + 0.5) * cw, y = (Math.floor(w.tile / sim.W) + 0.5) * ch;
+      if (w.step > 0) { const f = w.step / w.stepMin; x += ((w.px + 0.5) * cw - x) * f; y += ((w.py + 0.5) * ch - y) * f; }
+      const q = HerdSim.byId(sim, w.quarry);
+      if (q && pos[q.id]) {
+        ctx.strokeStyle = colors.blood; ctx.lineWidth = 2; ctx.setLineDash(w.state === 'chase' ? [] : [6, 4]);
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(pos[q.id][0], pos[q.id][1]); ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.beginPath(); ctx.arc(x, y, cw * 0.42, 0, Math.PI * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = colors.blood; ctx.stroke();
+      for (let i = 0; i < sim.p.packSize; i++) {
+        const ang = i / sim.p.packSize * Math.PI * 2 - Math.PI / 2, r = cw * 0.18;
+        ctx.beginPath(); ctx.arc(x + Math.cos(ang) * r, y + Math.sin(ang) * r, 4.5, 0, Math.PI * 2); ctx.fillStyle = colors.wolf; ctx.fill();
+      }
+      ctx.font = '600 12px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.fillStyle = colors.ink;
+      ctx.fillText(w.state, x, y + cw * 0.42 + 13);
+    }
+  }
+  function pick(ev) {
+    const r = cv.getBoundingClientRect(), sx = cv.width / r.width, x = (ev.clientX - r.left) * sx, y = (ev.clientY - r.top) * (cv.height / r.height);
+    let best = -1, bd = 18 * sx;
+    lastPos.forEach((q, id) => { if (!q) return; const d = Math.hypot(q[0] - x, q[1] - y); if (d < bd) { bd = d; best = id; } });
+    const { cw, ch } = geom();
+    return { id: best, tile: Math.floor(y / ch) * sim.W + Math.floor(x / cw), cx: ev.clientX - cv.parentElement.getBoundingClientRect().left, cy: ev.clientY - cv.parentElement.getBoundingClientRect().top };
+  }
+  cv.addEventListener('click', ev => { const h = pick(ev); selected = h.id; renderDecision(); draw(); });
+  cv.addEventListener('mousemove', ev => {
+    const h = pick(ev), tip = $('tip');
+    if (h.tile < 0 || h.tile >= sim.n) { tip.hidden = true; return; }
+    const t = h.tile;
+    if (sim.water[t]) { tip.textContent = `(${t % sim.W},${Math.floor(t / sim.W)})  water  on ${sim.on[t]}  heading ${sim.heading[t]}`; tip.style.left = Math.min(h.cx + 14, cv.parentElement.clientWidth - 320) + 'px'; tip.style.top = (h.cy + 14) + 'px'; tip.hidden = false; return; }
+    tip.textContent = `(${t % sim.W},${Math.floor(t / sim.W)})  forage ${HerdSim.forageAt(sim, t).toFixed(2)} of ${sim.rich[t].toFixed(2)}  K ${HerdSim.capacity(sim, t).toFixed(1)}  on ${sim.on[t]}  heading ${sim.heading[t]}`;
+    tip.style.left = Math.min(h.cx + 14, cv.parentElement.clientWidth - 320) + 'px'; tip.style.top = (h.cy + 14) + 'px'; tip.hidden = false;
+  });
+  cv.addEventListener('mouseleave', () => { $('tip').hidden = true; });
+
+  // Readouts
+  function median(v) { if (!v.length) return NaN; const a = [...v].sort((x, y) => x - y), m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; }
+  function stats(s) {
+    const last = s.stats.samples.slice(-24);
+    if (!last.length) return null;
+    const avg = k => last.reduce((x, y) => x + y[k], 0) / last.length;
+    const days = Math.max(s.minute / 1440, 1 / 24);
+    return { alone: avg('alone'), largest: avg('largest'), herds: avg('herds'), mean: avg('mean'), perTile: avg('perTile'), cv: avg('cv'),
+      intake: avg('intake'), moves: s.stats.moves / Math.max(1, s.agents.length) / days, n: s.agents.length,
+      kills: s.stats.kills.length, hunts: s.stats.hunts, victimHerd: median(s.stats.kills.map(k => k.herd)) };
+  }
+  const METRICS = [
+    ['herds', 'Herds', v => v.toFixed(1)],
+    ['mean', 'Herd an animal is in', v => v.toFixed(1)],
+    ['perTile', 'Animals on its tile', v => v.toFixed(1)],
+    ['cv', 'Herd size spread (CV)', v => v.toFixed(2)],
+    ['largest', 'Biggest herd', v => Math.round(v * 100) + '%', v => v <= 0.6],
+    ['alone', 'Alone', v => Math.round(v * 100) + '%', v => v <= 0.1],
+    ['moves', 'Tile moves / animal-day', v => v.toFixed(1)],
+    ['intake', 'Intake, share of fresh', v => Math.round(v * 100) + '%'],
+    ['kills', 'Kills / hunts (whole run)', (v, st) => `${v} / ${st.hunts}`, null, true],
+    ['victimHerd', 'Victims\' herd size, median', v => (isNaN(v) ? '–' : v), null, true],
+  ];
+  const rbox = $('readouts');
+  for (const [k, label, , , nospark] of METRICS) {
+    const d = document.createElement('div'); d.className = 'metric'; d.id = 'm-' + k;
+    d.innerHTML = `<div class="k">${label}</div><div class="v">–</div>` + (nospark ? '' : '<canvas width="200" height="28"></canvas>');
+    rbox.appendChild(d);
+  }
+  function spark(c, key) {
+    if (!c) return;
+    const x = c.getContext('2d'), s = sim.stats.samples; x.clearRect(0, 0, c.width, c.height);
+    if (s.length < 2) return;
+    let max = 0; for (const q of s) max = Math.max(max, q[key]);
+    if (key === 'alone' || key === 'largest' || key === 'intake') max = 1; max = max || 1;
+    x.beginPath();
+    s.forEach((q, i) => { const px = i / (s.length - 1) * c.width, py = c.height - 2 - (q[key] / max) * (c.height - 4); i ? x.lineTo(px, py) : x.moveTo(px, py); });
+    x.strokeStyle = colors.accent; x.lineWidth = 1.5; x.stroke();
+    if (key === 'largest' || key === 'alone') {
+      const lim = key === 'largest' ? 0.6 : 0.1, py = c.height - 2 - lim * (c.height - 4);
+      x.setLineDash([3, 3]); x.strokeStyle = colors.muted; x.lineWidth = 1; x.beginPath(); x.moveTo(0, py); x.lineTo(c.width, py); x.stroke(); x.setLineDash([]);
+    }
+  }
+  function readouts() {
+    const st = stats(sim);
+    for (const [k, , fmt, ok] of METRICS) {
+      const d = $('m-' + k), v = d.querySelector('.v');
+      d.classList.remove('pass', 'fail');
+      if (!st) { v.textContent = '–'; spark(d.querySelector('canvas'), k); continue; }
+      v.innerHTML = fmt(st[k], st);
+      if (ok && !(k === 'largest' && st.n <= 20)) { const pass = ok(st[k]); d.classList.add(pass ? 'pass' : 'fail'); v.innerHTML += `<span class="pill">${pass ? 'pass' : 'fail'}</span>`; }
+      spark(d.querySelector('canvas'), k);
+    }
+    const cl = HerdSim.clusters(sim), top = cl[0] ? cl[0].count : 1;
+    $('sizes').innerHTML = cl.map(c => `<div style="height:${Math.max(14, c.count / top * 68)}px;width:${14 + c.tiles.length * 8}px" title="${c.count} animals on ${c.tiles.length} tiles">${c.count}</div>`).join('');
+  }
+
+  // Decision inspector
+  const tl = t => `(${t % sim.W},${Math.floor(t / sim.W)})`;
+  const fmtMin = m => (m === Infinity ? '∞' : Math.round(m).toLocaleString());
+  function clockOf(m) { const d = Math.floor(m / 1440) + 1, h = Math.floor(m % 1440 / 60), mm = m % 60; return `d${d} ${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; }
+  function renderDecision() {
+    const box = $('decision');
+    if (selected < 0) { $('decTitle').textContent = 'Decision'; box.innerHTML = '<p class="empty">Click an animal on the map to see why it stayed or left.</p>'; return; }
+    const a = HerdSim.byId(sim, selected);
+    if (!a) { $('decTitle').textContent = `Animal #${selected}`; box.innerHTML = '<p class="empty">Killed by the wolves.</p>'; return; }
+    const L = a.last;
+    const doing = a.mode === 'flee' ? 'fleeing to ' + tl(a.target) : a.drinking > 0 ? 'drinking at ' + tl(a.tile) : a.tile === a.target ? 'grazing ' + tl(a.tile) : (a.mode === 'water' ? 'going to drink at ' : 'heading to ') + tl(a.target);
+    $('decTitle').textContent = `Animal #${a.id} · ${Math.round(a.mass)} kg · thirst ${Math.round(a.thirst / 60)} h · ${doing}`;
+    if (!L) { box.innerHTML = '<p class="empty">No decision yet.</p>'; return; }
+    const row = (c, label, chosen) => `<tr class="${chosen ? 'chosen' : ''}"><td>${label}</td><td>${c.travel}</td><td>${c.load.toFixed(1)} / ${c.K.toFixed(1)}</td><td>${c.rate.toFixed(3)}</td><td>${c.kin ? 'yes' : 'no ×' + (1 + sim.p.cohesion).toFixed(1)}</td><td>${fmtMin(c.total)}</td></tr>`;
+    let rows = L.here ? row(L.here, 'stay ' + tl(L.here.t), L.chose === L.here.t) : '';
+    for (const c of L.cands) rows += row(c, (L.kind === 'follow' ? 'follow → ' : L.kind === 'water' ? 'drink at ' : '') + tl(c.t), L.chose === c.t);
+    const best = L.cands[0];
+    const go = L.here && L.chose !== L.here.t;
+    const verdict = L.kind === 'water' ? `Went to the cheapest water: ${fmtMin(best.total)} min, counting the cohesion cost.`
+      : best ? `${go ? 'Left' : 'Stayed'}: best ${fmtMin(best.total)} × ${sim.p.stayFactor} = ${fmtMin(best.total * sim.p.stayFactor)} ${go ? '<' : '≥'} stay ${fmtMin(L.here.total)}.` : 'Stayed.';
+    box.innerHTML = `<p style="margin:0 0 6px;font-size:12.5px;color:var(--muted)">${clockOf(L.minute)} · trigger: <b style="color:var(--ink)">${L.why}</b>${L.kind === 'search' ? ' · full search, top 5 shown' : L.kind === 'water' ? ' · water, top 5 shown' : ' · follow or stay'} · ∞ = refused (wolves next to it, or nothing to eat)</p>
+      <div class="tablewrap"><table><thead><tr><th>Option</th><th>Travel</th><th>Load / K</th><th>Rate</th><th>Kin there</th><th>Total min</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="verdict">${verdict}</p>`;
+  }
+
+  // Departure log: a lead departure and who followed it in the same minute
+  function renderLog() {
+    const out = [], log = sim.log;
+    for (let i = log.length - 1; i >= 0 && out.length < 50; i--) {
+      const e = log[i], t = `<span class="t">${clockOf(e.minute)}</span>`;
+      if (e.kind === 'move') {
+        if (e.why === 'followed' || e.why === 'kin went to drink') continue;
+        const fol = log.filter(f => f.kind === 'move' && (f.why === 'followed' || f.why === 'kin went to drink') && f.minute === e.minute && f.to === e.to).map(f => '#' + f.id);
+        out.push(`<div>${t}<span><span class="lead">#${e.id}</span> ${e.why} ${tl(e.from)} → ${tl(e.to)}${fol.length ? ' · with ' + fol.join(' ') : ''}</span></div>`);
+      } else if (e.kind === 'alarm') out.push(`<div>${t}<span class="warn">herd of ${e.count} ${e.why === 'kill' ? 'scatters from the kill' : e.why === 'still chased' ? 'keeps running' : e.why} · runs</span></div>`);
+      else if (e.kind === 'hunt') out.push(`<div>${t}<span class="wolf">wolves start stalking #${e.id} (herd of ${e.herd})</span></div>`);
+      else if (e.kind === 'kill') out.push(`<div>${t}<span class="wolf"><b>wolves kill #${e.id}</b> (from a herd of ${e.herd}) at ${tl(e.tile)}</span></div>`);
+      else if (e.kind === 'gaveup') out.push(`<div>${t}<span class="wolf">wolves give up the chase of #${e.id}</span></div>`);
+      else if (e.kind === 'arrival') out.push(`<div>${t}<span>#${e.id} arrives at ${tl(e.tile)}</span></div>`);
+    }
+    $('log').innerHTML = out.length ? out.join('') : '<p class="empty">Nothing yet.</p>';
+  }
+
+  // Comparison across algorithms, same tuning, 3 seeds, 5 days
+  $('compareBtn').onclick = async () => {
+    const panel = $('cmpPanel'), table = $('cmp'); panel.hidden = false;
+    $('compareBtn').disabled = true;
+    const rows = [], days = 15, seeds = [p.seed, p.seed + 1, p.seed + 2];
+    for (const pr of PRESETS) {
+      const acc = { alone: 0, largest: 0, mean: 0, perTile: 0, cv: 0, moves: 0, intake: 0, kills: 0, hunts: 0, sizes: [], n: 0 };
+      for (const seed of seeds) {
+        $('cmpTitle').textContent = `Comparison · running ${pr.label}, seed ${seed}…`;
+        await new Promise(r => setTimeout(r, 0));
+        const s = HerdSim.create(Object.assign({}, p, pr.set, { seed }));
+        for (let m = 0; m < days * 1440; m++) HerdSim.tick(s);
+        const st = stats(s); acc.n = st.n;
+        for (const k of ['alone', 'largest', 'mean', 'perTile', 'cv', 'moves', 'intake', 'kills', 'hunts']) acc[k] += st[k] / seeds.length;
+        acc.sizes.push(HerdSim.clusters(s).map(c => c.count).slice(0, 7).join(' '));
+      }
+      rows.push({ pr, acc });
+    }
+    const cell = (v, ok) => `<td class="${ok === undefined ? '' : ok ? 'pass' : 'fail'}">${v}</td>`;
+    table.innerHTML = `<thead><tr><th>Algorithm</th><th>Herd size spread (CV)</th><th>Biggest herd</th><th>Alone</th><th>Herd an animal is in</th><th>On its tile</th><th>Moves / animal-day</th><th>Intake</th><th>Kills / hunts</th><th>Herd sizes at day ${days} (per seed)</th></tr></thead><tbody>` +
+      rows.map(({ pr, acc }) => `<tr><td>${pr.label}</td>${cell(acc.cv.toFixed(2))}${cell(Math.round(acc.largest * 100) + '%', acc.n > 20 ? acc.largest <= 0.6 : undefined)}${cell(Math.round(acc.alone * 100) + '%', acc.alone <= 0.1)}${cell(acc.mean.toFixed(1))}${cell(acc.perTile.toFixed(1))}${cell(acc.moves.toFixed(1))}${cell(Math.round(acc.intake * 100) + '%')}${cell(sim.p.wolves ? acc.kills.toFixed(1) + ' / ' + acc.hunts.toFixed(0) : '–')}<td style="text-align:left">${acc.sizes.join(' | ')}</td></tr>`).join('') + '</tbody>';
+    const startLabel = { game: 'game start (3 herds of 5–15)', herd: p.animals + ' on one tile', scattered: p.animals + ' scattered' }[p.start];
+    $('cmpTitle').textContent = `Comparison · ${startLabel}, K ${p.K}, seeds ${seeds.join(', ')}, ${days} days, last 24 h averaged`;
+    $('compareBtn').disabled = false;
+  };
+
+  // Loop
+  let logTick = 0;
+  function frame(force) {
+    const minPerFrame = +$('speed').value;
+    if (playing && !force) for (let i = 0; i < minPerFrame; i++) HerdSim.tick(sim);
+    $('clock').textContent = `day ${Math.floor(sim.minute / 1440) + 1} · ${clockOf(sim.minute).slice(-5)}`;
+    draw();
+    if (force || ++logTick % 6 === 0) { readouts(); renderLog(); if (selected >= 0) renderDecision(); }
+  }
+  function loop() { frame(false); requestAnimationFrame(loop); }
+  readColors();
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readColors(); draw(); }); } catch (e) {}
+  new MutationObserver(() => { readColors(); draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  syncControls(); restart();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { playing = false; $('play').textContent = 'Play'; }
+  requestAnimationFrame(loop);
+})();
+</script>
