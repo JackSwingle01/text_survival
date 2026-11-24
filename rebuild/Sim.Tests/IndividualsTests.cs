@@ -187,6 +187,34 @@ public class IndividualsTests(ITestOutputHelper output)
         Assert.Equal(Tracks.TroddenAt(once, from, to), trodden, 2);
     }
 
+    /// A hungry grazer with kin within one tile is with them (as KinAt): it grazes where it stands rather than walk
+    /// onto their tile, so a herd spread over a few tiles stays spread. Kin farther off, it still goes to them.
+    /// A valley emptied of animals; the kin are fed, so only the one is hungry.
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(3, true)]
+    public void AHungryGrazer_WithKinWithinOneTile_StaysPut_AndGoesToKinFartherOff(int apartTiles, bool goes)
+    {
+        var w = TestWorlds.New(1);
+        foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
+        var m = Map.Of(w);
+        bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
+        var tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Enumerable.Range(0, apartTiles + 1).All(i => Open(new TileId(t.X + i, t.Y))
+                && (i == 0 || Map.Blocked(m, new TileId(t.X + i - 1, t.Y), new TileId(t.X + i, t.Y)) == null)));
+        var kin = Agents.SpawnGroup(w, Species.Mammoth, new TileId(tile.X + apartTiles, tile.Y), 4);
+        var lone = Agents.Spawn(w, Species.Mammoth, tile);
+        // An open group's kin are any of its species, so the four are the lone one's kin without having met it.
+        foreach (var k in kin.Select(w.Agent)) TestKit.SetHunger(k, 0);
+        TestKit.SetHunger(w.Agent(lone), 0.8);
+        var body = w.Agent(lone).Body;
+        Assert.Equal(Priority.Need, Priorities.AnimalFoodPriority(body, SpeciesTable.Of(Species.Mammoth).FatPct, seeingTo: false));
+        var moved = new List<Moved>();
+        for (int i = 0; i < 60; i++) moved.AddRange(Sim.Advance(w, 1).OfType<Moved>().Where(e => e.Who == lone));
+        if (goes) Assert.Contains(moved, e => e.To.X > e.From.X);
+        else Assert.Empty(moved);
+    }
+
     /// Twelve caribou on a tile are one herd of twelve to whoever sees them, and seen again they are still one.
     [Fact]
     public void AnNpcThatSeesTwelveCaribou_RemembersOneHerdOfTwelve()

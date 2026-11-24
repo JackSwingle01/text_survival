@@ -74,8 +74,8 @@ public static partial class Fauna
         // A raven or fox at a kill a predator holds waits it out over it, or keeps off, unless starving (Scavenging.cs).
         if (stat == Stat.Food && priority < Priority.Critical && HeldKill(world, animal)) return KeepOff(world, animal, mind, events);
         if (stat == Stat.Food && WouldComeForSomeone(world, animal, events)) return null;
-        // Alone, a hungry animal goes to kin it can make out first; its food plan's cohesion would keep it there.
-        if (stat == Stat.Food && priority < Priority.Critical && SideCount(world, animal) == 1 && Cohere(world, animal, mind) is { } toKin) return toKin;
+        // Alone, a hungry animal goes to kin it can make out first; prey a tile from kin are with them, or they'd crowd it.
+        if (stat == Stat.Food && priority < Priority.Critical && !WithKin(world, animal) && Cohere(world, animal, mind) is { } toKin) return toKin;
         bool arrived = false;
         if (mind.Plan is { Route: [var next, ..] } walking && next == animal.Tile)
         {
