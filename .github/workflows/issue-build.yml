@@ -48,6 +48,15 @@ name: Issue build
 # workflows to run" in the PR's merge box starts CI and Claude Review (the PR body says so).
 # Interim, until the PR is opened by an app whose PRs start CI without approval.
 #
+# Cancelling a run stops the queue: a cancelled build parks nothing (its issue keeps `ready-for-agent`)
+# and the run dispatches no next one. The hourly run, or the next dispatch, picks up from there.
+#
+# Trying a change. This workflow runs only from main, so before changing the Implement step's `env` or
+# `claude_args`, run .github/scripts/try_build_step.sh: it runs `claude -p` with this step's settings on a
+# toy build (a sub-agent whose report it needs, a command over two minutes) and fails unless it answers
+# built. Turning background tasks on passed review and broke the first four builds; that script takes
+# four minutes.
+#
 # Issue and dispatch workflows run from the default branch, and the Claude app only issues tokens
 # to a workflow that matches the default branch, so a change here works once it is on main.
 
@@ -401,9 +410,10 @@ jobs:
           echo "stop=true" >> "$GITHUB_OUTPUT"
           echo "why=$why" >> "$GITHUB_OUTPUT"
 
-      # Whatever happened, the issue ends with an open PR, parked with a reason, or (out of plan) as it was.
+      # Whatever happened, the issue ends with an open PR, parked with a reason, or (out of plan, or the
+      # run was cancelled) as it was.
       - name: Report
-        if: always() && steps.plan.outputs.stop != 'true'
+        if: always() && !cancelled() && steps.plan.outputs.stop != 'true'
         env:
           IMPLEMENT: ${{ steps.implement.outcome }}
           OUTPUT: ${{ steps.implement.outputs.structured_output }}
@@ -439,10 +449,11 @@ jobs:
           exit 1
 
   # The chain: each run starts the next while anything is ready, however its builds ended, unless one
-  # of them stopped the queue (out of plan, or Claude unreachable). Then the hourly run resumes.
+  # of them stopped the queue (out of plan, or Claude unreachable) or the run was cancelled. Then the
+  # hourly run resumes.
   next:
     needs: build
-    if: always() && needs.build.result != 'skipped'
+    if: always() && !cancelled() && needs.build.result != 'skipped'
     runs-on: ubuntu-latest
     permissions:
       actions: write

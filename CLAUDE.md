@@ -69,6 +69,10 @@ For the clean-room rebuild (`rebuild/`):
 - Each ticket gets its own branch off `main`, named `<issue#>-short-name`, worked in its own git
   worktree. Agents touch only their own worktree.
 - One PR per ticket, into `main`. Merge when CI and the Claude review are green.
+- A change that is proven only on `main` (a workflow that runs from the default branch) says so in its
+  PR, and its author schedules the watch when the PR opens: read the first run after the merge, its
+  transcript included, and report it. `issue-build.yml`'s header names the script that tries its
+  Claude step before a merge.
 - Porting the old game: follow `dev/active/porting.md`.
 - Each ticket's agent keeps a work log (the `mp:work-log` skill's format) in `.agent-logs/`,
   one file per task named `YYYY-MM-DD-short-name.md`, committed with its PR. See
