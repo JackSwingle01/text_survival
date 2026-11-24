@@ -7,23 +7,16 @@ static class ConservationWorlds
 {
     public static readonly AgentId P = AgentId.Player;
 
-    /// Seed 17 with nobody in it but the player, saved once: loading it costs about a millisecond,
+    /// Seed 17 with nobody in it but the player, built once: loading a copy costs about a millisecond,
     /// generating it a few hundred.
-    static readonly Lazy<(string Json, GeneratedMap Map)> Template = new(() =>
+    static readonly SharedWorld Template = new(() =>
     {
         var w = World.New(17);
         foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
-        return (Save.ToJson(w), Map.Of(w));
+        return w;
     });
 
-    /// A load of the template. A save holds no map, and regenerating one costs ~35 ms a world, so each
-    /// load is handed the template's: the map is read-only once generated.
-    static World Load()
-    {
-        var w = Save.FromJson(Template.Value.Json);
-        w.GeneratedMap = Template.Value.Map;
-        return w;
-    }
+    static World Load() => Template.Copy();
 
     /// The bare world under a pinned sky at this air temperature (°C), still at minute 0.
     public static World Bare(double tempC)
