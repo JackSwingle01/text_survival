@@ -27,7 +27,6 @@ public class ArchitectureTests
     }
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void SimSource_HasNoUiAsyncOrThreading()
     {
         var violations = Directory.EnumerateFiles(SimSourceDir(), "*.cs", SearchOption.AllDirectories)

@@ -110,7 +110,6 @@ public class ConservationFireTests
 
     /// Fire.Transfer and Fire.Consume once deleted a stack under a gram uncounted (fixed): no dust sink.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void Fire_FuelAdded_IsOnThePitOrBurned() => Scenes.Check(Ledger, iter: 150);
 
     [Fact]

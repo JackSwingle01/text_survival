@@ -9,7 +9,7 @@ public class SkillsTests
 
     static World Mild17()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         return w;
     }
@@ -35,7 +35,7 @@ public class SkillsTests
     public void TheFirstAttempt_DoesNotGrantALevel()
     {
         Assert.True(Skills.XpToNext(0) > 0);
-        var w = TestWorlds.New(1);
+        var w = TestWorlds.Bare(1);
         var events = new List<WorldEvent>();
         Skills.Award(w, w.Agent(P), Skill.Firecraft, Skills.FireFailureXp, events);
         Assert.Equal(0, Skills.Level(w.Agent(P), Skill.Firecraft));
@@ -54,7 +54,7 @@ public class SkillsTests
     [Fact]
     public void LevelUp_EmitsAWorldEvent_WhereThePersonStands_AndCarriesTheRestOver()
     {
-        var w = TestWorlds.New(1);
+        var w = TestWorlds.Bare(1);
         var me = w.Agent(P);
         var events = new List<WorldEvent>();
         Skills.Award(w, me, Skill.Foraging, Skills.XpToNext(0) + Skills.XpToNext(1) + 2, events);
@@ -67,7 +67,7 @@ public class SkillsTests
     [Fact]
     public void AnAnimal_LearnsNothing()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var wolves = Agents.Spawn(w, Species.Wolf, Map.Of(w).Camp);
         var events = new List<WorldEvent>();
         Skills.Award(w, w.Agent(wolves), Skill.Foraging, 100, events);
@@ -85,7 +85,7 @@ public class SkillsTests
         bool lit = false, missed = false;
         for (int seed = 0; seed < 60 && !(lit && missed); seed++)
         {
-            var w = TestWorlds.New(3);
+            var w = TestWorlds.Bare(3);
             Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
             Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
             Items.Add(Items.Pack(w, P), Resource.Pine, 2);
@@ -111,7 +111,7 @@ public class SkillsTests
     {
         for (int seed = 0; seed < 60; seed++)
         {
-            var w = TestWorlds.New(3);
+            var w = TestWorlds.Bare(3);
             Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
             Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
             Items.Add(Items.Pack(w, P), Resource.Pine, 2);
@@ -140,7 +140,7 @@ public class SkillsTests
         {
             string? Run(bool look)
             {
-                var w = TestWorlds.New(3);
+                var w = TestWorlds.Bare(3);
                 var tile = w.Agent(P).Tile;
                 Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
                 Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
@@ -221,7 +221,7 @@ public class SkillsTests
     [Fact]
     public void Firecraft_IsATermOnTheOddsSheet()
     {
-        var w = TestWorlds.New(1);
+        var w = TestWorlds.Bare(1);
         SetLevel(w, P, Skill.Firecraft, 5);
         var odds = Fire.StartOdds(w, w.Agent(P), ToolType.HandDrill, Resource.Tinder);
         var term = Assert.Single(odds.Terms, t => t.Factor == "Firecraft");
@@ -277,7 +277,7 @@ public class SkillsTests
     [Fact]
     public void Skills_RoundTripThroughASave()
     {
-        var w = TestWorlds.New(1);
+        var w = TestWorlds.Bare(1);
         Skills.Award(w, w.Agent(P), Skill.Cooking, 7.25, []);
         string json = Save.ToJson(w);
         var loaded = TestWorlds.Load(json);

@@ -10,7 +10,7 @@ public class CombatReachTests
 
     static (World W, Encounter E) PlayerVs(Species species, int distanceM, string? weapon, World? world = null)
     {
-        var (w, t) = CombatTests.Field(world ?? TestWorlds.New(1));
+        var (w, t) = CombatTests.Field(world ?? TestWorlds.Bare(1));
         var herd = CombatTests.Herd(w, species, 1, t);
         CombatTests.Normalize(w, herd);
         Gear? g = weapon == null ? null : Items.Make(weapon);

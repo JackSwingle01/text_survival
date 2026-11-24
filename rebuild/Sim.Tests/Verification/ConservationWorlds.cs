@@ -7,16 +7,7 @@ static class ConservationWorlds
 {
     public static readonly AgentId P = AgentId.Player;
 
-    /// Seed 17 with nobody in it but the player, built once: loading a copy costs about a millisecond,
-    /// generating it a few hundred.
-    static readonly SharedWorld Template = new(() =>
-    {
-        var w = TestWorlds.New(17);
-        foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
-        return w;
-    });
-
-    static World Load() => Template.Copy();
+    static World Load() => TestWorlds.Bare(17);
 
     /// The bare world under a pinned sky at this air temperature (°C), still at minute 0.
     public static World Bare(double tempC)

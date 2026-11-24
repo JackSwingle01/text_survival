@@ -12,7 +12,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -97,7 +97,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
     [Fact]
     public void WaterClues_AreOnlyNoticedByWater_AndForestOnesOnlyWithTrees()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         int checkedTiles = 0;
         for (int x = 0; x < m.Width && checkedTiles < 60; x += 3)
@@ -254,7 +254,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
         }
         Assert.Equal(bands.Count - 1, last);
 
-        var walker = TestWorlds.New(17);
+        var walker = TestWorlds.Bare(17);
         walker.FixedWeather = Mild;
         var from = walker.Agent(P).Tile;
         var go = Verbs.At(walker, P).Walk.First(v => v.Allowed);
@@ -308,7 +308,6 @@ public class ForageRestoreTests(ITestOutputHelper output)
     // ---- darkness and held work ----
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ForagingInTheDarkWithoutLight_FindsLessThanByDay()
     {
         double Haul(int hour)

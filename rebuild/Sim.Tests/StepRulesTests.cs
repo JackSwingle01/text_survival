@@ -7,7 +7,7 @@ public class StepRulesTests
 
     static World LitCamp(int seed = 1)
     {
-        var world = TestWorlds.New(seed);
+        var world = TestWorlds.Bare(seed);
         TestKit.Supply(world);
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
             Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
@@ -35,7 +35,7 @@ public class StepRulesTests
         Assert.Empty(r.Events);
         Assert.Equal(before, Save.ToJson(world));
 
-        var empty = TestWorlds.New(1);
+        var empty = TestWorlds.Bare(1);
         before = Save.ToJson(empty);
         r = Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1);
         Assert.Equal(("no fire here", 0), (r.InterruptedReason, r.MinutesElapsed));
@@ -48,7 +48,7 @@ public class StepRulesTests
         for (int i = 0; i < 50; i++)
         {
             // A fresh world each try: a fire that catches ends the tries in that world.
-            var world = TestWorlds.New(3);
+            var world = TestWorlds.Bare(3);
             Items.Add(Items.Pack(world, P), Resource.Tinder, 5);
             world.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(i, "ignition trial");
             double kcal = world.Agent(P).Body.CaloriesKcal;
@@ -68,8 +68,8 @@ public class StepRulesTests
     [Fact]
     public void Embers_WarmTheAirAroundThem()
     {
-        var cold = TestWorlds.New(1);
-        var embers = TestWorlds.New(1);
+        var cold = TestWorlds.Bare(1);
+        var embers = TestWorlds.Bare(1);
         PlacePit(embers, new FireState
         {
             Tile = Map.Of(embers).Camp,
@@ -92,8 +92,8 @@ public class StepRulesTests
     [Fact]
     public void ColdPit_GivesNoWindProtection()
     {
-        var none = TestWorlds.New(1);
-        var pit = TestWorlds.New(1);
+        var none = TestWorlds.Bare(1);
+        var pit = TestWorlds.Bare(1);
         PlacePit(pit, new FireState { Tile = Map.Of(pit).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone });
         Sim.Step(none, new Rest(P), 120);
         Sim.Step(pit, new Rest(P), 120);
@@ -106,7 +106,7 @@ public class StepRulesTests
     [Fact]
     public void DeadAgent_StepThrows_BeforeTouchingTheWorld()
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         world.Agent(P).Body.BloodPct = 0;
         Assert.False(Body.IsAlive(world.Agent(P).Body));
         string before = Save.ToJson(world);
@@ -122,7 +122,7 @@ public class StepRulesTests
     {
         World Hot(bool torch)
         {
-            var w = TestWorlds.New(1);
+            var w = TestWorlds.Bare(1);
             w.Agent(P).Body.CoreTempF = 99.5; // above the sweating threshold
             if (torch) PlacePit(w, new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, CarriedBy = P, TorchMinutesLeft = Fire.TorchBurnMinutes });
             Sim.Step(w, new Rest(P), 1);
