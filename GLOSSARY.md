@@ -328,6 +328,37 @@ it one blow meets depends on the kind of blow: a point meets little of the soft 
 club little of the flesh and all of the bone. What a blow does not meet, it passes on.
 _Avoid_: armor, hardness
 
+**Capacity**:
+How much of one thing a body can still do, from none to whole: moving, manipulation, consciousness,
+sight, hearing. Read from its tissue, its blood and breath, and its effects. Blood and breath are
+not capacities; they feed them.
+_Avoid_: stat (that is a need), ability (that is what a species can get at)
+
+**Crippled**:
+Of moving or manipulation: so little is left that the work it does is refused.
+_Avoid_: incapacitated, disabled
+
+**Lame**:
+Moving is crippled: the body cannot walk.
+_Avoid_: immobile, downed
+
+**Consciousness**:
+The capacity for being awake and clear-headed. A blow to the head, lost blood, cold, pain and going
+without sleep or water all lower it.
+_Avoid_: alertness, awareness
+
+**Unconscious**:
+Consciousness is all but gone. Every verb is refused and time passes until the body comes round or
+dies.
+_Avoid_: incapacitated, knocked out, downed
+
+**Vitality**:
+One overall read of what a body can do right now, taken from its strength, speed, dexterity and
+perception against a fresh body of its kind. Nothing inside a body reads it; it is for whoever is
+looking at the body. Whether a body is alive is a separate matter, read from its heart, lungs and
+brain alone.
+_Avoid_: health, hit points, condition
+
 ## Danger
 
 **Boldness**:
