@@ -7,8 +7,6 @@ namespace Survival.Tests;
 /// ways and the same settle order, for people and animals, out and into a site.
 public class RouteSearchTests(ITestOutputHelper output)
 {
-    static readonly Lazy<World> Generated = new(() => World.New(17));
-
     /// A plain Dijkstra over dictionaries, the oracle: the same settle order, tie-break and cutoffs as Trip.Routes promises.
     static (List<(TileId Tile, int Minutes)> Settled, Dictionary<TileId, TileId> Previous) Reference(World world, AgentId who,
         int maxMinutes = int.MaxValue, Func<TileId, int, bool>? until = null, Func<TileId, bool>? refused = null, TileId? into = null)
@@ -75,7 +73,7 @@ public class RouteSearchTests(ITestOutputHelper output)
     [Fact]
     public void Routes_OnAGeneratedWorld_MatchThePlainSearch_ForPeopleAndAnimals_OutAndIntoASite()
     {
-        var w = Generated.Value;
+        var w = TestWorlds.New(17);
         // One of each species, the player, and the player into a tile it has explored some way off.
         var animals = Animals(w).GroupBy(id => w.Agent(id).Species).Select(g => g.First()).ToList();
         Assert.True(animals.Count >= 3, $"only {animals.Count} species on the map");
@@ -98,7 +96,7 @@ public class RouteSearchTests(ITestOutputHelper output)
     [Fact]
     public void RouteMaps_StayTrue_AfterLaterSearches()
     {
-        var w = Generated.Value;
+        var w = TestWorlds.New(17);
         var animal = Animals(w).First();
         var first = Trip.Routes(w, animal, maxMinutes: 240);
         var copy = first.Minutes.ToList();
@@ -113,7 +111,7 @@ public class RouteSearchTests(ITestOutputHelper output)
     [Fact]
     public void ASearchBegunInsideAnother_SpoilsNeither()
     {
-        var w = Generated.Value;
+        var w = TestWorlds.New(17);
         var (outer, inner) = (Animals(w).First(), AgentId.Player);
         var innerExpected = Reference(w, inner, maxMinutes: 60).Settled;
         RouteMap? innerRoutes = null;
@@ -126,7 +124,7 @@ public class RouteSearchTests(ITestOutputHelper output)
     [Fact]
     public void RouteSearch_Allocation_Report()
     {
-        var w = Generated.Value;
+        var w = TestWorlds.New(17);
         var animal = Animals(w).First(id => w.Agent(id).Species == Species.Caribou);
         foreach (var (name, max) in new[] { ("short (60 min)", 60), ("long (whole reach)", int.MaxValue) })
         {

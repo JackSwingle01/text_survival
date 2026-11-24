@@ -5,6 +5,10 @@ what was planned; lasting decisions are in `documentation/decisions/` ("Animals 
 is derived", "Animals read the slow world true and sense what moves", and "Stat tiers decide priority
 before the stat hierarchy" as amended) and lasting terms in `GLOSSARY.md`.
 
+**Amended 2026-11-23** from a second grilling with Jack: prints, paths and the ground become one
+system, and activity prints move into it from the Raven and Fox ticket. The amendment's parts are
+marked "(amended 2026-11-23)" below; the rest of the spec is unchanged.
+
 ## Problem Statement
 
 The valley's animals don't live; they run scripts. A herd is one agent following a hand-written state
@@ -100,6 +104,20 @@ Animals and people share one body model and one way of looking for what they nee
      desperation shows and creates moments I remember.
 22b. As a player, I want a bedding ground or a grazed pasture to be trampled, so that I can read where
      a herd spent its time, not only where it passed.
+22c. (amended 2026-11-23) As a hunter in deep snow, I want a trail animals have packed to be quick
+     going and the loose snow off it slow, so that following a herd's trail is how I catch up with it.
+22d. (amended 2026-11-23) As a hunter, I want a trail's worth to depend on the snow: large in deep
+     loose snow, little on bare ground, so that trails matter most when winter is hardest.
+22e. (amended 2026-11-23) As a player, I want prints to disappear when fresh snow deeper than the print
+     falls on them, or a thaw takes them, and to last on bare frozen ground, so that how fresh a print
+     looks tells me what the weather has done since.
+22f. (amended 2026-11-23) As a player, I want a buried trail to come back quickly once animals walk it
+     again, so that an old game trail under new snow still shapes where animals and I go.
+22g. (amended 2026-11-23) As a player, I want a tile animals have spent days on to look worked on the
+     map and in signs, and to stay that way in my memory of it, so that I can find bedding grounds
+     and pastures again.
+22h. (amended 2026-11-23) As a player, I want heavily trodden snow to be slick underfoot, so that a
+     beaten yard is quick but not free.
 23. As a hunter, I want a pack's will to hunt big prey to come from its size, so that a pair of wolves
     leaves bison alone and a pack of eight doesn't.
 24. As a hunter, I want hungry animals to range further and take more risks, so that late winter is
@@ -167,6 +185,22 @@ Animals and people share one body model and one way of looking for what they nee
     that coverage of what the player sees isn't lost.
 52. As a developer, I want runs to stay deterministic for a seed, with animals deciding in a fixed
     order, so that golden and gate tests still mean something.
+53. (amended 2026-11-23) As the designer, I want prints, paths and the ground to be one system, so
+    that what the snow does to a print, a path and a crossing is one rule, not three that drift.
+54. (amended 2026-11-23) As the designer, I want every system that asks what the ground is like to
+    ask through one read, at a tile or at an edge's half of a tile, so that travel, footing, search,
+    wetting, the map and signs can't disagree.
+55. (amended 2026-11-23) As the designer, I want each effect of the ground (traversal, footing hazard,
+    search, wetting) worked out from one description of the ground, so that what is shown and what
+    happens come from the same numbers.
+56. (amended 2026-11-23) As the designer, I want trampling to be a number per edge and per tile read
+    as an overlay on the shared ground, so that nothing tile-specific has to simulate its own snow.
+57. (amended 2026-11-23) As the designer, I want every walker, person or animal, to trample by its own
+    weight through one write, so that a mammoth packs a trail a fox can't.
+58. (amended 2026-11-23) As a developer, I want no per-tile ground state, so that the save and the
+    30-day cost don't grow with how much of the map has been walked.
+59. (amended 2026-11-23) As a developer, I want what a person remembers of the ground to be memory's
+    choice of what to keep, so that memory stays lean however full the ground's description gets.
 
 ## Implementation Decisions
 
@@ -364,6 +398,9 @@ Four separate pieces, shared by NPCs and animals.
   crossing prints or trail wear, only prints where they land and act.
 - A new print shape, **Bird**, joins Human, Paw and Hoof. Depth already scales with body mass, so bird
   prints are shallow and fade within hours: a sign of something recent.
+- (amended 2026-11-23) The two bullets above, activity prints and the Bird shape, are no longer built
+  with Raven and Fox. They move to "Prints, paths and the ground" below, so they are built on the new
+  model, not on today's prints first. Until then a raven leaves no prints at all.
 
 ### The animal mind
 
@@ -386,12 +423,98 @@ Four separate pieces, shared by NPCs and animals.
   - Memory.
 - NPC and animal source-finding then exist in one copy.
 
+### Prints, paths and the ground (amended 2026-11-23)
+
+Today these are three systems that don't see each other:
+- **Prints:** per tile per print shape. They fade by an erosion clock made from the sky alone, so
+  prints under fresh snow age like prints on bare ground.
+- **Paths:** wear per edge. It fades by settling and by the same clock, and is worth a flat minute or
+  two off a crossing, the same in deep snow as on bare ground.
+- **The ground:** one simulated column per ground class, with real snow, water and mud, but no prints
+  or paths in it.
+
+They become one system:
+
+- **Nothing below the tile.** State is kept per tile and per edge (an edge lies between two tiles),
+  never per strip, patch or sub-tile grid. The ground-surface plan's route-local surface state is not
+  built.
+- **No per-tile ground state.** Every tile reads its class's shared column (#95). Trampling is read as
+  an overlay on that column, in the spirit of "Conditions are derived, never stored", not as a column
+  of its own that simulates. A trampled tile with its own simulated column comes back only if an
+  effect needs trampled ground to evolve on its own, such as packed snow melting slower or a trampled
+  wet yard refreezing into ice.
+- **Two trodden amounts, each 0 to 1.** Both saturate the way grazing does: the first stamps count
+  most and repeated stamps approach 1.
+  - **Edge trodden** comes from crossings only, and replaces today's path wear.
+  - **Tile trodden** comes from time spent on the tile only: any activity there, such as grazing,
+    feeding, perching, raiding, bedding down, resting or working. It is an average over the tile.
+  - A crossing adds no tile trodden, and time on a tile adds no edge trodden.
+  - Each is stored as an amount and the minute of its last stamp. What has faded since is derived
+    on read.
+- **Stamps by weight, per individual.** Each walker stamps by its own weight, using today's footprint
+  depth rule (square root of body mass relative to a person). There is no head count, since every
+  agent is one animal. Flyers stamp nothing while flying. A landed flyer's activity stamps the tile.
+- **One write seam.** A completed crossing writes the prints on both tiles and the edge's trodden
+  amount. A minute of activity writes the tile's activity prints and its trodden amount. Nothing else
+  writes either.
+- **How trodden fades.**
+  - Both amounts settle over time: an abandoned path is gone in about a month, and a yard sooner. The
+    ticket sets the rates.
+  - Snow fallen since the last stamp lowers the effect in proportion to the new snow over the packed
+    layer, without lowering the stored amount. The snowfall is the class column's real snowfall, not
+    the sky clock.
+  - A new stamp restores the effect, so a buried trail comes back quickly once it is walked again.
+- **Prints are the fast part.** They stay per tile per shape.
+  - A print is gone once more snow than its depth has fallen on it, or a thaw takes it. It lasts on
+    bare frozen ground. This replaces the sky-only erosion clock for prints. Other users of that
+    clock are unchanged.
+  - Activity prints and the Bird shape join here.
+- **One read: underfoot at a place.** A place is a tile, or an edge's half of a tile. The read returns
+  one description of the ground there, the **surface**. People and animals read the same surface,
+  because #95 removes the estimate.
+- **The surface is the description, and effects are worked out from it.**
+  - The surface holds the ground as it is: snow depth, the top snow's packing, slush, crust, mud,
+    dampness, standing liquid and its ice, and the place's trodden amount.
+  - Traversal, footing hazard, search, wetting and drinkable water are each worked out from the
+    surface alone.
+  - The column's internals (layers, pore water, the water ledger) stay private to the ground's
+    physics.
+  - The surface replaces today's surface summary.
+- **The overlay.** A place's trodden amount raises the top snow's packing as read for traversal and
+  footing. It doesn't lower the snow depth, so search (discoveries) and forage don't change.
+- **Effects in the first cut:**
+  - **Crossing:** a crossing reads the edge's half of each tile, so the edge's trodden amount sets
+    how much faster it goes. The flat path bonus is deleted. The crossing breakdown's "Trail" line
+    becomes the minutes the trodden edge saved against the bare tiles.
+  - **Footing:** the footing hazard rises with packing, so trodden snow is slick.
+  - **Within a tile:** footing and wetting while working or resting read the tile's trodden amount.
+  - **Showing it:** signs and the map read the tile's trodden amount. Trail tiers for signs, the map
+    and memory are derived from the edge's trodden amount.
+- **Memory is memory's concern.** A person's ground memory keeps a lean projection of the surface of
+  its own choosing: today's fields plus the tile's trodden amount as one small field, with trail tiers
+  per edge as now. The surface doesn't shrink to suit memory.
+- **Animals already feel the ground.** Animal crossings have read the ground since the shared route
+  search (#80), so audit item WLD-12 ("herds ignore snow and mud") is stale. With one read, animals
+  read the same surface as people, so they too go faster on trails packed by others.
+- **Cost.** Measured on main, 2026-11-23, seed 17, 30 days, Release:
+  - 973 of 5,097 passable tiles entered by any agent;
+  - 463 edges with wear;
+  - 171 tiles with prints at the end;
+  - a save of 839 KB.
+
+  With no per-tile column, tile trodden adds an amount and a minute per worked tile: tens of KB of
+  save. The existing 30-day tripwires gate it, and each ticket reports its measured allocation and
+  save size. A compact save encoding is welcome but not required.
+
 ### Save
 
 - The save format version is bumped, and the fixture save is regenerated on purpose.
 - The save gains: per-animal agents, each animal's mind (plan, path, sightings), familiarity, and the
   new body fields animals now use.
 - The territory field is removed.
+- (amended 2026-11-23) No tile stores ground. Path wear becomes the edge trodden amount, a tile
+  trodden amount is added, and each ticket that changes the format bumps the version and regenerates
+  the fixture.
 
 ## Testing Decisions
 
@@ -465,6 +588,29 @@ Four separate pieces, shared by NPCs and animals.
   test through seam 1, or dropped with a note in the work log saying what replaced it.
 - Run per the repo's rule: the class in hand each cycle, the fast suite before each commit, the full
   suite before handback. Long sims in Release, with seeds split across processes.
+- (amended 2026-11-23) **Prints, paths and the ground** are tested at two existing seams, with no new
+  seam:
+  - **Seam 1, the world**, for every behaviour:
+    - in deep loose snow, a person crossing an edge animals have packed is quicker than crossing
+      beside it, and on bare ground the same edge saves little;
+    - prints vanish under snowfall deeper than they are, not under shallower snowfall, and they last
+      on bare frozen ground;
+    - a tile grazed or bedded on all day ends more trodden than one only crossed, and a crossing adds
+      no tile trodden;
+    - trodden fades over weeks, and a buried trail comes back after one passage;
+    - a mammoth's crossing packs an edge more than a fox's;
+    - a raven flying over leaves nothing, and one feeding at a carcass leaves Bird prints that fade
+      within hours;
+    - a person remembers a worked tile as worked once it is out of sight.
+  - **Seam 2, the ground's own interface**: the underfoot read at a place, returning the surface.
+    Prior art: `GroundTests`, including its golden lines. It checks:
+    - every effect worked out from the surface equals today's effect from the column;
+    - the trodden overlay speeds traversal more in deep loose snow than on bare ground, and changes
+      neither search nor drinkable water.
+  - **Forecast agreement:** route minutes from the route search still agree with travel once trails
+    are trodden edges (`ForecastTests`).
+  - **Cost and save:** no tile holds ground after a populated 30-day run, and the 30-day budget tests'
+    numbers are reported in each PR.
 
 ## Out of Scope
 
@@ -478,6 +624,14 @@ Four separate pieces, shared by NPCs and animals.
   (#51), which this blocks.
 - Showing herds, signs and causes on screen. That's "What the player reads" (#52).
 - Steps 3b-6 of the emergent-world design, still on hold.
+- (amended 2026-11-23) For prints, paths and the ground:
+  - anything below the tile: strips, patches, route-local surfaces, a sub-tile grid;
+  - trampled ground that evolves on its own (packed snow melting slower, a trampled wet yard
+    refreezing into ice), which waits until an effect needs it;
+  - trampling uncovering discoveries or changing forage;
+  - mud churned by hooves, and digging;
+  - animals drinking a tile's water down. At 100 m tiles a herd drinks under 0.1% of even the
+    smallest pond a day.
 
 ## Further Notes
 
@@ -509,6 +663,13 @@ Four separate pieces, shared by NPCs and animals.
      the cohesion gate and the stored-path benchmark.
   4. Food and rest sources, grazing by what's left, company and crowding.
   5. Familiarity and packs, plus predators (hunting together, kill forecast, defending, avoidance).
-  6. Raven and Fox replace the carrion fold; prints from activity and the Bird shape.
+  6. Raven and Fox replace the carrion fold. (Amended 2026-11-23: prints from activity and the Bird
+     shape moved to steps 9-11.)
   7. Territory and the old herd mind removed, renewal on map-wide capacity, save bump.
   8. NPCs onto the shared planner.
+- (amended 2026-11-23) Prints, paths and the ground, after #95 (one ground read, no per-tile state):
+  9. One surface record: the ground's description, with every effect worked out from it.
+  10. Trodden edges: crossings pack edges by weight, trails replace path wear and the flat bonus,
+      and prints fade by the real ground.
+  11. Trodden tiles: time on a tile packs it, activity prints and the Bird shape, and the map,
+      signs and memory show worked ground.
