@@ -53,8 +53,10 @@ public static class Carcasses
     public static ButcherModeProps ModeProps(ButcherMode mode) =>
         Modes.TryGetValue(mode, out var props) ? props : throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
 
-    /// The meat a carcass holds of its body's muscle.
-    public const double MeatOfMusclePct = 0.65;
+    const double MeatOfMusclePct = 0.65;
+
+    /// The meat a carcass of a body with this much muscle holds (before a megafauna's cap): a hunt's forecast reads it too.
+    public static double MeatKgOf(double muscleKg) => muscleKg * MeatOfMusclePct;
 
     public static Carcass Create(World world, TileId tile, string animal, BodyState body, long diedMinute,
         bool isBird = false, bool isMegafauna = false, double harvestedPct = 0, IReadOnlyDictionary<Resource, double>? special = null,
@@ -63,7 +65,7 @@ public static class Carcasses
         var y = new Dictionary<Resource, double>();
         bool specialHide = special?.ContainsKey(Resource.MammothHide) == true;
         foreach (var (r, kg) in special ?? new Dictionary<Resource, double>()) y[r] = kg;
-        y[Resource.RawMeat] = body.MuscleKg * MeatOfMusclePct;
+        y[Resource.RawMeat] = MeatKgOf(body.MuscleKg);
         y[Resource.RawFat] = body.FatKg * 0.6;
         y[Resource.Bone] = (body.WeightKg - body.MuscleKg - body.FatKg) * 0.25;
         y[Resource.Sinew] = body.WeightKg * 0.05;

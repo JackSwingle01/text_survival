@@ -405,13 +405,16 @@ public static partial class Fauna
     }
 
     /// Defending a kill: the one hunted, then each of its side holding it bold enough toward the hunter, up to MaxHunters, that boldness its morale.
+    const double EvenBoldness = 0.5;
+
     static List<Fighter> Defenders(World world, Agent animal, Agent hunter)
     {
         var defenders = new List<Fighter>();
         foreach (var a in Combat.Side(world, animal))
         {
+            if (a.Id != animal.Id && (defenders.Count >= MaxHunters || !HoldsAKill(world, a))) continue;
             double bold = Combat.BoldnessToward(world, a, hunter);
-            if (a.Id == animal.Id || defenders.Count < MaxHunters && HoldsAKill(world, a) && bold >= 0.5) defenders.Add(new Fighter(a.Id) { BoldnessDelta = bold - 0.5 });
+            if (a.Id == animal.Id || bold >= EvenBoldness) defenders.Add(new Fighter(a.Id) { BoldnessDelta = bold - EvenBoldness });
         }
         return defenders;
     }

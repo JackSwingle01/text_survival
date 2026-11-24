@@ -305,10 +305,10 @@ public static class CohesionGate
     /// Their hunger is the carrion flock's stand-in until #85, so the deaths band skips them.
     static readonly Species[] StandIns = [Species.Raven];
     static readonly Species[] ClosedGroup = [Species.Wolf, Species.Hyena];
-    /// Kills a week by a pack species, a band set from the run with the hunt on the planner (work log 2026-11-24-84:
-    /// wolves 1.1-2.0, hyenas 1.6-4.9 on the four seeds).
+    /// Kills a week by a pack species, a band set from the runs with the hunt on the planner (work log 2026-11-24-84,
+    /// final run: wolves 0.1-2.9, hyenas 1.2-3.3 on the four seeds).
     const double MinKillsPerWeek = 0.5, MaxKillsPerWeek = 10;
-    /// The longest a pack animal whose food is due goes with no quarry within its sight's reach, in days (the same run: 1.7-23.4).
+    /// The longest a pack animal whose food is due goes with no quarry within its sight's reach, in days (final run: 4.9-27.6).
     const double MaxDaysWithoutPrey = 25;
     /// The share of looks two rival packs are within a tile of each other.
     const double MaxRivalsNearPct = 0.05;

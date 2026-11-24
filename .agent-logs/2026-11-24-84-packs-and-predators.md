@@ -42,3 +42,11 @@ Follow-up: the table is content measured from combat (species.json killChances);
 Follow-up: saber-tooths keep their small-game stand-in (grazing for a Carnivore) and so never hunt (0 kills on every seed): their small game pays more than any hunt. Removing it is a balance choice (they would then live on the hunt).
 Follow-up: HerdLongRunSeed17 fails on main and on this branch (a hyena on main, a caribou here, 2.3 days against the 2-day limit).
 Follow-up: wolves die out on some seeds (seed 42's pair, seed 17's pack down to two): renewal's capacity (prey near the den) thins packs whose kills now come off their land; #86 replaces renewal's capacity.
+Revised (review): choosing a plan quietly broke a pack apart (Disperse inside PlanFor) → dispersal is weighed in Needs, beside the re-plan it precedes, and reads its own room (no default party's zero).
+Revised (review): the meat a kill leaves was Carcasses.Create's formula copied → one `Carcasses.MeatKgOf`, read by both.
+Revised (review): a hungry pack predator scanned every agent each minute for a person → people within its detection range (Nearby.Within), as PeopleSensed does.
+Revised (review): Defenders worked out every packmate's boldness before the cheap checks, against a bare 0.5 → checks first, `EvenBoldness`.
+Revised (review): the gate's band comments quoted the first run's numbers → the final run's.
+Follow-up: review, kept as is and for Jack: a pair of wolves still hunts a herd of three bison or fewer (0.51 at three, under MinKillChance's stand-in only at four); `defending` reaches every BoldnessToward read (a pack on its kill is bolder toward any person coming, not only one hunting it), which is what kills the busy day's NPC; the gate measures the longest hungry stretch with no quarry in reach, not time to find it; "young" is the highest id of its side, as bodies have no age.
+Follow-up: review: `HerdTests.AFrightenedPack_LeavesPreyAlone` and `APatrollingPack_RangesAcrossItsLand` (old pack tests) pass unchanged; the first already reads as a behaviour test, and patrolling stays the state machine's until #86 removes territory.
+Follow-up: review: `Sensed` now holds three kinds by nullable fields (threat, carcass, quarry herd); a small sum type would read better.

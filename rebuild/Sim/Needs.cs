@@ -80,6 +80,7 @@ public static partial class Fauna
             // Kin setting out: following them is weighed against staying, not a search of everywhere.
             TileId? theirs = why == KinLeaving && Following(world, animal) is (var way, var lead)
                 ? MindOf(lead).Plan is { At: TileId at } && at != animal.Tile ? at : Map.Step(animal.Tile, way) : null;
+            if (stat == Stat.Food) Disperse(world, animal, mind);
             mind.Plan = PlanFor(world, animal, mind, new AnimalView(world, mind), stat, priority, theirs);
         }
         var plan = mind.Plan!;
@@ -170,7 +171,7 @@ public static partial class Fauna
     }
 
     /// The meat a kill of the species leaves (Carcasses.Create's rule, on the species' build).
-    static double MeatKcalOf(Species s) => SpeciesTable.Of(s).WeightKg * SpeciesTable.Of(s).MusclePct * Carcasses.MeatOfMusclePct * MeatKcalPerKg;
+    static double MeatKcalOf(Species s) => Carcasses.MeatKgOf(SpeciesTable.Of(s).WeightKg * SpeciesTable.Of(s).MusclePct) * MeatKcalPerKg;
 
     /// The quarry on its tile it has the best kill chance against, the first in id order on a tie.
     static Agent? QuarryHere(World world, Agent predator)
@@ -192,10 +193,8 @@ public static partial class Fauna
     static bool WouldComeForSomeone(World world, Agent predator, List<WorldEvent> events)
     {
         if (BehaviorOf(predator.Species) != HerdBehavior.Pack || Hunger(predator) <= ComesForPeopleHunger || MindOf(predator).Fear > Tags.AfraidLevel) return false;
-        int range = DetectionRangeTiles(predator.Species);
-        foreach (var a in world.Agents.Values)
-            if (a.Mind is PersonMind && MapGen.Manhattan(a.Tile, predator.Tile) <= range && Combat.EncounterOf(world, a.Id) == null
-                && WouldComeFor(world, predator, a, events) != null) return true;
+        foreach (var a in Nearby.Within(world, predator.Tile, DetectionRangeTiles(predator.Species)))
+            if (a.Mind is PersonMind && Combat.EncounterOf(world, a.Id) == null && WouldComeFor(world, predator, a, events) != null) return true;
         return false;
     }
 
@@ -261,9 +260,10 @@ public static partial class Fauna
 
     /// A young wolf (its side's highest id) leaves a big hungry pack when the kill chance alone for the whole kill ÷ (1 + cohesion)
     /// beats its pack's for its share; it and they are strangers from then on.
-    static void Disperse(World world, Agent animal, HerdMind mind, double roomKcal)
+    static void Disperse(World world, Agent animal, HerdMind mind)
     {
-        if (!IsClosedGroup(animal.Species) || mind.Sightings == null) return;
+        if (!IsClosedGroup(animal.Species) || mind.Sightings == null || !Combat.Hunts(animal.Species)) return;
+        double roomKcal = Math.Max(1, RoomKcal(animal, animal.Body));
         var side = Combat.Side(world, animal);
         if (side.Count < 2 || side.MaxBy(a => a.Id)!.Id != animal.Id || !side.TrueForAll(FoodDue)) return;
         int pack = Math.Min(MaxHunters, side.Count);
@@ -334,7 +334,6 @@ public static partial class Fauna
         });
         double best = stat == Stat.Food ? Math.Max(row.GrazeKcalPerMinute, IsPrey(animal.Species) ? 0 : FeedKcalPerMinute) : double.PositiveInfinity;
         var hunting = stat == Stat.Food && Combat.Hunts(animal.Species) ? Hunting(world, animal) with { Together = PackReady(world, animal, priority) } : default;
-        if (stat == Stat.Food) Disperse(world, animal, mind, hunting.RoomKcal);
         var ask = new Asking(stat, priority, amount, earn, row.Cohesion, t => KinAt(world, animal, t), best);
         var den = Den(animal, mind);
         Func<TileId, Source?> sourceAt = stat switch
