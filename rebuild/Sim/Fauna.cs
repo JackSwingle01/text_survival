@@ -63,8 +63,8 @@ public static partial class Fauna
     /// What a wild animal burns over its basal rate, day in, day out: field metabolism is 1.6-3 times
     /// basal (research §1; Nagy 1999). The low end, since fights and flight charge their own work.
     const double FieldMetabolismFactor = 1.6;
-    /// Grazed level a kcal eaten takes off a resource: the old mass rule's rate (0.0001 a kg-hour) for a 110 kg body
-    /// eating 13 kcal a minute, so a grazer that size grazes down as before, and every body by what it eats, not its mass.
+    /// Grazed level a kcal eaten takes off a resource: 0.0001 a kg-hour for a 110 kg body eating 13 kcal a minute. Every
+    /// body grazes a tile down by what it eats, not by its mass, so a mammoth thins a tile by its intake, not its bulk.
     const double GrazedLevelPerKcal = 0.0001 / 60 * 110 / 13;
     const int PackPatrolEveryMinutes = 30, PackPatrolTimeoutMinutes = 120;
     const double StarvingHunger = 0.8;
