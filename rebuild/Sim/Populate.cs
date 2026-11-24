@@ -97,19 +97,23 @@ public static partial class Fauna
             Herd(Species.Mammoth, hollow, land.Count < 8 ? [hollow] : land, 8 + rng.NextInt(5));
         }
         PopulateCaves(world, m, rng);
-        PopulateCarrion(world, m, interior);
+        PopulateOpportunists(world, m, interior);
     }
 
-    /// Carrion flocks: one per ~1,500 open tiles. Drawn on their own stream after every other herd, so
-    /// they move nothing else's placement.
-    static void PopulateCarrion(World world, GeneratedMap m, List<TileId> interior)
+    /// Ravens and foxes: one group of each per ~1,500 open tiles, sized and landed as one arriving (RenewalOf's
+    /// arrival row), ravens first, so they land where the carrion flock did. Drawn on their own stream after every other herd, so they move nothing else's placement.
+    static void PopulateOpportunists(World world, GeneratedMap m, List<TileId> interior)
     {
         var rng = world.Rng("populate carrion");
-        for (int i = 0, flocks = Math.Max(2, interior.Count / 1500); i < flocks && interior.Count > 0; i++)
+        foreach (var species in Enum.GetValues<Species>().Where(s => s != Species.Human && BehaviorOf(s) == HerdBehavior.Opportunist).OrderBy(s => !Flies(s)))
         {
-            var start = interior[rng.NextInt(interior.Count)];
-            var land = Territory(m, start, interior, 150 + rng.NextInt(101), rng);
-            if (land.Count >= 3) Agents.SpawnGroup(world, Species.Raven, start, 3 + rng.NextInt(4), land);
+            if (RenewalOf(species)?.Arrival is not ArrivalRow arrival) continue;
+            for (int i = 0, groups = Math.Max(2, interior.Count / 1500); i < groups && interior.Count > 0; i++)
+            {
+                var start = interior[rng.NextInt(interior.Count)];
+                var land = Territory(m, start, interior, arrival.MinTiles + rng.NextInt(arrival.MaxTiles - arrival.MinTiles + 1), rng);
+                if (land.Count >= 3) Agents.SpawnGroup(world, species, start, arrival.MinMembers + rng.NextInt(arrival.MaxMembers - arrival.MinMembers + 1), land);
+            }
         }
     }
 

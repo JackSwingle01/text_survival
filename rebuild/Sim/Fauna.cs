@@ -2,8 +2,8 @@ namespace Survival;
 
 public enum HerdState { Resting, Grazing, Patrolling, Hunting, Feeding, Fleeing }
 
-/// Carrion never hunts nor occupies a carcass, and follows whatever is dying or killing.
-public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Carrion }
+/// An opportunist (ravens, foxes) neither hunts nor holds a carcass, and eats what it finds (Scavenging.cs).
+public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Opportunist }
 
 public enum Diet { Carnivore, Omnivore, Browser, Grazer }
 
@@ -47,7 +47,7 @@ public static partial class Fauna
 {
     public static HerdBehavior BehaviorOf(Species s) => SpeciesTable.Of(s).Behavior;
 
-    public static bool IsPredator(Species s) => BehaviorOf(s) is not (HerdBehavior.Prey or HerdBehavior.Carrion);
+    public static bool IsPredator(Species s) => BehaviorOf(s) is not (HerdBehavior.Prey or HerdBehavior.Opportunist);
 
     public static bool IsPrey(Species s) => BehaviorOf(s) == HerdBehavior.Prey;
 
@@ -410,14 +410,14 @@ public static partial class Fauna
 
     const double FeedKgPerMinute = 0.1;
 
-    /// No faster than FeedKgPerMinute a head; the carrion flock picks at a dead person's body once the carcasses are bare.
+    /// No faster than FeedKgPerMinute a head; an opportunist picks at a dead person's body once the carcasses are bare.
     static void FeedMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
         double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, FeedKgPerMinute * herd.Members.Count), eaten = 0;
         foreach (var c in Edible(world, herd))
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
-        if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Carrion)
+        if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Opportunist)
             foreach (var body in PickableBodies(world, herd))
                 if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
         Nourish(herd, eaten * MeatKcalPerKg);
@@ -439,7 +439,7 @@ public static partial class Fauna
             && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, LocationFeatures.OfAgent(world, id)) == null);
 
     static bool CanFeed(World world, Agent herd) =>
-        Edible(world, herd).Any() || BehaviorOf(herd.Species) == HerdBehavior.Carrion && PickableBodies(world, herd).Any();
+        Edible(world, herd).Any() || BehaviorOf(herd.Species) == HerdBehavior.Opportunist && PickableBodies(world, herd).Any();
 
 
     /// One animal, as wolves cut one out of a herd: against three, a pack that meets bison is wiped out in its first
@@ -567,7 +567,7 @@ public static partial class Fauna
             HerdBehavior.Pack => DecidePack(world, herd, mind, events),
             HerdBehavior.Solitary => DecideSolitary(world, herd, mind),
             HerdBehavior.Scavenger => DecideScavenger(world, herd, mind, events),
-            HerdBehavior.Carrion => DecideCarrion(world, herd, mind),
+            HerdBehavior.Opportunist => DecideOpportunist(world, herd, mind, events),
         };
         if (choice.Item1 is not Travel t || mind.State == HerdState.Fleeing || !HeldOff(world, herd, Map.Step(herd.Tile, t.Dir), events)) return choice;
         mind.Foray = null; // a starving pack held off one way ranges another, rather than waiting on a fire that is kept fed
@@ -739,7 +739,7 @@ public static partial class Fauna
         if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && (Following(world, herd)?.Way ?? FleeDirection(world, herd, from, events)) is Direction away)
             return (new Travel(herd.Id, away), UntilArrived);
         mind.FleeFrom = null;
-        Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Carrion ? HerdState.Patrolling : HerdState.Resting);
+        Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Opportunist ? HerdState.Patrolling : HerdState.Resting);
         return Rest(herd);
     }
 

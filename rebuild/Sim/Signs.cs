@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// RavensOver: the carrion flock over a predator herd (no flesh on the tile), its cause the predator.
+/// RavensOver: ravens over a predator herd (no flesh on the tile), its cause the predator.
 public enum SignKind { Body, Carcass, Pile, FirePit, Shelter, Prints, Trail, WorkedGround, Grazed, Felled, Picked, Bones, RavensOver }
 
 /// One piece of evidence on a tile (emergent-world-design §3.2). MadeMinute is null where the location feature keeps
@@ -37,11 +37,11 @@ public static class Signs
 
     static Sign OfBody(BodyState body, LocationFeature t) => new(t, SignKind.Body, body.DiedMinute, body.DeathCause);
 
-    /// The flock over a predator herd with no flesh to hold it; its cause is the predator (the lowest id, if more than one).
+    /// Ravens over a predator herd with no flesh to hold it; its cause is the predator (the lowest id, if more than one).
     static IEnumerable<Sign> OfAgent(World world, LocationFeature t)
     {
         var a = world.Agent(new AgentId(t.Index));
-        if (Fauna.BehaviorOf(a.Species) != HerdBehavior.Carrion || Fauna.MeatHere(world, t.Tile) > 0) yield break;
+        if (Fauna.BehaviorOf(a.Species) != HerdBehavior.Opportunist || !Fauna.Flies(a.Species) || Fauna.MeatHere(world, t.Tile) > 0) yield break;
         var followed = Fauna.AnimalsAt(world, t.Tile).FirstOrDefault(h => Fauna.IsPredator(h.Species) && Sim.IsAlive(h));
         if (followed != null) yield return new Sign(t, SignKind.RavensOver, null, Cause.By(world, followed.Id));
     }

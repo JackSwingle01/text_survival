@@ -3,7 +3,7 @@ namespace Survival;
 /// What an animal has sensed: a threat (Who), kept KeepSightingMinutes, or a carcass, kept until it sees it bare or gone.
 public sealed record Sensed(AgentId? Who, TileId Tile, long Minute, int? Carcass = null);
 
-/// Water, rest and food on the shared planner: the top stat at Need or above gets a plan (the carrion flock's food: #85).
+/// Water, rest and food on the shared planner: the top stat at Need or above gets a plan.
 public static partial class Fauna
 {
     const string KinLeaving = "its kin are leaving";
@@ -46,7 +46,7 @@ public static partial class Fauna
         // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
         if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need && !Priorities.Ladder.Any(s => Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority)))
             return (plan.Stat, priorities[plan.Stat]);
-        return Priorities.Top(priorities, Priority.Need) is { } top && (top.Stat != Stat.Food || BehaviorOf(animal.Species) != HerdBehavior.Carrion) ? top : null;
+        return Priorities.Top(priorities, Priority.Need);
     }
 
     static (Activity, int)? Needs(World world, Agent animal, HerdMind mind, List<WorldEvent> events)
@@ -56,6 +56,8 @@ public static partial class Fauna
             mind.Plan = null;
             return null;
         }
+        // A raven or fox at a kill a predator holds waits it out over it, or keeps off (Scavenging.cs).
+        if (stat == Stat.Food && HeldKill(world, animal)) return KeepOff(world, animal, mind, events);
         // Alone, a hungry animal goes to kin it can make out first; its food plan's cohesion would keep it there.
         if (stat == Stat.Food && priority < Priority.Critical && SideCount(world, animal) == 1 && Cohere(world, animal, mind) is { } toKin) return toKin;
         bool sensed = mind.Plan == null || world.Minute % SenseEveryMinutes == 0;
@@ -109,7 +111,7 @@ public static partial class Fauna
     static double MeatAt(World world, Agent animal, HerdMind mind, TileId tile)
     {
         if (IsPrey(animal.Species)) return 0;
-        if (tile == animal.Tile) return CanFeed(world, animal) ? FeedKcalPerMinute : 0;
+        if (tile == animal.Tile) return CanFeed(world, animal) && !HeldKill(world, animal) ? FeedKcalPerMinute : 0;
         return mind.Sightings?.Exists(s => s.Carcass != null && s.Tile == tile) == true ? FeedKcalPerMinute : 0;
     }
 
@@ -211,7 +213,7 @@ public static partial class Fauna
     {
         mind.Sightings?.RemoveAll(s => s.Who != null && world.Minute - s.Minute > KeepSightingMinutes);
         var behavior = BehaviorOf(animal.Species);
-        bool prey = behavior == HerdBehavior.Prey, meat = !prey && behavior != HerdBehavior.Carrion, carcassSeen = false;
+        bool prey = behavior == HerdBehavior.Prey, meat = !prey, carcassSeen = false;
         if (!prey && !meat)
         {
             if (mind.Sightings?.Count == 0) mind.Sightings = null;

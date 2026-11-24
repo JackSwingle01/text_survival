@@ -434,6 +434,7 @@ public class HerdTests(ITestOutputHelper output)
                 Species.Bison => (3, 400),
                 Species.SaberTooth => (4, 160),
                 Species.Raven => (3, 250),
+                Species.Fox => (3, 128),
                 _ => (3, 112),
             };
             Assert.InRange(land.Count, min, max);
@@ -1116,6 +1117,7 @@ public class TerritorySweepTests(ITestOutputHelper output)
         [Species.CaveBear] = 3,
         [Species.Hyena] = 3,
         [Species.Raven] = 100,
+        [Species.Fox] = 20,
     };
 
     [Fact]

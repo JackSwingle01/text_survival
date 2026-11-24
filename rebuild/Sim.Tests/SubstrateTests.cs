@@ -571,7 +571,7 @@ public class SubstrateTests
     {
         var dir = ArchitectureTests.SimSourceDir();
         // Work's put-down (PutDown) asks Access.PutDownRefusal; herds' Feed, Graze and Raid ask it too.
-        foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 4), ("Carrion.cs", 1) })
+        foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 4), ("Scavenging.cs", 1) })
         {
             int n = Regex.Matches(File.ReadAllText(Path.Combine(dir, file)), @"Access\.Refusal\(").Count;
             Assert.True(n >= calls, $"{file} asks Access {n} times, not {calls}");

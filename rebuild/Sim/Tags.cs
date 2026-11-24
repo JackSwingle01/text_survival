@@ -85,7 +85,7 @@ public static class Tags
     static Tag OfBody(World world, Agent dead)
     {
         if (Remains.StageOf(world, dead) != RemainsStage.Flesh) return Tag.None;
-        return Tag.ScentSource | (Fauna.FlockAt(world, dead.Tile) != null ? Tag.Beacon : Tag.None);
+        return Tag.ScentSource | (Fauna.RavensAt(world, dead.Tile) != null ? Tag.Beacon : Tag.None);
     }
 
     static Tag OfAgent(World world, Agent a, AgentId? viewer)
@@ -121,8 +121,8 @@ public static class Tags
         if (Carcasses.MeatKg(c) > 0) tags |= Tag.Edible;
         if (!Carcasses.AllCut(c)) tags |= Tag.Harvestable;
         if (Carcasses.DecayLevelNow(world, tile, c) < FreshDecayLevel) tags |= Tag.Fresh;
-        // The carrion flock circling flesh: findable from far off (emergent-world-design §4).
-        if (Fauna.FlockAt(world, tile) != null) tags |= Tag.Beacon;
+        // Ravens circling flesh: findable from far off (emergent-world-design §4).
+        if (Fauna.RavensAt(world, tile) != null) tags |= Tag.Beacon;
         // Contested: another predator herd or a person (the viewer included) is there too.
         var occupants = Occupants(world, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id), viewer);
         if (occupants.Count > 0 && Nearby.At(world, tile).Select(id => world.Agents[id]).Any(a => !occupants.Contains(a.Id) && Sim.IsAlive(a)
