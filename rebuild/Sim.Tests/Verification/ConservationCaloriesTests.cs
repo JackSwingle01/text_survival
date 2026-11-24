@@ -92,6 +92,7 @@ public class ConservationCaloriesTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Calories_Absorbed_AreHeldOrBurned() => Scenes.Check(Run, iter: 60);
 
     [Fact]

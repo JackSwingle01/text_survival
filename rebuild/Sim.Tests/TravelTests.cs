@@ -409,6 +409,7 @@ public class TravelTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ADayOfTravel_IsDeterministic()
     {
         Assert.Equal(RunRoute(17), RunRoute(17));
@@ -416,6 +417,7 @@ public class TravelTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SaveLoadMidCrossing_GivesTheSameWorldAsAStraightRun()
     {
         string straight = RunRoute(17);

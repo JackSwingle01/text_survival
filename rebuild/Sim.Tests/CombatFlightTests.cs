@@ -215,6 +215,7 @@ public class CombatFlightTests
     /// A lamed, blown wolf runs from the player: given chase, it is run down (the fight goes on) or it gets
     /// away, and then the player drove it off and its trail runs the way it went.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ThePlayersChase_EitherRunsItDown_OrItGetsAway_LeavingATrail()
     {
         (World, Encounter, CombatUnit) Setup(int seed, double legs)

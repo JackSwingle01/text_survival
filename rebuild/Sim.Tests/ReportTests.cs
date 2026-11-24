@@ -24,12 +24,14 @@ public class ReportTests
     /// An independent build against the shared one: the same seed and steps give the same dump, through a
     /// save and load on the shared side.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Dump_is_deterministic()
     {
         Assert.Equal(Report.DumpText(Lived()), Report.DumpText(SharedLived.Copy()));
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Dump_covers_every_kind_present_and_distribution_counts_every_row()
     {
         var w = SharedLived.Copy();

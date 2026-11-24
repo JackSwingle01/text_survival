@@ -23,6 +23,7 @@ public class TestWorldsTests
     [InlineData(17)]
     [InlineData(1)]
     [InlineData(3)]
+    [Trait("Category", TestCategories.LongRun)]
     public void ASourceWorld_SavesAsWorldNew_BeforeAndAfterHoursOfWork(int seed)
     {
         var fresh = Live(World.New(seed)).ToList();

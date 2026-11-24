@@ -154,6 +154,7 @@ public class CombatTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void PackHunt_LeavesConsistentWorldWhateverHappened()
     {
         for (int seed = 1; seed <= 20; seed++)

@@ -20,7 +20,8 @@ For the clean-room rebuild (`rebuild/`):
 - Run tests in Release (`-c Release`): Debug is over twice as slow, and CI measures Release.
 - Each red-green cycle, and each commit along the way: only the test classes in hand,
   `dotnet test rebuild/Sim.Tests -c Release --filter "FullyQualifiedName~<ClassName>"`. Before a push,
-  handback or PR: the fast suite, `--filter "Category!=Slow"` (about 3 min on 4 cores, 2026-11-23).
+  handback or PR: the fast suite, `--filter "Category!=Slow"` (about 3 min on 4 cores, 2026-11-23;
+  add `&Category!=LongRun` for the quick tests alone).
 - Never run the whole Slow suite. Run a Slow test by name only when it checks what you changed. PR CI
   runs only the fast suite; the Slow tests and the random property search run nightly
   (`.github/workflows/nightly.yml`; `gh workflow run nightly.yml --ref <branch>` runs them on a branch),
@@ -29,10 +30,12 @@ For the clean-room rebuild (`rebuild/`):
   files a batch at a time for the issue agent. When you add one, add its section to `dev/ratchets.md`.
 - `NpcBenchReport` reports and never gates; it runs only with `NPC_BENCH=1`.
 - Agents choosing which checks to run or add use the `mp:verification` skill.
-- A fast test takes under 5 s in the Release fast suite; CI fails one that doesn't, except those listed
-  in `rebuild/Sim.Tests/slow-fast-tests.txt` (a ratchet). Make it quicker or tag it
-  `[Trait("Category", TestCategories.Slow)]`. A test that steps `World.New(seed)` pays for every animal
-  on the map each minute.
+- A quick test takes under 5 s on CI's runner, and CI fails one that doesn't. Make it quicker, or, if it
+  has to step a world for hours or days to see what it checks, tag it
+  `[Trait("Category", TestCategories.LongRun)]`: it still runs on every PR, in its own check. A test that
+  steps `World.New(seed)` pays for every animal on the map each minute.
+- CI has three test checks, each under two minutes: `rebuild quick`, `rebuild long-run` and `old game`.
+  When one nears two minutes, make its tests cheaper; do not add a check.
 - Run long simulations, sweeps and probes in Release (`-c Release`), and split independent seeds
   across parallel processes.
 - Changing what a save holds: follow `documentation/save-format.md`. The format is derived from the

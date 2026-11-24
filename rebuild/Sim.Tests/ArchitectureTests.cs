@@ -27,6 +27,7 @@ public class ArchitectureTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SimSource_HasNoUiAsyncOrThreading()
     {
         var violations = Directory.EnumerateFiles(SimSourceDir(), "*.cs", SearchOption.AllDirectories)
@@ -204,6 +205,7 @@ public class ArchitectureTests
 
     /// In a busy run every event raised carries a real tile on the map: none left at its default.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ABusyRun_RaisesNoEventWithoutATile()
     {
         var events = Phase3GateTests.RunCollecting(200);
@@ -219,6 +221,7 @@ public class ArchitectureTests
     /// two agents, one Gear in a pack and a fight) is one object in memory and two after a load,
     /// so the loaded world behaves differently from the saved one.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ABusyWorld_HasNoObjectReachableTwice()
     {
         // Its own live build, never Phase3GateTests.BusyDay: a save/load copy would split a shared object in two.
