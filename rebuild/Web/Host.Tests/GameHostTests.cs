@@ -469,11 +469,14 @@ public class GameHostTests
         var w = h.World;
         var p = w.Agent(AgentId.Player);
         var t = InSightOfPlayer(w);
-        if (!w.Tiles.TryGetValue(t, out var state)) w.Tiles[t] = state = new TileState();
-        state.Trodden = new TileTrodden(0.6, w.Minute);
+        var herd = Agents.SpawnGroup(w, Species.Caribou, t, 20);
+        foreach (var id in herd) w.Agent(id).Doing = new Doing { Plain = new Rest(id), MinutesLeft = 6 * 60 };
+        for (long end = w.Minute + 6 * 60; w.Minute < end;) Sim.Step(w, new Wait(AgentId.Player), (int)(end - w.Minute));
+        foreach (var id in herd) Agents.Remove(w, id);
         Sim.Step(w, new Wait(AgentId.Player), Memories.GlanceMinutes);
+        var state = w.Tiles[t];
 
-        Assert.True(Parse(h.View()).Map.Surface.Single(s => s.I == Index(w, t)).Trodden >= Tracks.TroddenTileAt);
+        Assert.True(Parse(h.View()).Map.Surface.Single(s => s.I == Index(w, t)).TroddenLevel >= Tracks.TroddenTileAt);
         Assert.Contains(Signs.At(w, t), s => s.Kind == SignKind.Trodden);
         Assert.Contains(Report.Finds(w), f => f.Tile == t && f.Kind == "trodden");
 
@@ -488,7 +491,7 @@ public class GameHostTests
         var v = Parse(loaded.Load(h.Save()));
         Assert.DoesNotContain(Index(w, t), v.Map.Visible);
         Assert.Equal(0, Tracks.TroddenAt(loaded.World, t));
-        Assert.True(v.Map.Surface.Single(s => s.I == Index(w, t)).Trodden >= Tracks.TroddenTileAt);
+        Assert.True(v.Map.Surface.Single(s => s.I == Index(w, t)).TroddenLevel >= Tracks.TroddenTileAt);
     }
 
     /// Regression: a tile seen under snow, then out of sight while the snow went, still shows that

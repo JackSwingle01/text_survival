@@ -145,7 +145,7 @@ public static class Report
                     Add(t, "trail", FindCategory.Sign, age, $"{Tracks.TierOf(w, t, to)} to {TileIdConverter.Format(to)}", sign.Cause);
                     break;
                 case SignKind.Trodden:
-                    Add(t, "trodden", FindCategory.Sign, age, Invariant($"trodden ground, {Tracks.TroddenAt(w, t):P0}"), sign.Cause);
+                    Add(t, "trodden", FindCategory.Sign, age, Invariant($"trodden ground, {Ground.Within(w, t).TroddenLevel:P0}"), sign.Cause);
                     break;
                 case SignKind.Body: break; // the player
                 case SignKind.WorkedGround or SignKind.Grazed or SignKind.Felled or SignKind.Picked: break; // the pool rows, above

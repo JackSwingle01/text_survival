@@ -133,7 +133,7 @@ public sealed record TrailDto(int Ax, int Ay, int Bx, int By, string Tier);
 
 /// One known tile's ground. I: its index (y*Width+x). SnowCm: lying snow; Crust: its top refrozen;
 /// MudLevel: 0-1 on bare ground; WaterCm: standing water (ice included); Ice: that water mostly frozen;
-/// Trodden: 0-1 packed by time spent on it (a bedding ground), from Tracks.TroddenTileAt, else left out.
+/// TroddenLevel: 0-1 packed by time spent on it (a bedding ground), from Tracks.TroddenTileAt, else left out.
 /// Zeros and falses are left out: every view lists every known tile's ground, mostly snow alone.
 public sealed record SurfaceDto(int I,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double SnowCm,
@@ -141,7 +141,7 @@ public sealed record SurfaceDto(int I,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double MudLevel,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double WaterCm,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Ice,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double Trodden = 0);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] double TroddenLevel = 0);
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.

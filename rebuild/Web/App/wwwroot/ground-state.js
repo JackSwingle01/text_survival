@@ -60,7 +60,7 @@ export function cellState(surface, terrain, frozen = false) {
   const pond = surface?.ice ? (waterCm >= GROUND.thickIceCm ? 'thick' : 'thin') : 'none';
   const lake = frozen ? 'thick' : 'none';
   return intern(patches, snow, dust, snowCm >= GROUND.ladenCm, shown(mudLevel), shown(waterCm / GROUND.wetFullCm), ICE_RANK[pond] > ICE_RANK[lake] ? pond : lake,
-    quantise(surface?.trodden ?? 0));
+    quantise(surface?.troddenLevel ?? 0));
 }
 
 export const BARE = cellState(null, null);

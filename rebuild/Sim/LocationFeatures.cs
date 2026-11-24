@@ -138,7 +138,7 @@ public static class LocationFeatures
     public static LocationFeature? ShelterAt(World world, TileId tile) =>
         Shelters.Peek(world, tile) is { } s ? new(LocationFeatureKind.Shelter, tile, s.Id) : null;
 
-    static bool IsTrodden(World world, TileId tile) => Tracks.TroddenAt(world, tile) >= Tracks.TroddenTileAt;
+    static bool IsTrodden(World world, TileId tile) => Ground.Within(world, tile).TroddenLevel >= Tracks.TroddenTileAt;
 
     internal static TrailTier TrailTo(World world, TileId tile, Direction dir)
     {

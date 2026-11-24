@@ -67,6 +67,8 @@ public class TroddenTilesTests
         SetDoing(w, grazers, id => new Graze(id), 8 * 60);
         Sim.Advance(w, 8 * 60);
         foreach (var id in grazers.Ids) Agents.Remove(w, id);
+        Assert.True(Tracks.TroddenAt(w, Rock) >= Tracks.TroddenTileAt, $"grazed: {Tracks.TroddenAt(w, Rock):0.00}");
+        Assert.Equal(0, Tracks.TroddenAt(w, Forest));
         var grazed = Tracks.Read(w, Rock).Single(s => s.Maker == TrackMaker.Hoof);
         var crossed = Tracks.Read(w, Forest).Single(s => s.Maker == TrackMaker.Hoof);
         Assert.True(grazed.Traffic > crossed.Traffic, $"grazed {grazed.Traffic} vs passed through {crossed.Traffic} (was {passedThrough})");
@@ -137,6 +139,21 @@ public class TroddenTilesTests
         Agents.Remove(w, raven);
         Sim.Advance(w, 18 * 60);
         Assert.DoesNotContain(Tracks.Read(w, tile), s => s.Maker == TrackMaker.Bird);
+    }
+
+    [Fact]
+    public void ATroddenTile_SurvivesASaveAndLoad()
+    {
+        var w = World(CalmCold);
+        var herd = Animals.Spawn(w, Species.Caribou, Forest, 5);
+        SetDoing(w, herd, id => new Rest(id), 120);
+        Sim.Advance(w, 120);
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        Assert.NotNull(w.Tiles[Forest].Trodden);
+        Assert.Equal(w.Tiles[Forest].Trodden, loaded.Tiles[Forest].Trodden);
+        Sim.Advance(w, 60);
+        Sim.Advance(loaded, 60);
+        Assert.Equal(w.Tiles[Forest].Trodden, loaded.Tiles[Forest].Trodden);
     }
 
     // ---- the ground's interface ----
