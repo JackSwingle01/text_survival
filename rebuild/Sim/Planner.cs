@@ -11,7 +11,6 @@ public abstract class WorldView
 
     public abstract GroundSeen Ground(TileId tile);
 
-    /// The ground it plans over, whatever the priority: all of it for an animal, near its camp for a person.
     public virtual bool InRange(TileId tile) => true;
 }
 
@@ -20,7 +19,6 @@ public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
 /// A forecast of what a source pays: the stat's units a minute (ml of water, energy minutes), and the kcal each unit costs.
 public readonly record struct Source(double PerMinute, double KcalPerUnit = 0);
 
-/// Noise: each total x 1 ± up to this; none for one who plans from a view of its own (an NPC's memory).
 public sealed record Asking(Stat Stat, Priority Priority, double Amount, double EarnKcalPerMinute, double Cohesion, Func<TileId, bool> KinAt,
     double BestPerMinute = double.PositiveInfinity, double Noise = Planner.Noise);
 
@@ -40,8 +38,8 @@ public static class Planner
     /// Each total x 1 ± up to this, so agents with the same view don't all choose alike in one minute.
     public const double Noise = 0.05;
 
-    /// travel + amount ÷ rate + kcal ÷ the earning rate, x noise, x (1 + cohesion) with no kin there; threats refused below Critical;
-    /// only there, if given; accept, if given, passes the source it would take (an NPC's warmth filter), staying included.
+    /// travel + amount ÷ rate + kcal ÷ the earning rate, x ask's noise, x (1 + cohesion) with no kin there; threats refused below
+    /// Critical, ground out of range always; only there, if given; accept (an NPC's warmth filter) passes the source taken, staying too.
     public static Plan Choose(World world, AgentId who, WorldView view, Asking ask, Func<TileId, Source?> sourceAt, bool routeAway = true,
         TileId? only = null, Func<TileId, bool>? accept = null)
     {
@@ -63,7 +61,7 @@ public static class Planner
         if (!routeAway) return Stay();
         double best = double.PositiveInfinity;
         TileId? bestTile = null;
-        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Refused(view, careless), until: (t, minutes) =>
+        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Closed(view, careless), until: (t, minutes) =>
         {
             if ((minutes + ask.Amount / ask.BestPerMinute) * (1 - ask.Noise) >= Math.Min(best, stay / StayFactor)) return true;
             if (t == here || only is TileId o && t != o) return false;
@@ -80,10 +78,10 @@ public static class Planner
     {
         if (world.Agent(who).Tile == to) return null;
         bool reached = false;
-        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Refused(view, priority == Priority.Critical),
+        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: Closed(view, priority == Priority.Critical),
             until: (t, _) => reached = t == to);
         return reached ? new Plan(stat, priority, to, [.. routes.RouteTo(to)]) : null;
     }
 
-    static Func<TileId, bool> Refused(WorldView view, bool careless) => careless ? t => !view.InRange(t) : t => !view.InRange(t) || view.Threat(t);
+    static Func<TileId, bool> Closed(WorldView view, bool careless) => careless ? t => !view.InRange(t) : t => !view.InRange(t) || view.Threat(t);
 }
