@@ -188,23 +188,23 @@ public class IndividualsTests(ITestOutputHelper output)
     }
 
     /// A hungry grazer with kin within one tile is with them (as KinAt): it grazes where it stands rather than walk
-    /// onto their tile, so a herd spread over a few tiles stays spread (#154). Kin farther off, it still goes to them.
+    /// onto their tile, so a herd spread over a few tiles stays spread. Kin farther off, it still goes to them.
     /// A valley emptied of animals; the kin are fed, so only the one is hungry.
     [Theory]
     [InlineData(1, false)]
     [InlineData(3, true)]
-    public void AHungryGrazer_WithKinWithinOneTile_StaysPut_AndGoesToKinFartherOff(int apart, bool goes)
+    public void AHungryGrazer_WithKinWithinOneTile_StaysPut_AndGoesToKinFartherOff(int apartTiles, bool goes)
     {
         var w = TestWorlds.New(1);
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         var m = Map.Of(w);
         bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
         var tile = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
-            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Enumerable.Range(0, apart + 1).All(i => Open(new TileId(t.X + i, t.Y))
+            .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Enumerable.Range(0, apartTiles + 1).All(i => Open(new TileId(t.X + i, t.Y))
                 && (i == 0 || Map.Blocked(m, new TileId(t.X + i - 1, t.Y), new TileId(t.X + i, t.Y)) == null)));
-        var kin = Agents.SpawnGroup(w, Species.Mammoth, new TileId(tile.X + apart, tile.Y), 4);
+        var kin = Agents.SpawnGroup(w, Species.Mammoth, new TileId(tile.X + apartTiles, tile.Y), 4);
         var lone = Agents.Spawn(w, Species.Mammoth, tile);
-        // Kin of an open group are any of its species; the five are put down apart, so its kin are the four.
+        // An open group's kin are any of its species, so the four are the lone one's kin without having met it.
         foreach (var k in kin.Select(w.Agent)) TestKit.SetHunger(k, 0);
         TestKit.SetHunger(w.Agent(lone), 0.8);
         var body = w.Agent(lone).Body;
