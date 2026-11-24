@@ -179,9 +179,8 @@ public static partial class Fauna
         int hunters = Hunters(world, predator).Count;
         Agent? best = null;
         double bestChance = 0;
-        foreach (var id in Nearby.At(world, predator.Tile))
+        foreach (var a in Nearby.At(world, predator.Tile))
         {
-            var a = world.Agents[id];
             if (a.Mind is not HerdMind || !IsQuarry(a.Species) || !Sim.IsAlive(a) || Combat.EncounterOf(world, a.Id) != null) continue;
             double chance = Combat.KillChance(predator.Species, hunters, a.Species, Combat.Side(world, a).Count);
             if (chance > bestChance) (best, bestChance) = (a, chance);
@@ -367,7 +366,7 @@ public static partial class Fauna
                 var standing = Nearby.At(world, new TileId(tile.X + dx, tile.Y + dy));
                 for (int i = 0; i < standing.Count; i++)
                 {
-                    var k = world.Agents[standing[i]];
+                    var k = standing[i];
                     if (k.Id == animal.Id || !IsKin(animal, k)) continue;
                     var at = k.Crossing is { } c ? Map.Step(c.From, c.Dir) : k.Tile;
                     if (Math.Abs(at.X - tile.X) <= 1 && Math.Abs(at.Y - tile.Y) <= 1) return true;
