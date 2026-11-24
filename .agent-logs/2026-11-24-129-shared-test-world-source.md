@@ -15,3 +15,4 @@ Revised: ConservationWorlds kept its own template json and map → its template 
 Revised: MapTests reads seed 17's map in many tests that aren't about generation, and sorting its 27 calls is a file's worth of judgement → it is the ratchet's one entry, for the daily ratchet run.
 Revised: the bench reports (NpcBenchReport, PlanBenchReport) measure the real world → left on World.New, listed in MayCallDirectly.
 Revised: the PlayerVs seed parameter in CombatReachTests changed (pre-existing test helper) → `World? world`, the searches pass `World.New(seed)`, the rest get seed 1 from TestWorlds as before.
+Revised: the slow-fast list's margin was 3 s in the parallel suite, the issue says every test under 5 s comes off → timed the 48 alone, serially and untiered as CI's gate does, and took off the 31 under 5 s.
