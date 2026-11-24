@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "software-factory": {
+      "source": "JackSwingle01/skills",
+      "commit": "daa3007de7f6ce5612c4e00dec389571a9a77dad",
+      "sourceType": "github",
+      "skillPath": "skills/in-progress/software-factory/SKILL.md",
+      "computedHash": "85bb3f5ed812b380840bbd993391c032e5aa4b835e1c7722f6c993387c9fc9b9"
+    }
+  }
+}
