@@ -18,18 +18,18 @@
         }
       },
       "Pools": {
-        "1": {
-          "kind": "trees",
-          "MinutesWorked": 0,
-          "Felled": 0,
-          "ClearedMinute": 0
-        },
         "0": {
           "kind": "forage",
           "HoursForaged": 0.016666666666666666,
           "LastForagedMinute": 167,
           "ClueDraw": 1,
           "Grazed": {}
+        },
+        "1": {
+          "kind": "trees",
+          "MinutesWorked": 0,
+          "Felled": 0,
+          "ClearedMinute": 0
         }
       },
       "Pile": {
