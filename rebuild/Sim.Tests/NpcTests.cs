@@ -46,8 +46,8 @@ public class NpcTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         Pit(w, camp, Resource.Kindling, 0.2);
         var pack = MindOf(npc).Pack;
-        pack.Kg.Remove(Resource.Water);
-        Items.Add(pack, Resource.Birch, 4);
+        TestKit.Remove(pack, Resource.Water);
+        TestKit.Give(pack, Resource.Birch, 4);
         npc.Body.CoreTempF = 96.0;
         npc.Body.HydrationMl = 0.4 * Body.MaxHydrationMl;
         var (a, _) = Decide(w, npc);
@@ -119,8 +119,8 @@ public class NpcTests(ITestOutputHelper output)
         var (w, npc) = Alone(-10);
         var camp = Map.Of(w).Camp;
         var pack = MindOf(npc).Pack;
-        foreach (var t in Fire.Tinders) pack.Kg.Remove(t);
-        Items.Add(Items.PileAt(w, camp), Resource.Birch, 20);
+        foreach (var t in Fire.Tinders) TestKit.Remove(pack, t);
+        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 20);
         w.Minute = 9 * 60; // evening: a fire is wanted tonight
         var moves = new List<(TileId To, bool Worked)>(); // where it stepped, and whether it did anything there before moving on
         bool lit = false;
@@ -156,8 +156,8 @@ public class NpcTests(ITestOutputHelper output)
                 if (m.InBounds(new TileId(camp.X + dx, camp.Y + dy))) w.PoolCache[new TileId(camp.X + dx, camp.Y + dy)] = [];
         w.PoolCache[near[1]] = [forage];
         w.PoolCache[near[4]] = [forage];
-        Items.Add(Items.PileAt(w, camp), Resource.Birch, 40); // warmth seen to: food is the Need, and its sources are the forage
-        Items.Add(Items.PileAt(w, camp), Resource.Tinder, 1);
+        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 40); // warmth seen to: food is the Need, and its sources are the forage
+        TestKit.Give(Items.PileAt(w, camp), Resource.Tinder, 1);
         npc.Body.CaloriesKcal = 0;
         var (a, _) = Decide(w, npc);
         output.WriteLine($"{a}");
@@ -177,7 +177,7 @@ public class NpcTests(ITestOutputHelper output)
         var at = new TileId(20, 1);
         Assert.True(Ground.Underfoot(w, at).DrinkableWaterM >= Work.MinStandingWaterM, "no pond stood on the plain");
         var npc = w.Agent(Npc.Spawn(w, at));
-        MindOf(npc).Pack.Kg.Remove(Resource.Water);
+        TestKit.Remove(MindOf(npc).Pack, Resource.Water);
         npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
         double before = npc.Body.HydrationPct;
         Sim.Advance(w, 60);
@@ -193,7 +193,7 @@ public class NpcTests(ITestOutputHelper output)
         var (start, camp, pond) = (new TileId(2, 2), new TileId(12, 2), new TileId(16, 2));
         var npc = w.Agent(Npc.Spawn(w, start, camp));
         var mind = MindOf(npc);
-        mind.Pack.Kg.Remove(Resource.Water);
+        TestKit.Remove(mind.Pack, Resource.Water);
         npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
         Assert.True(MapGen.Manhattan(start, pond) > Sight.OpenGroundTiles, "the pond is in sight");
         Assert.Equal(0, Ground.Underfoot(w, pond).DrinkableWaterM);
@@ -254,7 +254,7 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
         Agents.Spawn(w, Species.CaveBear, next);
-        Items.Add(Items.PileAt(w, camp), Resource.Birch, 40);
+        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 40);
         Pit(w, camp, Resource.Kindling, 3);
         bool slept = false;
         while (w.Minute < 1440 && Body.IsAlive(w.Agent(npc).Body))

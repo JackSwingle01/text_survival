@@ -13,7 +13,7 @@ public class ForecastTests
     static World At(params PoolDef[] pools)
     {
         var w = Bare(-5);
-        Items.Pack(w, P).Kg.Clear(); // the starting pack's tinder and kindling would answer for what a test gives
+        TestKit.ClearResources(Items.Pack(w, P)); // the starting pack's tinder and kindling would answer for what a test gives
         if (pools.Length > 0) w.PoolCache = new() { [Camp(w)] = pools };
         return w;
     }
@@ -25,7 +25,7 @@ public class ForecastTests
 
     static void Give(World w, params (Resource Resource, double Kg)[] kgs)
     {
-        foreach (var (r, kg) in kgs) Items.Add(Items.Pack(w, P), r, kg);
+        foreach (var (r, kg) in kgs) TestKit.Give(Items.Pack(w, P), r, kg);
     }
 
     static FireId PitWith(World w, Resource fuel, double burningKg)
@@ -296,7 +296,7 @@ public class ForecastTests
         var got = new SortedDictionary<Resource, double>();
         const int trees = 2000;
         for (int i = 0; i < trees; i++)
-            foreach (var (r, kg) in Pools.Chop(w, id, 1, Rng.ForSystem(i, "felling"))!.Kg) got[r] = got.GetValueOrDefault(r) + kg / trees;
+            foreach (var (r, kg) in Items.Totals(Pools.Chop(w, id, 1, Rng.ForSystem(i, "felling"))!)) got[r] = got.GetValueOrDefault(r) + kg / trees;
         Assert.Equal(mixed.Keys, got.Keys);
         foreach (var (r, kg) in mixed) Assert.InRange(got[r], kg * 0.9, kg * 1.1);
     }
@@ -321,7 +321,7 @@ public class ForecastTests
         }
         var east = Map.Step(Camp(w), Direction.East);
         int light = Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick);
-        Items.Add(Items.Pack(w, P), Resource.Stone, 60);
+        TestKit.Give(Items.Pack(w, P), Resource.Stone, 60);
         Assert.True(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick) > light); // a load picked up this minute counts
         var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick), Trip.StepMinutes(loaded, P, Camp(loaded), east, Pace.Quick));

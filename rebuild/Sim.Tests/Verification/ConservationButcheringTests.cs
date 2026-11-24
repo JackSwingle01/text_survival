@@ -71,7 +71,7 @@ public class ConservationButcheringTests
             cause: new Cause(null, "test"));
         var pack = Items.Pack(w, P);
         if (Tools[s.Tool] is string tool) pack.Gear.Add(Items.Make(tool));
-        if (s.FillKg > 0) Items.Add(pack, Resource.Stone, s.FillKg);
+        if (s.FillKg > 0) TestKit.Give(pack, Resource.Stone, s.FillKg);
         ((PersonMind)w.Agent(P).Mind).Skills[Skill.Butchering] = new SkillProgress { Level = s.Skill };
         if (s.WetPct > 0) Effects.Set(w.Agent(P).Body, EffectKind.Wet, s.WetPct);
         // Light to work by however long it takes: a stone pit of oak, topped up between chunks.
@@ -91,8 +91,8 @@ public class ConservationButcheringTests
     static SortedDictionary<Resource, double> Carried(World w)
     {
         var t = new SortedDictionary<Resource, double>();
-        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var (r, kg) in pack.Kg) AddTo(t, r, kg);
-        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } st) foreach (var (r, kg) in st.Kg) AddTo(t, r, kg);
+        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var (r, kg) in Items.Totals(pack)) AddTo(t, r, kg);
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } st) foreach (var (r, kg) in Items.Totals(st)) AddTo(t, r, kg);
         return t;
     }
 

@@ -511,8 +511,11 @@ public static class Fire
                 if (pit == null) return new("no fire here", new MissingState(Lack.BurningFire));
                 if (Reach() is { } fuelBarred) return fuelBarred;
                 if (Items.Have(pack, a.Fuel) <= 0) return new($"no {Names.Of(a.Fuel)} to add", new MissingResource(a.Fuel, a.Kg));
+                // A piece goes on whole or not at all: a nearly full fire refuses one that won't fit.
+                if (Items.LightestKg(pack, a.Fuel) is double pieceKg && pieceKg > RoomKg(pit) + 1e-9)
+                    return new($"the fire has no room for a whole {Names.PieceWord(a.Fuel)}", new MissingState(Lack.FireRoomKg, pieceKg, RoomKg(pit)));
                 double topUpKg = Math.Min(a.Kg, Items.Have(pack, a.Fuel));
-                if (IsSliver(pit, topUpKg)) return Full(pit, Math.Min(topUpKg, SliverKg));
+                if (!Items.IsDiscrete(a.Fuel) && IsSliver(pit, topUpKg)) return Full(pit, Math.Min(topUpKg, SliverKg));
                 if (CanAddFuel(pit, a.Fuel)) return null;
                 return new($"the fire is not hot enough for {Names.Of(a.Fuel)}",
                     new MissingState(Lack.FireHeatF, Props[a.Fuel].MinFireTempF, CatchTemperatureF(pit)));
@@ -560,7 +563,8 @@ public static class Fire
         var tile = agent.Tile;
         var pack = Items.Pack(world, a.Who);
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
-        double tinderKg = Items.Take(pack, a.Tinder, a.TinderKg);
+        // A discrete tinder (chaga) is spent a whole piece at a time.
+        double tinderKg = Items.Move(pack, new Inventory(), a.Tinder, a.TinderKg);
         var tool = Items.Tool(pack, a.Tool)!;
         Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
@@ -577,8 +581,10 @@ public static class Fire
             Cause = new Cause(a.Who, $"lit by {Cause.Describe(world, a.Who)} with a {Items.Def(tool).Name.ToLowerInvariant()}"),
         });
         var f = world.Fires[id];
-        // What the pit has no room for stays in the pack, as Feed does.
-        Items.Add(pack, a.Tinder, tinderKg - AddFuel(f, a.Tinder, tinderKg));
+        // What the pit has no room for stays in the pack, as Feed does; a piece of tinder goes in whole.
+        double tinderIn = AddFuel(f, a.Tinder, tinderKg);
+        if (Items.IsDiscrete(a.Tinder)) f.UnburnedKg[a.Tinder] = f.UnburnedKg.GetValueOrDefault(a.Tinder) + tinderKg - tinderIn;
+        else Items.Add(pack, a.Tinder, tinderKg - tinderIn);
         if (a.KindlingKg > 0) PutOn(f, pack, Resource.Kindling, a.KindlingKg);
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
@@ -597,16 +603,27 @@ public static class Fire
         var id = PitAt(world, tile)!.Value;
         var f = world.Fires[id];
         bool wasEmbers = f.HasEmbers;
+        int had = Items.Count(pack, a.Fuel);
         double added = PutOn(f, pack, a.Fuel, a.Kg);
-        events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added));
+        events.Add(new FuelAdded(world.Minute, id, tile, a.Who, a.Fuel, added, had - Items.Count(pack, a.Fuel)));
         if (added > 0) PayLighter(world, f, events);
         if (wasEmbers && !f.HasEmbers) events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
     }
 
-    /// Returns what left the pack; a sliver Items.Take takes with the rest goes on the fire, never nowhere.
+    /// Returns what left the pack; a sliver Items.Take takes with the rest goes on the fire, never nowhere. A discrete
+    /// fuel goes on in whole pieces (Items.Move), as many as fit the pit's room.
     static double PutOn(FireState f, Inventory pack, Resource fuel, double kg)
     {
+        if (Items.IsDiscrete(fuel))
+        {
+            if (!CanAddFuel(f, fuel)) return 0;
+            double moved = Items.Move(pack, new Inventory(), fuel, kg, RoomKg(f));
+            if (moved <= 0) return 0;
+            double inPit = AddFuel(f, fuel, moved);
+            f.UnburnedKg[fuel] = f.UnburnedKg.GetValueOrDefault(fuel) + moved - inPit; // rounding at the brim
+            return moved;
+        }
         double offered = Math.Min(kg, Items.Have(pack, fuel));
         double added = offered > 0 ? AddFuel(f, fuel, offered) : 0;
         if (added <= 0) return 0;
@@ -692,8 +709,9 @@ public static class Fire
         var next = BurnCopy(lit);
         Tick(next, default, next.LastUpdatedMinute + 1, []);
         var pack = Items.Pack(world, a.Who);
-        bool keepsGoing = WillTakeALog(lit) || pack.Kg.Any(x => Props.TryGetValue(x.Key, out var p) && p.MinFireTempF > 0
-            && !IsSliver(next, x.Value) && WillCatch(next, x.Key, Math.Min(x.Value, RoomKg(next))));
+        bool keepsGoing = WillTakeALog(lit) || Items.Totals(pack).Any(x => Props.TryGetValue(x.Resource, out var p) && p.MinFireTempF > 0
+            && (Items.IsDiscrete(x.Resource) ? Items.LightestKg(pack, x.Resource) <= RoomKg(next) : !IsSliver(next, x.Kg))
+            && WillCatch(next, x.Resource, Items.WouldMoveKg(pack, x.Resource, x.Kg, RoomKg(next))));
         return new LightForecast(strike, HoursItWillBurn(lit), CatchTemperatureF(next), keepsGoing ? strike : 0);
     }
 

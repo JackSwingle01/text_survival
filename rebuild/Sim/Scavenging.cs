@@ -82,14 +82,19 @@ public static partial class Fauna
     static void RaidMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
-        double want = RaidKgPerMember * herd.Members.Count, taken = 0, kcal = 0;
+        // A piece goes whole, once the flock has pecked its weight's worth; what it has pecked carries to the next minute.
+        mind.PeckedKg += RaidKgPerMember * herd.Members.Count;
+        var pile = world.Tiles[herd.Tile].Pile!;
+        double taken = 0, kcal = 0;
         foreach (var r in RaidFood)
-            if (want > taken)
+            while (Items.LightestKg(pile, r) is double pieceKg && pieceKg <= mind.PeckedKg + 1e-9)
             {
-                double kg = Items.TakeFromPile(world, herd.Tile, r, want - taken);
-                taken += kg;
-                kcal += kg * Items.Resources[r].KcalPerKg;
+                Items.TakePieces(pile, r, 1);
+                mind.PeckedKg -= pieceKg;
+                taken += pieceKg;
+                kcal += pieceKg * Items.Resources[r].KcalPerKg;
             }
+        Items.TidyPile(world, herd.Tile);
         if (taken <= 0) return;
         Nourish(herd, kcal);
         mind.LastFedMinute = world.Minute;

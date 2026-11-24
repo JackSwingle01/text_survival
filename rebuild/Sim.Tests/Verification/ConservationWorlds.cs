@@ -31,13 +31,55 @@ static class ConservationWorlds
         {
             foreach (var (r, kg) in kgs) t[r] = t.GetValueOrDefault(r) + kg;
         }
-        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) Add(pack.Kg);
+        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) Add(Items.KgByResource(pack));
         foreach (var ts in w.Tiles.Values)
         {
-            if (ts.Pile is { } pile) Add(pile.Kg);
+            if (ts.Pile is { } pile) Add(Items.KgByResource(pile));
             foreach (var c in ts.Carcasses ?? []) Add(c.Pending);
         }
         return t;
+    }
+
+    /// Every inventory a piece can be in: packs, piles, projects in either and on tiles, and the parts records of all
+    /// gear, wherever it is.
+    public static IEnumerable<Inventory> AllInventories(World w)
+    {
+        var all = new List<Inventory>();
+        void With(Inventory inv)
+        {
+            all.Add(inv);
+            foreach (var p in inv.Projects ?? []) With(p.Materials);
+            foreach (var g in inv.Gear) if (g.MadeOf is { } made) With(made);
+        }
+        foreach (var a in w.Agents.Values)
+        {
+            if (Items.PackOf(a) is { } pack) With(pack);
+            foreach (var b in a.Members) foreach (var g in b.Worn) if (g.MadeOf is { } made) With(made);
+        }
+        foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) With(pile);
+        foreach (var p in w.Projects.Values) With(p.Materials);
+        return all;
+    }
+
+    /// A pack never holds part of a piece: every discrete resource is held as whole pieces, each inside its
+    /// kind's range, lightest first, and no continuous one is held as pieces. Returns what is wrong, or null.
+    public static string? BrokenPiece(World w)
+    {
+        foreach (var inv in AllInventories(w))
+        {
+            foreach (var r in inv.Amounts.Keys) if (Items.IsDiscrete(r)) return $"{r} is discrete but held as an amount";
+            foreach (var (r, pieces) in inv.Pieces)
+            {
+                if (!Items.IsDiscrete(r)) return $"{r} is continuous but held as pieces";
+                if (pieces.Count == 0) return $"an empty list of {r}";
+                for (int i = 0; i < pieces.Count; i++)
+                {
+                    if (!Items.InRange(r, pieces[i])) return $"a piece of {r} weighs {pieces[i]} kg, outside {Items.Resources[r].MinPieceKg}-{Items.Resources[r].MaxPieceKg}";
+                    if (i > 0 && pieces[i] < pieces[i - 1]) return $"the pieces of {r} are out of order";
+                }
+            }
+        }
+        return null;
     }
 
     /// Every piece of gear, by kind: in packs, worn by any member of any agent, and on piles.

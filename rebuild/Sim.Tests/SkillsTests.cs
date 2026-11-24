@@ -86,9 +86,9 @@ public class SkillsTests
         for (int seed = 0; seed < 60 && !(lit && missed); seed++)
         {
             var w = TestWorlds.Bare(3);
-            Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
-            Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
-            Items.Add(Items.Pack(w, P), Resource.Pine, 2);
+            TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.Pine, 2);
             w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
             var r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1);
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
@@ -112,9 +112,9 @@ public class SkillsTests
         for (int seed = 0; seed < 60; seed++)
         {
             var w = TestWorlds.Bare(3);
-            Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
-            Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
-            Items.Add(Items.Pack(w, P), Resource.Pine, 2);
+            TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.Pine, 2);
             w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
             if (!Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1).Events.Any(e => e is FireLit)) continue;
             var pit = Fire.PitAt(w, w.Agent(P).Tile)!.Value;
@@ -122,7 +122,7 @@ public class SkillsTests
             Assert.False(Fire.IsActive(w.Fires[pit]), "the kindling fire never went out");
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
             // Out, a log on the cold pit teaches nothing more.
-            Items.Add(Items.Pack(w, P), Resource.Pine, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.Pine, 1);
             Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1);
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
             return;
@@ -142,8 +142,8 @@ public class SkillsTests
             {
                 var w = TestWorlds.Bare(3);
                 var tile = w.Agent(P).Tile;
-                Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
-                Items.Add(Items.Pack(w, P), Resource.Kindling, 1);
+                TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
+                TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
                 var pit = new FireId(w.NextFireId++);
                 w.Fires[pit] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Pine] = 3 } };
                 w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
@@ -178,7 +178,7 @@ public class SkillsTests
     {
         var w = Mild17();
         LightPit(w);
-        Items.Add(Items.Pack(w, P), Resource.RawMeat, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 1);
         Assert.Equal("cooked", Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60).InterruptedReason);
         Assert.Equal(Skills.CookXpPerKg, Xp(w, Skill.Cooking), 6);
     }
@@ -245,7 +245,7 @@ public class SkillsTests
             var w = Mild17();
             SetLevel(w, P, Skill.Cooking, level);
             LightPit(w);
-            Items.Add(Items.Pack(w, P), Resource.RawMeat, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 1);
             return Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60).MinutesElapsed;
         }
         Assert.Equal(Work.CookMeatMinutesPerKg, Minutes(0));

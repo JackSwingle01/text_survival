@@ -112,8 +112,18 @@ public static partial class Content
         RespectNullableAnnotations = true,
         RespectRequiredConstructorParameters = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        Converters = { new StrictEnumConverter(), new ReadOnlyListConverter() },
+        Converters = { new StrictEnumConverter(), new ReadOnlyListConverter(), new PieceRangeConverter() },
     };
+
+    /// A piece range is written [min, max], as every range in the files is.
+    sealed class PieceRangeConverter : JsonConverter<PieceRange>
+    {
+        public override PieceRange Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
+            JsonSerializer.Deserialize<double[]>(ref reader, options) is [var min, var max] ? new(min, max) : throw new JsonException("pieceKg is [min, max]");
+
+        public override void Write(Utf8JsonWriter writer, PieceRange value, JsonSerializerOptions options) =>
+            JsonSerializer.Serialize(writer, new[] { value.Min, value.Max }, options);
+    }
 
     /// Every list in a file is read into an array behind a read-only view: nothing outside can cast a
     /// table's list back to List and change it.

@@ -56,14 +56,14 @@ public class ConservationItemsTests
         var w = Bare(s.TempC);
         var camp = Camp(w);
         var pack = Items.Pack(w, P);
-        pack.Kg.Clear();
-        for (int i = 0; i < PackResources.Length; i++) if (s.PackKg[i] > 0) Items.Add(pack, PackResources[i], s.PackKg[i]);
+        TestKit.ClearResources(pack);
+        for (int i = 0; i < PackResources.Length; i++) if (s.PackKg[i] > 0) TestKit.Give(pack, PackResources[i], s.PackKg[i]);
         pack.Gear.Add(Items.Make("fire_striker"));
         if (s.Knife) pack.Gear.Add(Items.Make("flint_knife"));
         // A spare garment for Wear to swap with what is worn.
         pack.Gear.Add(Items.Make(Items.GearKinds.First(kv => kv.Value.Slot != null).Key));
         for (int i = 0; i < PackResources.Length; i++)
-            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), PackResources[i], s.PileKg[i]);
+            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), PackResources[i], s.PileKg[i]);
 
         long start = Math.Max(s.CarcassAgeMinutes, s.DeadDays * 1440L);
         if (s.DeadDays > 0)
@@ -235,7 +235,7 @@ public class ConservationItemsTests
         var w = Bare(5);
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
         for (int i = 0; i < RaidPile.Length; i++)
-            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
+            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
         Agents.SpawnGroup(w, Species.Raven, tile, s.Members);
         var before = ItemKg(w);
         var gear = GearCount(w);
@@ -283,7 +283,7 @@ public class ConservationItemsTests
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(camp, 0));
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("stone_axe"));
-        if (s.FillKg > 0) Items.Add(pack, Resource.Stone, s.FillKg);
+        if (s.FillKg > 0) TestKit.Give(pack, Resource.Stone, s.FillKg);
         w.Minute = 10 * 60; // daylight
         var before = ItemKg(w);
         var gear = GearCount(w);
@@ -298,7 +298,7 @@ public class ConservationItemsTests
         }
         Work.End(w, w.Agent(P), session, events);
         var after = ItemKg(w);
-        foreach (var r in after.Keys.Union(before.Keys).Union(session.Got.Kg.Keys))
+        foreach (var r in after.Keys.Union(before.Keys).Union(Items.KgByResource(session.Got).Keys))
         {
             double delta = after.GetValueOrDefault(r) - before.GetValueOrDefault(r);
             Assert.True(Math.Abs(delta - Items.Have(session.Got, r)) <= Tolerance, $"{r}: got {Items.Have(session.Got, r):R}, items moved {delta:R}");

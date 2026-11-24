@@ -40,6 +40,11 @@ public sealed class ShelterState
     public int? FromFind { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? Cause { get; init; }
+    /// A discrete material goes in a whole piece at a time: the piece being worked in, and the share of its work left.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Resource? WorkingPiece { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public double WorkingPieceLeftPct { get; set; }
 }
 
 /// For someone keeping still in it this minute; default (nothing) is also what it does for someone walking about.
@@ -292,7 +297,8 @@ public static class Shelters
                     if (Peek(world, tile) is not { } s || IsDestroyed(s)) return new("there's no shelter here to improve", new MissingState(Lack.Shelter));
                     if (Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is { } barred) return barred;
                     if (!ShelterMaterials.Contains(i.Material)) return new($"{Names.Cap(Names.Of(i.Material))} is no use on a shelter");
-                    if (Items.Have(pack, i.Material) <= 0) return new($"you have no {Names.Of(i.Material)}", new MissingResource(i.Material, Materials[i.Material].PieceKg));
+                    if (Items.Have(pack, i.Material) <= 0 && !(s.WorkingPiece == i.Material && s.WorkingPieceLeftPct > 1e-9))
+                        return new($"you have no {Names.Of(i.Material)}", new MissingResource(i.Material, Materials[i.Material].PieceKg));
                     if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return new($"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further");
                     return null;
                 }
@@ -335,9 +341,23 @@ public static class Shelters
                     if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                     if (At(world, tile, events) is not { } s) return "the shelter is gone";
                     var pack = Items.Pack(world, agent.Id);
-                    double pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg / 10 / ImpairmentFactor(agent.Body)) / Materials[i.Material].PieceKg;
+                    double pieces = 1.0 / 10 / ImpairmentFactor(agent.Body);
+                    if (!Items.IsDiscrete(i.Material)) pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg * pieces) / Materials[i.Material].PieceKg;
+                    else
+                    {
+                        // A whole piece comes out of the pack when its work begins, and is worked in over the minutes after.
+                        if (s.WorkingPiece != i.Material || s.WorkingPieceLeftPct <= 1e-9)
+                        {
+                            Items.TakePieces(pack, i.Material, 1);
+                            s.WorkingPiece = i.Material;
+                            s.WorkingPieceLeftPct = 1;
+                        }
+                        pieces = Math.Min(pieces, s.WorkingPieceLeftPct);
+                        s.WorkingPieceLeftPct -= pieces;
+                        if (s.WorkingPieceLeftPct <= 1e-9) s.WorkingPiece = null;
+                    }
                     Improve(s, i.Stat, i.Material, pieces);
-                    if (Items.Have(pack, i.Material) <= 0) return $"out of {Names.Of(i.Material)}";
+                    if (Items.Have(pack, i.Material) <= 0 && s.WorkingPiece == null) return $"out of {Names.Of(i.Material)}";
                     return Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9 ? AsGoodAsItGets : null;
                 }
             case PackTent: return Packed;

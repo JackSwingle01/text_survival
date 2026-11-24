@@ -40,14 +40,14 @@ public class ConservationMakeTests
         var w = Bare(-2);
         w.Minute = 3 * 60; // noon
         var pack = Items.Pack(w, P);
-        pack.Kg.Clear();
+        TestKit.ClearResources(pack);
         pack.Gear.Clear();
-        for (int i = 0; i < Inputs.Length; i++) if (s.PackKg[i] > 0) Items.Add(pack, Inputs[i], s.PackKg[i]);
+        for (int i = 0; i < Inputs.Length; i++) if (s.PackKg[i] > 0) TestKit.Give(pack, Inputs[i], s.PackKg[i]);
         for (int i = 0; i < ToolKinds.Length; i++)
             if (s.Tools[i])
             {
                 var g = Items.Make(ToolKinds[i]);
-                g.MadeOf = new() { [Resource.Pine] = 0.5 }; // parts recorded: they must travel into what it is made into
+                g.MadeOf = new(); TestKit.Give(g.MadeOf, Resource.Pine, 1.5); // parts recorded: they must travel into what it is made into
                 pack.Gear.Add(g);
             }
         if (s.Fire)
@@ -82,10 +82,10 @@ public class ConservationMakeTests
     {
         var t = ItemKg(w);
         void Add(IEnumerable<KeyValuePair<Resource, double>> kgs) { foreach (var (r, kg) in kgs) t[r] = t.GetValueOrDefault(r) + kg; }
-        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var p in pack.Projects ?? []) Add(p.Materials.Kg);
-        foreach (var ts in w.Tiles.Values) foreach (var p in ts.Pile?.Projects ?? []) Add(p.Materials.Kg);
-        foreach (var p in w.Projects.Values) Add(p.Materials.Kg);
-        foreach (var g in AllGear(w)) Add(g.MadeOf ?? []);
+        foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var p in pack.Projects ?? []) Add(Items.KgByResource(p.Materials));
+        foreach (var ts in w.Tiles.Values) foreach (var p in ts.Pile?.Projects ?? []) Add(Items.KgByResource(p.Materials));
+        foreach (var p in w.Projects.Values) Add(Items.KgByResource(p.Materials));
+        foreach (var g in AllGear(w)) if (g.MadeOf is { } made) Add(Items.KgByResource(made));
         return t;
     }
 

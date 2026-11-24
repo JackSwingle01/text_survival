@@ -100,7 +100,7 @@ public static class Remains
         var kit = new Inventory();
         if (dead.Mind is PersonMind person) Items.AddAll(kit, person.Pack);
         kit.Gear.AddRange(body.Worn);
-        if (kit.Kg.Count > 0 || kit.Gear.Count > 0)
+        if (!Items.IsEmpty(kit))
             Items.AddAll(Items.PileAt(world, dead.Tile, new Cause(dead.Id, $"what {Cause.Describe(world, dead.Id)} carried, beside {bones.Animal.ToLowerInvariant()} bones")), kit);
         Agents.Remove(world, dead.Id);
     }

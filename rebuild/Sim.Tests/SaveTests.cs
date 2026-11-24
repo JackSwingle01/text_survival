@@ -85,7 +85,7 @@ public class SaveTests
     {
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
-        Items.Add(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
+        TestKit.Give(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
         var raven = Agents.SpawnGroup(w, Species.Raven, tile, 4)[0];
         w.Agent(raven).Doing = new Doing { Plain = new Raid(raven), MinutesLeft = 1 };
 

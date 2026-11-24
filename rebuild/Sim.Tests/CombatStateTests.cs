@@ -391,7 +391,7 @@ public class CombatStateTests
         var me = Me(e);
         var wolf = Combat.TargetOf(e, me)!;
         double fresh = Combat.DefenceChance(w, e, me, wolf);
-        Items.Add(Items.Pack(w, P), Resource.RawMeat, 40);
+        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 40);
         Assert.True(Combat.DefenceChance(w, e, me, wolf) < fresh, "a load did not slow the defence");
         Combat.BodyOf(w, me).SprintSpentLevel = 1;
         Assert.Equal(0, Combat.DefenceChance(w, e, me, wolf)); // no breath for it

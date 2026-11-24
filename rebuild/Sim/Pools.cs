@@ -19,7 +19,16 @@ public sealed record TreePool(string Name, Resource? Wood, double MinutesToFell,
 public sealed record StockPool(
     string Name, StockKind Kind, int MinutesPerUnit, IReadOnlyList<StockItem> Items, double RevealAtHours,
     double PlacementHeightM = 0.6, IReadOnlyList<Gear>? Gear = null, ToolType? RequiresTool = null, IReadOnlyList<string>? Found = null) : PoolDef(Name);
-public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0);
+/// PieceKgs: a salvage's or a pile's pieces as rolled, one unit holding them all (KgPerUnit their sum); null for a
+/// harvest, where each unit of a discrete resource is one piece of KgPerUnit.
+public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, IReadOnlyList<double>? PieceKgs = null)
+{
+    /// The pieces by weight, not the list they are held in.
+    public bool Equals(StockItem? other) => other is not null && Resource == other.Resource && Units == other.Units && KgPerUnit == other.KgPerUnit
+        && RespawnHoursPerUnit == other.RespawnHoursPerUnit && (PieceKgs ?? []).SequenceEqual(other.PieceKgs ?? []);
+
+    public override int GetHashCode() => HashCode.Combine(Resource, Units, KgPerUnit, RespawnHoursPerUnit);
+}
 
 /// A natural shelter, nothing to gather: finding it puts the shelter on the tile (Pools.Search).
 public sealed record ShelterFind(ShelterDef Shelter, double RevealAtHours, double PlacementHeightM = 2.0, IReadOnlyList<string>? Found = null) : PoolDef(Shelter.Name);
@@ -195,10 +204,11 @@ public static class Pools
         }
     }
 
-    /// Content/loot.json rolled: one salvage item per resource, plus the gear.
+    /// Content/loot.json rolled: one salvage item per resource, plus the gear. Scale counts the pieces; a continuous
+    /// resource's kilos are scaled again, a discrete one's pieces keep their weights.
     internal static (List<StockItem> Items, List<Gear> Gear) RollLoot(IReadOnlyList<LootRoll> table, Rng rng, double scale = 1)
     {
-        var kg = new SortedDictionary<Resource, double>();
+        var kg = new SortedDictionary<Resource, List<double>>();
         var gear = new List<Gear>();
         void Take(LootRoll r)
         {
@@ -206,7 +216,9 @@ public static class Pools
             if (r.Resource is Resource res)
             {
                 int pieces = (int)Math.Ceiling((r.Pieces is [var lo, var hi] ? Between(rng, lo, hi + 1) : 1) * scale);
-                kg[res] = kg.GetValueOrDefault(res) + Pieces(rng, pieces, r.Kg![0], r.Kg[1]) * scale;
+                var rolled = Pieces(rng, pieces, r.Kg![0], r.Kg[1]);
+                if (!kg.TryGetValue(res, out var all)) kg[res] = all = [];
+                all.AddRange(Items.IsDiscrete(res) ? rolled : [rolled.Sum() * scale]);
             }
             else if (r.Gear != null)
             {
@@ -248,11 +260,11 @@ public static class Pools
     static int Between(Rng rng, int min, int maxExclusive) => min + rng.NextInt(maxExclusive - min);
     static double Uniform(Rng rng, double min, double max) => min + rng.NextDouble() * (max - min);
 
-    /// Several pieces of one resource, summed: stock is by weight.
-    static double Pieces(Rng rng, int count, double min, double max)
+    /// Several pieces of one resource, each its own weight.
+    static List<double> Pieces(Rng rng, int count, double min, double max)
     {
-        double kg = 0;
-        for (int i = 0; i < count; i++) kg += Uniform(rng, min, max);
+        var kg = new List<double>(count);
+        for (int i = 0; i < count; i++) kg.Add(Uniform(rng, min, max));
         return kg;
     }
 
@@ -349,7 +361,7 @@ public static class Pools
             var resource = i.Resource ?? i.AnyOf![0]; // drawn below, after every count
             // Salvage and details: everything comes at once, after the minutes.
             items.Add(work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit!.Value)
-                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : units * i.KgPerUnit));
+                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : [.. Enumerable.Repeat(i.KgPerUnit, units)]));
         }
         foreach (var i in d.Items ?? []) Take(i);
         foreach (var (index, anyOf) in choices) items[index] = items[index] with { Resource = anyOf[rng.NextInt(anyOf.Count)] };
@@ -363,12 +375,16 @@ public static class Pools
         double pick = rng.NextDouble() * outcomes.Sum(o => o.Weight);
         var outcome = outcomes[^1];
         foreach (var o in outcomes) { if ((pick -= o.Weight) < 0) { outcome = o; break; } }
-        var kg = new SortedDictionary<Resource, double>();
+        var kg = new SortedDictionary<Resource, List<double>>();
         var gear = new List<Gear>();
         foreach (var table in outcome.Loot)
         {
             var (items, kept) = RollLoot(Content.Loot[table], rng, outcome.Scale);
-            foreach (var i in items) kg[i.Resource] = kg.GetValueOrDefault(i.Resource) + i.KgPerUnit;
+            foreach (var i in items)
+            {
+                if (!kg.TryGetValue(i.Resource, out var all)) kg[i.Resource] = all = [];
+                all.AddRange(i.PieceKgs!);
+            }
             gear.AddRange(kept);
         }
         return ([.. kg.Select(x => All(x.Key, x.Value))], gear, [.. d.Found!.Select(f => $"{f} {outcome.Line}")]);
@@ -386,7 +402,16 @@ public static class Pools
             Cap(insulation, d.InsulationCap, k.InsulationCap), Cap(overhead, d.OverheadCap, k.OverheadCap), Cap(wind, d.WindCap, k.WindCap));
     }
 
-    static StockItem All(Resource r, double kg) => new(r, 1, kg);
+    /// Everything at once: one unit of all the pieces. A continuous resource's are only summed when it is worked.
+    static StockItem All(Resource r, IReadOnlyList<double> pieces) => new(r, 1, pieces.Sum(), PieceKgs: pieces);
+
+    /// One unit of a stock item into an inventory: its pieces, or a piece of KgPerUnit, or an amount.
+    static void AddUnit(Inventory to, StockItem item)
+    {
+        if (!Items.IsDiscrete(item.Resource)) Items.Add(to, item.Resource, item.KgPerUnit);
+        else if (item.PieceKgs != null) Items.AddPieces(to, item.Resource, item.PieceKgs);
+        else Items.AddPiece(to, item.Resource, item.KgPerUnit);
+    }
 
     static TileState TileOf(World world, TileId tile)
     {
@@ -618,11 +643,16 @@ public static class Pools
         double logKg = f.LogKg[log], spread = f.LogKgSpreadPct;
         var y = new Inventory();
         int logs = Between(rng, f.Logs.Count[0], f.Logs.Count[1] + 1);
-        for (int i = 0; i < logs; i++) Items.Add(y, log, logKg * ((1 - spread) + rng.NextDouble() * (2 * spread)));
+        for (int i = 0; i < logs; i++) Items.AddPiece(y, log, logKg * ((1 - spread) + rng.NextDouble() * (2 * spread)));
         foreach (var (resource, pieces) in new[] { (Resource.Kindling, f.Kindling), (Resource.Tinder, f.Tinder) })
         {
             int n = Between(rng, pieces.Count[0], pieces.Count[1] + 1);
-            for (int i = 0; i < n; i++) Items.Add(y, resource, pieces.Kg![0] + rng.NextDouble() * (pieces.Kg[1] - pieces.Kg[0]));
+            for (int i = 0; i < n; i++)
+            {
+                double kg = pieces.Kg![0] + rng.NextDouble() * (pieces.Kg[1] - pieces.Kg[0]);
+                if (Items.IsDiscrete(resource)) Items.AddPiece(y, resource, kg);
+                else Items.Add(y, resource, kg);
+            }
         }
 
         s.MinutesWorked = 0;
@@ -674,7 +704,7 @@ public static class Pools
             for (int i = 0; i < now.Length; i++)
             {
                 if (now[i] <= 0) continue;
-                Items.Add(got, def.Items[i].Resource, def.Items[i].KgPerUnit);
+                AddUnit(got, def.Items[i]);
                 now[i]--;
                 s.LastTakenMinute[i] = world.Minute;
             }
@@ -756,7 +786,7 @@ public static class Pools
     {
         if (FoundByAnyoneElse(world, id)) return;
         var pile = Items.PileAt(world, id.Tile, new Cause(null, $"hidden in the {Names.Lower(find.Name)}"));
-        foreach (var item in find.Items) Items.Add(pile, item.Resource, item.Units * item.KgPerUnit);
+        foreach (var item in find.Items) for (int u = 0; u < item.Units; u++) AddUnit(pile, item);
         pile.Gear.AddRange(find.Gear.Select(g => new Gear { Kind = g.Kind, Durability = g.Durability, MaxDurability = g.MaxDurability }));
     }
 

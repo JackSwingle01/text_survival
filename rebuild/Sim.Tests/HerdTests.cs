@@ -599,7 +599,7 @@ public class HerdTests(ITestOutputHelper output)
         var w = TestWorlds.New(1);
         var herd = Herds(w).First();
         herd.Doing = new Doing { Work = new WorkSession { Activity = new Gather(herd.Id, 0, ForageFocus.Food), Minutes = 3 }, MinutesLeft = 7 };
-        Items.Add(herd.Doing.Work!.Got, Resource.Berries, 0.2);
+        TestKit.Give(herd.Doing.Work!.Got, Resource.Berries, 0.2);
         string json = Save.ToJson(w);
         var back = TestWorlds.Load(json).Agent(herd.Id).Doing!;
         Assert.Equal(new Gather(herd.Id, 0, ForageFocus.Food), back.Activity);

@@ -140,11 +140,18 @@ public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, P
 /// and impairment never block; they slow the work and worsen the odds. Tent: one carried, to start.
 public enum Requirement { Light, Fire, Frost, Shelter, Dry, NoShelter, Tent }
 
-/// Taken from AnyOf in the order listed.
-public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg);
+/// Count pieces of the discrete alternatives (any piece of the kind will do), or Kg of the continuous ones, taken in
+/// the order listed: the first alternative's form is tried first.
+public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int Count = 0)
+{
+    public IEnumerable<Resource> Discrete() => AnyOf.Where(Items.IsDiscrete);
+    public IEnumerable<Resource> Continuous() => AnyOf.Where(r => !Items.IsDiscrete(r));
+}
 
-/// A gear kind, kilos of a resource, or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
-public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null)
+/// A gear kind; Kg of a continuous resource; Count pieces of a discrete one, together SharePct of the inputs' actual
+/// weight; or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
+public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
+    int Count = 0, double SharePct = 0)
 {
     public bool Placed => Shelter != null || Bedding != null;
 }
@@ -256,11 +263,26 @@ public static class Making
         return MissingTool(pack, r, begun) ?? Unmet(world, agent, r) ?? (begun ? null : MissingMaterial(pack, r));
     }
 
+    static bool Enough(Inventory pack, MaterialInput m, bool discrete) => discrete
+        ? m.Discrete().Any() && m.Discrete().Sum(x => Items.Count(pack, x)) >= m.Count
+        : m.Continuous().Any() && m.Continuous().Sum(x => Items.Have(pack, x)) >= m.Kg - 1e-9;
+
+    /// "2 stones", "300 g of plant fibre or 1 sinew".
+    public static string Words(MaterialInput m) => string.Join(" or ",
+        m.AnyOf.Select(x => Items.IsDiscrete(x) ? Names.Pieces(x, m.Count) : $"{Names.Grams(m.Kg)} of {Names.Of(x)}"));
+
     static Refusal? MissingMaterial(Inventory pack, Recipe r)
     {
         foreach (var m in r.Materials)
-            if (m.AnyOf.Sum(x => Items.Have(pack, x)) is double have && have < m.Kg - 1e-9)
-                return new($"you need {m.Kg:0.##} kg of {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}", new MissingResource(m.AnyOf, m.Kg - have));
+            if (!Enough(pack, m, discrete: true) && !Enough(pack, m, discrete: false))
+            {
+                // For a planner: kilos that, gathered, would make up the shortfall of the input's first form.
+                bool discrete = Items.IsDiscrete(m.AnyOf[0]);
+                int shortPieces = Math.Max(0, m.Count - m.Discrete().Sum(x => Items.Count(pack, x)));
+                double kg = discrete ? shortPieces * m.Discrete().Average(x => (Items.Resources[x].MinPieceKg + Items.Resources[x].MaxPieceKg) / 2)
+                    : m.Kg - m.Continuous().Sum(x => Items.Have(pack, x));
+                return new($"you need {Words(m)}", new MissingResource(m.AnyOf, kg, discrete ? shortPieces : 0));
+            }
         foreach (var (kind, n) in r.Items.GroupBy(k => k).Select(g => (g.Key, g.Count())))
             if (pack.Gear.Count(g => g.Kind == kind) < n) return new($"you need a {Items.GearKinds[kind].Name.ToLowerInvariant()}", new MissingGear(kind));
         return null;
@@ -385,10 +407,18 @@ public static class Making
                     RemoveProject(pack, p);
                     var back = new Inventory { Gear = [.. p.Materials.Gear] };
                     var lost = new SortedDictionary<Resource, double>();
-                    foreach (var (res, kg) in p.Materials.Kg)
+                    foreach (var (res, kg) in p.Materials.Amounts)
                     {
                         Items.Add(back, res, kg * AbandonReclaimPct);
                         lost[res] = kg - kg * AbandonReclaimPct;
+                    }
+                    // Whole pieces: the lightest of the share not reclaimed are lost.
+                    foreach (var (res, pieces) in p.Materials.Pieces)
+                    {
+                        int keep = (int)Math.Round(pieces.Count * AbandonReclaimPct, MidpointRounding.AwayFromZero);
+                        var gone = pieces.Take(pieces.Count - keep).ToList();
+                        if (gone.Count > 0) lost[res] = gone.Sum();
+                        Items.AddPieces(back, res, pieces.Skip(gone.Count));
                     }
                     Items.Receive(world, agent, back, events);
                     events.Add(new ProjectAbandoned(world.Minute, agent.Id, agent.Tile, a.Recipe, lost));
@@ -397,17 +427,30 @@ public static class Making
         }
     }
 
+    /// Each input from one form: the first alternative's if there is enough of it, else the other's.
     static void TakeMaterials(Inventory pack, Recipe r, Inventory into)
     {
         foreach (var input in r.Materials)
         {
-            double left = input.Kg;
-            foreach (var res in input.AnyOf)
+            bool discrete = Items.IsDiscrete(input.AnyOf[0]) ? Enough(pack, input, true) : !Enough(pack, input, false);
+            if (discrete)
             {
-                if (left <= 0) break;
-                double took = Items.Take(pack, res, left);
+                int left = input.Count;
+                foreach (var res in input.Discrete())
+                {
+                    var took = Items.TakePieces(pack, res, left);
+                    Items.AddPieces(into, res, took);
+                    left -= took.Count;
+                }
+                continue;
+            }
+            double kgLeft = input.Kg;
+            foreach (var res in input.Continuous())
+            {
+                if (kgLeft <= 0) break;
+                double took = Items.Take(pack, res, kgLeft);
                 Items.Add(into, res, took);
-                left -= took;
+                kgLeft -= took;
             }
         }
     }
@@ -451,7 +494,7 @@ public static class Making
         else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
             Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
         else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
-        events.Add(new Built(world.Minute, agent.Id, tile, r.Id, new SortedDictionary<Resource, double>(p.Materials.Kg)));
+        events.Add(new Built(world.Minute, agent.Id, tile, r.Id, KgOf(p.Materials)));
         return Shelters.BuiltReason;
     }
 
@@ -496,7 +539,9 @@ public static class Making
         var extraGear = new List<string>();
         var gained = new Inventory();
 
-        // Waste and saving act on the whole input they name, whichever alternative went in.
+        // Waste and saving act on the whole input they name, whichever alternative went in: a share of an amount,
+        // or that share of the pieces rounded to whole ones, lightest first (a quarter of one hide is none of it).
+        double inputKg = Items.Totals(materials).Sum(x => x.Kg);
         double wastedKg = 0;
         foreach (var e in effects)
         {
@@ -504,10 +549,14 @@ public static class Making
             if (named is not Resource input) continue;
             foreach (var res in r.Materials.First(m => m.AnyOf.Contains(input)).AnyOf)
             {
-                double kg = Items.Take(materials, res, Items.Have(materials, res) * share);
+                var part = new Inventory();
+                if (Items.IsDiscrete(res))
+                    Items.AddPieces(part, res, Items.TakePieces(materials, res, (int)Math.Round(Items.Count(materials, res) * share, MidpointRounding.AwayFromZero)));
+                else Items.Add(part, res, Items.Take(materials, res, Items.Have(materials, res) * share));
+                double kg = Items.Have(part, res);
                 if (kg <= 0) continue;
                 if (waste) { spent[res] = spent.GetValueOrDefault(res) + kg; wastedKg += kg; }
-                else Items.Add(gained, res, kg);
+                else Items.AddAll(gained, part);
             }
         }
 
@@ -527,13 +576,22 @@ public static class Making
         }
         else
         {
-            // A resource result: the inputs are worked into it, less in proportion to what was wasted.
-            // Saved material is a bonus over a full result (the loader keeps it from making mass).
-            double planned = r.Materials.Sum(m => m.Kg);
-            foreach (var (res, kg) in materials.Kg) spent[res] = spent.GetValueOrDefault(res) + kg;
+            // A resource result: the inputs are worked into it, less in proportion to what was wasted; a discrete
+            // one is its share of the actual weight that went in, in whole pieces. Saved material is a bonus over a
+            // full result (the loader keeps it from making mass).
+            foreach (var (res, kg) in Items.Totals(materials)) spent[res] = spent.GetValueOrDefault(res) + kg;
             var made = r.Result.Resource!.Value;
-            double kgMade = r.Result.Kg * Math.Clamp((planned - wastedKg) / planned, 0, 1);
-            Items.Add(gained, made, kgMade);
+            double kgMade;
+            if (Items.IsDiscrete(made))
+            {
+                kgMade = r.Result.SharePct * Math.Max(0, inputKg - wastedKg);
+                for (int i = 0; i < r.Result.Count; i++) Items.AddPiece(gained, made, kgMade / r.Result.Count);
+            }
+            else
+            {
+                kgMade = r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);
+                Items.Add(gained, made, kgMade);
+            }
             produced[made] = produced.GetValueOrDefault(made) + kgMade;
         }
 
@@ -565,14 +623,17 @@ public static class Making
         return died ?? (succeeded ? MadeIt : Spoiled);
     }
 
-    static SortedDictionary<Resource, double> Composition(Inventory materials)
+    /// The parts record: the very pieces and amounts that went in, and the parts of any item consumed.
+    static Inventory Composition(Inventory materials)
     {
-        var parts = new SortedDictionary<Resource, double>(materials.Kg);
+        var parts = Items.CopyResources(materials);
         foreach (var g in materials.Gear)
-            foreach (var (res, kg) in g.MadeOf ?? [])
-                parts[res] = parts.GetValueOrDefault(res) + kg;
+            if (g.MadeOf is { } made) Items.AddAll(parts, Items.CopyResources(made));
         return parts;
     }
+
+    /// Kilos by resource, for the events that report what went where.
+    static SortedDictionary<Resource, double> KgOf(Inventory inv) => new(Items.Totals(inv).ToDictionary(x => x.Resource, x => x.Kg));
 
     static string? Injure(World world, Agent agent, Injury j, List<WorldEvent> events)
     {

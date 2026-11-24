@@ -167,7 +167,7 @@ public sealed class Observer
         foreach (var (t, s) in w.Tiles)
         {
             if (s.Carcasses is { Count: > 0 }) marks[t] = At(t) with { Carcass = true };
-            if (s.Pile is { } st && (st.Kg.Count > 0 || st.Gear.Count > 0)) marks[t] = At(t) with { Pile = true };
+            if (s.Pile is { } st && !Items.IsEmpty(st)) marks[t] = At(t) with { Pile = true };
         }
         return [.. marks.Values];
     }

@@ -124,7 +124,7 @@ public class WorkTests
         var plain = WithPools(Forage);
         var axed = WithPools(Forage);
         Axe(axed);
-        double Got(World w) { Sim.Step(w, new Gather(P, 0), 60); return Items.Pack(w, P).Kg.Values.Sum() - 1.08; } // less the starting sticks and tinder
+        double Got(World w) { Sim.Step(w, new Gather(P, 0), 60); return Items.Totals(Items.Pack(w, P)).Sum(x => x.Kg) - 1.08; } // less the starting sticks and tinder
         double a = Got(axed), p = Got(plain);
         Assert.True(p > 0);
         Assert.Equal(p * 1.1, a, 6); // same draws, every find a tenth heavier
@@ -141,7 +141,7 @@ public class WorkTests
                 var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
                 w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(i, "work");
                 Sim.Step(w, new Gather(P, 0, focus), 60);
-                sum += Items.Pack(w, P).Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
+                sum += Items.Totals(Items.Pack(w, P)).Where(x => Items.Resources[x.Resource].Category == ResourceCategory.Fuel).Sum(x => x.Kg);
             }
             return sum;
         }
@@ -158,7 +158,7 @@ public class WorkTests
             var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
             w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(seed, "work");
             Sim.Step(w, new Gather(P, 0, focus), 60);
-            return Items.Pack(w, P).Kg;
+            return Items.KgByResource(Items.Pack(w, P));
         }
         for (int seed = 0; seed < 6; seed++)
         {
@@ -326,7 +326,7 @@ public class WorkTests
     {
         var w = WithPools(Forage);
         var body = w.Agent(P).Body;
-        Items.Add(Items.Pack(w, P), Resource.Berries, 1.0);
+        TestKit.Give(Items.Pack(w, P), Resource.Berries, 1.0);
         body.CaloriesKcal = 500;
         body.HydrationMl = 1000;
         var r = Sim.Step(w, new Eat(P, Resource.Berries, 0.6), 60);
@@ -344,7 +344,7 @@ public class WorkTests
         var w = WithPools(Forage);
         w.Agent(P).Body.HydrationMl = 1000;
         Assert.Equal("no water here", Sim.Step(w, new Drink(P), 5).InterruptedReason); // camp has no river
-        Items.Add(Items.Pack(w, P), Resource.Water, 3);
+        TestKit.Give(Items.Pack(w, P), Resource.Water, 3);
         var r = Sim.Step(w, new Drink(P, 5), 5);
         Assert.Equal(("drank", 2), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(2, Items.Have(Items.Pack(w, P), Resource.Water), 9);
@@ -368,7 +368,7 @@ public class WorkTests
     public void Cooking_TurnsRawToCooked_AtAKiloAQuarterHour_OnABurningFire()
     {
         var w = WithPools(Forage);
-        Items.Add(Items.Pack(w, P), Resource.RawMeat, 2);
+        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 2);
         Assert.Equal("no fire to cook on", Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 30).InterruptedReason);
         LightAPit(w);
         var r = Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60);

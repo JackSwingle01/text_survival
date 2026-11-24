@@ -97,7 +97,7 @@ public sealed record MakeOutcomeDto(string Text, bool Succeeds, bool FailureLike
 
 public sealed record PackDto(double CarriedKg, double CapacityKg, IReadOnlyList<StackDto> Stacks, IReadOnlyList<GearDto> Gear,
     IReadOnlyList<GearDto> Worn, IReadOnlyList<ProjectDto> Projects);
-/// Amount: Kg in words (Names.Kg), so a crumb reads as one rather than as nothing.
+/// Amount in words (Names.Amount): a discrete resource's count ("3 stones"), a continuous one's grams or kilos.
 public sealed record StackDto(string Resource, string Name, double Kg, string Amount);
 public sealed record GearDto(string Kind, string Name, double ConditionPct, string? Slot);
 public sealed record ProjectDto(string Recipe, string Name, double ProgressPct);

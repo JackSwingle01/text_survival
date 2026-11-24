@@ -40,6 +40,24 @@ public static class Names
 
     public static string Kg(double kg, Resource r) => $"{Kg(kg)} {Of(r)}";
 
+    /// A discrete resource by its count ("3 stones"), a continuous one by its amount: grams below 500 g,
+    /// kilos to one decimal above ("120 g plant fibre", "1.2 kg plant fibre").
+    public static string Amount(Resource r, double kg, int pieces) =>
+        Items.IsDiscrete(r) ? Pieces(r, pieces) : $"{Grams(kg)} {Of(r)}";
+
+    /// "stone": one piece's word.
+    public static string PieceWord(Resource r) => Pieces(r, 1)[2..];
+
+    /// "1 stone", "3 stones".
+    public static string Pieces(Resource r, int count) =>
+        $"{count} {(Content.Tables.PieceWords.TryGetValue(r, out var w) ? w[count == 1 ? 0 : 1] : throw new KeyNotFoundException($"No piece words for {r} in names.json Pieces"))}";
+
+    /// "120 g", "1.2 kg"; a crumb under a gram is "<1 g".
+    public static string Grams(double kg) =>
+        kg > 0 && kg < 0.0005 ? "<1 g"
+        : kg < 0.4995 ? (kg * 1000).ToString("0", CultureInfo.InvariantCulture) + " g"
+        : kg.ToString("0.0", CultureInfo.InvariantCulture) + " kg";
+
     public static string Outcome(Outcome o)
     {
         var parts = o.Effects.Select(e => e switch

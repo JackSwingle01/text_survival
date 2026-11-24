@@ -26,7 +26,20 @@ public sealed record Weapon(double Damage, WeaponClass Class, double BlockChance
 
 public sealed record ThrownWeapon(double RangeM, double Accuracy, double Damage);
 
-public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0);
+public enum ResourceForm { Discrete, Continuous }
+
+/// Discrete: counted in pieces, each its own weight within PieceKg [min, max], moved whole (GLOSSARY: Resource, Piece).
+/// Continuous: one amount. Form is null only in a row the loader refuses.
+public sealed record ResourceDef(ResourceCategory Category, double KcalPerKg = 0, double HydrationMlPerKg = 0,
+    ResourceForm? Form = null, PieceRange? PieceKg = null)
+{
+    public bool Discrete => Form == ResourceForm.Discrete;
+    /// NaN for a continuous resource, which has no pieces.
+    public double MinPieceKg => PieceKg?.Min ?? double.NaN;
+    public double MaxPieceKg => PieceKg?.Max ?? double.NaN;
+}
+
+public readonly record struct PieceRange(double Min, double Max);
 
 /// Instances carry only their kind and wear. Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
@@ -48,9 +61,10 @@ public sealed class Gear
     /// A packed tent keeps the levels it stood at, so it pitches again as it was.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ShelterCover? TentLevels { get; set; }
-    /// Kilos by resource, merged from its inputs (Making), for decay, salvage and repair to read. Null for things found or brought.
+    /// The parts record: the actual pieces and amounts that went into it, merged from its inputs (Making), for decay,
+    /// salvage and repair to read. Null for things found or brought.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public SortedDictionary<Resource, double>? MadeOf { get; set; }
+    public Inventory? MadeOf { get; set; }
 }
 
 /// A recipe worked on and not finished (GLOSSARY: Project); its materials went in when the work began.
@@ -65,9 +79,12 @@ public sealed class MakeProject
 /// What one agent carries, or a pile on a tile.
 public sealed class Inventory
 {
-    /// Sorted, not a Dictionary: a Dictionary's order after Remove-then-Add differs from its order
-    /// freshly loaded, and anything that walks the stacks would then act differently after a load.
-    public SortedDictionary<Resource, double> Kg { get; init; } = [];
+    /// Continuous resources, kilos by resource. Sorted, not a Dictionary: a Dictionary's order after
+    /// Remove-then-Add differs from its order freshly loaded, and anything that walks them would then act
+    /// differently after a load. Read and change through Items.
+    public SortedDictionary<Resource, double> Amounts { get; init; } = [];
+    /// Discrete resources: each piece's kilos, lightest first, never an empty list. Read and change through Items.
+    public SortedDictionary<Resource, List<double>> Pieces { get; init; } = [];
     public List<Gear> Gear { get; init; } = [];
     /// One per recipe; null when there are none.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
@@ -127,36 +144,136 @@ public static class Items
     /// The thermal mass that holds warmth.
     public static double ClothingWeightKg(IEnumerable<Gear> worn) => worn.Sum(WeightKg);
 
-    public static double Have(Inventory inv, Resource r) => inv.Kg.GetValueOrDefault(r);
+    public static bool IsDiscrete(Resource r) => Resources[r].Discrete;
 
+    /// Kilos of r held, pieces summed.
+    public static double Have(Inventory inv, Resource r) =>
+        inv.Pieces.TryGetValue(r, out var pieces) ? pieces.Sum() : inv.Amounts.GetValueOrDefault(r);
+
+    /// Pieces of a discrete r held; 0 for a continuous one.
+    public static int Count(Inventory inv, Resource r) => inv.Pieces.TryGetValue(r, out var pieces) ? pieces.Count : 0;
+
+    /// The lightest piece of r held, or null.
+    public static double? LightestKg(Inventory inv, Resource r) => inv.Pieces.TryGetValue(r, out var pieces) ? pieces[0] : null;
+
+    /// Every resource held with its kilos, in resource order, discrete and continuous alike.
+    public static IEnumerable<(Resource Resource, double Kg)> Totals(Inventory inv) =>
+        inv.Amounts.Select(kv => (kv.Key, kv.Value)).Concat(inv.Pieces.Select(kv => (kv.Key, kv.Value.Sum()))).OrderBy(x => x.Item1);
+
+    /// Totals as a table.
+    public static SortedDictionary<Resource, double> KgByResource(Inventory inv) => new(Totals(inv).ToDictionary(x => x.Resource, x => x.Kg));
+
+    public static bool HasResources(Inventory inv) => inv.Amounts.Count > 0 || inv.Pieces.Count > 0;
+
+    /// No resources and no gear (projects aside).
+    public static bool IsEmpty(Inventory inv) => !HasResources(inv) && inv.Gear.Count == 0;
+
+    /// A continuous amount. A discrete resource comes in pieces (AddPiece).
     public static void Add(Inventory inv, Resource r, double kg)
     {
+        if (IsDiscrete(r)) throw new InvalidOperationException($"{r} is discrete: add it piece by piece");
         if (kg < 0 || double.IsNaN(kg)) throw new ArgumentOutOfRangeException(nameof(kg), kg, $"Cannot add {kg} kg of {r}");
         if (kg == 0) return;
-        inv.Kg[r] = Have(inv, r) + kg;
+        inv.Amounts[r] = inv.Amounts.GetValueOrDefault(r) + kg;
     }
 
-    /// Below this, what is left of a stack or of a load is a rounding sliver that goes with the rest.
+    /// Rounding allowed at a range's ends.
+    const double RangeSlackKg = 1e-9;
+
+    public static bool InRange(Resource r, double kg) =>
+        Resources[r] is { Discrete: true } d && kg >= d.MinPieceKg - RangeSlackKg && kg <= d.MaxPieceKg + RangeSlackKg;
+
+    /// One whole piece of a discrete resource, within its kind's range.
+    public static void AddPiece(Inventory inv, Resource r, double kg)
+    {
+        if (!IsDiscrete(r)) throw new InvalidOperationException($"{r} is continuous: it has no pieces");
+        if (!InRange(r, kg)) throw new ArgumentOutOfRangeException(nameof(kg), kg, $"A piece of {r} weighs {Resources[r].MinPieceKg}-{Resources[r].MaxPieceKg} kg");
+        if (!inv.Pieces.TryGetValue(r, out var pieces)) inv.Pieces[r] = pieces = [];
+        int at = pieces.BinarySearch(kg);
+        pieces.Insert(at < 0 ? ~at : at, kg);
+    }
+
+    public static void AddPieces(Inventory inv, Resource r, IEnumerable<double> pieces)
+    {
+        foreach (var kg in pieces) AddPiece(inv, r, kg);
+    }
+
+    /// A share of a continuous stock may be left; a discrete one goes by the piece. Below this, what is left
+    /// of an amount or of a load is a rounding sliver that goes with the rest.
     public const double SliverKg = 1e-9;
 
-    /// Returns what was taken; a sliver left behind is taken too, so it may exceed kg by up to SliverKg.
+    /// A continuous amount: returns what was taken; a sliver left behind is taken too, so it may exceed kg by up to SliverKg.
     public static double Take(Inventory inv, Resource r, double kg)
     {
+        if (IsDiscrete(r)) throw new InvalidOperationException($"{r} is discrete: take it by the piece");
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot take a negative amount");
-        double have = Have(inv, r);
+        double have = inv.Amounts.GetValueOrDefault(r);
         double taken = Math.Min(have, kg);
-        if (have - taken <= SliverKg) { inv.Kg.Remove(r); return have; }
-        inv.Kg[r] = have - taken;
+        if (have - taken <= SliverKg) { inv.Amounts.Remove(r); return have; }
+        inv.Amounts[r] = have - taken;
         return taken;
+    }
+
+    /// The lightest n pieces (fewer if there are not n), lightest first.
+    public static List<double> TakePieces(Inventory inv, Resource r, int n)
+    {
+        if (!inv.Pieces.TryGetValue(r, out var pieces) || n <= 0) return [];
+        var taken = pieces.GetRange(0, Math.Min(n, pieces.Count));
+        pieces.RemoveRange(0, taken.Count);
+        if (pieces.Count == 0) inv.Pieces.Remove(r);
+        return taken;
+    }
+
+    /// The one rule for taking by weight. A continuous amount moves min(kg, limitKg, held). A discrete one moves
+    /// whole pieces, lightest first: always the lightest if it fits limitKg (so asking for less than a piece
+    /// gives one piece), then more while the load stays within both kg and limitKg. Returns the kilos moved.
+    public static double Move(Inventory from, Inventory to, Resource r, double kg, double limitKg = double.PositiveInfinity)
+    {
+        if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot move a negative amount");
+        if (!IsDiscrete(r))
+        {
+            double amount = Math.Min(kg, Math.Max(0, limitKg));
+            if (amount <= 0 || Have(from, r) <= 0) return 0;
+            double taken = Take(from, r, amount);
+            Add(to, r, taken);
+            return taken;
+        }
+        if (kg <= 0 || !from.Pieces.TryGetValue(r, out var pieces)) return 0;
+        int n = 0;
+        double load = 0;
+        while (n < pieces.Count && load + pieces[n] <= limitKg + RangeSlackKg && (n == 0 || load + pieces[n] <= kg + RangeSlackKg))
+            load += pieces[n++];
+        AddPieces(to, r, TakePieces(from, r, n));
+        return load;
+    }
+
+    /// Everything of r.
+    public static double MoveAll(Inventory from, Inventory to, Resource r) => Move(from, to, r, double.PositiveInfinity);
+
+    /// What Move(kg, limitKg) would move, moving nothing.
+    public static double WouldMoveKg(Inventory from, Resource r, double kg, double limitKg = double.PositiveInfinity)
+    {
+        var copy = new Inventory();
+        if (from.Pieces.TryGetValue(r, out var pieces)) copy.Pieces[r] = [.. pieces];
+        else if (from.Amounts.TryGetValue(r, out var amount)) copy.Amounts[r] = amount;
+        return Move(copy, new Inventory(), r, kg, limitKg);
     }
 
     public static void AddAll(Inventory to, Inventory from)
     {
-        foreach (var (r, kg) in from.Kg.OrderBy(kv => kv.Key)) Add(to, r, kg);
+        foreach (var (r, kg) in from.Amounts.OrderBy(kv => kv.Key)) Add(to, r, kg);
+        foreach (var (r, pieces) in from.Pieces.OrderBy(kv => kv.Key)) AddPieces(to, r, pieces);
         to.Gear.AddRange(from.Gear);
         // A dead person's half-made spear lies on their pile.
         if (from.Projects is { Count: > 0 } projects) (to.Projects ??= []).AddRange(projects);
     }
+
+    /// Resources only: a copy that shares no list with the original.
+    public static Inventory CopyResources(Inventory inv) => new()
+    {
+        Amounts = new SortedDictionary<Resource, double>(inv.Amounts),
+        Pieces = new SortedDictionary<Resource, List<double>>(inv.Pieces.ToDictionary(kv => kv.Key, kv => kv.Value.ToList())),
+    };
 
     public static Gear? Tool(Inventory inv, ToolType type) =>
         inv.Gear.FirstOrDefault(g => Def(g).Tool == type && Works(g));
@@ -164,7 +281,7 @@ public static class Items
     public static bool HasCuttingTool(Inventory inv) => Tool(inv, ToolType.Knife) != null || Tool(inv, ToolType.Axe) != null;
 
     public static double WeightKg(Inventory inv) =>
-        inv.Kg.Values.Sum() + inv.Gear.Sum(WeightKg) + (inv.Projects?.Sum(p => WeightKg(p.Materials)) ?? 0);
+        Totals(inv).Sum(x => x.Kg) + inv.Gear.Sum(WeightKg) + (inv.Projects?.Sum(p => WeightKg(p.Materials)) ?? 0);
 
     /// Null for an agent that carries nothing (a herd).
     public static Inventory? PackOf(Agent agent) => (agent.Mind as PersonMind)?.Pack;
@@ -188,20 +305,20 @@ public static class Items
     {
         var pack = PackOf(agent) ?? throw new InvalidOperationException($"{agent.Id} carries nothing");
         var dropped = new Inventory();
-        foreach (var (r, kg) in gained.Kg.OrderBy(kv => kv.Key))
+        var rest = CopyResources(gained);
+        foreach (var (r, kg) in Totals(gained).ToList())
         {
             double room = Math.Max(0, CapacityKg(pack) - CarriedKg(agent));
-            double kept = Math.Min(kg, room);
-            if (kg - kept <= SliverKg) kept = kg; // a sliver over capacity rides with the rest
-            Add(pack, r, kept);
-            if (kg - kept > 0) Add(dropped, r, kg - kept);
+            // A sliver over capacity rides with the rest of an amount; a piece fits whole or not at all.
+            Move(rest, pack, r, kg, IsDiscrete(r) ? room : kg - room <= SliverKg ? kg : room);
+            MoveAll(rest, dropped, r);
         }
         foreach (var g in gained.Gear)
         {
             if (CarriedKg(agent) + WeightKg(g) <= CapacityKg(pack)) pack.Gear.Add(g);
             else dropped.Gear.Add(g);
         }
-        if (dropExcess && (dropped.Kg.Count > 0 || dropped.Gear.Count > 0))
+        if (dropExcess && !IsEmpty(dropped))
         {
             AddAll(PileAt(world, agent.Tile, new Cause(agent.Id, $"dropped by {Cause.Describe(world, agent.Id)}, pack full")), dropped);
             events?.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Describe(dropped)));
@@ -213,7 +330,7 @@ public static class Items
     public static Inventory PileAt(World world, TileId tile, Cause made)
     {
         var pile = PileOrNew(world, tile, out var state);
-        if (pile.Kg.Count == 0 && pile.Gear.Count == 0)
+        if (IsEmpty(pile))
         {
             state.PileCause = made;
             state.PileId = world.NextPileId++;
@@ -235,24 +352,28 @@ public static class Items
         return state.Pile ??= new Inventory();
     }
 
-    /// A tile left with nothing on it leaves World.Tiles.
-    public static double TakeFromPile(World world, TileId tile, Resource r, double kg)
+    /// Move's rule, from the tile's pile into an inventory; a tile left with nothing on it leaves World.Tiles.
+    public static double MoveFromPile(World world, TileId tile, Inventory to, Resource r, double kg, double limitKg = double.PositiveInfinity)
     {
         var state = world.Tiles.GetValueOrDefault(tile);
         if (state?.Pile is not Inventory pile) return 0;
-        double taken = Take(pile, r, kg);
-        if (pile.Kg.Count == 0 && pile.Gear.Count == 0)
-        {
-            state.Pile = null;
-            state.PileCause = null;
-            state.PileId = null;
-            Map.Tidy(world, tile);
-        }
-        return taken;
+        double moved = Move(pile, to, r, kg, limitKg);
+        TidyPile(world, tile);
+        return moved;
+    }
+
+    /// A pile emptied by hand (a take, a raid) goes, and the tile with it if nothing else is there.
+    public static void TidyPile(World world, TileId tile)
+    {
+        if (world.Tiles.GetValueOrDefault(tile) is not { Pile: Inventory pile } state || !IsEmpty(pile)) return;
+        state.Pile = null;
+        state.PileCause = null;
+        state.PileId = null;
+        Map.Tidy(world, tile);
     }
 
     public static string Describe(Inventory inv) =>
-        string.Join(", ", inv.Kg.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} {kv.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}kg")
+        string.Join(", ", Totals(inv).Select(x => Names.Amount(x.Resource, x.Kg, Count(inv, x.Resource)))
             .Concat(inv.Gear.Select(g => Def(g).Name)));
 
     /// New items each call, as is StartingPack.
@@ -262,7 +383,9 @@ public static class Items
     {
         var kit = Content.Tables.StartingPack;
         var pack = new Inventory { Gear = [.. kit.Gear.Select(Make)] };
-        foreach (var (r, pieces) in kit.Kg) pack.Kg[r] = pieces.Aggregate(0.0, (kg, piece) => kg + piece);
+        foreach (var (r, pieces) in kit.Kg)
+            if (IsDiscrete(r)) AddPieces(pack, r, pieces);
+            else Add(pack, r, pieces.Aggregate(0.0, (kg, piece) => kg + piece));
         return pack;
     }
 

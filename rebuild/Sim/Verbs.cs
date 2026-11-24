@@ -8,7 +8,8 @@ public sealed record Refusal(string Reason, Missing? Missing = null)
 
 public abstract record Missing;
 
-public sealed record MissingResource(IReadOnlyList<Resource> AnyOf, double Kg) : Missing
+/// Kg is what gathering would have to make up; Count, for a discrete shortfall, the pieces short.
+public sealed record MissingResource(IReadOnlyList<Resource> AnyOf, double Kg, int Count = 0) : Missing
 {
     public MissingResource(Resource resource, double kg) : this([resource], kg) { }
 }
@@ -110,10 +111,10 @@ public static class Verbs
         var carried = new List<(string, Activity, int)>();
         if (pack != null)
         {
-            foreach (var (r, kg) in pack.Kg)
+            foreach (var (r, kg) in Items.Totals(pack))
                 if (kg > 0 && Items.Resources[r].Category == ResourceCategory.Food)
-                    carried.Add(($"Eat {Names.Of(r)}", new Eat(who, r, Portion(agent.Body, r, kg)), Work.EatMinutes));
-            foreach (var (r, kg) in pack.Kg)
+                    carried.Add(($"Eat {Names.Of(r)}", new Eat(who, r, Items.WouldMoveKg(pack, r, Portion(agent.Body, r, kg))), Work.EatMinutes));
+            foreach (var (r, kg) in Items.Totals(pack))
                 if (kg > 0) carried.Add(($"Put down {Names.Of(r)}", new PutDown(who, r, kg), 1));
             // By kind: Wear and TakeOff name a kind, so two of one kind are one verb.
             foreach (var kind in pack.Gear.Where(g => Items.Def(g).Slot != null).Select(g => g.Kind).Distinct())
@@ -161,7 +162,7 @@ public static class Verbs
     {
         var tool = Fire.Starters.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
         var tinder = Fire.Tinders.FirstOrDefault(r => Items.Have(pack, r) >= TinderKg, Resource.Tinder);
-        return new StartFire(who, tool, tinder, TinderKg, Math.Min(KindlingKg, Items.Have(pack, Resource.Kindling)), pit);
+        return new StartFire(who, tool, tinder, TinderKg, Items.WouldMoveKg(pack, Resource.Kindling, KindlingKg), pit);
     }
 
     /// A list read off stale fires would be wrong about light, heat and the pit: fail, never guess.
@@ -198,14 +199,14 @@ public static class Verbs
     /// A herd offers a hunt (of its weakest, Fauna.PersonHunt); location features nobody can act on yet (a person, a body, prints) are listed with no verbs.
     static (string Name, List<(string Label, Activity Activity, int Minutes)> Menu) Describe(World world, AgentId who, LocationFeature t, Inventory? pack)
     {
-        var have = pack?.Kg ?? [];
+        var have = pack != null ? Items.KgByResource(pack) : [];
         return (NameOf(world, t), t.Kind switch
         {
             LocationFeatureKind.Agent => world.Agent(new AgentId(t.Index)).Mind is HerdMind ? [("Hunt", new Hunt(who, new AgentId(t.Index)), 1)] : [],
             LocationFeatureKind.Body or LocationFeatureKind.Track => [],
             LocationFeatureKind.Pool => PoolVerbs(world, who, t),
             LocationFeatureKind.Carcass => CarcassVerbs(world, who, t),
-            LocationFeatureKind.Pile => [.. world.Tiles[t.Tile].Pile!.Kg.Select(x => ($"Take {Names.Of(x.Key)}", (Activity)new PickUp(who, x.Key, x.Value), 1))],
+            LocationFeatureKind.Pile => [.. Items.Totals(world.Tiles[t.Tile].Pile!).Select(x => ($"Take {Names.Of(x.Resource)}", (Activity)new PickUp(who, x.Resource, x.Kg), 1))],
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
             LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
@@ -253,7 +254,7 @@ public static class Verbs
         var pit = world.Fires[new FireId(t.Index)];
         var menu = new List<(string, Activity, int)>();
         foreach (var (r, kg) in have)
-            if (Fire.IsFuel(r)) menu.Add(($"Add {Names.Of(r)}", new AddFuel(who, r, Math.Min(FuelKg, kg)), 1));
+            if (Fire.IsFuel(r)) menu.Add(($"Add {Names.Of(r)}", new AddFuel(who, r, Items.WouldMoveKg(pack!, r, FuelKg)), 1));
         if (!Fire.IsActive(pit) && pack != null) menu.Add(("Light the fire", Light(who, pack, pit.Pit), 1));
         if (pit.CharcoalKg > 0) menu.Add(("Gather charcoal", new GatherCharcoal(who), 1));
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])

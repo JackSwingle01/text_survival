@@ -28,8 +28,8 @@ public static class Scenarios
             case "supplied":
                 {
                     var pack = Items.Pack(w, AgentId.Player);
-                    Items.Add(pack, Resource.Birch, 3);
-                    Items.Add(pack, Resource.Stone, 0.9);
+                    Items.AddPiece(pack, Resource.Birch, 3);
+                    Items.AddPieces(pack, Resource.Stone, [0.3, 0.3, 0.3]);
                     Items.Add(pack, Resource.PlantFiber, 0.3);
                     Items.Add(pack, Resource.BirchBark, 0.1);
                     break;

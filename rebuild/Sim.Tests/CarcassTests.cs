@@ -404,7 +404,7 @@ public class CarcassTests
         {
             Sim.Step(small, new Butcher(P, c2.Id, ButcherMode.QuickStrip), 24 * 60);
             var pack = Items.Pack(small, P);
-            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) Items.Add(pile, r, Items.Take(pack, r, 999));
+            foreach (var r in new[] { Resource.RawMeat, Resource.Bone, Resource.RawFat }) TestKit.Give(pile, r, Items.Take(pack, r, 999));
             Refresh(small);
         }
         Assert.Null(Carcasses.Find(small, Map.Of(small).Camp, c2.Id));

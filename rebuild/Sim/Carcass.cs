@@ -302,15 +302,36 @@ public static class Carcasses
     }
 
     /// A resource waits on the carcass until it has given a keepable piece (or Settle dropped it). What the pack
-    /// cannot hold goes back with PutBack.
+    /// cannot hold goes back with PutBack. A discrete resource comes off in whole pieces: one of the largest size
+    /// while two pieces' worth or more waits, and the last of it, once none of it is left to cut, in even pieces,
+    /// each in the kind's range (a hide comes off whole).
     public static Inventory TakeReady(Carcass c)
     {
         var ready = new Inventory();
         foreach (var (r, kg) in c.Pending.ToList())
         {
             if (c.YieldKg[r] < MinimumKg(r)) continue;
-            Items.Add(ready, r, kg);
-            c.Pending.Remove(r);
+            if (!Items.IsDiscrete(r))
+            {
+                Items.Add(ready, r, kg);
+                c.Pending.Remove(r);
+                continue;
+            }
+            var def = Items.Resources[r];
+            double left = kg;
+            while (left >= 2 * def.MaxPieceKg)
+            {
+                Items.AddPiece(ready, r, def.MaxPieceKg);
+                left -= def.MaxPieceKg;
+            }
+            if (c.Remaining.GetValueOrDefault(r) < 0.01 && left >= def.MinPieceKg)
+            {
+                int n = (int)Math.Ceiling(left / def.MaxPieceKg - 1e-9);
+                for (int i = 0; i < n; i++) Items.AddPiece(ready, r, left / n);
+                left = 0;
+            }
+            if (left > 1e-12) c.Pending[r] = left;
+            else c.Pending.Remove(r);
         }
         return ready;
     }
@@ -318,16 +339,13 @@ public static class Carcasses
     /// Already yielded: the next session carries them without cutting or scaling them again. Waiting meat does not rot further.
     public static void PutBack(Carcass c, Inventory leftovers)
     {
-        foreach (var (r, kg) in leftovers.Kg) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
+        foreach (var (r, kg) in Items.Totals(leftovers)) c.Pending[r] = c.Pending.GetValueOrDefault(r) + kg;
     }
 
-    static double MinimumKg(Resource r) => r switch
+    /// A discrete resource's smallest piece; less of it is not worth keeping.
+    static double MinimumKg(Resource r) => Items.Resources[r].Discrete ? Items.Resources[r].MinPieceKg : r switch
     {
-        Resource.RawMeat or Resource.Bone => 0.05,
-        Resource.Hide => 0.1 + 1e-12,
         Resource.Feather => 0.02 + 1e-12,
-        Resource.Sinew => 0.05 + 1e-12,
-        Resource.RawFat => 0.1,
         _ => 1e-12,
     };
 }

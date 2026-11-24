@@ -30,7 +30,7 @@ public class ContentStrictTests
     [InlineData("species.json", "\"Grazer\": [ \"Tinder\" ]", "\"Grazer\": [ \"SphagnumMoss, Usnea\" ]", "no Resource 'SphagnumMoss, Usnea'")]
     // Case: the stock reader matches names ignoring it.
     [InlineData("items.json", "\"slot\": \"Chest\"", "\"slot\": \"chest\"", "no EquipSlot 'chest'")]
-    [InlineData("recipes.json", "\"of\": \"Kindling\", \"kg\": 1.2", "\"of\": \"kindling\", \"kg\": 1.2", "no Resource 'kindling'")]
+    [InlineData("recipes.json", "\"of\": \"Kindling\", \"count\": 4", "\"of\": \"kindling\", \"count\": 4", "no Resource 'kindling'")]
     [InlineData("forage.json", "\"resource\": \"Usnea\"", "\"resource\": \"usnea\"", "no Resource 'usnea'")]
     [InlineData("accidents.json", "\"effect\": \"Dazed\"", "\"effect\": \"dazed\"", "no EffectKind 'dazed'")]
     [InlineData("discoveries.json", "\"work\": \"Salvage\"", "\"work\": \"salvage\"", "no StockKind 'salvage'")]
@@ -41,6 +41,22 @@ public class ContentStrictTests
     [InlineData("loot.json", "\"resource\": \"Stone\"", "\"resource\": 3", "written as its name")]
     [InlineData("discoveries.json", "\"Berries\"", "\"Berries, Pine\"", "no Resource 'Berries, Pine'")]
     public void Loader_RefusesAnEnumValue_NotSpelledAsItsName(string file, string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn(file, from, to));
+
+    // ---- 1b. every resource is discrete or continuous, and every table counts it that way (#142) ----
+
+    [Theory]
+    [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\" }", "Stone is neither discrete nor continuous")]
+    [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\" }", "discrete Stone needs pieceKg")]
+    [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.5, 0.2] }", "discrete Stone needs pieceKg")]
+    [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\", \"pieceKg\": [1, 2] }", "continuous Water has no pieces")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"g\": 600 }", "Stone is discrete: a count of pieces, never a weight")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"count\": 2, \"kg\": 0.6 }", "Stone names kg")]
+    [InlineData("recipes.json", "{ \"of\": \"PlantFiber\", \"g\": 300 }", "{ \"of\": \"PlantFiber\", \"count\": 3 }", "a discrete input, and only one, is a count")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"ScrapedHide\", \"count\": 1, \"sharePct\": 0.8 }", "\"result\": { \"resource\": \"ScrapedHide\", \"g\": 800 }", "a discrete result ScrapedHide is a count of pieces")]
+    [InlineData("items.json", "\"baseWeightKg\": 0.1, \"maxDurability\": 1, \"capabilities\": []", "\"baseWeightKg\": 0.5, \"maxDurability\": 1, \"capabilities\": []", "torch weighs 0.5 kg, above its lightest possible inputs")]
+    [InlineData("forage.json", "{ \"resource\": \"Stone\", \"abundance\": 0.3, \"minKg\": 0.2, \"maxKg\": 0.4 }", "{ \"resource\": \"Stone\", \"abundance\": 0.3, \"minKg\": 0.2, \"maxKg\": 2.4 }", "a piece of Stone at 0.2-2.4 kg is outside its range")]
+    public void Loader_RefusesAResource_NotCountedAsItsForm(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
     // ---- 2. a row's fields are required, whatever kind of row it is ----
@@ -63,7 +79,7 @@ public class ContentStrictTests
     [InlineData("terrain.json", "\"softnessLevel\": 0.0, \"holdsStandingWater\": false }", "\"softnessLevel\": 0.0 }", "holdsStandingWater")]
     [InlineData("shelters.json", "\"isNatural\": false, \"isSnow\": true", "\"isNatural\": false", "isSnow")]
     [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "", "treatmentAboveSeverity")]
-    [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000 }", "\"Water\": { \"category\": \"Water\" }", "water Water needs its hydrationMlPerKg")]
+    [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"form\": \"Continuous\" }", "water Water needs its hydrationMlPerKg")]
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]

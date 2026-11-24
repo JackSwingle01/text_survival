@@ -87,7 +87,7 @@ public class ItemsTests
     {
         var light = New();
         var heavy = New();
-        Items.Add(Items.Pack(heavy, P), Resource.Stone, 15);
+        TestKit.Give(Items.Pack(heavy, P), Resource.Stone, 15);
         int Minutes(World w) => Sim.Step(w, new Travel(P, Direction.East, Pace.Careful), 600).MinutesElapsed;
         Assert.True(Minutes(heavy) > Minutes(light), "carrying twice your capacity should slow you");
     }
@@ -100,7 +100,7 @@ public class ItemsTests
         var w = TestWorlds.Bare(17);
         var agent = w.Agent(P);
         var gained = new Inventory();
-        Items.Add(gained, Resource.Stone, 20);
+        TestKit.Give(gained, Resource.Stone, 20);
         var events = new List<WorldEvent>();
         var dropped = Items.Receive(w, agent, gained, events);
         Assert.Equal(Items.CapacityKg(Items.Pack(w, P)), Items.CarriedKg(agent), 9);
@@ -169,7 +169,7 @@ public class ItemsTests
     {
         var w = New();
         var pack = Items.Pack(w, P);
-        Items.Add(pack, Resource.Tinder, 2);
+        TestKit.Give(pack, Resource.Tinder, 2);
         int fails = 0;
         for (int i = 0; i < 30 && Fire.PitAt(w, Map.Of(w).Camp) == null; i++)
         {

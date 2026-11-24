@@ -528,7 +528,7 @@ public class CombatTests
     public void ActionsDependOnTheZone(int distance, CombatAction[] expected)
     {
         var (w, t) = Field();
-        Items.Add(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
+        TestKit.Give(Items.Pack(w, AgentId.Player), Resource.Stone, 1.0);
         var e = PlayerVs(w, t, Species.Wolf, distance, weapon: Spear(w));
         Assert.Equal(expected.Order(), Combat.Actions(w, e, Me(e)).Order());
         Assert.Equal("That's too far to move in one action.", Combat.Refusal(w, e, Me(e), CombatAction.Move, to: new Cell(Me(e).Position.X + 4, Me(e).Position.Y))?.Reason);
@@ -540,7 +540,7 @@ public class CombatTests
     {
         var (w, t) = Field();
         var pack = Items.Pack(w, AgentId.Player);
-        Items.Add(pack, Resource.Stone, 0.5);
+        TestKit.Give(pack, Resource.Stone, 0.5);
         var spear = Spear(w);
         var e = PlayerVs(w, t, Species.Bison, 10, weapon: spear);
         Assert.DoesNotContain(spear, pack.Gear); // wielded, not packed
@@ -793,7 +793,7 @@ public class CombatTests
         var fled = enc.Units.Single(u => u.Agent == npc);
         fled.InField = false; // it fled; the player fights on
         var bison = Agents.SpawnGroup(w, Species.Bison, tile, 3)[0];
-        Items.Add(Items.PileAt(w, tile), Resource.Birch, 60);
+        TestKit.Give(Items.PileAt(w, tile), Resource.Birch, 60);
 
         var events = Sim.Step(w, new Hunt(npc, bison), Verbs.UntilDoneMinutes).Events; // the hunt a mind would choose
         Assert.Contains(events, e => e is EncounterEnded f && f.Agent == bison); // the NPC's hunt was fought out

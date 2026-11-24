@@ -283,7 +283,7 @@ public class SpeciesBodyTests
     {
         var (w, e) = PlayerAndWolf(10);
         int free = Combat.Allowance(w, e.Units[0]);
-        Items.Add(Items.Pack(w, AgentId.Player), Resource.RawMeat, 40);
+        TestKit.Give(Items.Pack(w, AgentId.Player), Resource.RawMeat, 40);
         Assert.True(Combat.Allowance(w, e.Units[0]) < free);
     }
 

@@ -269,7 +269,7 @@ public class ContentTests
 
     [Theory]
     // Keys are enum names exactly as spelled: the JSON reader alone would take these.
-    [InlineData("items.json", "\"Tinder\": { \"category\": \"Fuel\" },", "\"tinder\": { \"category\": \"Fuel\" },", "no Resource 'tinder'")]
+    [InlineData("items.json", "\"Tinder\": { \"category\": \"Fuel\", \"form\": \"Continuous\" },", "\"tinder\": { \"category\": \"Fuel\", \"form\": \"Continuous\" },", "no Resource 'tinder'")]
     [InlineData("species.json", "\"Fox\": {", "\"Fox, Wolf\": {", "no Species 'Fox, Wolf'")]
     [InlineData("effects.json", "\"Wet\":", "\"Soggy\":", "no EffectKind 'Soggy'")]
     // A kind the code has with no row.

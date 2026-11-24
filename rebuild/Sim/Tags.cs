@@ -212,7 +212,7 @@ public static class Tags
     static Tag OfInventory(Inventory inv)
     {
         var tags = Tag.None;
-        foreach (var (r, kg) in inv.Kg)
+        foreach (var (r, kg) in Items.Totals(inv))
         {
             if (kg <= 0) continue;
             if (Items.Resources[r].Category == ResourceCategory.Food) tags |= Tag.Edible;

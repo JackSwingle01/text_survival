@@ -146,7 +146,7 @@ public class VerbsTests
         Assert.DoesNotContain(here.Tile, v => v.Activity is StartFire); // the pit's own verb now
         var pit = here.LocationFeatures.Single(t => t.LocationFeature.Kind == LocationFeatureKind.Fire);
         Assert.True(pit.Interact);
-        var fuels = Items.Pack(w, P).Kg.Keys.Where(Fire.IsFuel).ToList();
+        var fuels = Items.KgByResource(Items.Pack(w, P)).Keys.Where(Fire.IsFuel).ToList();
         Assert.Equal(fuels, pit.Menu.Select(v => v.Activity).OfType<AddFuel>().Select(a => a.Fuel));
         Assert.Contains(pit.Menu, v => v.Activity is MeltSnow);
         Assert.Contains(here.Tile, v => v.Activity is LightTorch && v.Allowed);
@@ -287,14 +287,14 @@ public class VerbsTests
         var w = Camp(out _);
         TestKit.Supply(w);
         var pack = Items.Pack(w, P);
-        Items.Add(pack, Resource.Berries, 2);
+        TestKit.Give(pack, Resource.Berries, 2);
         pack.Gear.Add(Items.Make("fur_chest_wrap"));
         Sim.Step(w, new Wait(P), 1);
         var carried = Verbs.At(w, P).Pack;
         var eat = Assert.Single(carried, v => v.Activity is Eat);
         Assert.Equal(Resource.Berries, ((Eat)eat.Activity).Food);
         Assert.Equal("Eat berries", eat.Label);
-        Assert.Equal(pack.Kg.Keys.Where(r => pack.Kg[r] > 0), carried.Select(v => v.Activity).OfType<PutDown>().Select(s => s.Resource));
+        Assert.Equal(Items.KgByResource(pack).Where(x => x.Value > 0).Select(x => x.Key), carried.Select(v => v.Activity).OfType<PutDown>().Select(s => s.Resource));
         Assert.All(carried.Select(v => v.Activity).OfType<PutDown>(), s => Assert.Equal(Items.Have(pack, s.Resource), s.Kg));
         Assert.Equal(new Wear(P, "fur_chest_wrap"), Assert.Single(carried, v => v.Activity is Wear).Activity);
         Assert.Equal(w.Agent(P).Body.Worn.Select(g => g.Kind), carried.Select(v => v.Activity).OfType<TakeOff>().Select(t => t.Gear));

@@ -379,7 +379,7 @@ public class MemoryTests
 
         // Anu comes by while the player is out, feeds the fire, and goes off to her own camp.
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
-        Items.Add(Items.Pack(w, npc), Resource.Kindling, 1);
+        TestKit.Give(Items.Pack(w, npc), Resource.Kindling, 1);
         var fed = Sim.Step(w, new AddFuel(npc, Resource.Kindling, 0.5), 1).Events.OfType<FuelAdded>().Single();
         Put(w, npc, ((NpcMind)w.Agent(npc).Mind).Camp);
         long died = DiesAt(w, pit);
@@ -576,7 +576,7 @@ public class MemoryTests
     {
         var w = Mild17();
         var camp = Map.Of(w).Camp;
-        Items.Add(Items.PileAt(w, camp), Resource.DriedMeat, 2);
+        TestKit.Give(Items.PileAt(w, camp), Resource.DriedMeat, 2);
         Sim.Step(w, new Wait(P), 1);
         Assert.Equal(2, Memory(w, P, camp)!.Pile![Resource.DriedMeat]);
         Put(w, P, OutOfView(w, camp));

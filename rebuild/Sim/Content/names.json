@@ -7,6 +7,34 @@
 // ("the cutting tool"). The fight's own names (actions, range, a fighter's state) join when the
 // combat round's rework settles them.
 {
+ // A discrete resource's piece, one and many: "1 stone", "3 stones" (Names.Pieces).
+ "Pieces": {
+  "Chaga": "chaga|chagas",
+  "Kindling": "stick of kindling|sticks of kindling",
+  "Pine": "pine log|pine logs",
+  "Birch": "birch log|birch logs",
+  "Oak": "oak log|oak logs",
+  "Bone": "bone|bones",
+  "RawMeat": "cut of raw meat|cuts of raw meat",
+  "CookedMeat": "cut of cooked meat|cuts of cooked meat",
+  "DriedMeat": "strip of dried meat|strips of dried meat",
+  "RawFish": "raw fish|raw fish",
+  "CookedFish": "cooked fish|cooked fish",
+  "DriedFish": "dried fish|dried fish",
+  "Stone": "stone|stones",
+  "Hide": "hide|hides",
+  "Sinew": "sinew|sinews",
+  "Shale": "piece of shale|pieces of shale",
+  "Flint": "flint|flints",
+  "Pyrite": "pyrite|pyrites",
+  "ScrapedHide": "scraped hide|scraped hides",
+  "CuredHide": "cured hide|cured hides",
+  "RawFat": "lump of raw fat|lumps of raw fat",
+  "Rope": "rope|ropes",
+  "Ivory": "tusk of ivory|tusks of ivory",
+  "MammothHide": "mammoth hide|mammoth hides",
+  "BirchPolypore": "birch polypore|birch polypores"
+ },
  "Resource": {
   "Tinder": "tinder",
   "BirchBark": "birch bark",
@@ -33,7 +61,7 @@
   "Water": "water",
   "Stone": "stone",
   "Hide": "hide",
-  "PlantFiber": "plant fiber",
+  "PlantFiber": "plant fibre",
   "Sinew": "sinew",
   "Shale": "shale",
   "Flint": "flint",

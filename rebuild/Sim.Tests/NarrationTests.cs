@@ -47,7 +47,7 @@ public class NarrationTests
     {
         var w = Camp(out var camp);
         TestKit.Supply(w);
-        Items.Add(Items.Pack(w, P), Resource.Berries, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Berries, 1);
         var events = new List<WorldEvent>();
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) events.AddRange(Sim.Step(w, light.Activity, 1).Events);
