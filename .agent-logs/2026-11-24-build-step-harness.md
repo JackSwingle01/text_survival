@@ -12,6 +12,11 @@ issues and dispatched the next run on the same version.
 - Affects: a cancelled build's issue keeps `ready-for-agent`, and nothing is dispatched until the hourly
   run or the next dispatch.
 
-Checked: actionlint on the workflow.
+Checked:
+- `try_build_step.sh` on this branch's workflow (background tasks off, 30-minute command limit): the toy
+  build answered built after 205 s; exit 0.
+- The same script on the workflow as #208 left it (d4799eb, background tasks on): needs_user after 26 s,
+  the sub-agent's run killed and its report never seen; exit 1. It fails where the real builds failed.
+- actionlint on the workflow.
 Not checked: the cancel path, which exists only on main. Watch: I cancel nothing to test it; the first
 run someone cancels after the merge should leave its issues' labels alone and dispatch no next run.
