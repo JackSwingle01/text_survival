@@ -147,6 +147,7 @@ public class RenewalTests
         var fire = new FireId(w.NextFireId++);
         var seen = new HashSet<AgentId>(w.Agents.Keys);
         int arrivals = 0;
+        var arrived = new HashSet<Species>();
         // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
         Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
         int day = 0;
@@ -171,6 +172,7 @@ public class RenewalTests
                 // A newborn on its mother's land: born here, not arrived.
                 if (lands.Any(l => l.SequenceEqual(land))) continue;
                 arrivals++;
+                arrived.Add(herd.Species);
                 Assert.False(Fauna.IsMegafauna(herd.Species));
                 Assert.True(MapGen.Manhattan(land[0], camp) > Fauna.SafeZoneTiles, $"{herd.Species} came in at {land[0]}, inside camp's safe zone");
                 Assert.True(MapGen.Manhattan(land[0], open) > Fauna.ArrivalClearanceTiles, $"{herd.Species} came in at {land[0]}, in sight of the player at {open}");
@@ -182,7 +184,9 @@ public class RenewalTests
         output.WriteLine($"seed {seed}: the player watched {day} days; {arrivals} herds arrived");
         Assert.True(day >= 100, $"seed {seed}: the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
         Assert.True(arrivals > 0, $"seed {seed}: nothing came into an empty valley in two hundred days");
-        Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
+        // Caribou are among what comes, whoever is left at the end: on seed 17 the packs that arrive after
+        // them have eaten the last by day 155, and bison hold the grazing from then on (#177).
+        Assert.Contains(Species.Caribou, arrived);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
         var loaded = TestWorlds.Load(Save.ToJson(w));
         foreach (var herd in w.Agents.Values.Where(a => a.Mind is HerdMind))

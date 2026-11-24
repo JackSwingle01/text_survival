@@ -5,9 +5,15 @@ name: Nightly
 #   search below, which runs the same tests at ten times the iterations.
 # - property-search: the rebuild's property tests (Gens.Check) on fresh CsCheck seeds at ten times
 #   the iterations, where CI walks one fixed seed so a push fails only when the code changes.
-# Each failing test opens one issue with its message (and seed, for a property), so it can be
-# replayed locally (documentation/verification.md); a test that already has an open issue gets no
-# second one. Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
+# A run on main with failures opens one issue for all of them (the report job,
+# .github/scripts/nightly_report.py), each test with its message (and seed, for a property) and the
+# command that replays it locally (documentation/verification.md). One issue a run, not one a test:
+# the issue agent builds each issue on its own branch, so an issue a test had several agents fixing
+# one cause in the same code. While that issue is open, the next failing run rewrites it. It carries
+# the `nightly` label. The issue agent does not pick it up: github-actions wrote it, and
+# issue_queue.py lets through only that bot's `ratchet` issues.
+# Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
+# (a branch's failures are in its log; they open no issue).
 
 on:
   schedule:
@@ -16,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: nightly
@@ -32,13 +37,11 @@ jobs:
       matrix:
         include:
           - name: slow
-            title: Slow test failed
             target: text_survival.sln
             filter: Category=Slow&FullyQualifiedName!~Survival.Tests.Verification
             search: ""
             iter_factor: ""
           - name: property-search
-            title: Property search failed
             target: rebuild/Sim.Tests
             filter: FullyQualifiedName~EffectsPropertyTests|FullyQualifiedName~Survival.Tests.Verification
             search: random
@@ -67,67 +70,57 @@ jobs:
             --logger "trx;LogFilePrefix=nightly" --results-directory "$RUNNER_TEMP/results"
           echo "exit=$?" >> "$GITHUB_OUTPUT"
 
-      - name: Open an issue per failing test
-        if: steps.test.outputs.exit != '0'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          TITLE_PREFIX: ${{ matrix.title }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          out="$RUNNER_TEMP/failures"
-          mkdir -p "$out"
-          # A solution-wide run writes one trx per test project (LogFilePrefix keeps their names apart).
-          python3 - "$RUNNER_TEMP/results" "$out" <<'PY'
-          import glob, re, sys, os, xml.etree.ElementTree as ET
-          results, out = sys.argv[1], sys.argv[2]
-          ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-          sha, run, prefix = os.environ["GITHUB_SHA"], os.environ["RUN_URL"], os.environ["TITLE_PREFIX"]
-          trxs = glob.glob(f"{results}/**/*.trx", recursive=True)
-          if not trxs:
-              sys.exit("No test results were written: the run failed before any test ran. See the log above.")
-          failed = [r for trx in trxs for r in ET.parse(trx).getroot().iterfind(".//t:UnitTestResult", ns)
-                    if r.get("outcome") == "Failed"]
-          for i, r in enumerate(failed):
-              name = r.get("testName")
-              message = r.findtext(".//t:ErrorInfo/t:Message", "", ns)
-              stack = r.findtext(".//t:ErrorInfo/t:StackTrace", "", ns)
-              seeds = re.findall(r"CsCheck_Seed=([\w-]+)", message)
-              method = name.split("(")[0]
-              replay = f"dotnet test text_survival.sln -c Release --filter \"FullyQualifiedName~{method}\""
-              seed_line = ""
-              if seeds:
-                  replay = f"CsCheck_Seed={seeds[0]} {replay}"
-                  seed_line = f"**Seed:** `{seeds[0]}`\n\n"
-              body = (f"The nightly run failed `{name}` at {sha}.\n\n"
-                      f"{seed_line}"
-                      f"Replay locally:\n\n```bash\n{replay}\n```\n\n"
-                      f"**Message:**\n\n```\n{message[:30000]}\n```\n\n"
-                      f"<details><summary>Stack trace</summary>\n\n```\n{stack[:20000]}\n```\n</details>\n\n"
-                      f"Run: {run}\n")
-              with open(f"{out}/{i}.title", "w") as f: f.write(f"{prefix}: {name}")
-              with open(f"{out}/{i}.search", "w") as f: f.write(method.rsplit(".", 1)[-1])
-              with open(f"{out}/{i}.body", "w") as f: f.write(body)
-          print(f"{len(failed)} failing test(s)")
-          PY
-
-          for title_file in "$out"/*.title; do
-            [ -e "$title_file" ] || continue
-            title=$(cat "$title_file")
-            search=$(cat "${title_file%.title}.search")
-            existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$search in:title" \
-                         --limit 100 --json number,title | jq -r --arg t "$title" 'map(select(.title == $t)) | .[0].number // empty')
-            if [ -n "$existing" ]; then
-              echo "Already open as #$existing: $title"
-            else
-              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "${title_file%.title}.body"
-            fi
-          done
+      # The report job reads these: every job's results make the run's one issue.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nightly-results-${{ matrix.name }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Fail the run when a test failed
         if: steps.test.outputs.exit != '0'
         shell: bash
         run: |
-          echo "::error::Nightly ${{ matrix.name }} found failures; see the issues opened above."
+          echo "::error::Nightly ${{ matrix.name }} found failures; the report job files them as one issue."
           exit 1
+
+  report:
+    name: one issue for the run's failures
+    needs: test
+    if: failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      TITLE: Nightly tests failed
+    steps:
+      - uses: actions/checkout@v7
+      - name: Open or rewrite the issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          results="$RUNNER_TEMP/results"
+          mkdir -p "$results"
+          # A job that failed before its tests ran uploaded nothing: it still gets a folder, and so a line.
+          for job in slow property-search; do mkdir -p "$results/nightly-results-$job"; done
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'nightly-results-*' --dir "$results" || true
+          for dir in "$results"/nightly-results-*; do mv "$dir" "$results/${dir##*/nightly-results-}"; done
+          python3 .github/scripts/nightly_report.py "$results" > "$RUNNER_TEMP/body.md"
+
+          gh label create nightly --repo "$GITHUB_REPOSITORY" --color B60205 \
+            --description "The nightly run's failing tests, one issue a run" 2>/dev/null || true
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label nightly --search "$TITLE in:title" \
+                       --limit 100 --json number,title | jq -r --arg t "$TITLE" 'map(select(.title == $t)) | .[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/body.md"
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Rewritten with the failures of $RUN_URL."
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label nightly --body-file "$RUNNER_TEMP/body.md"
+          fi

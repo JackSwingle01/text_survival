@@ -409,10 +409,13 @@ public static class CohesionGate
         var firstPacks = new Dictionary<Species, List<HashSet<AgentId>>>();
         var withoutPrey = new Dictionary<AgentId, int>();
         var merges = new List<string>();
-        long allocated = 0;
+        // The thread's count at the first look after the warm-up. Null until then: a look falls on a multiple of
+        // LookEveryMinutes, which the warm-up's last minute need not be, and a count never taken reads as the
+        // thread's whole life, every test it ran before this one included.
+        long? allocatedAtWarmUp = null;
         for (int minute = 0; minute < Days * 1440; minute += LookEveryMinutes)
         {
-            if (minute == WarmUpDays * 1440) allocated = GC.GetAllocatedBytesForCurrentThread();
+            if (minute >= WarmUpDays * 1440) allocatedAtWarmUp ??= GC.GetAllocatedBytesForCurrentThread();
             var events = Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
             (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
@@ -477,7 +480,7 @@ public static class CohesionGate
                 }
             }
         }
-        double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocated) / 1e6 / (Days - WarmUpDays);
+        double mbPerDay = (GC.GetAllocatedBytesForCurrentThread() - allocatedAtWarmUp!.Value) / 1e6 / (Days - WarmUpDays);
         output.WriteLine($"seed {seed}: {mbPerDay:F0} MB a day allocated");
         double looksPerDay = 1440.0 / LookEveryMinutes;
         foreach (var (s, t) in tallies)

@@ -185,19 +185,23 @@ public static class Tracks
             Readable(t.NorthSouthTraffic, f), Readable(t.EastWestTraffic, f));
     }
 
-    /// Drop what the weather has finished with so the save holds only what is there; every clock only
-    /// rises, so dropping a dead sign changes no reading. O(tiles + edges), hence the hourly cap.
+    /// Drop what the weather has finished with, and grazing that has grown back (Pools.DropRegrown), so the
+    /// save holds only what is there; every clock only rises, so dropping a dead sign changes no reading.
+    /// O(tiles + edges), hence the hourly cap.
     static void Sweep(World world, long now, double erosion, double weathering)
     {
         foreach (var (tile, state) in world.Tiles.ToList())
         {
-            if (state.Tracks == null) continue;
-            double snowFallenM = Ground.SnowFallenM(world, tile);
-            foreach (var (maker, t) in state.Tracks.ToList())
-                if (Freshness(world, t, weathering, snowFallenM) <= 0) state.Tracks.Remove(maker);
-            if (state.Tracks.Count > 0) continue;
-            state.Tracks = null;
-            // Ground never lets go of a tile it has observed; pools, piles and carcasses are kept too.
+            // Grazing that has grown back goes on the same round as prints the weather has finished with.
+            Pools.DropRegrown(world, state);
+            if (state.Tracks != null)
+            {
+                double snowFallenM = Ground.SnowFallenM(world, tile);
+                foreach (var (maker, t) in state.Tracks.ToList())
+                    if (Freshness(world, t, weathering, snowFallenM) <= 0) state.Tracks.Remove(maker);
+                if (state.Tracks.Count == 0) state.Tracks = null;
+            }
+            // Ground never lets go of a tile it has observed; worked pools, piles and carcasses are kept too.
             Map.Tidy(world, tile);
         }
         foreach (var (edge, _) in world.Trails.ToList())

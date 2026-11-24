@@ -230,8 +230,14 @@ public static class Sim
     }
 
     /// Whether a fight holds this agent: it has a member still in the field. A fled member is out.
-    internal static bool Held(World world, AgentId id) =>
-        world.Encounters.Count > 0 && world.Encounters.Any(e => e.Units.Any(u => u.Agent == id && u.InField));
+    /// Asked of every animal every minute, nearly always with no fight on: loops, so that costs no object.
+    internal static bool Held(World world, AgentId id)
+    {
+        foreach (var fight in world.Encounters)
+            foreach (var unit in fight.Units)
+                if (unit.Agent == id && unit.InField) return true;
+        return false;
+    }
 
     public static bool IsAlive(Agent agent)
     {

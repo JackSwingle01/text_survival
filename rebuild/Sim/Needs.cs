@@ -14,9 +14,16 @@ public static partial class Fauna
     /// Asleep away from its den, a denning animal sleeps lighter (D).
     const double OpenSleepFactor = 0.75;
 
+    // Sightings are read by loops here and below: these run per tile or per minute, where a lambda costs an object each.
     sealed class AnimalView(World world, HerdMind mind) : WorldView
     {
-        public override bool Threat(TileId tile) => mind.Sightings?.Exists(s => s.Who != null && s.Tile == tile) == true;
+        public override bool Threat(TileId tile)
+        {
+            if (mind.Sightings is not { } seen) return false;
+            for (int i = 0; i < seen.Count; i++)
+                if (seen[i].Who != null && seen[i].Tile == tile) return true;
+            return false;
+        }
         public override bool OpenWater(TileId tile) => Work.HasUnfrozenWater(world, tile);
         public override GroundSeen Ground(TileId tile)
         {
@@ -47,8 +54,12 @@ public static partial class Fauna
         var food = Priorities.AnimalFoodPriority(body, SpeciesTable.Of(animal.Species).FatPct, seeingTo: mind.Plan?.Stat == Stat.Food);
         var priorities = new StatPriorities(Priority.None, water, food, rest);
         // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
-        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need && !Priorities.Ladder.Any(s => Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority)))
-            return (plan.Stat, priorities[plan.Stat]);
+        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need)
+        {
+            bool outranked = false;
+            foreach (var s in Priorities.Ladder) outranked |= Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority);
+            if (!outranked) return (plan.Stat, priorities[plan.Stat]);
+        }
         return Priorities.Top(priorities, Priority.Need);
     }
 
@@ -137,7 +148,10 @@ public static partial class Fauna
         if (IsPrey(animal.Species)) return 0;
         if (tile == animal.Tile) return CanFeed(world, animal) && !HeldKill(world, animal) ? FeedKcalPerMinute : 0;
         if (WalkerKeepsOff(world, animal, tile)) return 0;
-        return mind.Sightings?.Exists(s => s.Carcass != null && s.Tile == tile) == true ? FeedKcalPerMinute : 0;
+        if (mind.Sightings is not { } seen) return 0;
+        for (int i = 0; i < seen.Count; i++)
+            if (seen[i].Carcass != null && seen[i].Tile == tile) return FeedKcalPerMinute;
+        return 0;
     }
 
     static Source? FoodAt(World world, Agent animal, HerdMind mind, TileId tile, HuntingParty? hunting = null)
@@ -445,7 +459,13 @@ public static partial class Fauna
                 : other.Species == animal.Species && IsClosedGroup(animal.Species) && !IsKin(animal, other)
             : IsPrey(animal.Species) && other.Mind is PersonMind && Sim.InTheWorld(world, other));
 
-    static bool ThreatNear(HerdMind mind, TileId tile) => mind.Sightings?.Exists(s => s.Who != null && MapGen.Manhattan(s.Tile, tile) <= 1) == true;
+    static bool ThreatNear(HerdMind mind, TileId tile)
+    {
+        if (mind.Sightings is not { } seen) return false;
+        for (int i = 0; i < seen.Count; i++)
+            if (seen[i].Who != null && MapGen.Manhattan(seen[i].Tile, tile) <= 1) return true;
+        return false;
+    }
 
     static TileId? Threatened(Agent animal, HerdMind mind, long since = long.MinValue) =>
         mind.Sightings?.Where(s => s.Who != null && s.Minute >= since && MapGen.Manhattan(s.Tile, animal.Tile) <= 1).Select(s => (TileId?)s.Tile).FirstOrDefault();

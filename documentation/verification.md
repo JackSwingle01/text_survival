@@ -26,8 +26,8 @@ quick sibling of every `_Many` property. CI runs it as three checks:
 `rebuild quick` (everything untagged, with the tools' suites), `rebuild long-run` (`Category=LongRun`, the
 tests that step a world for hours or days) and `old game`. The nightly `nightly.yml` run has two jobs: `slow` runs the
 Slow tests outside Verification, and `property-search` runs the property tests, `_Many` included,
-with fresh seeds and ten times the iterations. Each opens an issue per failing test, with its seed
-for a property.
+with fresh seeds and ten times the iterations. A run on main with failures opens one issue, labelled `nightly`, listing every failing test with its
+seed for a property; while it is open, the next failing run rewrites it.
 To replay any of them, run that one test with the seed:
 `CsCheck_Seed=asQ2YGi3KzQ1 dotnet test rebuild/Sim.Tests -c Release --filter <name>` (CsCheck runs
 that case first, then keeps shrinking). To search locally as the nightly job does, set

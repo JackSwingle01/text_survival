@@ -61,6 +61,25 @@ public class NetProgressTests
         Assert.True(Walk(wolf, w, 1440, Bounce, radiusTiles: 1).Worst.Minutes <= 10);
     }
 
+    /// Grazing where it stands is not wanting to move: a herd on good pasture with water beside it keeps to
+    /// one patch for days (the caribou of seeds 5 and 17's long runs, fed and watered, #178 and #181).
+    [Fact]
+    public void AnAnimalGrazingWhereItStands_IsNotCounted()
+    {
+        var (w, wolf, a) = OneWolf();
+        Assert.Equal(0, Walk(wolf, w, 1440, _ => a, HerdState.Grazing).Worst.Minutes);
+    }
+
+    /// Grazing with a way planned and getting nowhere along it is stuck, as patrolling is.
+    [Fact]
+    public void AnAnimalGrazingWithAWayAhead_ThatGetsNowhere_IsStuck()
+    {
+        var (w, wolf, a) = OneWolf();
+        var there = Map.Step(Map.Step(a, Direction.North), Direction.North);
+        Fauna.MindOf(wolf).Plan = new Plan(Stat.Food, Priority.Need, there, [Map.Step(a, Direction.North), there]);
+        Assert.Equal(1440, Walk(wolf, w, 1440, _ => a, HerdState.Grazing).Worst.Minutes);
+    }
+
     /// Lying up is not wanting to move: a pack resting at a kill for a fortnight is not stuck.
     [Fact]
     public void AnAnimalResting_IsNotCounted()
