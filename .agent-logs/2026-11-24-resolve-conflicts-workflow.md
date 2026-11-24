@@ -14,7 +14,11 @@ merge before it is pushed, so it checks the branch afterwards (old head and merg
 ancestors of the new head) and parks the PR when that fails.
 
 Decided without asking: merge, not rebase; drafts, forks and Dependabot PRs are skipped; a failed
-PR is parked with `needs-user` (the issue agent's label) so it is not retried on every push; Opus.
+PR is parked with `needs-user` (the issue agent's label) so it is not retried on every push.
+
+Revised: Jack asked for Sonnet, for Claude to read the PR that caused the conflict, its issue and
+this PR's issue before resolving, and for a confidence score. The score is posted on the PR and in
+the merge commit; nothing gates on it.
 
 Not verified: no run. The workflow only works from `main` (dispatch, and the Claude app's token
 check), and actionlint could not be run in the session; CI's `actionlint` job checks it on a PR.

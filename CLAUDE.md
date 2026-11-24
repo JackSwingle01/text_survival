@@ -105,6 +105,7 @@ get the outcome you want from an issue you write:
 ### Merge conflicts
 
 `.github/workflows/resolve-conflicts.yml` merges `main` into every open, non-draft PR that conflicts
-with it, on each push to `main` and hourly: Opus resolves, builds, tests and pushes one merge commit.
+with it, on each push to `main` and hourly: Sonnet reads both sides' PRs and issues, resolves, builds,
+tests and pushes one merge commit, then comments its confidence (0 to 100) and what to check first.
 A PR it can't resolve gets a comment and `needs-user`; remove the label to try again. Mark a PR draft
 to keep it off your branch.
