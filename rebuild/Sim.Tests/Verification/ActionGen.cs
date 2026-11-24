@@ -167,9 +167,9 @@ static class ActionGen
                 }
             case Act.Build:
                 {
-                    // A project under way here is the one to resume; otherwise any structure.
-                    var what = w.Projects.TryGetValue(tile, out var p) && pick % 3 != 0 ? p.Building : (Structure)(pick % Enum.GetValues<Structure>().Length);
-                    return new Build(P, what);
+                    // A project under way here is the one to resume; otherwise any camp recipe.
+                    var camp = Recipes.All.Where(r => r.Result.Placed).ToList();
+                    return new Make(P, w.Projects.TryGetValue(tile, out var p) && pick % 3 != 0 ? p.Recipe : camp[pick % camp.Count].Id);
                 }
             case Act.Improve:
                 {
@@ -212,7 +212,7 @@ static class ActionGen
     /// step left off. The others act once when they start (light, eat, put down, a round), so two steps
     /// of them are two acts, not one act cut in half; they always run as one step.
     /// A fight is splittable too: every minute of a Fight step is one round of the same action.
-    public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or WalkAbout or Butcher or Build or ImproveShelter or Fight or Make;
+    public static bool Splittable(Activity a) => a is Wait or Rest or Sleep or Travel or Gather or WalkAbout or Butcher or ImproveShelter or Fight or Make;
 
     /// An intent turned into a round keeps its minutes, up to a few rounds.
     static int MinutesOf(Activity a, Intent i) => a is Fight ? Math.Min(i.Minutes, 5) : i.Minutes;

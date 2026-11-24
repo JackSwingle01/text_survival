@@ -134,23 +134,35 @@ public static class Outcomes
     static FormatException Bad(string line, string why) => new($"outcome '{line}': {why}");
 }
 
-public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing }
+public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing, Camp }
 
 /// What the place must have for the work to start, and to go on: a closed list. Wet or cold hands
-/// and impairment never block; they slow the work and worsen the odds.
-public enum Requirement { Light, Fire, Frost, Shelter, Dry }
+/// and impairment never block; they slow the work and worsen the odds. Tent: one carried, to start.
+public enum Requirement { Light, Fire, Frost, Shelter, Dry, NoShelter, Tent }
 
 /// Taken from AnyOf in the order listed.
 public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg);
 
-public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg);
+/// A gear kind, kilos of a resource, or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
+public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null)
+{
+    public bool Placed => Shelter != null || Bedding != null;
+}
 
 /// (GLOSSARY: Recipe). Items are gear kinds consumed into the result. Tools are capabilities: a
-/// required one gates the recipe and wears once per piece; a faster one only speeds it.
+/// required one gates the recipe and wears once per piece; a faster one only speeds it, by FasterFactor.
 public sealed record Recipe(
     string Id, string Name, MakeCategory Category, IReadOnlyList<MaterialInput> Materials, IReadOnlyList<string> Items,
     IReadOnlyList<Capability> Tools, IReadOnlyList<Capability> Faster, IReadOnlyList<Requirement> Requires, int Minutes,
-    RecipeResult Result, IReadOnlyList<Outcome> Outcomes);
+    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor);
+
+/// A placed recipe's unfinished work (GLOSSARY: Project), on its tile for anyone there to go on with.
+public sealed class TileProject
+{
+    public required string Recipe { get; init; }
+    public double MinutesDone { get; set; }
+    public Inventory Materials { get; init; } = new();
+}
 
 /// In Content/recipes.json file order, which is the menu order.
 public static class Recipes
@@ -176,10 +188,13 @@ public sealed record MakeOdds(IReadOnlyList<OutcomeOdds> Outcomes)
 public sealed record Made(long Minute, AgentId Who, TileId Tile, string Recipe, string? Outcome, bool Succeeded,
     SortedDictionary<Resource, double> Spent, SortedDictionary<Resource, double> Produced, IReadOnlyList<string> ExtraGear) : WorldEvent(Minute, Tile);
 
+/// Spent: the kilos built into it, gone from what anyone holds.
+public sealed record Built(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Spent) : WorldEvent(Minute, Tile);
+
 public sealed record ProjectAbandoned(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Lost) : WorldEvent(Minute, Tile);
 
-/// One Make activity for everything carried (emergent-world-design §3.7), shared by the player and
-/// NPCs. Building on a tile is still Shelters' Build.
+/// One Make activity for everything made (emergent-world-design §3.7), shared by the player and
+/// NPCs. A placed result's project is on the tile (World.Projects), the rest in the pack.
 public static class Making
 {
     /// Each Crafting level: failure-like weights x(1 - this), success bonuses x(1 + this).
@@ -195,6 +210,14 @@ public static class Making
 
     public static MakeProject? ProjectFor(Inventory pack, string recipe) => pack.Projects?.FirstOrDefault(p => p.Recipe == recipe);
 
+    public static TileProject? TileProjectFor(World world, Agent agent, Recipe r) =>
+        world.Projects.TryGetValue(agent.Tile, out var p) && p.Recipe == r.Id ? p : null;
+
+    /// Null if none is begun.
+    public static double? MinutesDone(World world, Agent agent, Recipe r) => r.Result.Placed
+        ? TileProjectFor(world, agent, r)?.MinutesDone
+        : Items.PackOf(agent) is { } pack ? ProjectFor(pack, r.Id)?.MinutesDone : null;
+
 
     public static Refusal? Refusal(World world, Activity activity)
     {
@@ -205,6 +228,7 @@ public static class Making
             case Make m:
                 {
                     var r = Recipes.Get(m.Recipe);
+                    if (r.Result.Placed) return PlacedRefusal(world, agent, pack, r);
                     bool begun = ProjectFor(pack, r.Id) != null;
                     if (!begun && MissingMaterial(pack, r) is { } material) return material;
                     return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
@@ -216,6 +240,20 @@ public static class Making
                 }
             default: throw new NotSupportedException($"{activity.GetType().Name} is not making");
         }
+    }
+
+    /// The old Build's order: light, what stands or is half-built here, tools, the place, then what it takes.
+    static Refusal? PlacedRefusal(World world, Agent agent, Inventory pack, Recipe r)
+    {
+        var tile = agent.Tile;
+        if (r.Requires.Contains(Requirement.Light) && Work.TooDarkToWork(world, agent)) return Work.Dark;
+        if (world.Projects.TryGetValue(tile, out var other) && other.Recipe != r.Id) return new($"a {Names.Lower(Recipes.Get(other.Recipe).Name)} is half-built here");
+        if (r.Requires.Contains(Requirement.NoShelter) && Shelters.Peek(world, tile) is { } s) return new($"there is already a shelter here ({s.Name})");
+        if (r.Result.Bedding is BeddingKind bed && Shelters.BeddingAt(world, tile) is { } there
+            && there.QualityPct >= Shelters.Beddings[bed].QualityPct && there.WarmthBonusF >= Shelters.Beddings[bed].WarmthBonusF)
+            return new($"the {there.Name.ToLowerInvariant()} here is as good as a {Shelters.Beddings[bed].Name.ToLowerInvariant()}");
+        bool begun = other != null;
+        return MissingTool(pack, r, begun) ?? Unmet(world, agent, r) ?? (begun ? null : MissingMaterial(pack, r));
     }
 
     static Refusal? MissingMaterial(Inventory pack, Recipe r)
@@ -249,10 +287,13 @@ public static class Making
                     return new("you need a fire burning here", new MissingState(Lack.BurningFire));
                 // The tile's surface air, the air that melts a snow shelter.
                 case Requirement.Frost when Exposure.Surface(world, tile, world.Minute).AirTemperatureF is var airF && airF > 32:
-                    return new("it is too warm: this needs a frost", new MissingState(Lack.FrostF, 32, airF));
+                    return new("too warm to build in snow", new MissingState(Lack.FrostF, 32, airF));
                 case Requirement.Shelter when Shelters.Peek(world, tile) == null: return new("you need shelter here", new MissingState(Lack.Shelter));
                 case Requirement.Dry when Falling(world, tile) && !(Shelters.Peek(world, tile)?.OverheadLevel >= DryRoofLevel):
                     return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
+                case Requirement.NoShelter when Shelters.Peek(world, tile) is { } s: return new($"there is already a shelter here ({s.Name})");
+                case Requirement.Tent when TileProjectFor(world, agent, r) == null && !(Items.PackOf(agent) is { } pack && Shelters.CarriedTent(pack) != null):
+                    return new("you have no tent", new MissingGear([.. Shelters.Tents.Keys]));
             }
         return null;
     }
@@ -311,6 +352,19 @@ public static class Making
         var pack = Items.Pack(world, agent.Id);
         switch (activity)
         {
+            case Make m when Recipes.Get(m.Recipe) is { Result.Placed: true } r:
+                {
+                    if (world.Projects.ContainsKey(agent.Tile)) break; // going on with it
+                    var p = new TileProject { Recipe = r.Id };
+                    if (r.Requires.Contains(Requirement.Tent) && Shelters.CarriedTent(pack) is Gear tent)
+                    {
+                        pack.Gear.Remove(tent);
+                        p.Materials.Gear.Add(tent);
+                    }
+                    TakeMaterials(pack, r, p.Materials);
+                    world.Projects[agent.Tile] = p;
+                    break;
+                }
             case Make m when ProjectFor(pack, m.Recipe) == null:
                 {
                     var r = Recipes.Get(m.Recipe);
@@ -320,17 +374,7 @@ public static class Making
                         pack.Gear.Remove(g);
                         p.Materials.Gear.Add(g);
                     }
-                    foreach (var input in r.Materials)
-                    {
-                        double left = input.Kg;
-                        foreach (var res in input.AnyOf)
-                        {
-                            if (left <= 0) break;
-                            double took = Items.Take(pack, res, left);
-                            Items.Add(p.Materials, res, took);
-                            left -= took;
-                        }
-                    }
+                    TakeMaterials(pack, r, p.Materials);
                     (pack.Projects ??= []).Add(p);
                     break;
                 }
@@ -353,6 +397,21 @@ public static class Making
         }
     }
 
+    static void TakeMaterials(Inventory pack, Recipe r, Inventory into)
+    {
+        foreach (var input in r.Materials)
+        {
+            double left = input.Kg;
+            foreach (var res in input.AnyOf)
+            {
+                if (left <= 0) break;
+                double took = Items.Take(pack, res, left);
+                Items.Add(into, res, took);
+                left -= took;
+            }
+        }
+    }
+
     static void RemoveProject(Inventory pack, MakeProject p)
     {
         pack.Projects!.Remove(p);
@@ -365,6 +424,7 @@ public static class Making
         if (activity is not Make m) return null; // abandoning was done at the start
         var pack = Items.Pack(world, agent.Id);
         var r = Recipes.Get(m.Recipe);
+        if (r.Result.Placed) return PlacedMinute(world, agent, pack, r, events);
         var p = ProjectFor(pack, r.Id) ?? throw new InvalidOperationException($"{agent.Id} is making {r.Id} with no project for it");
         if ((MissingTool(pack, r, begun: true) ?? Unmet(world, agent, r)) is { } stop) return stop.Reason;
         p.MinutesDone += WorkPerMinute(world, agent, pack, r);
@@ -372,13 +432,37 @@ public static class Making
         return p.MinutesDone < r.Minutes - 1e-9 ? null : Finish(world, agent, r, events);
     }
 
+    static string? PlacedMinute(World world, Agent agent, Inventory pack, Recipe r, List<WorldEvent> events)
+    {
+        var p = TileProjectFor(world, agent, r) ?? throw new InvalidOperationException($"{agent.Id} is building {r.Id} with nothing half-built for it");
+        if (r.Requires.Contains(Requirement.Light) && Work.TooDarkToWork(world, agent)) return Work.TooDark;
+        if ((MissingTool(pack, r, begun: true) ?? Unmet(world, agent, r)) is { } stop) return stop.Reason;
+        p.MinutesDone += WorkPerMinute(world, agent, pack, r);
+        Skills.Award(world, agent, Skill.Crafting, Skills.CraftXpPerHour / 60, events);
+        return p.MinutesDone < r.Minutes - 1e-9 ? null : Place(world, agent, pack, r, p, events);
+    }
+
+    static string Place(World world, Agent agent, Inventory pack, Recipe r, TileProject p, List<WorldEvent> events)
+    {
+        var tile = agent.Tile;
+        world.Projects.Remove(tile);
+        foreach (var tool in r.Tools.Select(c => ToolFor(pack, c)).OfType<Gear>().Distinct().ToList()) Items.Use(tool);
+        if (r.Result.Bedding is BeddingKind bed) Shelters.PlaceBedding(world, tile, bed);
+        else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
+            Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
+        else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
+        events.Add(new Built(world.Minute, agent.Id, tile, r.Id, new SortedDictionary<Resource, double>(p.Materials.Kg)));
+        return Shelters.BuiltReason;
+    }
+
     /// Bad hands count twice, through manipulation and through the dexterity built on it. Read every
-    /// minute, so how the work is split into steps cannot change when it finishes.
+    /// minute, so how the work is split into steps cannot change when it finishes. Camp work: legs and hands.
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
-        foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= FasterToolFactor;
+        foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
         var c = Body.GetCapacities(agent.Body);
+        if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
         double slow = (c.Manipulation < 0.5 ? 1.25 : 1.0) * (c.Consciousness < 0.5 ? 1.25 : 1.0);
         double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
         if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;

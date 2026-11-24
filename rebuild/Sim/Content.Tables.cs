@@ -23,7 +23,6 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<ShelterKind, ShelterKindProps> ShelterKinds,
     IReadOnlyDictionary<string, ShelterDef> Tents,
     IReadOnlyDictionary<Resource, ShelterMaterial> ShelterMaterials,
-    IReadOnlyDictionary<Structure, StructureRecipe> Recipes,
     IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings,
     IReadOnlyDictionary<ButcherMode, ButcherModeProps> Butchering,
     IReadOnlyDictionary<Terrain, TerrainRow> Terrains,
@@ -67,10 +66,7 @@ public static partial class Content
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
-        Dictionary<string, ShelterMaterial> Materials, Dictionary<string, RecipeRow> Recipes, Dictionary<string, BeddingProps> Beddings);
-    sealed record RecipeRow(int Minutes, IReadOnlyList<RecipeMaterial> Materials, bool NeedsLight, bool NeedsShovel = false,
-        bool ShovelHelps = false, bool NeedsFrost = false, ShelterKind? Shelter = null, BeddingKind? Bedding = null);
-    sealed record RecipeMaterial(IReadOnlyList<Resource> AnyOf, int Pieces);
+        Dictionary<string, ShelterMaterial> Materials, Dictionary<string, BeddingProps> Beddings);
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
         Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling, Footing Footing, WaterIce WaterIce);
@@ -82,9 +78,11 @@ public static partial class Content
     sealed record ForagingFile(IReadOnlyList<QualityRow> Quality, IReadOnlyList<FailureRow> Failures, Dictionary<string, string> Luck,
         Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
-        IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null);
+        IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null,
+        double? FasterFactor = null);
     sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
-    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0);
+    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0, ShelterKind? Shelter = null, string? ShelterName = null,
+        BeddingKind? Bedding = null);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -134,7 +132,6 @@ public static partial class Content
             e => Keyed<Capacity, double>(e.Value.Capacities ?? new Dictionary<string, double>(), $"effects.json {e.Key} capacities", problems));
         var kinds = Keyed<ShelterKind, ShelterKindProps>(shelters.Kinds, "shelters.json kinds", problems, complete: true);
         var materials = Keyed<Resource, ShelterMaterial>(shelters.Materials, "shelters.json materials", problems);
-        var recipes = Keyed<Structure, RecipeRow>(shelters.Recipes, "shelters.json recipes", problems, complete: true);
         var beddings = Keyed<BeddingKind, BeddingProps>(shelters.Beddings, "shelters.json beddings", problems, complete: true);
         var butcherRows = Keyed<ButcherMode, ButcherFile>(butchering, "butchering.json", problems, complete: true);
         var yields = butcherRows.ToDictionary(b => b.Key,
@@ -158,7 +155,7 @@ public static partial class Content
         problems.AddRange(FireProblems(fuels, pits, fire.Deterrence));
         problems.AddRange(SpeciesProblems(species, speciesRows));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
-        problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, recipes, beddings));
+        problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, beddings));
         problems.AddRange(ButcherProblems(butcherRows, yields));
         problems.AddRange(TerrainProblems(terrain, terrains, caves, forage));
         problems.AddRange(FellingProblems(terrain.Felling, logKg, mixedWood, fuels, locations));
@@ -183,7 +180,6 @@ public static partial class Content
                 e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(), e.Value.Discomfort,
                 e.Value.MetabolicHeatDelta, e.Value.HealingDelta, e.Value.HungerFreeHours))),
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
-            ReadOnly(recipes.ToDictionary(r => r.Key, r => ToRecipe(r.Value, materials))),
             ReadOnly(beddings),
             ReadOnly(butcherRows.ToDictionary(b => b.Key, b => new ButcherModeProps(b.Value.TimeFactor, ReadOnly(yields[b.Key]), b.Value.ScentIncrease, b.Value.BloodySeverity))),
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
@@ -315,11 +311,6 @@ public static partial class Content
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
             new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.FlightMinutesPerTile, r.PerceptionFactor);
 
-    /// A recipe's materials in kilos: pieces of the first material's nominal piece.
-    static StructureRecipe ToRecipe(RecipeRow r, IReadOnlyDictionary<Resource, ShelterMaterial> materials) =>
-        new(r.Minutes, r.Materials.Select(m => (m.AnyOf, materials[m.AnyOf[0]].PieceKg * m.Pieces)).ToList().AsReadOnly(),
-            r.NeedsLight, r.NeedsShovel, r.ShovelHelps, r.NeedsFrost, r.Shelter, r.Bedding);
-
     // ---- checks, one family at a time ----
 
     /// The Make recipes, in file order, each checked: names resolve, outcomes parse and name only the
@@ -354,15 +345,20 @@ public static partial class Content
             if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
             if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
             var r = row.Result;
-            if ((r.Gear != null) == (r.Resource != null)) problems.Add($"{at}: the result is a gear kind or a resource, exactly one");
+            bool placed = r.Shelter != null || r.Bedding != null;
+            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null }.Count(x => x) != 1)
+                problems.Add($"{at}: the result is a gear kind, a resource, a shelter or a bedding, exactly one");
+            else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
             else if (r.Gear != null && r.Kg != 0) problems.Add($"{at}: a gear result is one piece, with no kg");
             else if (r.Resource != null && r.Kg <= 0) problems.Add($"{at}: result {r.Resource} kg {r.Kg}");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
+            if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
                 if (caps.Contains(Capability.None) || caps.Distinct().Count() != caps.Count) problems.Add($"{at}: {name} names None or a capability twice");
             if (row.Requires.Distinct().Count() != row.Requires.Count) problems.Add($"{at}: a requirement listed twice");
+            if (!placed && row.Requires.Any(q => q is Requirement.NoShelter or Requirement.Tent)) problems.Add($"{at}: NoShelter and Tent are for a placed result");
             var outcomes = new List<Outcome>();
             foreach (var line in row.Outcomes)
             {
@@ -394,9 +390,25 @@ public static partial class Content
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.Kg), outcomes.AsReadOnly()));
+                new RecipeResult(r.Gear, r.Resource, r.Kg, r.Shelter, r.ShelterName, r.Bedding), outcomes.AsReadOnly(), row.FasterFactor ?? Making.FasterToolFactor));
         }
         return recipes.AsReadOnly();
+    }
+
+    /// Something placed on the tile is camp work, takes no items, rolls no outcomes, and a shelter
+    /// goes only where none stands. A tent is the shelter of the tent carried; any other shelter is named.
+    static IEnumerable<string> PlacedProblems(string at, RecipeFileRow row, List<string> items)
+    {
+        var r = row.Result;
+        if (row.Category != MakeCategory.Camp) yield return $"{at}: a placed result is Camp work";
+        if (items.Count > 0) yield return $"{at}: a placed result takes no items";
+        if (row.Outcomes.Count > 0) yield return $"{at}: a placed result has no outcomes";
+        if (r.Kg != 0) yield return $"{at}: a placed result has no kg";
+        bool tent = row.Requires.Contains(Requirement.Tent);
+        if (r.Bedding != null && (r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter))) yield return $"{at}: a bedding is not named, needs no tent and goes beside a shelter";
+        if (r.Shelter != null && !row.Requires.Contains(Requirement.NoShelter)) yield return $"{at}: a shelter needs NoShelter";
+        if (r.Shelter != null && tent != (r.Shelter == ShelterKind.HideTent)) yield return $"{at}: a tent's shelter is HideTent, and only a tent's";
+        if (r.Shelter != null && tent == (r.ShelterName != null)) yield return $"{at}: a shelter is named, unless it is the tent carried";
     }
 
     /// The most a recipe's outcomes may take of the odds before skill and hands move them: the plain
@@ -545,7 +557,7 @@ public static partial class Content
     }
 
     static IEnumerable<string> ShelterProblems(SheltersFile f, IReadOnlyDictionary<string, GearDef> gear, Dictionary<ShelterKind, ShelterKindProps> kinds,
-        Dictionary<Resource, ShelterMaterial> materials, Dictionary<Structure, RecipeRow> recipes, Dictionary<BeddingKind, BeddingProps> beddings)
+        Dictionary<Resource, ShelterMaterial> materials, Dictionary<BeddingKind, BeddingProps> beddings)
     {
         foreach (var (k, p) in kinds)
             foreach (var (stat, level, cap) in new[] { ("insulation", p.Insulation, p.InsulationCap), ("overhead", p.Overhead, p.OverheadCap), ("wind", p.Wind, p.WindCap) })
@@ -562,17 +574,6 @@ public static partial class Content
             if (g.Tool == ToolType.Tent && !f.Tents.ContainsKey(kind)) yield return $"shelters.json tents: no row for the tent {kind}";
         foreach (var (r, m) in materials)
             if (m.PieceKg <= 0 || new[] { m.Insulating, m.Waterproof, m.Structural }.Any(v => v is < 0 or > 1)) yield return $"shelters.json materials {r}: out of range";
-        foreach (var (s, r) in recipes)
-        {
-            string at = $"shelters.json recipes {s}";
-            if (r.Minutes <= 0) yield return $"{at}: minutes {r.Minutes}";
-            if ((r.Shelter != null) == (r.Bedding != null)) yield return $"{at}: makes a shelter or a bedding, one of them";
-            foreach (var m in r.Materials)
-            {
-                if (m.AnyOf.Count == 0 || m.Pieces <= 0) yield return $"{at}: a material needs anyOf and pieces";
-                foreach (var res in m.AnyOf) if (!materials.ContainsKey(res)) yield return $"{at}: {res} is not a material (shelters.json materials)";
-            }
-        }
         foreach (var (b, p) in beddings)
             if (p.QualityPct is <= 0 or > 1 || p.WarmthBonusF < 0) yield return $"shelters.json beddings {b}: out of range";
     }

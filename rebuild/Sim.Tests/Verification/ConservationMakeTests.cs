@@ -6,10 +6,11 @@ namespace Survival.Tests.Verification;
 
 /// Law 1 for making things: materials are neither made nor lost except as declared. Across any run of
 /// starting, going on with, finishing and abandoning projects, the kilograms of each resource held -
-/// as stacks, in unfinished projects, and in the recorded parts of every piece of gear - change by
+/// as stacks, in unfinished projects (carried or on a tile), and in the recorded parts of every piece
+/// of gear - change by
 /// exactly what the events say:
 ///
-///   Δ held[r] = Made.Produced[r] - Made.Spent[r] - ProjectAbandoned.Lost[r]
+///   Δ held[r] = Made.Produced[r] - Made.Spent[r] - Built.Spent[r] - ProjectAbandoned.Lost[r]
 ///
 /// so inputs in = result + waste + reclaimed. Pieces of gear, counted with those inside projects,
 /// change only as finished work says: the result and any extra pieces made, the items consumed gone.
@@ -70,6 +71,8 @@ public class ConservationMakeTests
             foreach (var b in a.Members) foreach (var g in b.Worn) yield return g;
         }
         foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) foreach (var g in InventoryGear(pile)) yield return g;
+        foreach (var p in w.Projects.Values) foreach (var g in p.Materials.Gear) yield return g;
+        foreach (var s in w.Shelters.Values) if (s.Tent is { } tent) yield return tent;
     }
 
     static IEnumerable<Gear> InventoryGear(Inventory inv) => inv.Gear.Concat(inv.Projects?.SelectMany(p => p.Materials.Gear) ?? []);
@@ -81,6 +84,7 @@ public class ConservationMakeTests
         void Add(IEnumerable<KeyValuePair<Resource, double>> kgs) { foreach (var (r, kg) in kgs) t[r] = t.GetValueOrDefault(r) + kg; }
         foreach (var a in w.Agents.Values) if (Items.PackOf(a) is { } pack) foreach (var p in pack.Projects ?? []) Add(p.Materials.Kg);
         foreach (var ts in w.Tiles.Values) foreach (var p in ts.Pile?.Projects ?? []) Add(p.Materials.Kg);
+        foreach (var p in w.Projects.Values) Add(p.Materials.Kg);
         foreach (var g in AllGear(w)) Add(g.MadeOf ?? []);
         return t;
     }
@@ -128,6 +132,7 @@ public class ConservationMakeTests
                             foreach (var extra in m.ExtraGear) pieces[extra] = pieces.GetValueOrDefault(extra) + 1;
                             break;
                         }
+                    case Built b: Move(b.Spent, -1); break;
                     case ProjectAbandoned gone: Move(gone.Lost, -1); break;
                 }
 

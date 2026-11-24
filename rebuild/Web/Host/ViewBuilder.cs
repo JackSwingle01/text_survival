@@ -120,9 +120,9 @@ sealed class ViewBuilder(World world, int gen)
         TakeOff => "takeoff",
         Fight => "fight",
         Travel => "walk",
-        Survival.Build => "build",
         ImproveShelter => "improve",
         PackTent => "pack",
+        Make m when Recipes.Get(m.Recipe).Result.Placed => "build", // camp work: the page lists it as building here
         Make => "make",
         Abandon => "abandon",
         Hunt => "hunt",
@@ -151,11 +151,10 @@ sealed class ViewBuilder(World world, int gen)
     MakeDto MakeOf(Make mk, MakeOdds? odds)
     {
         var r = Recipes.Get(mk.Recipe);
-        var pack = Items.PackOf(_player);
-        double? progress = pack != null && Making.ProjectFor(pack, r.Id) is { } project ? project.MinutesDone / r.Minutes : null;
+        double? progress = Making.MinutesDone(world, _player, r) / r.Minutes;
         var materials = r.Materials.Select(m => $"{Names.Kg(m.Kg)} {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}")
             .Concat(r.Items.Select(Names.GearWords)).ToList();
-        string result = r.Result.Gear is { } g ? Names.Gear(g) : Names.Kg(r.Result.Kg, r.Result.Resource!.Value);
+        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? Names.Kg(r.Result.Kg, res) : r.Name;
         return new MakeDto(r.Id, r.Name, Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
@@ -365,11 +364,11 @@ sealed class ViewBuilder(World world, int gen)
         int? total = job.Budget;
         if (job.Activity is Travel && _player.Crossing is { } c) total = c.TotalMinutes;
         else if (job.Activity is Travel && job.Finished) total = job.Done;
-        if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.ProjectFor(pack, mk.Recipe) is { } project)
+        if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.MinutesDone(world, _player, Recipes.Get(mk.Recipe)) is double done)
         {
             var r = Recipes.Get(mk.Recipe);
             double rate = Making.WorkPerMinute(world, _player, pack, r);
-            if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - project.MinutesDone) / rate);
+            if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - done) / rate);
         }
         var session = job.Session;
         var finds = session?.LuckFactor > 0

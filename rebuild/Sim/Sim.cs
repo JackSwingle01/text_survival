@@ -364,7 +364,7 @@ public static class Sim
             Sleep => (0.5, 2.0, true, true),
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
-            Build or ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
+            ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
             // Body.Cover, Body.Sprint); a flat factor would charge them twice.

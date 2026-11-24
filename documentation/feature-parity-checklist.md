@@ -120,7 +120,7 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Area | Rows missing | What is there today |
 |---|---:|---|
 | Desktop front end | 26 | A debug CLI (`rebuild/Cli/Program.cs`); the reference prototype `dev/prototypes/ui/` |
-| Crafting | 13 | Only `Build`: bedding, branch and log frames, snow shelter, pitching a tent (`Shelter.cs`) |
+| Crafting | 13 | `Make` (`Make.cs`, `recipes.json`), its Camp recipes: bedding, branch and log frames, snow shelter, pitching a tent |
 | Small game, trapping, fishing | 6 | Rabbit and Fox bodies (`Species.cs`) and `SiteSmallGame` carried as data, all unused |
 | NPCs and companions | 6 | The AI (`Npc.cs`) and its tests; never placed in a real game |
 | Effects (illness, injury, mood) | 4 + 3 replaced | The 14 body-produced effects (`Effects.cs`) |
@@ -256,12 +256,12 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 
 The old `NeedCraftingSystem` has about 60 recipes in 12 need categories, plus the need-based
 browser (`CraftingOverlay`), effort and odds (`CraftingEffort`, `CraftEvaluation`) and recipe
-unlocking through the discovery log. The rebuild has only the camp `Build` recipes in `Shelter.cs`
+unlocking through the discovery log. The rebuild has the Make recipes in `recipes.json`, camp builds among them
 (the `Recipe` record there says "full crafting ... is not ported").
 
 | Feature | Old recipes or source | Status | Evidence or what is missing | Size | Depends on |
 |---|---|---|---|---|---|
-| Camp structures by recipe: makeshift, padded and moss bedding, sleeping bag, branch frame, log frame, snow shelter | CampInfrastructure | Reduced | The snow shelter needs a shovel, and no shovel can be made or found, so it never happens in play. Sim: `Shelters.Recipes`, `Build`; CLI `build`; `ShelterTests.BranchFrame_TakesItsSticksAndHalfAnHour`, `SnowShelter_IsDugWithAShovel_InTheCold`, `SleepingBag_WarmsTheSleeper` | | |
+| Camp structures by recipe: makeshift, padded and moss bedding, sleeping bag, branch frame, log frame, snow shelter | CampInfrastructure | Reduced | The snow shelter needs a shovel, and no shovel can be made or found, so it never happens in play. Sim: the Camp recipes in `Content/recipes.json`, made by `Make`; CLI `build <recipe>`; `ShelterTests.BranchFrame_TakesItsSticksAndHalfAnHour`, `SnowShelter_IsDugWithAShovel_InTheCold`, `SleepingBag_WarmsTheSleeper` | | |
 | Crafting engine: recipe table as data, materials, time, tool needs, odds | `NeedCraftingSystem`, `CraftOption`, `CraftingHandler`, `CraftingEffort` | Missing | Everything below waits on this. Short-loop feature 8 (crafting luck) and the odds sheet build on it | L | data tables (§1) |
 | Fire starting: hand drill, bow drill, flint striker, pyrite strike-a-light, tinder bundle | FireStarting | Missing | | S | engine |
 | Cutting tools: crude edge, sharp rock, stone, bone, shale and flint knives, stone axe, bone shovel, knapping stone, bone needle | CuttingTool | Missing | | S | engine |

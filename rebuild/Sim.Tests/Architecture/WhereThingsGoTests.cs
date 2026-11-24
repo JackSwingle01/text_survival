@@ -226,7 +226,6 @@ public class WhereThingsGoTests
         ["ShelterStat"] = Unconverted,
         ["Skill"] = Unconverted,
         ["Species"] = Unconverted,
-        ["Structure"] = Unconverted,
         ["TissueKind"] = Unconverted,
         ["ToolType"] = Unconverted,
         ["TrackMaker"] = Unconverted,

@@ -248,7 +248,7 @@ public class ShelterTests
     {
         var w = At(Mild);
         var camp = Map.Of(w).Camp;
-        var r = Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 60);
+        var r = Sim.Step(w, new Make(P, "makeshift_bedding"), 60);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Contains("as good as", r.InterruptedReason);
         Assert.Equal(BeddingKind.Camp, w.Beddings[camp]);
@@ -256,7 +256,7 @@ public class ShelterTests
         // A sleeping bag is as good to sleep on and warmer: it replaces the sleeping area.
         Items.Add(Items.Pack(w, P), Resource.CuredHide, 4);
         Items.Add(Items.Pack(w, P), Resource.Sinew, 0.6);
-        Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SleepingBag)));
+        Assert.Null(Sim.Refusal(w, new Make(P, "sleeping_bag")));
     }
 
     /// old game: new bedding went in behind the old and GetFeature found the old one, so crafting a
@@ -287,14 +287,14 @@ public class ShelterTests
         var pack = Items.Pack(w, P);
         Items.Add(pack, Resource.Kindling, 1.5);
         double sticks = Items.Have(pack, Resource.Kindling);
-        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 120);
+        var r = Sim.Step(w, new Make(P, "branch_frame"), 120);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(30, r.MinutesElapsed);
-        Assert.Contains(r.Events, e => e is Built { What: Structure.BranchFrame });
+        Assert.Contains(r.Events, e => e is Built { Recipe: "branch_frame" });
         Assert.Equal(sticks - 4 * 0.3, Items.Have(pack, Resource.Kindling), Digits);
         var s = Shelters.At(w, tile, [])!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
-        Assert.Contains("already a shelter", Sim.Step(w, new Build(P, Structure.LogFrame), 10).InterruptedReason);
+        Assert.Contains("already a shelter", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
     }
 
     /// Resuming a half-built snow shelter checks its shovel and the frost again, and so does every
@@ -307,14 +307,14 @@ public class ShelterTests
         w.Agent(P).Tile = tile;
         var shovel = Items.Make("bone_shovel");
         Items.Pack(w, P).Gear.Add(shovel);
-        Assert.Null(Sim.Step(w, new Build(P, Structure.SnowShelter), 10).InterruptedReason);
+        Assert.Null(Sim.Step(w, new Make(P, "snow_shelter"), 10).InterruptedReason);
         Items.Pack(w, P).Gear.Remove(shovel);
         double done = w.Projects[tile].MinutesDone;
-        var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
-        Assert.Equal((0, "you need a shovel"), (r.MinutesElapsed, r.InterruptedReason));
+        var r = Sim.Step(w, new Make(P, "snow_shelter"), 30);
+        Assert.Equal((0, "you need something for digging"), (r.MinutesElapsed, r.InterruptedReason));
         Assert.Equal(done, w.Projects[tile].MinutesDone);
         // Lost mid-work, the same reason stops it.
-        Assert.Equal("you need a shovel", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));
+        Assert.Equal("you need something for digging", Making.Minute(w, w.Agent(P), new Make(P, "snow_shelter"), []));
         Assert.Equal(done, w.Projects[tile].MinutesDone);
     }
 
@@ -323,10 +323,10 @@ public class ShelterTests
     {
         var w = Builder(out var tile); // 41 °F
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
-        w.Projects[tile] = new StructureProject { Building = Structure.SnowShelter, MinutesDone = 60 };
-        var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 30);
+        w.Projects[tile] = new TileProject { Recipe = "snow_shelter", MinutesDone = 60 };
+        var r = Sim.Step(w, new Make(P, "snow_shelter"), 30);
         Assert.Equal((0, "too warm to build in snow"), (r.MinutesElapsed, r.InterruptedReason));
-        Assert.Equal("too warm to build in snow", Shelters.Minute(w, w.Agent(P), new Build(P, Structure.SnowShelter), []));
+        Assert.Equal("too warm to build in snow", Making.Minute(w, w.Agent(P), new Make(P, "snow_shelter"), []));
         Assert.Equal(60, w.Projects[tile].MinutesDone);
     }
 
@@ -334,13 +334,13 @@ public class ShelterTests
     public void Build_Refusals_CostNothing()
     {
         var w = Builder(out _);
-        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 30);
+        var r = Sim.Step(w, new Make(P, "branch_frame"), 30);
         Assert.Equal(0, r.MinutesElapsed);
         Assert.Contains("you need", r.InterruptedReason);
-        Assert.Equal("you need a shovel", Sim.Step(w, new Build(P, Structure.SnowShelter), 30).InterruptedReason);
+        Assert.Equal("you need something for digging", Sim.Step(w, new Make(P, "snow_shelter"), 30).InterruptedReason);
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
-        Assert.Equal("too warm to build in snow", Sim.Step(w, new Build(P, Structure.SnowShelter), 30).InterruptedReason);
-        Assert.Equal("you have no tent", Sim.Step(w, new Build(P, Structure.Tent), 10).InterruptedReason);
+        Assert.Equal("too warm to build in snow", Sim.Step(w, new Make(P, "snow_shelter"), 30).InterruptedReason);
+        Assert.Equal("you have no tent", Sim.Step(w, new Make(P, "tent"), 10).InterruptedReason);
     }
 
     /// Work left off is picked up again, and anything else waits for it.
@@ -350,10 +350,10 @@ public class ShelterTests
         var w = Builder(out var tile);
         Items.Add(Items.Pack(w, P), Resource.Kindling, 1.2);
         Items.Add(Items.Pack(w, P), Resource.Pine, 6);
-        Assert.Null(Sim.Step(w, new Build(P, Structure.BranchFrame), 10).InterruptedReason);
-        Assert.Contains("half-built", Sim.Step(w, new Build(P, Structure.LogFrame), 10).InterruptedReason);
+        Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
+        Assert.Contains("half-built", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
         Assert.Equal(6, Items.Have(Items.Pack(w, P), Resource.Pine));
-        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
+        var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.Equal(("built", 20), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Empty(w.Projects);
     }
@@ -363,7 +363,7 @@ public class ShelterTests
         var w = Builder(out _);
         Items.Add(Items.Pack(w, P), Resource.Kindling, 1.2);
         Items.Add(Items.Pack(w, P), Resource.Hide, 3);
-        foreach (var (a, total) in new (Activity, int)[] { (new Build(P, Structure.BranchFrame), 30), (new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 50) })
+        foreach (var (a, total) in new (Activity, int)[] { (new Make(P, "branch_frame"), 30), (new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 50) })
             for (int done = 0; done < total; done += chunk)
             {
                 Sim.Step(w, a, Math.Min(chunk, total - done));
@@ -402,7 +402,7 @@ public class ShelterTests
     {
         var w = Builder(out var tile);
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
-        var r = Sim.Step(w, new Build(P, Structure.Tent), 60);
+        var r = Sim.Step(w, new Make(P, "tent"), 60);
         Assert.Equal(("built", 10), (r.InterruptedReason, r.MinutesElapsed));
         Assert.DoesNotContain(Items.Pack(w, P).Gear, g => g.Kind == "hide_tent");
         Assert.Equal(0.9, Shelters.At(w, tile, [])!.OverheadLevel);
@@ -419,7 +419,7 @@ public class ShelterTests
     {
         var w = Builder(out var tile);
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
-        Sim.Step(w, new Build(P, Structure.Tent), 10);
+        Sim.Step(w, new Make(P, "tent"), 10);
         Items.Add(Items.Pack(w, P), Resource.Hide, 2);
         Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10);
         var improved = Shelters.At(w, tile, [])!;
@@ -428,7 +428,7 @@ public class ShelterTests
         Sim.Step(w, new PackTent(P), 1);
         w = TestWorlds.Load(Save.ToJson(w)); // packed through a save too
         w.Agent(P).Tile = tile;
-        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 10).InterruptedReason);
+        Assert.Equal("built", Sim.Step(w, new Make(P, "tent"), 10).InterruptedReason);
         var again = Shelters.At(w, tile, [])!;
         Assert.Equal((insulation, 0.9, 0.7), (again.InsulationLevel, again.OverheadLevel, again.WindLevel));
         Assert.Equal((0.6, 0.95, 0.8), (again.InsulationCap, again.OverheadCap, again.WindCap));
@@ -454,7 +454,7 @@ public class ShelterTests
                 w.Agent(P).Tile = tile; // and is turned away at the shelter, every way there is
                 Assert.Equal(0, Sim.Step(w, new PackTent(P), 1).MinutesElapsed);
                 Assert.Equal(0, Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Hide), 1).MinutesElapsed);
-                Assert.Equal(0, Sim.Step(w, new Build(P, Structure.BranchFrame), 1).MinutesElapsed);
+                Assert.Equal(0, Sim.Step(w, new Make(P, "branch_frame"), 1).MinutesElapsed);
                 Assert.NotNull(Shelters.Peek(w, tile));
                 w.Agent(P).Tile = camp;
             }
@@ -505,7 +505,7 @@ public class ShelterTests
         w.Agent(P).Tile = tile;
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
         w.Agent(P).Body.CoreTempF = 98.6;
-        var r = Sim.Step(w, new Build(P, Structure.SnowShelter), 200);
+        var r = Sim.Step(w, new Make(P, "snow_shelter"), 200);
         Assert.Equal(("built", 68), (r.InterruptedReason, r.MinutesElapsed)); // 135 minutes, doubled
         Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile, [])!.Kind);
     }
@@ -541,20 +541,20 @@ public class ShelterTests
     {
         var (w, tile, pool) = FindTile(Mild);
         Items.Add(Items.Pack(w, P), Resource.Kindling, 2);
-        Assert.Null(Sim.Step(w, new Build(P, Structure.BranchFrame), 10).InterruptedReason);
+        Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
         var events = new List<WorldEvent>();
         Pools.Search(w, w.Agent(P), 1000, events);
         Assert.Contains(events, e => e is PoolDiscovered d && d.Pool == new PoolId(tile, pool));
         Assert.Null(Shelters.Peek(w, tile));
         Assert.Equal(pool, w.WaitingShelters[tile]); // while the frame is going up
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.Contains("waiting"));
-        var r = Sim.Step(w, new Build(P, Structure.BranchFrame), 60);
+        var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(ShelterKind.BranchFrame, Shelters.At(w, tile, [])!.Kind);
         Assert.Empty(w.WaitingShelters);
         Assert.Contains(Report.Finds(w), f => f.Tile == tile && f.Kind == "shelter find" && f.Text.EndsWith("the Branch Frame Shelter stands in its place"));
         // And the tile is not shut to other work: bedding goes down beside the frame.
-        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.MakeshiftBedding), 60).InterruptedReason);
+        Assert.Equal("built", Sim.Step(w, new Make(P, "makeshift_bedding"), 60).InterruptedReason);
     }
 
     /// Found under a pitched tent, the find stands as soon as the tent is packed.
@@ -563,7 +563,7 @@ public class ShelterTests
     {
         var (w, tile, pool) = FindTile(Mild);
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
-        Assert.Equal("built", Sim.Step(w, new Build(P, Structure.Tent), 30).InterruptedReason);
+        Assert.Equal("built", Sim.Step(w, new Make(P, "tent"), 30).InterruptedReason);
         Pools.Search(w, w.Agent(P), 1000, []);
         Assert.Equal("Hide Tent", Shelters.At(w, tile, [])!.Name);
         Sim.Step(w, new PackTent(P), 1);
@@ -658,14 +658,14 @@ public class ShelterTests
         Assert.True(Exposure.Surface(w, proper, 0).AirTemperatureF <= 32);
         w.Agent(P).Tile = proper;
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
-        Assert.Null(Shelters.Refusal(w, new Build(P, Structure.SnowShelter)));
+        Assert.Null(Sim.Refusal(w, new Make(P, "snow_shelter")));
         var s = Shelters.Place(w, proper, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
         w.Minute += 24 * 60;
         Assert.Same(s, Shelters.At(w, proper, []));
         Assert.Equal(0.6, s.InsulationLevel);
 
         w.Agent(P).Tile = Open(w); // open ground at the regional air: a thaw
-        Assert.Equal("too warm to build in snow", Shelters.Refusal(w, new Build(P, Structure.SnowShelter))?.Reason);
+        Assert.Equal("too warm to build in snow", Sim.Refusal(w, new Make(P, "snow_shelter"))?.Reason);
     }
 
     /// Old DiscoveryFeatureFactory rolled overhangs past the RockOverhang kind's caps (0.40), so the

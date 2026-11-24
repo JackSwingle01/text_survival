@@ -30,7 +30,6 @@ namespace Survival;
 [JsonDerivedType(typeof(Watering), "watering")]
 [JsonDerivedType(typeof(Hunt), "hunt")]
 [JsonDerivedType(typeof(Raid), "raid")]
-[JsonDerivedType(typeof(Build), "build")]
 [JsonDerivedType(typeof(ImproveShelter), "improveshelter")]
 [JsonDerivedType(typeof(PackTent), "packtent")]
 [JsonDerivedType(typeof(Make), "make")]
@@ -65,7 +64,6 @@ public sealed record Fight(AgentId Who, CombatAction Action, int? Target = null,
 public sealed record Travel(AgentId Who, Direction Dir, Pace Pace = Pace.Quick) : Activity(Who);
 
 /// A new one takes its materials at the start; work left off takes none when picked up again.
-public sealed record Build(AgentId Who, Structure What) : Activity(Who);
 public sealed record ImproveShelter(AgentId Who, ShelterStat Stat, Resource Material) : Activity(Who);
 public sealed record PackTent(AgentId Who) : Activity(Who);
 

@@ -66,7 +66,7 @@ foreach (string line in commands)
             case "takeoff": Run(new TakeOff(AgentId.Player, parts[1]), 1); break;
             case "fuel": Run(new AddFuel(AgentId.Player, Enum.Parse<Resource>(parts[1], ignoreCase: true), double.Parse(parts[2])), 1); break;
             case "torch": Run(new LightTorch(AgentId.Player), 1); break;
-            case "build": Run(new Build(AgentId.Player, Enum.Parse<Structure>(parts[1], ignoreCase: true)), 24 * 60); break; // stops itself when built
+            case "build": Run(new Make(AgentId.Player, parts[1]), 24 * 60); break; // a camp recipe by id; stops itself when built
             case "improve": Run(new ImproveShelter(AgentId.Player, Enum.Parse<ShelterStat>(parts[1], ignoreCase: true), Enum.Parse<Resource>(parts[2], ignoreCase: true)), parts.Length > 3 ? int.Parse(parts[3]) : 10); break;
             case "pack": Run(new PackTent(AgentId.Player), 1); break;
             case "n" or "s" or "e" or "w" or "north" or "south" or "east" or "west":
