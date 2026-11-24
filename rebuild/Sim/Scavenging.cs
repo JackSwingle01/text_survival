@@ -5,7 +5,6 @@ public static partial class Fauna
 {
     public const int CarrionRangeTiles = 10;
     const int CarrionLookEveryMinutes = 10;
-    /// Judgment: about one raid in eight hours of a camp left alone.
     const double RaidChancePerMinute = 0.002, RaidKgPerMember = 0.05;
 
     public static bool Flies(Species s) => SpeciesTable.Of(s).FlightMinutesPerTile != null;
@@ -17,20 +16,20 @@ public static partial class Fauna
     static bool WalkerKeepsOff(World world, Agent herd, TileId tile) =>
         BehaviorOf(herd.Species) == HerdBehavior.Opportunist && !Flies(herd.Species) && PredatorAt(world, tile);
 
-    /// An opportunist's rules: off a held kill, the raid, and on the look clock to an attractor, perching there.
+    /// A scavenger's rules: off a held kill; an opportunist's raid, and on the look clock to an attractor, perching there.
     static (Activity, int)? Scavenge(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
-        if (BehaviorOf(herd.Species) != HerdBehavior.Opportunist) return null;
         if (HeldKill(world, herd)) return KeepOff(world, herd, mind, events);
+        if (BehaviorOf(herd.Species) != HerdBehavior.Opportunist) return null;
         if (CanFeed(world, herd)) return (new Feed(herd.Id), 1);
         if (RaidRefusal(world, herd) == null && Roll(world, herd, RaidChancePerMinute)) return (new Raid(herd.Id), 1);
         if (world.Minute % CarrionLookEveryMinutes != 0 || Attractor(world, herd) is not TileId goal) return null;
-        return goal == herd.Tile ? Perch(herd) : TowardNearest(world, herd, [goal]);
+        return goal == herd.Tile ? Wait(herd) : TowardNearest(world, herd, [goal]);
     }
 
     static (Activity, int) KeepOff(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
-        if (Flies(herd.Species)) return Perch(herd);
+        if (Flies(herd.Species)) return Wait(herd);
         StartFleeing(world, mind, herd.Tile);
         return Flee(world, herd, mind, events);
     }
@@ -38,8 +37,6 @@ public static partial class Fauna
     /// A scavenger (an opportunist, a hyena) at meat a predator of another kind is on gives the kill up to it.
     static bool HeldKill(World world, Agent herd) =>
         BehaviorOf(herd.Species) is HerdBehavior.Opportunist or HerdBehavior.Scavenger && CanFeed(world, herd) && PredatorAt(world, herd.Tile, herd.Species);
-
-    static (Activity, int) Perch(Agent herd) => Wait(herd);
 
     /// Flesh, else (a flyer's) a predator herd, else a burning fire; a walker shuns held flesh. Ties go to the lower tile.
     static TileId? Attractor(World world, Agent herd)

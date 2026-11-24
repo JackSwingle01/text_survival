@@ -34,7 +34,7 @@ public sealed record SpeciesStats(
     PersonBuild? Female,
     int? FlightMinutesPerTile = null,
     double PerceptionFactor = 1,
-    double Stealth = 1,
+    double StealthFactor = 1,
     int DetectionRangeTiles = 8)
 {
     public bool IsAnimal => Role != Role.Human;

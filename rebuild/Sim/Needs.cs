@@ -298,7 +298,6 @@ public static partial class Fauna
         throw new ArgumentException($"{to} is not a step from {from}");
     }
 
-    static (Activity, int) Sleep(World world, Agent animal, HerdMind mind) => Rest(animal);
 
     /// The five interrupts (and a plan's own end), or null while it holds; staying put is weighed again every two hours, or on food sensed.
     static string? Interrupt(World world, Agent animal, HerdMind mind, Stat stat, Priority priority, bool foodSeen, List<WorldEvent> events)

@@ -97,7 +97,9 @@ public static partial class Fauna
             var land = ArrivalLand(world, species);
             if (land.Count == 0) continue;
             var start = land[rng.NextInt(land.Count)];
-            int members = Math.Min(a.MinMembers + rng.NextInt(a.MaxMembers - a.MinMembers + 1), (int)Math.Floor(capacity - current));
+            // No more than either number allows: what draws them in, nor what the valley carries of them.
+            double room = Math.Min(capacity, Capacity(world, species)) - current;
+            int members = Math.Min(a.MinMembers + rng.NextInt(a.MaxMembers - a.MinMembers + 1), (int)Math.Floor(room));
             if (members < a.MinMembers || Reach(Map.Of(world), start, land, SpacingTiles).Count < 3) continue;
             Agents.SpawnGroup(world, species, start, members);
         }

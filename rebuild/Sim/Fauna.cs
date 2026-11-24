@@ -132,7 +132,6 @@ public static partial class Fauna
         bool anyDied = false, anyHurt = false;
         foreach (var body in herd.Members)
         {
-            // A headless fight already lived this minute of it.
             if (world.Minute <= body.WoundsLivedThroughMinute) continue;
             body.WoundsLivedThroughMinute = world.Minute;
             if (body.Effects.Count > 0 || body.SprintSpentLevel > 0) Body.TickWounds(body, world.Rng("body", herd.Id));
@@ -339,7 +338,6 @@ public static partial class Fauna
         return load;
     }
 
-    /// Both graze a resource growing there; two meat-eaters share the small game.
     static bool Shares(IReadOnlyList<Resource> eats, IReadOnlyList<Resource> theirs, ForagePool? pool)
     {
         if (eats.Count == 0 || theirs.Count == 0) return eats.Count == theirs.Count;
@@ -447,7 +445,6 @@ public static partial class Fauna
         _ => Weather.IsTwilight(world.Minute),
     };
 
-    /// An approach opens from the grid's edge, whatever distance it is given.
     const int AmbushFromM = 5;
 
     /// One who saw the pack coming meets it ready at the grid's edge; anyone else is ambushed.
@@ -478,7 +475,7 @@ public static partial class Fauna
         double stealth = 0.5 - Combat.Side(world, predator).Count * 0.02, hunger = Hunger(predator);
         if (hunger > 0.7) stealth += 0.15;
         if (hunger > 0.9) stealth += 0.15;
-        stealth *= SpeciesTable.Of(predator.Species).Stealth;
+        stealth *= SpeciesTable.Of(predator.Species).StealthFactor;
         stealth = Math.Max(0.2, stealth);
         var rng = world.Rng("herds", prey.Id);
         return rng.NextDouble() * vigilance > rng.NextDouble() * stealth;
