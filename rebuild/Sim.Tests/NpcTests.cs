@@ -200,6 +200,7 @@ public class NpcTests(ITestOutputHelper output)
 
     /// A day and a night by a lit fire with a predator next door: it holds the fire and sleeps there.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void BesideALitFire_WithAPredatorNextDoor_ItSleeps()
     {
         var w = TestWorlds.New(17);
@@ -220,6 +221,7 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Memory is one entry per tile, however often it comes back.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Memory_IsOnePlacePerTile()
     {
         var (w, npc) = AtCamp(17);
@@ -298,6 +300,7 @@ public class NpcTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SaveAndLoadMidRun_MatchesAStraightRun()
     {
         var (straight, npc) = AtCamp(17);

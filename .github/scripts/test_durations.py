@@ -3,12 +3,12 @@
 
 Usage: test_durations.py RESULTS.trx [--max-seconds 5] [--allow FILE] [--top 15]
 
-Reads the .trx that `dotnet test --logger "trx;LogFileName=..."` writes. Run it on a fast-suite run
-(`--filter "Category!=Slow"`) in Release, as CI does: every test in it is a fast test, so any that
-took longer than the limit should either get quicker or be tagged
-`[Trait("Category", TestCategories.Slow)]`. The tests named in --allow (one per line, `#` comments,
-theory parameters left off) are known breaches, a ratchet burned down from dev/ratchets.md.
-Prints the slowest tests either way, so a passing run still shows what is close to the line.
+Reads the .trx that `dotnet test --logger "trx;LogFileName=..."` writes. Run it on a quick-tier run
+(`--filter "Category!=Slow&Category!=LongRun"`) in Release, as CI does: any test in it that took longer
+than the limit should either get quicker or be tagged `[Trait("Category", TestCategories.LongRun)]`.
+The tests named in --allow (one per line, `#` comments, theory parameters left off) are known breaches.
+Prints the slowest tests either way, so a passing run still shows what is close to the line; without
+--max-seconds it only prints.
 
 A test's time inside a parallel run includes waiting on the others (CI measured 0.1 s tests at 7 s), so
 CI screens the parallel run, re-runs what it flags alone and serially (--names-only lists them), and
@@ -37,7 +37,7 @@ def method(test_name: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("trx", nargs="+")
-    ap.add_argument("--max-seconds", type=float, default=5.0)
+    ap.add_argument("--max-seconds", type=float, default=float("inf"))
     ap.add_argument("--allow", help="file of test names allowed over the limit")
     ap.add_argument("--top", type=int, default=15)
     ap.add_argument("--names-only", action="store_true",
@@ -69,11 +69,12 @@ def main() -> int:
         print(f"  {d:7.2f} s  {name}{mark}")
 
     if not over:
-        print(f"\nNo fast test outside {args.allow or 'an allow list'} took over {args.max_seconds:g} s.")
+        if args.max_seconds != float("inf"):
+            print(f"\nNo test{' outside ' + args.allow if args.allow else ''} took over {args.max_seconds:g} s.")
         return 0
-    print(f"\n{len(over)} fast test(s) took over {args.max_seconds:g} s. Make each quicker (a test that steps "
+    print(f"\n{len(over)} quick test(s) took over {args.max_seconds:g} s. Make each quicker (a test that steps "
           "World.New(seed) pays for every animal in it), or tag it "
-          '[Trait("Category", TestCategories.Slow)] so it runs nightly:')
+          '[Trait("Category", TestCategories.LongRun)] so it runs in the long-run check:')
     for d, name in over:
         print(f"::error::{name} took {d:.1f} s (limit {args.max_seconds:g} s)")
     return 1

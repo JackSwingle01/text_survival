@@ -42,6 +42,7 @@ public static partial class Combat
             .Select(a => (a.Id, Far: a.Living.OrderByDescending(u => u.FledTiles).First()))
             .ToList();
 
+        Fauna.Fought(world, units.Where(u => u.Team == 0).Select(u => u.Agent), units.Where(u => u.Team == 1).Select(u => u.Agent));
         // Which sides lost someone, before the dead leave the world.
         var fell = units.Where(u => !Alive(world, u)).Select(u => u.Team).ToHashSet();
         var fought = units.Select(u => u.Agent).Distinct().ToList();

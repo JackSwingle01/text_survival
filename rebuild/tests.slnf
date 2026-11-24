@@ -1,0 +1,10 @@
+{
+  "solution": {
+    "path": "../text_survival.sln",
+    "projects": [
+      "rebuild\\Sim.Tests\\Sim.Tests.csproj",
+      "rebuild\\Tools\\Tune.Tests\\Tune.Tests.csproj",
+      "rebuild\\Web\\Host.Tests\\Host.Tests.csproj"
+    ]
+  }
+}

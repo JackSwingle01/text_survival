@@ -4,6 +4,13 @@ namespace Survival;
 public static partial class Fauna
 {
     const double SeededFamiliarity = 1.0;
+    /// Familiar enough to be kin (a closed group's company, its side, its pack); under it, a stranger and a rival.
+    public const double KinFamiliarity = 0.25;
+    /// A look together takes this share of what is left to know: near full within a day on one tile.
+    const double FamiliarGrowthPerLook = 0.02;
+    /// A look apart keeps this much: halved in about 30 days apart, a stranger in about 60.
+    const double FamiliarFadePerLook = 0.99984;
+    const double ForgottenFamiliarity = 0.01;
     const int KinSenseTiles = 8;
     const int KinLookEveryMinutes = 10;
 
@@ -15,7 +22,7 @@ public static partial class Fauna
     /// A living animal of its species, known to it if its group is closed. Combat.Side is its kin on its tile.
     public static bool IsKin(Agent animal, Agent other) =>
         other.Id != animal.Id && other.Species == animal.Species && animal.Mind is HerdMind && other.Mind is HerdMind
-        && (!IsClosedGroup(animal.Species) || Familiarity(animal, other.Id) > 0) && Sim.IsAlive(other);
+        && (!IsClosedGroup(animal.Species) || Familiarity(animal, other.Id) >= KinFamiliarity) && Sim.IsAlive(other);
 
     /// Its herd: it, then its kin on its tile in id order, whether or not a fight holds them (Combat.Side leaves those out).
     public static List<Agent> HerdOf(World world, Agent animal)
@@ -63,6 +70,35 @@ public static partial class Fauna
                 theirs[young.Id] = id == mother.Id ? SeededFamiliarity : Familiarity(other, mother.Id);
     }
 
+    /// Each look it knows those it knows on its tile better, the rest less; strangers stay strangers, so rival packs never merge.
+    static void Acquainting(World world, Agent animal)
+    {
+        if (world.Minute % KinLookEveryMinutes != 0 || animal.Mind is not HerdMind { Familiar: { Count: > 0 } known }) return;
+        List<AgentId>? forgotten = null;
+        List<(AgentId, double)>? changed = null;
+        foreach (var (id, level) in known)
+        {
+            double next = world.Agents.TryGetValue(id, out var other) && other.Tile == animal.Tile
+                ? level + (1 - level) * FamiliarGrowthPerLook : level * FamiliarFadePerLook;
+            if (next < ForgottenFamiliarity) (forgotten ??= []).Add(id);
+            else if (next != level) (changed ??= []).Add((id, next));
+        }
+        foreach (var (id, level) in changed ?? []) known[id] = level;
+        foreach (var id in forgotten ?? []) known.Remove(id);
+    }
+
+    /// One attacking another: whatever they knew of each other is gone, both ways.
+    internal static void Fought(World world, IEnumerable<AgentId> one, IEnumerable<AgentId> other)
+    {
+        var them = other.ToList();
+        foreach (var a in one)
+            foreach (var b in them)
+            {
+                if (world.Agents.TryGetValue(a, out var x) && x.Mind is HerdMind { Familiar: { } ofX }) ofX.Remove(b);
+                if (world.Agents.TryGetValue(b, out var y) && y.Mind is HerdMind { Familiar: { } ofY }) ofY.Remove(a);
+            }
+    }
+
     internal static void Forget(World world, AgentId gone)
     {
         foreach (var a in world.Agents.Values)
@@ -81,7 +117,6 @@ public static partial class Fauna
         {
             // Where the one it follows is making for, so that when it leads in turn it leads them on, not back.
             var theirs = MindOf(lead);
-            mind.Foray = theirs.Foray;
             if (theirs.Territory.Count > 0 && mind.Territory.IndexOf(theirs.Territory[theirs.TerritoryIndex]) is int at and >= 0) mind.TerritoryIndex = at;
             return (new Travel(animal.Id, going), UntilArrived);
         }

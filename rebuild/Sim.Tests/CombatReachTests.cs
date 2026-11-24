@@ -10,7 +10,7 @@ public class CombatReachTests
 
     static (World W, Encounter E) PlayerVs(Species species, int distanceM, string? weapon, World? world = null)
     {
-        var (w, t) = CombatTests.Field(world ?? TestWorlds.New(1));
+        var (w, t) = CombatTests.Field(world ?? TestWorlds.Bare(1));
         var herd = CombatTests.Herd(w, species, 1, t);
         CombatTests.Normalize(w, herd);
         Gear? g = weapon == null ? null : Items.Make(weapon);
@@ -51,6 +51,7 @@ public class CombatReachTests
     /// A wolf closing from 6 m on a person standing off with a spear meets the point before it bites:
     /// whenever both land, the wolf's wound comes first, and over many seeds the spear lands often.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ABracedSpear_StrikesFirst_OnAnAnimalThatClosesInsideItsReach()
     {
         int braced = 0;
@@ -77,6 +78,7 @@ public class CombatReachTests
     [InlineData(null, FighterState.Standoff)]
     [InlineData("flint_knife", FighterState.Standoff)]
     [InlineData("wooden_spear", FighterState.Pressing)]
+    [Trait("Category", TestCategories.LongRun)]
     public void NoBracedStrike_WithoutTheLongerReach_OrWhilePressing(string? weapon, FighterState mine)
     {
         for (int seed = 1; seed <= 30; seed++)
@@ -94,6 +96,7 @@ public class CombatReachTests
 
     /// Reach decides it, not who holds it: a mammoth standing off meets a person stepping inside its tusks.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ALongerReach_BracesForAnimalsToo()
     {
         int struck = 0;

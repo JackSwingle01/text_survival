@@ -293,6 +293,7 @@ public class BodySurvivalPropertyTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void FixedPoint_TheCoreSettlesOrLeaves_ItNeverOscillates() => MildCores.Check(SettlesOrLeaves, iter: 40);
 
     /// Seeds that caught the core bouncing across 99F beside a roaring fire: each minute it reached the line the

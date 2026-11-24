@@ -10,7 +10,7 @@ public class ItemsTests
 
     static World New(int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = Mild;
         return w;
     }
@@ -28,7 +28,7 @@ public class ItemsTests
     [Fact]
     public void StartingKit_MatchesOld_CloWeightAndLoad()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var player = w.Agent(P);
         Assert.Equal(1.33, player.Body.ClothingClo, 9);        // old Inventory.ClothingClo
         Assert.Equal(3.05, player.Body.ClothingWeightKg, 9);   // old TotalEquipmentWeightKg
@@ -63,7 +63,7 @@ public class ItemsTests
     [Fact]
     public void Accessories_StackCapacity_AndTheirWeightCounts()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("large_bag"));
         pack.Gear.Add(Items.Make("rope_belt"));
@@ -97,7 +97,7 @@ public class ItemsTests
     [Fact]
     public void Receive_FillsThePack_ThenDropsTheRestOnTheTile()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var agent = w.Agent(P);
         var gained = new Inventory();
         Items.Add(gained, Resource.Stone, 20);

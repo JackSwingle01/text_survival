@@ -7,8 +7,7 @@ public class NetProgressTests
 {
     static (World W, Agent Wolf, TileId Start) OneWolf()
     {
-        var w = TestWorlds.New(1);
-        foreach (var id in w.Agents.Keys.Where(id => id != AgentId.Player).ToList()) Agents.Remove(w, id);
+        var w = TestWorlds.Bare(1);
         var m = Map.Of(w);
         var start = new TileId(m.Width / 2, m.Height / 2);
         return (w, w.Agent(Agents.Spawn(w, Species.Wolf, start)), start);

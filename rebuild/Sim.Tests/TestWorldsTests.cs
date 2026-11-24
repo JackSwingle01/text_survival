@@ -31,6 +31,20 @@ public class TestWorldsTests
             Assert.True(fresh[i] == shared[i], $"seed {seed}: the source's world saves differently from World.New at checkpoint {i}");
     }
 
+    [Theory]
+    [InlineData(17)]
+    [InlineData(1)]
+    public void ABareWorld_IsTheSeedsWorld_WithEveryoneButThePlayerRemoved(int seed)
+    {
+        var emptied = TestWorlds.New(seed);
+        foreach (var id in emptied.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(emptied, id);
+        var bare = TestWorlds.Bare(seed);
+        Assert.Equal(Save.ToJson(emptied), Save.ToJson(bare));
+        Assert.Equal([P], bare.Agents.Keys);
+        Assert.Same(TestWorlds.Map(seed), bare.GeneratedMap);
+        Assert.NotSame(bare, TestWorlds.Bare(seed));
+    }
+
     [Fact]
     public void SourceWorlds_ShareTheSeedsMap_AndALoadGetsItToo()
     {

@@ -68,7 +68,7 @@ public class TravelTests
     static World SnowyDecemberAfternoon()
     {
         const int december15 = 349, afternoonMinuteOfDay = 15 * 60;
-        var world = TestWorlds.New(5);
+        var world = TestWorlds.Bare(5);
         long first = Enumerable.Range(0, 400).Select(d => d * 1440L).First(t => Weather.DayOfYear(t) == december15);
         long afternoon = first + afternoonMinuteOfDay - Weather.MinuteOfDay(first);
         world.Minute = Enumerable.Range(0, 60).Select(d => afternoon + d * 1440L)
@@ -409,6 +409,7 @@ public class TravelTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ADayOfTravel_IsDeterministic()
     {
         Assert.Equal(RunRoute(17), RunRoute(17));
@@ -416,6 +417,7 @@ public class TravelTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SaveLoadMidCrossing_GivesTheSameWorldAsAStraightRun()
     {
         string straight = RunRoute(17);
@@ -447,7 +449,7 @@ public class TravelTests
     [Fact]
     public void ALake_IsWadedInJuly_AndWalkedOnAsIceInJanuary()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var (west, lake, east) = LakeBetweenLand(m);
         var me = w.Agent(P);
@@ -475,7 +477,7 @@ public class TravelTests
     [Fact]
     public void AShore_HasWaterToDrinkInJuly_NotInJanuary()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var shore = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .First(t => m.TerrainAt(t) is Terrain.Forest or Terrain.Plain && m.SiteAt(t) == null && !m.BesideRiver(t) && m.CaveAt(t) == Cave.None

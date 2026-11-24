@@ -114,6 +114,7 @@ public class CoreTests
     /// hours at zero energy come out the same minute by minute, in one go, in chunks with a save and load
     /// between them, or as the player's own waiting steps (which stop each time they drop).
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void FallingAsleep_IsTheSameHoweverTheMinutesAreStepped()
     {
         const int minutes = 600;

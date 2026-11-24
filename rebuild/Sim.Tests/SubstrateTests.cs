@@ -10,7 +10,7 @@ public class SubstrateTests
 
     static World Camp(out TileId camp)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         camp = Map.Of(w).Camp;
         return w;
     }
@@ -224,6 +224,7 @@ public class SubstrateTests
     // ---- reading never writes ----
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void LocationFeaturesSignsAndTags_NeverChangeTheWorld()
     {
         var w = Phase3GateTests.BusyDay.Copy();

@@ -548,6 +548,21 @@ public class ForecastTests
         Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
     }
 
+    /// Combat.KillChance against fresh headless pack hunts (trials the table was not measured on): within three standard
+    /// deviations of 100 hunts. A pair against a herd of bison, a pack of six against it, a lone wolf on caribou, hyenas on megaloceros.
+    [Theory]
+    [InlineData(Species.Wolf, 2, Species.Bison, 4)]
+    [InlineData(Species.Wolf, 6, Species.Bison, 4)]
+    [InlineData(Species.Wolf, 1, Species.Caribou, 1)]
+    [InlineData(Species.Hyena, 2, Species.Megaloceros, 3)]
+    public void KillChance_AgreesWithHeadlessPackHunts(Species predator, int hunters, Species quarry, int herd)
+    {
+        double forecast = Combat.KillChance(predator, hunters, quarry, herd);
+        double measured = KillOdds.Measure(predator, hunters, quarry, herd, trials: 100, firstSeed: 5000);
+        double tolerance = Math.Max(0.05, 3 * Math.Sqrt(forecast * (1 - forecast) / 100));
+        Assert.True(Math.Abs(forecast - measured) <= tolerance, $"forecast {forecast:F2}, measured {measured:F2} (within {tolerance:F2})");
+    }
+
     // ---- Body: health ----
 
     static BodyState Bleeding(double severity)

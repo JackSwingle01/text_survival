@@ -11,9 +11,10 @@ public class TripTests
     /// Across the valley's ground, both paces, a heavy load and a lame body, under the seeded sky:
     /// the terms add up to the total, and the total is the crossing's own.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void TheTerms_AddUpToTheCrossingsOwnMinutes_Everywhere()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var lame = BodyState.BaselineHuman();
         Body.Damage(lame, new DamageInfo(0.5, DamageType.Blunt, BodyTarget.LeftLeg), Rng.ForSystem(1, "lame"));
@@ -48,7 +49,7 @@ public class TripTests
     [Fact]
     public void ThePreview_ChangesNothing()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         Sim.Step(w, new Wait(P), 1);
         string before = Save.ToJson(w);
         foreach (var dir in new[] { Direction.North, Direction.East, Direction.South, Direction.West })
@@ -61,7 +62,7 @@ public class TripTests
     [Fact]
     public void EachSlowing_ShowsAsItsOwnTerm()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var calm = new WeatherSample(0, WeatherCondition.Clear, -10, 0, 0, 0, WindDirection.North);
         var body = BodyState.BaselineHuman();

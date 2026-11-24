@@ -49,3 +49,7 @@ Follow-up: `Body.IsWhole` is 7 % self time: it walks every tissue for every capa
 tissue to tell its body it changed (a parent reference, against principles-code.md).
 
 Follow-up: `Trip.Routes` (20 %) and `Planner.Choose` (15 %) are now the largest parts of a minute.
+
+Revised: #166 (packs and predators on the planner) merged into `main` and conflicted in `Fauna.cs` →
+merged `main`, took its `Stalk` and predator-target logic, and moved its new `Needs.QuarryHere` loop to
+agents from `Nearby.At`. Saves after 30,000 minutes of seeds 5, 17 and 99 hash the same as the new `main`.

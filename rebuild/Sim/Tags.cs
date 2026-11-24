@@ -148,7 +148,7 @@ public static class Tags
 
     public const double AfraidLevel = 0.5;
 
-    static bool Attending(World world, Agent a, HerdMind mind) =>
+    internal static bool Attending(World world, Agent a, HerdMind mind) =>
         mind.Fear <= AfraidLevel && mind.State is not (HerdState.Fleeing or HerdState.Hunting) && Combat.EncounterOf(world, a.Id) == null;
 
     static bool FireDefends(World world, TileId tile, AgentId viewer) =>

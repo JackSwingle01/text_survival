@@ -9,7 +9,7 @@ public class MemoryTests
 
     static World Mild17()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         return w;
     }
@@ -174,7 +174,7 @@ public class MemoryTests
     {
         World Walk(int chunk, bool reload)
         {
-            var w = TestWorlds.New(17);
+            var w = TestWorlds.Bare(17);
             foreach (var dir in new[] { Direction.East, Direction.East, Direction.South, Direction.East })
             {
                 for (int done = 0; done < 90; done += chunk)
@@ -212,7 +212,7 @@ public class MemoryTests
     [Fact]
     public void GroundOutOfSight_IsTheGroundAsLastSeen_AfterASaveAndLoad()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Cold;
         var camp = Map.Of(w).Camp;
         var t = InViewFrom(w, camp);
@@ -482,7 +482,7 @@ public class MemoryTests
     {
         (World, TileId) Make()
         {
-            var w = TestWorlds.New(17);
+            var w = TestWorlds.Bare(17);
             w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 10, 0.1, 0, 0.8, WindDirection.North);
             var t = Away(w, Map.Of(w).Camp, 12);
             Shelters.Place(w, t, new ShelterDef("Snow shelter", ShelterKind.SnowShelter));
@@ -712,6 +712,7 @@ public class MemoryTests
 
     /// The NPC's old memory now lives in the shared one: it still remembers every tile it stood on.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void NpcMemory_IsTheSharedModel()
     {
         var w = TestWorlds.New(17);
