@@ -198,7 +198,7 @@ public sealed record SpawnableDto(string Id, string Label);
 public sealed record ObserverViewDto(long Minute, ClockDto Clock, IReadOnlyList<ActorDto> Actors, IReadOnlyList<PlaceMarkDto> Places,
     IReadOnlyList<ObserverLogDto> Log);
 /// An NPC or a herd. Kind: npc or herd. Doing: its activity in words ("travel north"), or "deciding".
-/// State: a herd's (Fauna HerdState). Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
+/// State: an animal's last choice (HerdMind.Choice), by its activity's name. Predator: Fauna.IsPredator. ToX/ToY/CrossingPct: a crossing under way, for the page to draw it moving.
 public sealed record ActorDto(int Id, string Kind, string Icon, string Name, int X, int Y, int Count, string Doing, string? State, bool Predator,
     int? ToX = null, int? ToY = null, double? CrossingPct = null);
 /// A narrated world event and the tile it happened on.

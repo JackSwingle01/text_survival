@@ -323,7 +323,7 @@ public sealed class Fights
             var g = ArmPlayer();
             var species = c.Setup.Contains("bison") ? Species.Bison : Species.Caribou;
             var herd = Agents.SpawnGroup(w, species, tile, 4);
-            foreach (var id in herd) ((HerdMind)w.Agent(id).Mind).State = c.Setup.Contains("grazing") ? HerdState.Grazing : HerdState.Resting;
+            foreach (var id in herd) ((HerdMind)w.Agent(id).Mind).Choice = c.Setup.Contains("grazing") ? new Graze(id) : new Rest(id);
             var enc = Fauna.BeginHunt(w, P, herd[0], g);
             Observe(enc);
             return DrivePlayer(enc, HuntPolicy);

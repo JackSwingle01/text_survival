@@ -64,9 +64,9 @@ public sealed class Agent
 /// on one tile (Combat.Side), never stored.
 public static class Agents
 {
-    /// One animal of this species on this tile, at its own random size (Species.NewBody). Its territory is
-    /// the tiles it patrols and grazes, its den first; by default just this tile.
-    public static AgentId Spawn(World world, Species species, TileId tile, List<TileId>? territory = null)
+    /// One animal of this species on this tile, at its own random size (Species.NewBody). A predator dens at
+    /// the den given, by default this tile (Fauna.NewMind).
+    public static AgentId Spawn(World world, Species species, TileId tile, TileId? den = null)
     {
         var id = NewId(world);
         var rng = world.Birth("fauna", id);
@@ -75,18 +75,18 @@ public static class Agents
             Id = id,
             Tile = tile,
             Species = species,
-            Mind = Fauna.NewMind(world, id, species, territory ?? [tile]),
+            Mind = Fauna.NewMind(world, species, tile, den),
             Members = [SpeciesTable.NewBody(species, rng)],
         };
         return id;
     }
 
     /// Animals that come into the world together, in id order: a closed-group species' start familiar with each
-    /// other (an existing pack, an arriving one), and every one has its own copy of the land.
-    public static List<AgentId> SpawnGroup(World world, Species species, TileId tile, int count, List<TileId>? territory = null)
+    /// other (an existing pack, an arriving one), and all denning at the den given (Spawn).
+    public static List<AgentId> SpawnGroup(World world, Species species, TileId tile, int count, TileId? den = null)
     {
         if (count < 1) throw new ArgumentOutOfRangeException(nameof(count), count, "A group has at least one animal");
-        var ids = Enumerable.Range(0, count).Select(_ => Spawn(world, species, tile, territory?.ToList())).ToList();
+        var ids = Enumerable.Range(0, count).Select(_ => Spawn(world, species, tile, den)).ToList();
         Fauna.Acquaint(world, ids);
         return ids;
     }

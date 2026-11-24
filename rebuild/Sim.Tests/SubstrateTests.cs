@@ -296,7 +296,7 @@ public class SubstrateTests
         Assert.False(Tags.Of(w, t).HasFlag(Tag.Wounded));
         w.Agent(caribou).Members[0].Regions[0].Muscle.Condition = 0.5;
         Assert.True(Tags.Of(w, t).HasFlag(Tag.Wounded));
-        Fauna.MindOf(w.Agent(caribou)).State = HerdState.Fleeing;
+        Fauna.MindOf(w.Agent(caribou)).FleeFrom = camp;
         Assert.False(Tags.Of(w, t).HasFlag(Tag.Unaware));
 
         var wolves = Herd(w, Species.Wolf, 2, camp);
@@ -446,9 +446,9 @@ public class SubstrateTests
         var minds = pack.Select(id => Fauna.MindOf(w.Agent(id))).ToList();
         foreach (var mind in minds) mind.Fear = 0.9;
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "an afraid pack");
-        foreach (var mind in minds) (mind.Fear, mind.State) = (0, HerdState.Fleeing);
+        foreach (var mind in minds) (mind.Fear, mind.FleeFrom) = (0, camp);
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "a running pack");
-        foreach (var mind in minds) mind.State = HerdState.Patrolling;
+        foreach (var mind in minds) mind.FleeFrom = null;
         var enc = Combat.Create(w, [new Fighter(npc)], [.. pack.Select(id => new Fighter(id))], camp, 8, Awareness.Engaged, Awareness.Engaged);
         Assert.False(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "a pack fighting someone else");
         w.Encounters.Remove(enc);

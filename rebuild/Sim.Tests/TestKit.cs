@@ -66,8 +66,8 @@ readonly record struct Animals(List<AgentId> Ids)
     public AgentId this[int i] => Ids[i];
     public int Count => Ids.Count;
     public static implicit operator AgentId(Animals a) => a.Ids[0];
-    public static Animals Spawn(World world, Species species, TileId tile, int count, List<TileId>? territory = null) =>
-        new(Agents.SpawnGroup(world, species, tile, count, territory));
+    public static Animals Spawn(World world, Species species, TileId tile, int count) =>
+        new(Agents.SpawnGroup(world, species, tile, count));
     /// How many of them are still in the world.
     public int Living(World world) => Ids.Count(world.Agents.ContainsKey);
     public IEnumerable<Agent> In(World world) => Ids.Where(world.Agents.ContainsKey).Select(world.Agent);

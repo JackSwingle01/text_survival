@@ -9,11 +9,15 @@ public class HerdBudgetTests
     static TileId Open(World w)
     {
         var m = Map.Of(w);
-        var claimed = w.Agents.Values.Where(a => a.Mind is HerdMind).SelectMany(h => ((HerdMind)h.Mind).Territory).ToHashSet();
+        // Off where any animal stands now or within a few tiles, so none graze it down.
+        var claimed = w.Agents.Values.Where(a => a.Mind is HerdMind).SelectMany(h => Around(h.Tile, 4)).ToHashSet();
         return Enumerable.Range(3, m.Width - 6).SelectMany(x => Enumerable.Range(3, m.Height - 6).Select(y => new TileId(x, y)))
             .First(t => m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && !claimed.Contains(t) && Pools.At(w, t) is [ForagePool, ..]
                 && MapGen.Manhattan(t, m.Camp) > 30 && MapGen.Neighbors(t).All(n => Map.Blocked(m, t, n) == null && !claimed.Contains(n)));
     }
+
+    static IEnumerable<TileId> Around(TileId t, int r) =>
+        Enumerable.Range(-r, 2 * r + 1).SelectMany(dx => Enumerable.Range(-r, 2 * r + 1).Select(dy => new TileId(t.X + dx, t.Y + dy)));
 
     static (World, Agent) Caribou(double hunger)
     {

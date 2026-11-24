@@ -678,6 +678,14 @@ Herds interact with: locations (territory spans tiles), features (grazing deplet
 
 **Files**: `Actors/Animals/Herd.cs`, `Actors/Animals/HerdExtensions.cs`, `Actors/Animals/Behaviors/`
 
+**In the rebuild** (`rebuild/`, spec `documentation/specs/2026-11-22-animal-life.md`) none of this survives as
+described above. Every animal is its own agent and a herd is derived (its kin on its tile). There are no
+behaviour types, states or home territories: one mind (`Fauna.Decide`) serves every species, seeing to water,
+rest and food through the planner it shares with NPCs, with a few rules gated by role (a pack coming for
+people, ravens perching over a held kill). A predator's den is only a rest source, and what a person remembers
+of it is read from the den. Animals are placed at dens and on open ground, and carrying capacity is one
+number per species across the map.
+
 ---
 
 ## NPC Allies

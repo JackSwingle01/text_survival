@@ -852,10 +852,10 @@ public class CombatTests
         Assert.True(enc.Rounds > 0);
         Assert.Contains(events, e => e is Died d && d.Who == AgentId.Player);
         Assert.False(Sim.Held(w, wolves));
-        // Their mind decides again: a kill with no carcass to it feeds nobody, so they lie up.
-        Assert.Equal(HerdState.Feeding, Fauna.MindOf(w.Agent(wolves)).State);
+        // Their mind decides again: a kill with no carcass to it feeds nobody, so they do something else.
         Sim.Advance(w, 5);
-        Assert.NotEqual(HerdState.Feeding, Fauna.MindOf(w.Agent(wolves)).State);
+        Assert.NotNull(Fauna.MindOf(w.Agent(wolves)).Choice);
+        Assert.IsNotType<Feed>(Fauna.MindOf(w.Agent(wolves)).Choice);
     }
 
     /// However the player dies outside a round, the next minute ends the fight and frees its sides.

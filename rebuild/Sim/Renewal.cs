@@ -2,48 +2,48 @@ namespace Survival;
 
 /// Herd behaviour rates are a model, so they live in code beside the behaviours, not in content.
 /// Season days are Weather.DayOfYear, inclusive. Over capacity the birth rate runs backwards (Thin).
-/// CapacityPerScore: members per unit of forage score, or per kg of living prey near the den for a meat-eater.
-/// Arrival: null for what never comes from outside. Hunger kills from the body (Body.LiveNeeds), never here.
+/// CapacityPerScore: how many the map carries per unit of its score (ValleyScore). Arrival: null for what never comes in.
 public sealed record RenewalRow(int SeasonStartDay, int SeasonEndDay, double BirthsPerHeadPerDay, double CapacityPerScore, ArrivalRow? Arrival);
 
-/// A herd coming into the valley: the valley carries ValleyPerScore members per unit of its score.
-public sealed record ArrivalRow(double ValleyPerScore, int MinMembers, int MaxMembers, int MinTiles, int MaxTiles);
+/// A group coming into the valley while the valley holds fewer than ValleyPerScore members per unit of its score.
+public sealed record ArrivalRow(double ValleyPerScore, int MinMembers, int MaxMembers);
 
 public static partial class Fauna
 {
-    /// Every number here is a judgment, read off the curves of a simulated year. Births are many for real herds
-    /// because the valley's prey are a few dozen head; arrivals keep a species from dying out between seasons.
+    /// Judgments read off the curves of a simulated year; CapacityPerScore is what the herds' old lands carried, summed.
     static RenewalRow? RenewalOf(Species s) => s switch
     {
-        Species.Caribou => new(135, 190, 0.030, 0.045, new(0.0035, 5, 15, 128, 192)),
-        Species.Bison => new(130, 190, 0.020, 0.023, new(0.0066, 3, 8, 240, 400)),
-        Species.Megaloceros => new(140, 190, 0.020, 0.033, new(0.0014, 2, 3, 48, 96)),
-        Species.Mammoth => new(120, 200, 0.004, 0.032, null),
-        Species.Wolf => new(110, 150, 0.020, 1.0 / 700, new(1.0 / 3500, 3, 8, 48, 80)),
-        Species.Hyena => new(110, 170, 0.015, 1.0 / 850, new(1.0 / 3200, 3, 6, 64, 112)),
-        Species.Raven => new(100, 180, 0.020, 0.05, new(0.0040, 3, 6, 150, 250)),
-        Species.Fox => new(100, 150, 0.010, 0.01, new(0.0008, 1, 2, 64, 128)),
-        // A bear's cub leaves as a herd of its own on its mother's land (Born).
-        Species.Bear => new(100, 140, 0.004, 0.022, new(0.0012, 1, 1, 64, 128)),
-        Species.CaveBear => new(100, 140, 0.004, 0.022, null), // its den is a cave
+        Species.Caribou => new(135, 190, 0.030, 0.0035, new(0.0035, 5, 15)),
+        Species.Bison => new(130, 190, 0.020, 0.011, new(0.0066, 3, 8)),
+        Species.Megaloceros => new(140, 190, 0.020, 0.0026, new(0.0014, 2, 3)),
+        Species.Mammoth => new(120, 200, 0.004, 0.0019, null),
+        Species.Wolf => new(110, 150, 0.020, 1.0 / 2500, new(1.0 / 3500, 3, 8)),
+        Species.Hyena => new(110, 170, 0.015, 1.0 / 1150, new(1.0 / 3200, 3, 6)),
+        Species.Raven => new(100, 180, 0.020, 0.0057, new(0.0040, 3, 6)),
+        Species.Fox => new(100, 150, 0.010, 0.0005, new(0.0008, 1, 2)),
+        Species.Bear => new(100, 140, 0.004, 0.0009, new(0.0012, 1, 1)),
+        Species.CaveBear => new(100, 140, 0.004, 0.0012, null), // its den is a cave
         // A dead megafauna hunter stays dead and none arrive. People and small game are not herds.
         Species.SaberTooth or Species.Human or Species.Hare => null,
     };
 
-    public const int PreyRangeTiles = 40;
     const double ArrivalsPerDay = 0.05; // at the valley's full deficit
 
-    /// Once a day, at midnight. Each animal rolls on its own stream (renewal) in id order, arrivals on the valley's.
-    /// An animal in a fight neither thins nor gives birth that day.
+    /// At midnight each animal rolls on its own stream against its species' capacity and count at midnight; one in a fight does not.
     public static void Renew(World world, List<WorldEvent> events)
     {
         if (Weather.MinuteOfDay(world.Minute) != 0) return;
         int day = Weather.DayOfYear(world.Minute);
+        var capacities = new Dictionary<Species, double>();
+        var counts = new Dictionary<Species, int>();
+        foreach (var a in world.Agents.Values)
+            if (a.Mind is HerdMind && Sim.IsAlive(a)) counts[a.Species] = counts.GetValueOrDefault(a.Species) + 1;
         foreach (var herd in world.Agents.Values.Where(a => a.Mind is HerdMind).ToList())
         {
             if (!world.Agents.ContainsKey(herd.Id) || Combat.EncounterOf(world, herd.Id) != null || RenewalOf(herd.Species) is not RenewalRow row) continue;
             var rng = world.Rng("renewal", herd.Id);
-            double capacity = CapacityOf(world, herd), current = CurrentFor(world, herd);
+            if (!capacities.TryGetValue(herd.Species, out double capacity)) capacities[herd.Species] = capacity = Capacity(world, herd.Species);
+            double current = counts.GetValueOrDefault(herd.Species);
             if (current > capacity && Thins(herd.Species))
             {
                 Thin(world, herd, row.BirthsPerHeadPerDay * (current - capacity) / current, rng, events);
@@ -58,8 +58,7 @@ public static partial class Fauna
 
     static double Deficit(double capacity, double current) => capacity <= 0 ? 0 : Math.Max(0, (capacity - current) / capacity);
 
-    /// What lives on kills follows them down. Grazers, browsers and bears only stop giving birth when full.
-    /// A herd Populate put over capacity should not starve, and a cave bear's land (cave floor) carries nothing measurable.
+    /// What lives on kills follows them down; the rest only stop giving birth when full.
     static bool Thins(Species s) => BehaviorOf(s) is HerdBehavior.Pack or HerdBehavior.Scavenger or HerdBehavior.Opportunist;
 
     /// The birth rate run backwards, so a species falls toward capacity as fast as it would grow toward it.
@@ -78,14 +77,14 @@ public static partial class Fauna
 
     static void Born(World world, Agent mother)
     {
-        var young = world.Agent(Agents.Spawn(world, mother.Species, mother.Tile, [.. MindOf(mother).Territory]));
+        var young = world.Agent(Agents.Spawn(world, mother.Species, mother.Tile, MindOf(mother).Den));
         Inherit(world, mother, young);
     }
 
     /// Beyond the farthest anyone can see, so nobody sees a herd appear from nothing.
     public const int ArrivalClearanceTiles = Sight.MaxTiles;
 
-    /// Species in order, each with chance ArrivalsPerDay x the valley's deficit; no more members than the land has room for.
+    /// Species in order, each with chance ArrivalsPerDay x the valley's deficit; no more members than the valley has room for.
     static void Arrive(World world)
     {
         var rng = world.Rng("arrivals");
@@ -98,25 +97,23 @@ public static partial class Fauna
             var land = ArrivalLand(world, species);
             if (land.Count == 0) continue;
             var start = land[rng.NextInt(land.Count)];
-            var territory = Territory(Map.Of(world), start, land, a.MinTiles + rng.NextInt(a.MaxTiles - a.MinTiles + 1), rng);
-            int members = a.MinMembers + rng.NextInt(a.MaxMembers - a.MinMembers + 1);
-            if (territory.Count < 3) continue;
-            double room = CapacityOn(world, species, territory) - CurrentOn(world, species, territory);
-            members = Math.Min(members, (int)Math.Floor(room));
-            if (members < a.MinMembers) continue;
-            Agents.SpawnGroup(world, species, start, members, territory);
+            // No more than either number allows: what draws them in, nor what the valley carries of them.
+            double room = Math.Min(capacity, Capacity(world, species)) - current;
+            int members = Math.Min(a.MinMembers + rng.NextInt(a.MaxMembers - a.MinMembers + 1), (int)Math.Floor(room));
+            if (members < a.MinMembers || Reach(Map.Of(world), start, land, SpacingTiles).Count < 3) continue;
+            Agents.SpawnGroup(world, species, start, members);
         }
     }
 
-    /// Open land off the packs' land for a predator (as Populate keeps them) and out of everyone's sight.
+    /// Open land out of everyone's sight, and for a predator off the ground around the packs' dens (as Populate spaces them).
     static List<TileId> ArrivalLand(World world, Species species)
     {
         var people = world.Agents.Values.Where(a => a.Mind is PersonMind && Sim.IsAlive(a)).Select(a => a.Tile).ToList();
-        var packs = IsPredator(species)
-            ? world.Agents.Values.Where(a => a.Mind is HerdMind && BehaviorOf(a.Species) == HerdBehavior.Pack && Sim.IsAlive(a))
-                .SelectMany(a => MindOf(a).Territory).ToHashSet()
+        var dens = IsPredator(species)
+            ? world.Agents.Values.Where(a => a.Mind is HerdMind { Den: not null } && BehaviorOf(a.Species) == HerdBehavior.Pack && Sim.IsAlive(a))
+                .Select(a => MindOf(a).Den!.Value).Distinct().ToList()
             : [];
-        return [.. OpenLand(world).Where(t => !packs.Contains(t) && people.All(p => MapGen.Manhattan(p, t) > ArrivalClearanceTiles))];
+        return [.. OpenLand(world).Where(t => dens.All(d => MapGen.Manhattan(d, t) > SpacingTiles) && people.All(p => MapGen.Manhattan(p, t) > ArrivalClearanceTiles))];
     }
 
     public static double ValleyCapacity(World world, Species species) =>
@@ -143,46 +140,9 @@ public static partial class Fauna
 
     public static bool IsMegafauna(Species s) => s is Species.Mammoth or Species.SaberTooth;
 
-    /// Derived from its pools and never saved.
-    public static double CapacityOf(World world, Agent herd) => CapacityOn(world, herd.Species, MindOf(herd).Territory);
-
-    /// The den is the land's first tile.
-    public static double CapacityOn(World world, Species species, IReadOnlyList<TileId> land) =>
-        RenewalOf(species) is RenewalRow row ? CapacityScore(world, species, land) * row.CapacityPerScore : 0;
-
-    public static double CapacityScore(World world, Agent herd) => CapacityScore(world, herd.Species, MindOf(herd).Territory);
-
-    static double CapacityScore(World world, Species species, IReadOnlyList<TileId> land)
-    {
-        var diet = DietOf(species);
-        return diet == Diet.Carnivore ? PreyKgNear(world, land[0]) : land.Sum(t => ForageScore(world, t, diet));
-    }
-
-    static double CurrentFor(World world, Agent herd) => CurrentOn(world, herd.Species, MindOf(herd).Territory);
-
-    /// Animals whose land overlaps share what it carries rather than each filling it; a newborn on a copy of its
-    /// mother's land counts whole there; meat-eaters count each other by how far their dens' ranges overlap.
-    static double CurrentOn(World world, Species species, IReadOnlyList<TileId> land)
-    {
-        bool meat = DietOf(species) == Diet.Carnivore;
-        var tiles = meat ? null : land.ToHashSet();
-        double current = 0;
-        foreach (var other in world.Agents.Values)
-        {
-            if (other.Species != species || other.Mind is not HerdMind mind) continue;
-            if (!Sim.IsAlive(other)) continue;
-            current += meat ? RangeOverlap(mind.Territory[0], land[0]) : mind.Territory.Count(tiles!.Contains) / (double)mind.Territory.Count;
-        }
-        return current;
-    }
-
-    /// Overlap of two equal diamonds (open ground assumed, edges and walls ignored): 1 for the same den, 0 beyond twice the range.
-    static double RangeOverlap(TileId a, TileId b)
-    {
-        double side = 2 * PreyRangeTiles + 1;
-        int du = Math.Abs(a.X + a.Y - b.X - b.Y), dv = Math.Abs(a.X - a.Y - b.X + b.Y);
-        return Math.Max(0, 1 - du / side) * Math.Max(0, 1 - dv / side);
-    }
+    /// How many of the species the map carries (RenewalOf's CapacityPerScore x ValleyScore): derived, never saved.
+    public static double Capacity(World world, Species species) =>
+        RenewalOf(species) is RenewalRow row ? ValleyScore(world, species) * row.CapacityPerScore : 0;
 
     /// Generation's, not today's: grazing regrows and herds move on, so renewal reads the land, not this week's grass.
     public static double ForageScore(World world, TileId tile, Diet diet)
@@ -192,7 +152,4 @@ public static partial class Fauna
         return pool.Items.Where(i => eats.Contains(i.Resource)).Sum(i => pool.Density * i.Abundance);
     }
 
-    public static double PreyKgNear(World world, TileId tile) =>
-        Nearby.Within(world, tile, PreyRangeTiles).Where(a => a.Mind is HerdMind && IsQuarry(a.Species))
-            .Where(Sim.IsAlive).Sum(a => a.Body.WeightKg);
 }

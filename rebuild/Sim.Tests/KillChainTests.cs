@@ -380,7 +380,7 @@ public class KillChainTests
             var npc = Npc.Spawn(w, Map.Step(camp, Direction.East));
             w.Agent(npc).Body.BloodPct = 0;
             Body.MarkDead(w.Agent(npc).Body, w.Minute, new Cause(null, "the cold"));
-            Animals.Spawn(w, Species.Raven, Map.Step(Map.Step(camp, Direction.North), Direction.North), 4, [Map.Step(Map.Step(camp, Direction.North), Direction.North), camp]);
+            Animals.Spawn(w, Species.Raven, Map.Step(Map.Step(camp, Direction.North), Direction.North), 4);
             return w;
         }
         var whole = Make();
@@ -404,7 +404,7 @@ public class KillChainTests
         var c = Caribou(w, tile);
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 6);
-        var ravens = Animals.Spawn(w, Species.Raven, start, 5, [start, tile]);
+        var ravens = Animals.Spawn(w, Species.Raven, start, 5);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
         for (int i = 0; i < 6 * 60 && w.Agent(ravens).Tile != tile; i++) Sim.Advance(w, 1);
         Assert.Equal(tile, w.Agent(ravens).Tile);
@@ -425,7 +425,7 @@ public class KillChainTests
         var c = Caribou(w, tile);
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 5);
-        var raven = Animals.Spawn(w, Species.Raven, start, 1, [start, tile]);
+        var raven = Animals.Spawn(w, Species.Raven, start, 1);
         TestKit.SetHunger(w.Agent(raven), 1);
         for (int i = 0; i < 6 * 60 && w.Agent(raven).Tile != tile; i++) Sim.Advance(w, 1);
         Assert.Equal(tile, w.Agent(raven).Tile);
@@ -445,7 +445,7 @@ public class KillChainTests
         var c = Caribou(w, tile);
         double meat = Carcasses.MeatKg(c);
         var start = new TileId(tile.X, tile.Y + 4);
-        var fox = Animals.Spawn(w, Species.Fox, start, 1, [start, tile]);
+        var fox = Animals.Spawn(w, Species.Fox, start, 1);
         Assert.Null(Traversal.FlightMinutesPerTile(w.Agent(fox)));
         var crossed = new HashSet<TileId> { start };
         for (int i = 0; i < 6 * 60 && w.Agent(fox).Tile != tile; i++)
@@ -472,7 +472,7 @@ public class KillChainTests
         Caribou(w, tile);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
-        var ravens = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
+        var ravens = Animals.Spawn(w, Species.Raven, tile, 4);
         foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.9);
         double held = ravens.In(w).Sum(r => r.Body.CaloriesKcal);
         for (int i = 0; i < 30; i++)
@@ -494,7 +494,7 @@ public class KillChainTests
         Caribou(w, tile);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         var start = new TileId(tile.X, tile.Y + 3);
-        var fox = Animals.Spawn(w, Species.Fox, start, 1, [start, tile]);
+        var fox = Animals.Spawn(w, Species.Fox, start, 1);
         for (int i = 0; i < 120; i++)
         {
             foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
@@ -511,9 +511,8 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
-        foreach (var wolf in wolves.In(w)) Fauna.MindOf(wolf).State = HerdState.Resting;
         var start = new TileId(tile.X - 5, tile.Y);
-        var ravens = Animals.Spawn(w, Species.Raven, start, 4, [start, tile]);
+        var ravens = Animals.Spawn(w, Species.Raven, start, 4);
         for (int i = 0; i < 6 * 60 && w.Agent(ravens).Tile != w.Agent(wolves).Tile; i++) Sim.Advance(w, 1);
         Assert.Equal(w.Agent(wolves).Tile, w.Agent(ravens).Tile);
         var sign = Signs.At(w, w.Agent(ravens).Tile).Single(s => s.Kind == SignKind.RavensOver);
@@ -530,12 +529,12 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
         var c = Caribou(w, tile);
-        Animals.Spawn(w, Species.Fox, tile, 1, [tile]);
+        Animals.Spawn(w, Species.Fox, tile, 1);
         Assert.False(Tags.Of(w, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id)).HasFlag(Tag.Beacon));
         Assert.DoesNotContain(Report.Finds(w), f => f.Text.Contains("ravens"));
         var by = Map.Step(tile, Direction.North);
         Animals.Spawn(w, Species.Wolf, by, 3);
-        Animals.Spawn(w, Species.Fox, by, 1, [by]);
+        Animals.Spawn(w, Species.Fox, by, 1);
         Assert.DoesNotContain(Signs.At(w, by), s => s.Kind == SignKind.RavensOver);
     }
 
@@ -546,7 +545,7 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(camp, Direction.West);
         Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
-        var ravens = Animals.Spawn(w, Species.Raven, tile, 4, [tile]);
+        var ravens = Animals.Spawn(w, Species.Raven, tile, 4);
         foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(ravens)));
         w.Agent(P).Tile = tile;
@@ -717,17 +716,17 @@ public class KillChainTests
 public class ArrivalsSeed123Tests(ITestOutputHelper output)
 {
     /// A valley with mammoths, all taken out.
-    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => RenewalTests.ArrivalsRun(123, output);
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToItsRoom_OutOfSight() => RenewalTests.ArrivalsRun(123, output);
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class ArrivalsSeed17Tests(ITestOutputHelper output)
 {
-    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => RenewalTests.ArrivalsRun(17, output);
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToItsRoom_OutOfSight() => RenewalTests.ArrivalsRun(17, output);
 }
 
 [Trait("Category", TestCategories.Slow)]
 public class ArrivalsSeed42Tests(ITestOutputHelper output)
 {
-    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToTheirLand_OutOfSight() => RenewalTests.ArrivalsRun(42, output);
+    [Fact] public void Herds_ArriveWhereTheValleyIsEmpty_SizedToItsRoom_OutOfSight() => RenewalTests.ArrivalsRun(42, output);
 }

@@ -29,16 +29,14 @@ public class PredatorEngagementTests(ITestOutputHelper output)
 
     static TileId East(TileId t, int tiles) => new(t.X + tiles, t.Y);
 
-    static AgentId Pack(World w, TileId tile, int count = 3, double hunger = 0.75, HerdState state = HerdState.Patrolling)
+    /// The tests' minutes (Night, Noon) fall on its stalking clock (Fauna.ComeForPeople, every half hour).
+    static AgentId Pack(World w, TileId tile, int count = 3, double hunger = 0.75)
     {
-        var pack = Agents.SpawnGroup(w, Species.Wolf, tile, count, [tile]);
+        var pack = Agents.SpawnGroup(w, Species.Wolf, tile, count);
         foreach (var wolf in pack)
         {
             CombatTests.Normalize(w, wolf);
             TestKit.SetHunger(w.Agent(wolf), hunger);
-            var mind = (HerdMind)w.Agent(wolf).Mind;
-            mind.State = state;
-            mind.StateSinceMinute = w.Minute - 30; // due to sniff the air this minute (DecidePack's patrol clock)
         }
         return pack[0];
     }
@@ -163,7 +161,6 @@ public class PredatorEngagementTests(ITestOutputHelper output)
 
         if (change == "fire") StrongFire(w, here);
         else Npc.Spawn(w, here);
-        ((HerdMind)w.Agent(pack).Mind).StateSinceMinute = w.Minute - 30;
         var (then, _) = Fauna.Decide(w, w.Agent(pack), []);
         // Still hungry, it may roam off for prey (a food plan to a tile that pays nothing), whichever way that lies.
         bool roaming = Fauna.MindOf(w.Agent(pack)).Plan is { Stat: Stat.Food, At: not null, PerMinute: 0 };
@@ -199,7 +196,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
     {
         var (w, here) = Open(Noon);
         Fed(w);
-        var pack = Pack(w, East(here, 5), hunger: 0.05, state: HerdState.Resting);
+        var pack = Pack(w, East(here, 5), hunger: 0.05);
         var first = Sim.Step(w, new Rest(P), 120);
         Assert.Equal(StepOutcome.Interrupted, first.Outcome);
         Assert.Equal(Sim.PredatorInSight, first.Reason);
@@ -220,7 +217,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
     {
         var (w, here) = Open(Noon);
         Fed(w);
-        Pack(w, East(here, 6), hunger: 0.05, state: HerdState.Resting);
+        Pack(w, East(here, 6), hunger: 0.05);
         Sim.Step(w, new Rest(P), 1); // seen
         var r = Sim.Step(w, new Travel(P, Direction.East), 30);
         Assert.Equal(Traversal.Arrived, r.Reason);
@@ -231,7 +228,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
     {
         var (w, here) = Open(Noon);
         Fed(w);
-        Pack(w, East(here, 5), hunger: 0.05, state: HerdState.Resting);
+        Pack(w, East(here, 5), hunger: 0.05);
         var r = Sim.Step(w, new Sleep(P), 30);
         Assert.NotEqual(Sim.PredatorInSight, r.Reason);
     }
@@ -243,7 +240,7 @@ public class PredatorEngagementTests(ITestOutputHelper output)
         var npc = Person(w, here, player: false);
         var rest = new Rest(npc);
         w.Agent(npc).Doing = new Doing { Plain = rest, MinutesLeft = 120 };
-        Pack(w, East(here, 5), hunger: 0.05, state: HerdState.Resting);
+        Pack(w, East(here, 5), hunger: 0.05);
         for (int i = 0; i < Memories.GlanceMinutes && w.Agent(npc).Doing?.Activity == rest; i++) Sim.Advance(w, 1);
         Assert.NotSame(rest, w.Agent(npc).Doing?.Activity);
     }

@@ -28,7 +28,6 @@ public class PackTests(ITestOutputHelper output)
     {
         var w = PlannerTests.Strip();
         var bison = Agents.SpawnGroup(w, Species.Bison, T(26), 4);
-        foreach (var b in bison) Fauna.MindOf(w.Agent(b)).State = HerdState.Resting;
         var pack = Wolves(w, T(20), wolves, hunger: 0.8);
         var fought = new List<WorldEvent>();
         for (int i = 0; i < 6 * 60 && fought.Count == 0; i++)
@@ -57,16 +56,17 @@ public class PackTests(ITestOutputHelper output)
         Assert.True(apart < 60, $"the pack was spread over more than a tile for {apart} minutes");
     }
 
-    /// Unfamiliar wolves are rivals: two packs whose land overlaps keep apart, giving way when they come near.
+    /// Unfamiliar wolves are rivals: two hungry packs three tiles apart with nothing to hunt range about, and keep apart,
+    /// giving way when they come near.
     [Fact]
     public void RivalPacks_GiveWay_AndKeepApart()
     {
+        const double Hungry = 0.8;
         var w = PlannerTests.Strip();
-        // Dens three tiles apart, and each pack's land runs over the other's.
-        var land = Enumerable.Range(16, 9).Select(x => T(x)).ToList();
-        var one = Agents.SpawnGroup(w, Species.Wolf, T(18), 3, [T(18), .. land]).Select(w.Agent).ToList();
-        var other = Agents.SpawnGroup(w, Species.Wolf, T(22), 3, [T(22), .. land]).Select(w.Agent).ToList();
-        foreach (var wolf in one.Concat(other)) TestKit.SetHunger(wolf, 0);
+        // Dens three tiles apart.
+        var one = Agents.SpawnGroup(w, Species.Wolf, T(18), 3).Select(w.Agent).ToList();
+        var other = Agents.SpawnGroup(w, Species.Wolf, T(22), 3).Select(w.Agent).ToList();
+        foreach (var wolf in one.Concat(other)) TestKit.SetHunger(wolf, Hungry);
         Assert.DoesNotContain(other, o => Fauna.IsKin(one[0], o));
         int together = 0;
         var visited = new HashSet<TileId>();
@@ -74,12 +74,12 @@ public class PackTests(ITestOutputHelper output)
         {
             Sim.Advance(w, 1);
             foreach (var wolf in one.Concat(other)) visited.Add(wolf.Tile);
-            if (i % 60 == 0) foreach (var wolf in one.Concat(other)) TestKit.SetHunger(wolf, 0);
+            if (i % 60 == 0) foreach (var wolf in one.Concat(other)) TestKit.SetHunger(wolf, Hungry);
             if (one.Any(a => other.Any(b => MapGen.Manhattan(a.Tile, b.Tile) <= 1))) together++;
         }
         output.WriteLine($"within a tile of each other {together} of {24 * 60} minutes; tiles {visited.Count}");
-        Assert.True(visited.Count >= 5, $"the packs kept to {visited.Count} tiles: they never ranged over their land");
-        // Left alone they stand beside each other half the day (767 minutes); giving way, a pack steps off and patrols back.
+        Assert.True(visited.Count >= 5, $"the packs kept to {visited.Count} tiles: they never ranged");
+        // Giving way, a pack steps off a rival it has just seen.
         Assert.True(together < 240, $"the rival packs were within a tile of each other {together} minutes");
         Assert.DoesNotContain(other, o => one.Any(a => Fauna.IsKin(a, o)));
     }
@@ -138,7 +138,7 @@ public class PackTests(ITestOutputHelper output)
                 for (int skip = 0; skip < seed; skip++) Agents.Remove(w, Agents.Spawn(w, Species.Hare, tile));
                 Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 110, 0.08, 0.47), new Cause(null, "a test"));
                 var pack = Wolves(w, tile, wolves, hunger: 0.3);
-                foreach (var wolf in pack) Fauna.MindOf(wolf).State = HerdState.Feeding;
+                foreach (var wolf in pack) Fauna.MindOf(wolf).Choice = new Feed(wolf.Id);
                 Assert.True(Fauna.HoldsAKill(w, pack[0]));
                 var hunter = Npc.Spawn(w, tile);
                 var spear = Items.Make("wooden_spear");

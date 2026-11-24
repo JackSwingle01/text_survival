@@ -1,14 +1,11 @@
 namespace Survival;
 
-/// Ravens and foxes (HerdBehavior.Opportunist) eat forage, piles and carrion (carcass meat, a dead person's flesh), on
-/// the planner (Fauna.Needs) when hungry; these are the rules over it. Every take goes through its owning system via Access.
+/// Ravens and foxes (Opportunist) eat forage, piles and carrion on the planner when hungry; these are the rules over it.
 public static partial class Fauna
 {
     public const int CarrionRangeTiles = 10;
     const int CarrionLookEveryMinutes = 10;
-    /// Judgment: about one raid in eight hours of a camp left alone.
     const double RaidChancePerMinute = 0.002, RaidKgPerMember = 0.05;
-    const double CarrionDriftChance = 0.05, ForageWhenHungrier = 0.5;
 
     public static bool Flies(Species s) => SpeciesTable.Of(s).FlightMinutesPerTile != null;
 
@@ -19,47 +16,27 @@ public static partial class Fauna
     static bool WalkerKeepsOff(World world, Agent herd, TileId tile) =>
         BehaviorOf(herd.Species) == HerdBehavior.Opportunist && !Flies(herd.Species) && PredatorAt(world, tile);
 
-    static (Activity, int) DecideOpportunist(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
+    /// A scavenger's rules: off a held kill; an opportunist's raid, and on the look clock to an attractor, perching there.
+    static (Activity, int)? Scavenge(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
-        if (CanFeed(world, herd))
-        {
-            if (!PredatorAt(world, herd.Tile))
-            {
-                if (mind.State != HerdState.Feeding) Become(world, mind, HerdState.Feeding);
-                return (new Feed(herd.Id), 1);
-            }
-            return KeepOff(world, herd, mind, events);
-        }
-        if (mind.State == HerdState.Feeding) Become(world, mind, HerdState.Resting);
+        if (HeldKill(world, herd)) return KeepOff(world, herd, mind, events);
+        if (BehaviorOf(herd.Species) != HerdBehavior.Opportunist) return null;
+        if (CanFeed(world, herd)) return (new Feed(herd.Id), 1);
         if (RaidRefusal(world, herd) == null && Roll(world, herd, RaidChancePerMinute)) return (new Raid(herd.Id), 1);
-        if (StateMinutes(world, mind) % CarrionLookEveryMinutes != 0) return Wait(herd);
-        if (Attractor(world, herd) is TileId goal)
-        {
-            if (goal == herd.Tile) return Perch(world, herd, mind);
-            if (mind.State != HerdState.Patrolling) Become(world, mind, HerdState.Patrolling);
-            return TowardNearest(world, herd, [goal]) ?? Wait(herd);
-        }
-        if (mind.State != HerdState.Patrolling) Become(world, mind, HerdState.Patrolling);
-        if (Roll(world, herd, CarrionDriftChance) && PatrolStep(world, herd, mind) is { } drift) return drift;
-        return Hunger(herd) > ForageWhenHungrier && GrazeRefusal(world, herd) == null ? (new Graze(herd.Id), 1) : Wait(herd);
+        if (world.Minute % CarrionLookEveryMinutes != 0 || Attractor(world, herd) is not TileId goal) return null;
+        return goal == herd.Tile ? Wait(herd) : TowardNearest(world, herd, [goal]);
     }
 
-    /// A flyer perches over a kill a predator holds until it has gone; a walker gets off the tile.
     static (Activity, int) KeepOff(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
-        if (Flies(herd.Species)) return Perch(world, herd, mind);
+        if (Flies(herd.Species)) return Wait(herd);
         StartFleeing(world, mind, herd.Tile);
-        return Flee(world, herd, mind, HerdBehavior.Opportunist, events);
+        return Flee(world, herd, mind, events);
     }
 
+    /// A scavenger (an opportunist, a hyena) at meat a predator of another kind is on gives the kill up to it.
     static bool HeldKill(World world, Agent herd) =>
-        BehaviorOf(herd.Species) == HerdBehavior.Opportunist && CanFeed(world, herd) && PredatorAt(world, herd.Tile);
-
-    static (Activity, int) Perch(World world, Agent herd, HerdMind mind)
-    {
-        if (mind.State != HerdState.Resting) Become(world, mind, HerdState.Resting);
-        return Wait(herd);
-    }
+        BehaviorOf(herd.Species) is HerdBehavior.Opportunist or HerdBehavior.Scavenger && CanFeed(world, herd) && PredatorAt(world, herd.Tile, herd.Species);
 
     /// Flesh, else (a flyer's) a predator herd, else a burning fire; a walker shuns held flesh. Ties go to the lower tile.
     static TileId? Attractor(World world, Agent herd)
@@ -83,8 +60,8 @@ public static partial class Fauna
     static TileId? Nearest(TileId from, HashSet<TileId> tiles) =>
         tiles.Count == 0 ? null : tiles.OrderBy(t => MapGen.Manhattan(t, from)).ThenBy(t => t).First();
 
-    static bool PredatorAt(World world, TileId tile) =>
-        AnimalsAt(world, tile).Any(h => IsPredator(h.Species) && Sim.IsAlive(h));
+    static bool PredatorAt(World world, TileId tile, Species? other = null) =>
+        AnimalsAt(world, tile).Any(h => IsPredator(h.Species) && h.Species != other && Sim.IsAlive(h));
 
     public static Agent? RavensAt(World world, TileId tile) =>
         AnimalsAt(world, tile).FirstOrDefault(h => IsRaven(h.Species) && Sim.IsAlive(h));
@@ -114,7 +91,7 @@ public static partial class Fauna
                 kcal += kg * Items.Resources[r].KcalPerKg;
             }
         if (taken <= 0) return;
-        Nourish(herd, kcal); // what it carries off beyond its room is spoiled and scattered
+        Nourish(herd, kcal);
         mind.LastFedMinute = world.Minute;
     }
 }

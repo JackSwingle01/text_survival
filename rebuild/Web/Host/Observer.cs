@@ -94,18 +94,19 @@ public sealed class Observer
             HostJson.Default.TileDto);
     }
 
-    /// What is going on inside an actor, in lines: a person's stats by tier and effects; a herd's state and hunger.
+    /// What is going on inside an actor, in lines: a person's stats by tier and effects; an animal's last choice and hunger.
     List<string> Insides(Agent a)
     {
         var w = W;
         var lines = new List<string>();
         if (a.Mind is HerdMind h)
         {
-            lines.Add($"State: {Words.Of(h.State)} for {Ago(w.Minute - h.StateSinceMinute)}");
+            if (h.Choice is { } chose) lines.Add($"Chose: {chose.GetType().Name}");
+            if (Fauna.Fleeing(h)) lines.Add("Running");
             lines.Add($"Herd: {Fauna.HerdOf(w, a).Count} here");
             lines.Add($"Fear: {h.Fear:P0}");
             if (h.LastFedMinute > HerdMind.Never) lines.Add($"Last fed: {Ago(w.Minute - h.LastFedMinute)} ago");
-            lines.Add($"Territory: {h.Territory.Count} tiles");
+            if (h.Den is { } den) lines.Add($"Den: {den.X},{den.Y}");
             // A roam: a food plan to a tile that pays nothing there (Needs.Roam).
             if (h.Plan is { Stat: Stat.Food, At: { } f, PerMinute: <= 0 }) lines.Add($"Ranging to {f.X},{f.Y}");
             return lines;
@@ -137,7 +138,7 @@ public sealed class Observer
             if (!Shown(a)) continue;
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
-                a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.State is HerdState s ? Words.Of(s) : null,
+                a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.Choice?.GetType().Name,
                 a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round((double)cr.ElapsedMinutes / cr.TotalMinutes, 3) : null));
         }
         return list;

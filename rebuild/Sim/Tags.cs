@@ -106,7 +106,7 @@ public static class Tags
         if (a.Mind is HerdMind mind)
         {
             var units = enc?.Units.Where(u => u.Agent == a.Id && !u.Released && u.InField).ToList();
-            bool unaware = units is { Count: > 0 } ? units.All(u => u.Awareness == Awareness.Unaware) : mind.State != HerdState.Fleeing;
+            bool unaware = units is { Count: > 0 } ? units.All(u => u.Awareness == Awareness.Unaware) : !Fauna.Fleeing(mind);
             if (unaware) tags |= Tag.Unaware;
         }
         return tags;
@@ -149,7 +149,7 @@ public static class Tags
     public const double AfraidLevel = 0.5;
 
     internal static bool Attending(World world, Agent a, HerdMind mind) =>
-        mind.Fear <= AfraidLevel && mind.State is not (HerdState.Fleeing or HerdState.Hunting) && Combat.EncounterOf(world, a.Id) == null;
+        mind.Fear <= AfraidLevel && !Fauna.Fleeing(mind) && Combat.EncounterOf(world, a.Id) == null;
 
     static bool FireDefends(World world, TileId tile, AgentId viewer) =>
         world.Fires.Values.Any(f => (f.CarriedBy == viewer || f.CarriedBy == null && f.Tile == tile) && Fire.Burns(Fire.Phase(f)));
