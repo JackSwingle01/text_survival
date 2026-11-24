@@ -23,6 +23,10 @@ anything but the label, so the build slugs the issue title itself.
 Revised: no triage on `issues: edited` or comments. A parked issue carries `needs-user` and stays
 out of the queue until the label comes off, so `issues: unlabeled` is the event that matters.
 
+Revised (review): a run joins the concurrency group when queued, before `select`'s author or label check,
+so an event that would skip could cancel a real waiting run and then do nothing. Skipping events now
+get a group of their own (`issue-triage-skip-<run id>`, `issue-build-skip-<run id>`).
+
 Checked: actionlint on both workflows; the `list` and `ready` queues against fake issues (ready,
 ready with `needs-user`, ready with an open PR, ready from someone without write access, blocked).
 Not checked: a live run. Both workflows only take effect once on main.

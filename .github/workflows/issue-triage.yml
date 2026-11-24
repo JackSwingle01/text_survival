@@ -54,8 +54,15 @@ permissions:
   issues: write
   pull-requests: read
 
+# A run takes its place in the group when it is queued, before `select` checks who started it, and a
+# newer waiting run cancels the older one. So an event `select` would skip (an issue from someone
+# without write access) gets a group of its own: otherwise it could cancel a real waiting run and then
+# do nothing. The condition repeats `select`'s.
 concurrency:
-  group: issue-triage
+  group: >-
+    ${{ (github.event_name != 'issues' || github.event.action == 'unlabeled' ||
+    contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
+    && 'issue-triage' || format('issue-triage-skip-{0}', github.run_id) }}
   cancel-in-progress: false
 
 jobs:
