@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""The issue agent's queue (.github/workflows/issue-agent.yml): which open issues an unattended
-agent may pick up, oldest first. Every rule that keeps an issue out of the queue lives here, so the
-selector and the per-issue recheck cannot disagree.
+"""The issue agent's two queues: which open issues triage (.github/workflows/issue-triage.yml) and
+the build (.github/workflows/issue-build.yml) may pick up, oldest first. Every rule that keeps an
+issue out of either queue lives here, so the selectors and the per-issue recheck cannot disagree.
+The `ready-for-agent` label is the hand-off: triage adds it, the build takes only issues carrying it.
 
-  issue_queue.py list [N]   JSON array of eligible issue numbers, oldest first (only N if given).
-                            Each skipped issue and its reason goes to stderr.
-  issue_queue.py check N    exit 0 if N is still eligible, else print why and exit 1.
+  issue_queue.py list [N]   triage's queue: JSON array of eligible issue numbers, oldest first (only N
+                            if given). Each skipped issue and its reason goes to stderr.
+  issue_queue.py check N    exit 0 if N is still eligible for triage, else print why and exit 1.
+  issue_queue.py ready [N]  the build's queue: JSON {"eligible": [...], "stale": [...]}, oldest first
+                            (only N if given). Stale issues carry the label but fail a rule now (a PR
+                            opened, a blocker linked); the build takes the label off them.
   issue_queue.py brief N    the issue and its comments from people with write access, then the facts
                             an agent would otherwise fetch: referenced issues and their state, GitHub
                             links, open PRs, and whether each repo path it names exists. Markdown.
@@ -22,6 +26,8 @@ import sys
 
 REPO = os.environ["GITHUB_REPOSITORY"]
 NEEDS_USER = "needs-user"
+READY = "ready-for-agent"
+WORKING = "agent-working"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 # Issues the daily ratchet run (.github/workflows/ratchet.yml) files with this repo's GITHUB_TOKEN.
@@ -89,7 +95,7 @@ def skip_reason(issue, repo):
     (author, labels, PRs, branches, native links) are checked here. Whether the issue itself is
     ready, a design ticket, a map or blocked in its text is triage's judgement."""
     n = issue["number"]
-    labels = {label["name"] for label in issue["labels"]}
+    labels = labels_of(issue)
     from_ratchet_run = issue["user"]["login"] == RATCHET_BOT and RATCHET_LABEL in labels
     if issue["author_association"] not in TRUSTED and not from_ratchet_run:
         return f"opened by {issue['user']['login']}, who has no write access"
@@ -102,6 +108,22 @@ def skip_reason(issue, repo):
     if blockers := open_blockers(issue):
         return "blocked by open " + ", ".join(f"#{b}" for b in blockers)
     return None
+
+
+def labels_of(issue):
+    return {label["name"] for label in issue["labels"]}
+
+
+def triage_skip_reason(issue, repo):
+    """An issue triage already found ready waits for the build; remove the label to triage it again.
+    An issue a build is working on has no pushed branch yet, so only its label says it is taken. A label
+    left by a killed build holds its issue back until the next build run clears it, at most an hour."""
+    labels = labels_of(issue)
+    if READY in labels:
+        return f"labelled {READY}: waiting for the build"
+    if WORKING in labels:
+        return f"labelled {WORKING}: a build is working on it"
+    return skip_reason(issue, repo)
 
 
 def try_api(path, what):
@@ -237,14 +259,23 @@ def main(argv):
         for issue in open_issues():
             if number is not None and issue["number"] != number:
                 continue
-            reason = skip_reason(issue, repo)
+            reason = triage_skip_reason(issue, repo)
             print(f"#{issue['number']} {issue['title']}: {reason or 'queued'}", file=sys.stderr)
             if reason is None:
                 eligible.append(issue["number"])
         print(json.dumps(eligible))
+    elif command == "ready":
+        repo, eligible, stale = Repo(), [], []
+        for issue in open_issues():
+            if READY not in labels_of(issue) or (number is not None and issue["number"] != number):
+                continue
+            reason = skip_reason(issue, repo)
+            print(f"#{issue['number']} {issue['title']}: {reason or 'ready'}", file=sys.stderr)
+            (stale if reason else eligible).append(issue["number"])
+        print(json.dumps({"eligible": eligible, "stale": stale}))
     elif command == "check":
         issue = api(f"repos/{REPO}/issues/{number}")
-        reason = "closed" if issue["state"] != "open" else skip_reason(issue, Repo())
+        reason = "closed" if issue["state"] != "open" else triage_skip_reason(issue, Repo())
         if reason:
             print(f"#{number} is no longer eligible: {reason}")
             return 1

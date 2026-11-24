@@ -68,10 +68,12 @@ For the clean-room rebuild (`rebuild/`):
 
 ### The issue agent
 
-`.github/workflows/issue-agent.yml` picks up every open issue written by someone with write access,
-oldest first, within the hour: when it is opened, when any issue closes, hourly, or on a manual
-run. Sonnet triages it; a ready one is built by Opus through `mp:implement` (seams chosen and
-logged, nobody asked) and ends as a PR into `main`. How it works is in the workflow's header. To
+Two workflows. `.github/workflows/issue-triage.yml` triages every open issue written by someone
+with write access, oldest first, within the hour: when it is opened, when any issue closes, when a
+label comes off, hourly, or on a manual run. Sonnet reads it; a ready one gets the
+`ready-for-agent` label. `.github/workflows/issue-build.yml` builds the oldest `ready-for-agent`
+issue, one per run, through `mp:implement` on Opus (seams chosen and logged, nobody asked), ending
+as a PR into `main`, and starts the next run while any remain. How each works is in its header. To
 get the outcome you want from an issue you write:
 
 - **Ready to build** means it says what to build, has acceptance criteria an agent can check, and
@@ -89,4 +91,7 @@ get the outcome you want from an issue you write:
   issue with that branch alone.
 - The agents read only what people with write access wrote: the issue, their comments, and the
   issues it mentions. Put decisions there, not in a PR thread.
-- To pause the agent, disable the workflow in the Actions tab.
+- **The build queue is the `ready-for-agent` label.** Add it by hand to build an issue without
+  triage; remove it to take an issue out of the build queue and send it back to triage.
+- To pause the agent, disable either workflow in the Actions tab: triage stops labelling, or the
+  build stops building and the labelled issues wait.

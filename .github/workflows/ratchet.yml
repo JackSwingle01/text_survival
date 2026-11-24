@@ -4,7 +4,7 @@ name: Ratchet
 # no open `ratchet` issue, .github/scripts/ratchets.py runs its remaining command and files the next
 # batch as an issue, or the retire step when nothing is left. The issue agent builds it like any
 # ticket (issue_queue.py trusts issues this workflow files: github-actions[bot] with the `ratchet`
-# label). Issues filed with GITHUB_TOKEN start no workflows, so the agent's hourly run picks them up.
+# label). Issues filed with GITHUB_TOKEN start no workflows, so triage's hourly run picks them up.
 # A new ratchet needs only a section in dev/ratchets.md, not a change here.
 #
 # Runs at 05:30 New York time. Cron is UTC only, so both offsets are scheduled and the job runs only
