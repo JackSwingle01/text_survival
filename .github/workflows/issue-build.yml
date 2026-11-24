@@ -213,12 +213,12 @@ jobs:
         timeout-minutes: 300
         uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1, 2026-11-20
         env:
-          # Background tasks are on: a headless run stays open after its last turn for background
-          # commands and sub-agents, and takes another turn with each result. This is how long it
-          # waits idle for sub-agents (the default is 10 minutes, then it drops them unheard). A
-          # background command holds the run open whatever this says, until the command's own time
-          # limit, which the prompt sets at 30 minutes.
-          CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: "1800000"
+          # Background tasks stay off. With them on, #107's build started its scout in the background
+          # and ended its turn to wait; a run with --json-schema is told to answer the moment a turn
+          # ends, so it answered needs_user 74 seconds in. Foreground sub-agents and commands hold the turn.
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+          # The longest one foreground command may ask for (the default limit stays 2 minutes).
+          BASH_MAX_TIMEOUT_MS: "1800000"
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Most builds are dispatched by triage or by the build before them, as github-actions,
@@ -242,12 +242,12 @@ jobs:
               one the issue says goes to Jack, a design or balance choice the spec does not make, or a gate
               in the acceptance criteria that fails. Then answer needs_user.
               Commit what you have locally, but do not push.
-            - A command that may take over two minutes (a Slow test by name, a gate, a probe) goes in the
-              background: Bash with `run_in_background` and `timeout: 1800000`. You get a turn with its
-              outcome when it ends, so carry on with other work or end your turn meanwhile. Without that
-              timeout it is stopped at 10 minutes; 30 minutes is the most any one command gets here. A
-              measurement that needs longer is left for a person: say in the PR's Evidence what was not
-              run and the command that runs it, and answer built if that is all that is missing.
+            - Background tasks are off here: there is no `run_in_background`, and a command is stopped
+              at two minutes unless you pass Bash a `timeout`, 1800000 (30 minutes) at most. Give a long
+              command (a Slow test by name, a gate, a probe) the timeout it needs and wait for it in
+              that one call; run several side by side inside one command, each with `&`, then `wait`.
+              A measurement that needs over 30 minutes is left for a person: say in the PR's Evidence
+              what was not run and the command that runs it, and answer built if that is all that is missing.
             - You are on branch ${{ steps.branch.outputs.branch }}, just made from origin/main. This
               checkout counts as the ticket's own worktree; the runner is disposable.
             - Finish by publishing: commit every change on this branch; write the PR's title to
