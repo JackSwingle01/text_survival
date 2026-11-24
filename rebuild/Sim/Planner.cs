@@ -69,4 +69,13 @@ public static class Planner
             return new Plan(ask.Stat, ask.Priority, source, [.. routes.RouteTo(source)], sourceAt(source)!.Value.PerMinute);
         return Stay();
     }
+
+    public static Plan? Toward(World world, AgentId who, WorldView view, Stat stat, Priority priority, TileId to)
+    {
+        if (world.Agent(who).Tile == to) return null;
+        bool reached = false;
+        var routes = Trip.Routes(world, who, MaxRouteMinutes, refused: priority == Priority.Critical ? null : view.Threat,
+            until: (t, _) => reached = t == to);
+        return reached ? new Plan(stat, priority, to, [.. routes.RouteTo(to)]) : null;
+    }
 }

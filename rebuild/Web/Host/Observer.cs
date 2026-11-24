@@ -106,7 +106,8 @@ public sealed class Observer
             lines.Add($"Fear: {h.Fear:P0}");
             if (h.LastFedMinute > HerdMind.Never) lines.Add($"Last fed: {Ago(w.Minute - h.LastFedMinute)} ago");
             lines.Add($"Territory: {h.Territory.Count} tiles");
-            if (h.Foray is { } f) lines.Add($"Ranging to {f.X},{f.Y}");
+            // A roam: a food plan to a tile that pays nothing there (Needs.Roam).
+            if (h.Plan is { Stat: Stat.Food, At: { } f, PerMinute: <= 0 }) lines.Add($"Ranging to {f.X},{f.Y}");
             return lines;
         }
         var b = a.Body;

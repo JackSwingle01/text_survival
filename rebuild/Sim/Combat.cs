@@ -304,6 +304,21 @@ public static partial class Combat
         return [new Fighter(lead), .. others.Take(extra).Select(id => new Fighter(id))];
     }
 
+    /// The herd sizes the kill-chance table tells apart: a herd of more fights as one of this many (SendSide's lead and three).
+    public const int KillChanceHerds = 4;
+
+    /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters kills, against a herd of the quarry this big,
+    /// measured from headless hunts (species.json killChances); 0 for a quarry the predator has no row for.
+    public static double KillChance(Species predator, int hunters, Species quarry, int herd)
+    {
+        if (hunters < 1 || herd < 1 || !Content.Tables.KillChances.TryGetValue(predator, out var quarries)
+            || !quarries.TryGetValue(quarry, out var rows)) return 0;
+        return rows[Math.Min(hunters, rows.Count) - 1][Math.Min(herd, KillChanceHerds) - 1];
+    }
+
+    /// Whether the predator has a kill chance for anything: what makes a meat-eater hunt.
+    public static bool Hunts(Species predator) => Content.Tables.KillChances.ContainsKey(predator);
+
     const double ActiveHoursBoldnessDelta = 0.1;
 
     /// How readily an animal comes at a target: species temperament, its side's numbers (Side)

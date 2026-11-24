@@ -922,21 +922,20 @@ public class HerdTests(ITestOutputHelper output)
         Assert.Equal(0.8 + lived * Fauna.MendPctPerMinute, body.BloodPct, 9);
     }
 
-    /// A starving pack's foray ends when it eats, whatever it eats: a carcass it found, not only its own kill.
+    /// A starving pack with a carcass on its tile eats it rather than roaming off for prey (was: a foray ends when it scavenges).
     [Fact]
-    public void AForayEnds_WhenThePackScavenges()
+    public void AStarvingPack_EatsTheCarcassItStandsOn_RatherThanRoaming()
     {
         var w = TestWorlds.New(1);
         var tile = Quiet(w);
         foreach (var id in w.Agents.Values.Where(x => x.Mind is HerdMind).Select(x => x.Id).ToList()) w.Agents.Remove(id);
         var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
         Combat.LeaveCarcass(w, tile, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
-        var minds = wolves.In(w).Select(Fauna.MindOf).ToList();
         foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0.95);
-        foreach (var mind in minds) (mind.Foray, mind.State) = (new TileId(tile.X + 10, tile.Y), HerdState.Patrolling);
-        Sim.Advance(w, 3);
-        Assert.All(minds, mind => Assert.Equal(HerdState.Feeding, mind.State));
-        Assert.All(minds, mind => Assert.Null(mind.Foray));
+        double before = wolves.In(w).Sum(a => a.Body.CaloriesKcal);
+        Sim.Advance(w, 30);
+        Assert.All(wolves.In(w), wolf => Assert.Equal(tile, wolf.Tile));
+        Assert.True(wolves.In(w).Sum(a => a.Body.CaloriesKcal) > before, "the pack never ate");
     }
 
 }
