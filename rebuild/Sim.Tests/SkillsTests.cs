@@ -206,6 +206,7 @@ public class SkillsTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void AnNpc_LearnsByTheSameRules()
     {
         var w = TestWorlds.New(17);

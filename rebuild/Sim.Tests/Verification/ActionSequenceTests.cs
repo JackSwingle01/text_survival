@@ -54,6 +54,7 @@ public class ActionSequenceTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ShortScripts_SameWorld_HoweverSteppedOrSaved() =>
         ActionGen.ScriptGen(5, 10, scale: 0.25).Check(Holds, iter: 4);
 
@@ -68,6 +69,7 @@ public class ActionSequenceTests
     /// one long step, but the same minutes cut into 17-minute steps stop at the next step, refused,
     /// five minutes short of the far side. The worlds differ from $.Minute on (1132 vs 1127).
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Regression_ExhaustedMidCrossing_StopsWhereverTheStepsAreCut() =>
         Assert.Null(Failure(new Script(new(17, Kit: true, Npc: true, Carcass: true, Fight: false, Mild: true),
             [new(Act.Gather, 19, 89), new(Act.Butcher, 21, 52), new(Act.Wait, 10, 161), new(Act.Gather, 56, 19), new(Act.Wait, 60, 111),

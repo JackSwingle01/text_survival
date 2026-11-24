@@ -424,6 +424,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     /// Two separate processes, same seed and commands, byte-identical saves: nothing in the run
     /// depends on hash seeds, the clock, or anything else a process brings with it.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Cli_SameSeedAndCommandsInTwoProcesses_SaveTheSameWorld()
     {
         // Sim.Tests builds the CLI (a ProjectReference that is not referenced), so no build here.

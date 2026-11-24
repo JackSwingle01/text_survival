@@ -50,6 +50,7 @@ public class CrossingTests
     /// Standing on the far side ends the run: the player can do nothing more, so cannot walk back
     /// and turn a win into Surviving, and the valley's clock runs on without them.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Crossed_TheRunIsOver()
     {
         var w = TestWorlds.New(17);

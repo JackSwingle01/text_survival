@@ -15,6 +15,7 @@ public class CoreTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SameSeedAndActions_GiveIdenticalWorld()
     {
         Assert.Equal(Save.ToJson(Play(7)), Save.ToJson(Play(7)));
@@ -28,6 +29,7 @@ public class CoreTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SaveRoundTrips_AndResumesRngExactly()
     {
         var world = Play(42);
@@ -114,6 +116,7 @@ public class CoreTests
     /// hours at zero energy come out the same minute by minute, in one go, in chunks with a save and load
     /// between them, or as the player's own waiting steps (which stop each time they drop).
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void FallingAsleep_IsTheSameHoweverTheMinutesAreStepped()
     {
         const int minutes = 600;
