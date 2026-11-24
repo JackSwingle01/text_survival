@@ -53,10 +53,10 @@ wet, frozen, spoiling, and for bodies only bleeding, pain, shivering. The same k
 three.
 _Avoid_: status, debuff
 
-**Discomfort**:
-An effect that wears a body down without harming it: hungry, thirsty, tired. Their losses stack with diminishing returns, so together they never take a
-capacity below about a fifth; wounds, blood loss and the cold take what they take on top.
-_Avoid_: debuff, need effect
+**Deprivation**:
+An effect from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
+without harming it, and it lifts when the need is met; nothing treats it.
+_Avoid_: discomfort, debuff, need effect
 
 **Condition**:
 What a verb sees about a location feature or an item: a fact read from its effects and its place
@@ -327,6 +327,46 @@ How many units of damage a tissue takes to destroy. It grows with the size of th
 it one blow meets depends on the kind of blow: a point meets little of the soft tissue it passes, a
 club little of the flesh and all of the bone. What a blow does not meet, it passes on.
 _Avoid_: armor, hardness
+
+**Capacity**:
+How much of one thing a body can still do, from none to whole: moving, manipulation, consciousness,
+sight, hearing. Read from its tissue, its blood and breath, and its effects. Blood and breath are
+not capacities; they feed them. Capacities are the body's own business: nothing outside a body
+reads one.
+_Avoid_: stat (that is a need), ability (that is what a species can get at)
+
+**Crippled**:
+Of a faculty: at zero, so every verb that needs it is refused. Hands are crippled when no arm works
+at all; one working limb, however weak, is not crippled.
+_Avoid_: incapacitated, disabled
+
+**Lame**:
+Speed is crippled: the body cannot walk.
+_Avoid_: immobile, downed
+
+**Consciousness**:
+The capacity for being awake and clear-headed. A blow to the head, lost blood, cold, pain and going
+without sleep or water all lower it.
+_Avoid_: alertness, awareness
+
+**Unconscious**:
+Consciousness is at zero. The limbs give nothing, so speed, dexterity and perception are at zero and
+every verb that needs a faculty is refused; strength stays above zero. Time passes until the body
+comes round or dies.
+_Avoid_: incapacitated, knocked out, downed
+
+**Faculty**:
+What a body can do right now, from its capacities and its build: strength, speed, dexterity,
+perception. Faculties are all that anything outside a body reads of it: a verb is refused when the
+faculty it needs is at zero, and slowed by how far that faculty is below whole.
+_Avoid_: ability (that is what a species can get at), stat (that is a need), attribute, skill
+
+**Vitality**:
+One overall read of what a body can do right now, taken from its four faculties against a fresh
+body of its kind. Nothing inside a body reads it; it is for whoever is
+looking at the body. Whether a body is alive is a separate matter, read from its heart, lungs and
+brain alone.
+_Avoid_: health, hit points, condition
 
 ## Danger
 
