@@ -139,3 +139,23 @@ jobs:
           fi
           printf 'Checking %s\n' "${files[@]}"
           dotnet format whitespace --folder --verify-no-changes --include "${files[@]}"
+
+  # A red main reaches nobody by itself, and every PR branched from it inherits the red check (a report
+  # test at 5.05 s against the 5 s limit did this on 2026-11-24). So each push to main keeps one issue,
+  # labelled `main-red`, open while a check fails and closes it when all pass (.github/scripts/main_red.sh).
+  # The issue build starts nothing while it is open (issue-build.yml, the select job).
+  main-red:
+    name: main is red
+    needs: [quick, long-run, old-game, actionlint]
+    if: always() && !cancelled() && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NEEDS: ${{ toJSON(needs) }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash .github/scripts/main_red.sh

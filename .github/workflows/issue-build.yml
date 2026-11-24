@@ -103,6 +103,14 @@ jobs:
           for n in $(gh issue list --label agent-working --state all --limit 100 --json number --jq '.[].number'); do
             gh issue edit "$n" --remove-label agent-working || true
           done
+          # A build branches from main, so while main's CI is red (ci.yml keeps a `main-red` issue open)
+          # its PR would carry the red check: nothing is built. The hourly run resumes once it is closed.
+          red=$(gh issue list --state open --label main-red --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$red" ]; then
+            echo "main's CI is red (#$red): no build starts until that issue is closed." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "issues=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # shellcheck disable=SC2086
           queue=$(python3 .github/scripts/issue_queue.py ready $ONLY 2> reasons.txt)
           cat reasons.txt
