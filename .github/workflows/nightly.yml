@@ -12,6 +12,9 @@ name: Nightly
 # one cause in the same code. While that issue is open, the next failing run rewrites it. It carries
 # the `nightly` label. The issue agent does not pick it up: github-actions wrote it, and
 # issue_queue.py lets through only that bot's `ratchet` issues.
+# - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds, published as the `npc-bench` artifact:
+#   main's is the baseline a change to NPCs is compared with (.github/scripts/npc_bench_baseline.sh
+#   prints the newest). It reports and never gates: its result is not in the run's issue.
 # Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
 # (a branch's failures are in its log; they open no issue).
 
@@ -85,6 +88,43 @@ jobs:
         run: |
           echo "::error::Nightly ${{ matrix.name }} found failures; the report job files them as one issue."
           exit 1
+
+  # Too long for an issue build (30 minutes a command there), so it runs here and builds read main's.
+  # On a branch (workflow_dispatch with --ref) the same artifact is that branch's "after".
+  npc-bench:
+    name: NPC bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      NPC_BENCH: "1"
+      NPC_BENCH_SEEDS: "1,3,5,7,11,17,42,777,2024,101,202,303,404,505,606,707,808,909,1111,1212"
+      NPC_BENCH_DAYS: "60"
+      NPC_BENCH_OUT: ${{ runner.temp }}/npc-bench/lines.txt
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build rebuild/Sim.Tests -c Release
+      # A seed that never ends is cut off at the hour; the seeds that finished are published all the same.
+      - name: Bench
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/npc-bench"
+          timeout 60m dotnet test rebuild/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~NpcBenchReport" || true
+          touch "$NPC_BENCH_OUT"
+          {
+            echo "NPC bench: $GITHUB_REF_NAME at $GITHUB_SHA, $(date -u +%Y-%m-%d), $NPC_BENCH_DAYS days, Release"
+            echo "seeds asked: $NPC_BENCH_SEEDS; finished: $(wc -l < "$NPC_BENCH_OUT")"
+            sort -t: -k1.5n "$NPC_BENCH_OUT"
+          } | tee "$RUNNER_TEMP/npc-bench/npc-bench.txt"
+          { echo '```'; cat "$RUNNER_TEMP/npc-bench/npc-bench.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          rm "$NPC_BENCH_OUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npc-bench
+          path: ${{ runner.temp }}/npc-bench/npc-bench.txt
+          retention-days: 30
 
   report:
     name: one issue for the run's failures
