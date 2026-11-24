@@ -34,7 +34,7 @@ nightly.
 
 Follow-up: new grilling ticket "Deprivation rethink" (sizes and route of hunger, thirst and tiredness;
 tiredness bank; sleep debt; fat before muscle; healing gate BOD-18; exhaustion sleep; lethal thirst and
-hunger; the shared 30% threshold), starting with a sim probe. Not filed yet.
+hunger; the shared 30% threshold), starting with a sim probe. Filed as #206.
 
 Follow-up: #153 takes what a body with zeroed faculties does in a fight.
 
@@ -43,3 +43,5 @@ rules; it lives in Jack's plugin, outside this repo.
 
 Follow-up: five details in the spec's Further Notes are my picks, not Jack's: vitality as a mean, the
 ratio held at one, no floor on crossing time, digestion's place, and the eating gate for animals.
+
+Follow-up: implementation tickets #197 to #205 filed; blocking is in each body, native links not set.
