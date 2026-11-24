@@ -108,18 +108,18 @@ public static class Trip
         {
             if (scratch == null) return HalfOf(world, tile, null, body, Speed, sky, pace);
             int i = scratch.Index(tile);
-            if (scratch.HalfStamp[i] != scratch.Search)
-                (scratch.Halves[i], scratch.HalfStamp[i]) = (HalfOf(world, tile, null, body, Speed, sky, pace), scratch.Search);
+            if (scratch.HalfStamp[i] != scratch.Generation)
+                (scratch.Halves[i], scratch.HalfStamp[i]) = (HalfOf(world, tile, null, body, Speed, sky, pace), scratch.Generation);
             return scratch.Halves[i];
         }
     }
 
     /// One search's working state, flat by tile and kept on World between searches (World.RouteScratch, never saved).
-    /// A cell counts for this search only where its stamp is Search, so starting a search clears nothing.
+    /// A cell counts for this search only where its stamp is this search's Generation, so starting a search clears nothing.
     internal sealed class RouteScratch(int width, int height)
     {
         public readonly int Width = width;
-        public int Search;
+        public int Generation;
         public readonly int[] Minutes = new int[width * height], Previous = new int[width * height];
         public readonly int[] ReachedStamp = new int[width * height], SettledStamp = new int[width * height], HalfStamp = new int[width * height];
         public readonly Half[] Halves = new Half[width * height];
@@ -132,12 +132,12 @@ public static class Trip
 
         public void Begin()
         {
-            if (Search == int.MaxValue)
+            if (Generation == int.MaxValue)
             {
                 Array.Clear(ReachedStamp); Array.Clear(SettledStamp); Array.Clear(HalfStamp);
-                Search = 0;
+                Generation = 0;
             }
-            Search++;
+            Generation++;
             Settled.Clear();
             Queue.Clear();
         }
@@ -185,7 +185,7 @@ public static class Trip
         var scratch = world.RouteScratch is { } kept && kept.Fits(m) ? kept : new RouteScratch(m.Width, m.Height);
         world.RouteScratch = null;
         scratch.Begin();
-        int search = scratch.Search;
+        int search = scratch.Generation;
         var pricer = new Pricer(world, agent, Pace.Quick, Weather.At(world, world.Minute), scratch);
         var origin = into ?? agent.Tile;
         // A person with no explored ground yet reaches only where it stands.
@@ -202,7 +202,7 @@ public static class Trip
             scratch.Settled.Add(i);
             var t = key.Tile;
             if (until?.Invoke(t, key.Minutes) == true) break;
-            foreach (var (dx, dy) in NeighborSteps)
+            foreach (var (dx, dy) in MapGen.NeighborSteps) // MapGen.Neighbors' order, without an array a tile
             {
                 var n = new TileId(t.X + dx, t.Y + dy);
                 if (!m.InBounds(n)) continue;
@@ -230,9 +230,6 @@ public static class Trip
         world.RouteScratch = scratch;
         return new RouteMap(origin, into != null, minutes, previous, Traversal.KcalPerMinute(world, agent));
     }
-
-    /// MapGen.Neighbors' order, north, east, south, west, without an array a tile.
-    static readonly (int Dx, int Dy)[] NeighborSteps = [(0, -1), (1, 0), (0, 1), (-1, 0)];
 
     /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
     public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)

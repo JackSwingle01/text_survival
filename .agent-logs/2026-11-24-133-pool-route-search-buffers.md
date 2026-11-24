@@ -13,3 +13,8 @@ Revised: the pooled search alone only halved allocation (long search 3.68 MB →
 Revised: the Pricer's halves dictionary goes to the scratch; StepMinutes' one-crossing Pricer prices its two halves directly, with no cache.
 Revised: MapGen.Neighbors' per-tile array replaced in the search by a static step table in the same N, E, S, W order.
 Follow-up: Tracks.IsTrodden boxes its EdgeId in SortedDictionary.ContainsKey (32 B a crossing priced, even with no trails); a non-boxing lookup on World.Trails would take the long search's remaining 74 B a tile down by about half.
+Revised: HerdTests.ThirtyPopulatedDays_StayCheap re-measured at 5,676 MB (main 8,106 MB, same 39,161 moves) → its cap lowered from 11,000 to 6,600 MB, as the ticket asks.
+Revised: Phase2GateTests.ThirtyDays_Headless_CompletesAliveAndSmall shares that budget's rule and fell from 7,697 to 5,216 MB → its cap lowered from 11,000 to 6,100 MB too, though the ticket names only one budget.
+Revised (review): the search's N, E, S, W step table repeated MapGen.Neighbors' order → one table, MapGen.NeighborSteps, that Neighbors is built from.
+Revised (review): the equivalence test's searches into a site went into arbitrary tiles → added searches into a named map site and into the camp.
+Revised (review): the scratch's per-search counter Search read as a search → renamed Generation.

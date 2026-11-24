@@ -9,7 +9,7 @@ public class RouteSearchTests(ITestOutputHelper output)
 {
     static readonly Lazy<World> Generated = new(() => World.New(17));
 
-    /// The search as it stood before #133, kept as the oracle: the same settle order, tie-break and cutoffs.
+    /// A plain Dijkstra over dictionaries, the oracle: the same settle order, tie-break and cutoffs as Trip.Routes promises.
     static (List<(TileId Tile, int Minutes)> Settled, Dictionary<TileId, TileId> Previous) Reference(World world, AgentId who,
         int maxMinutes = int.MaxValue, Func<TileId, int, bool>? until = null, Func<TileId, bool>? refused = null, TileId? into = null)
     {
@@ -88,6 +88,9 @@ public class RouteSearchTests(ITestOutputHelper output)
         Agrees(w, AgentId.Player);
         var afield = Reference(w, AgentId.Player, maxMinutes: 120).Settled.Last().Tile;
         Agrees(w, AgentId.Player, into: afield);
+        var namedSite = Map.Of(w).Sites.Keys.MinBy(t => MapGen.Manhattan(t, w.Agent(animals[0]).Tile));
+        Agrees(w, animals[0], into: namedSite);
+        Agrees(w, AgentId.Player, into: Map.Of(w).Camp);
         Agrees(w, animals[0], until: (_, minutes) => minutes >= 90);
         Agrees(w, animals[0], maxMinutes: 600, refused: t => (t.X + t.Y) % 7 == 0);
     }
