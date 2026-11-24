@@ -8,7 +8,7 @@ public class StepOutcomeTests
 
     static World Camp(out TileId camp)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         camp = Map.Of(w).Camp;
         return w;
     }

@@ -29,7 +29,7 @@ public class SightTests
     [Fact]
     public void InView_IsTheVisibleTiles_FromWhereThePersonStands()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var me = w.Agent(AgentId.Player);
         Assert.Equal(Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight), Sight.InView(w, me));
         Assert.Same(Sight.InView(w, me), Sight.InView(w, me));

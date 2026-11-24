@@ -9,7 +9,7 @@ namespace Survival.Tests;
 public class PredatorEngagementTests(ITestOutputHelper output)
 {
     static readonly AgentId P = AgentId.Player;
-    static readonly GeneratedMap Valley = Map.Generate(1000);
+    static readonly GeneratedMap Valley = TestWorlds.Map(1000);
     /// 22:00 and 12:00: world minute 0 is 09:00.
     const long Night = 13 * 60, Noon = 3 * 60;
 

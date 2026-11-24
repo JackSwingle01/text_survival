@@ -50,7 +50,7 @@ public class NamesTests
     [Fact]
     public void EveryOddsFactorOffered_IsWords()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         TestKit.Supply(w);
         Items.Pack(w, P).Gear.Add(Items.Make("hand_drill"));
         Sim.Step(w, new Wait(P), 1);
@@ -79,7 +79,7 @@ public class NamesTests
     [Fact]
     public void AFind_ReadsInLowerCase()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         Assert.Equal("You find stone pile.", Narration.ForPlayer(w, new PoolDiscovered(0, P, new PoolId(camp, 0), "Stone Pile"))!.Text);
     }

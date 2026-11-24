@@ -113,7 +113,7 @@ public class GoldenTests
         // at minute 30. Old → new: warmed 23.338787015679152 → 23.446292304447, effective 80.10868677678457
         // → 80.74295357905072 (the exposed air does not involve the fire).
         const double OldExposedF = 11.814825831857966, WarmedAirF = 23.446292304447, EffectiveF = 80.74295357905072;
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var f = new FireState { Tile = Map.Of(world).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(f, Resource.BirchBark, 0.05);
@@ -145,7 +145,7 @@ public class GoldenTests
         // rebuild: shared burn (2026-11-21), as above. Old → new: warmed 30.831756883269172 → 30.93889127534193,
         // effective 87.04904100027493 → 87.68113722097718 (the open air does not involve the fire).
         const double CampWarmedAirF = 30.93889127534193, CampEffectiveF = 87.68113722097718;
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Clear, -10, 3 / 20.1, 0, 0.3, WindDirection.North);
         var m = Map.Of(world);
         Shelters.Remove(world, m.Camp); // this pins the open tile; the sheltered camp is ShelterTests'

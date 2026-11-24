@@ -126,7 +126,7 @@ public class CombatFlightTests
         // the scan starts near a seed where it got away (re-pinned when each wolf became its own agent).
         for (int seed = 150; seed <= 450; seed++)
         {
-            var (w, t) = CombatTests.Field(seed);
+            var (w, t) = CombatTests.Field(World.New(seed));
             var pack = CombatTests.Herd(w, Species.Wolf, 2, t);
             var caribou = CombatTests.Herd(w, Species.Caribou, 1, t);
             var e = Combat.Create(w, [new Fighter(pack[0]), new Fighter(pack[1])], [new Fighter(caribou)], t, 25, Awareness.Engaged, Awareness.Engaged);
@@ -219,7 +219,7 @@ public class CombatFlightTests
     {
         (World, Encounter, CombatUnit) Setup(int seed, double legs)
         {
-            var (w, t) = CombatTests.Field(seed);
+            var (w, t) = CombatTests.Field(World.New(seed));
             var herd = CombatTests.Herd(w, Species.Wolf, 1, t);
             var e = Combat.Create(w, [new Fighter(P)], [new Fighter(herd)], t, 2, Awareness.Engaged, Awareness.Engaged);
             var wolf = B(e);
@@ -259,7 +259,7 @@ public class CombatFlightTests
         foreach (var leg in Combat.BodyOf(w, B(e)).Regions.Where(r => r.Name.Contains("Leg"))) { leg.Muscle.Condition = 0.1; leg.Bone.Condition = 0.3; }
         Combat.Apply(w, e, B(e), CombatAction.Flee, []);
         Assert.NotNull(e.PendingFlight);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
         var again = loaded.Encounters.Single();
         Assert.NotNull(Combat.ChaseOffer(loaded, again, Combat.UnitOf(again, P)));

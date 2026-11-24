@@ -293,7 +293,7 @@ public class SpeciesBodyTests
     {
         World Spent()
         {
-            var w = World.New(5);
+            var w = TestWorlds.New(5);
             var me = w.Agent(AgentId.Player).Body;
             Body.Sprint(me, SpeciesTable.Running(Species.Human, me), 60);
             return w;
@@ -304,7 +304,7 @@ public class SpeciesBodyTests
         for (int i = 0; i < 45; i++) Sim.Step(often, new Rest(AgentId.Player), 1);
         var saved = Spent();
         Sim.Step(saved, new Rest(AgentId.Player), 20);
-        saved = Save.FromJson(Save.ToJson(saved));
+        saved = TestWorlds.Load(Save.ToJson(saved));
         Sim.Step(saved, new Rest(AgentId.Player), 25);
         Assert.True(Body.SprintReservePct(once.Agent(AgentId.Player).Body) is > 0.9 and < 1);
         Assert.Equal(Save.ToJson(once), Save.ToJson(often));
@@ -333,7 +333,7 @@ public class SpeciesBodyTests
         var fats = new List<double>();
         foreach (int seed in new[] { 1, 2, 3, 4 })
         {
-            var w = World.New(seed);
+            var w = TestWorlds.New(seed);
             var npc = Npc.Spawn(w, Map.Of(w).Camp);
             foreach (var body in new[] { w.Agent(AgentId.Player).Body, w.Agent(npc).Body })
             {

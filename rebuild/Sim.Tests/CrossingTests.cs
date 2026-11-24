@@ -19,19 +19,19 @@ public class CrossingTests
     [Theory, MemberData(nameof(OldStages))]
     public void Stages_StandWhereTheOldOnesDid_WithTheirOldGround(int index, string name, double hazard, double wind, double cover, double visibility, double tempF)
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var t = m.PassStageIndex.Single(s => s.Value == index).Key;
         Assert.Equal(name, Map.Describe(m, t));
         Assert.Equal((hazard, wind, cover, visibility, tempF),
             (Map.TerrainHazardLevel(m, t), Map.WindFactor(m, t), Map.OverheadCover(m, t), Map.Visibility(m, t), Map.TemperatureDeltaF(m, t)));
         Assert.Equal(Terrain.Rock, m.TerrainAt(t));
-        Assert.Empty(Pools.At(World.New(17), t)); // the old stages had nothing to forage or find
+        Assert.Empty(Pools.At(TestWorlds.New(17), t)); // the old stages had nothing to forage or find
     }
 
     [Fact]
     public void Outcome_IsDerived_SurvivingDeadOrAcross()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         Assert.Equal(RunOutcome.Surviving, Map.Outcome(w));
         var m = Map.Of(w);
         w.Agent(P).Tile = Map.Step(m.Exit, Direction.West);
@@ -44,7 +44,7 @@ public class CrossingTests
         // Nothing is stored: dying on the far side is still dying.
         w.Agent(P).Body.BloodPct = 0.5; // circulation collapses (BodyTests)
         Assert.Equal(RunOutcome.Died, Map.Outcome(w));
-        Assert.Equal(RunOutcome.Died, Map.Outcome(Save.FromJson(Save.ToJson(w))));
+        Assert.Equal(RunOutcome.Died, Map.Outcome(TestWorlds.Load(Save.ToJson(w))));
     }
 
     /// Standing on the far side ends the run: the player can do nothing more, so cannot walk back
@@ -52,7 +52,7 @@ public class CrossingTests
     [Fact]
     public void Crossed_TheRunIsOver()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var m = Map.Of(w);
         w.Agent(P).Tile = Map.Step(m.Exit, Direction.West);
         Assert.Equal("crossed the pass", Sim.Step(w, new Travel(P, Direction.East, Pace.Careful), 600).InterruptedReason);
@@ -67,6 +67,6 @@ public class CrossingTests
         Assert.Equal(minute + 3 * 1440, w.Minute);
         Assert.Equal(body, System.Text.Json.JsonSerializer.Serialize(w.Agent(P))); // not a minute lived: no hunger, no cold
         Assert.Equal(RunOutcome.Crossed, Map.Outcome(w));
-        Assert.Equal(RunOutcome.Crossed, Map.Outcome(Save.FromJson(Save.ToJson(w))));
+        Assert.Equal(RunOutcome.Crossed, Map.Outcome(TestWorlds.Load(Save.ToJson(w))));
     }
 }

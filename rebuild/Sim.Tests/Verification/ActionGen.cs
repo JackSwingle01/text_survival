@@ -79,7 +79,7 @@ static class ActionGen
 
     public static World MakeWorld(Setup s)
     {
-        var w = World.New(s.Seed);
+        var w = TestWorlds.New(s.Seed);
         if (s.Mild) w.FixedWeather = MildSky;
         var camp = Map.Of(w).Camp;
         if (s.Npc) NpcBench.Spawn(w, camp); // before anything else is born, so its id is fixed
@@ -264,14 +264,14 @@ static class ActionGen
             }
             trace.Add($"{step}: {activity} for {minutes} -> {done} min in {steps} step(s), {reason ?? "ran out"}");
             Valid(w, step);
-            if (mode is Mode.Saved or Mode.ChunkedSaved && s.Saves.Contains(step)) w = Save.FromJson(Save.ToJson(w));
+            if (mode is Mode.Saved or Mode.ChunkedSaved && s.Saves.Contains(step)) w = TestWorlds.Load(Save.ToJson(w));
         }
         return new Outcome(Save.ToJson(w), events, trace, acts);
     }
 
     static (World, Agent) Reload(World w)
     {
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         return (loaded, loaded.Agent(P));
     }
 

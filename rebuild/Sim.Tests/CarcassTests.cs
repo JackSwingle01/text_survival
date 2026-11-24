@@ -22,7 +22,7 @@ public class CarcassTests
 
     static (World, Carcass) Make(string animal, double effectiveHours = 0)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var (kg, muscle, fat, bird, mega) = Animals[animal];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
@@ -168,7 +168,7 @@ public class CarcassTests
     [Fact]
     public void Decay_ReadsTheAirNotTheWindChill()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 3, 0.6, 0, 0.9, WindDirection.North); // 37.4 °F, a 27 mph wind
         var tile = Map.Of(w).Camp;
         Assert.True(Exposure.OpenAirF(w, tile, Weather.At(w, 0)) < 32);
@@ -185,8 +185,8 @@ public class CarcassTests
     [Theory, InlineData(17), InlineData(3), InlineData(9), InlineData(21)]
     public void Decay_InRealWeather_DoesNotDependOnHowOftenYouLook(int seed)
     {
-        var a = World.New(seed);
-        var b = World.New(seed);
+        var a = TestWorlds.New(seed);
+        var b = TestWorlds.New(seed);
         var tile = Map.Of(a).Camp;
         var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
         var once = Carcasses.Create(a, tile, "Caribou", body, 0);
@@ -359,7 +359,7 @@ public class CarcassTests
         double packBefore = Items.CarriedKg(w.Agent(P));
         for (int i = 0; i < 40; i++)
         {
-            w = Save.FromJson(Save.ToJson(w));
+            w = TestWorlds.Load(Save.ToJson(w));
             var cc = Carcasses.Find(w, Map.Of(w).Camp, c.Id);
             if (cc == null) break;
             c = cc;
@@ -433,7 +433,7 @@ public class CarcassTests
     public void Carcasses_RoundTripThroughASave()
     {
         var (w, c) = Make("Wolf");
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         var lc = Carcasses.Find(loaded, Map.Of(loaded).Camp, c.Id)!;
         Assert.Equal(c.Remaining, lc.Remaining);
         Assert.Equal(1, loaded.NextCarcassId);
@@ -445,7 +445,7 @@ public class CarcassTests
     [Fact]
     public void Scavengers_EatWhatACarefulButcherWouldCut()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var body = BodyState.Create(BodyKind.Quadruped, 120, 0.15, 0.6);
         var c = Carcasses.Create(w, camp, "Caribou", body, 0);
@@ -489,7 +489,7 @@ public class CarcassTests
     [Fact]
     public void BareHandedButchering_Ends_AndLeavesTheTuskForAKnife()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var (kg, muscle, fat, _, _) = Animals["Wolf"];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);

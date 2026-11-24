@@ -9,7 +9,7 @@ public class WorkTests
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -311,7 +311,7 @@ public class WorkTests
     [Fact]
     public void ATileWhoseLastCarcassGoes_IsGone()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var tile = new TileId(3, 3);
         Assert.False(w.Tiles.ContainsKey(tile));
         var c = Carcasses.Create(w, tile, "Hare", BodyState.Create(BodyKind.Quadruped, 2, 0.1, 0.5), 0);
@@ -354,7 +354,7 @@ public class WorkTests
     [Fact]
     public void ARiverOrLake_GivesWaterWithoutAPack()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Mild;
         var m = Map.Of(w);
         var river = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y))).First(m.BesideRiver);
@@ -403,7 +403,7 @@ public class WorkTests
         var a = WithPools(Forage, Trees);
         Axe(a);
         Sim.Step(a, new Gather(P, 0), 30);
-        var b = Save.FromJson(Save.ToJson(a));
+        var b = TestWorlds.Load(Save.ToJson(a));
         b.PoolCache = a.PoolCache;
         Sim.Step(a, new Gather(P, 0), 30);
         Sim.Step(b, new Gather(P, 0), 30);

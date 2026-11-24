@@ -10,7 +10,7 @@ public class FeelsTests
 
     static World ColdCamp(out TileId camp)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         w.FixedWeather = Cold;
         camp = Map.Of(w).Camp;
         return w;
@@ -44,7 +44,7 @@ public class FeelsTests
     [Fact]
     public void Feeling_OnAFreshWorld_WritesNothing()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         string before = Save.ToJson(w);
         Sim.Feels(w, P, new Wait(P));
         Sim.Feels(w, P, new Sleep(P));

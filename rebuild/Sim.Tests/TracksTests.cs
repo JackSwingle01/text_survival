@@ -441,7 +441,7 @@ public class TracksTests
 
     static World Walker(WeatherSample? sky = null)
     {
-        var map = Map.Generate(17);
+        var map = TestWorlds.Map(17);
         var w = new World { Seed = 17, GeneratedMap = map, FixedWeather = sky ?? CalmCold with { TemperatureC = 5 } };
         w.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = new TileId(2, 33) }; // Forest, Rock to the south: 7 minutes
         return w;
@@ -500,7 +500,7 @@ public class TracksTests
         w.Minute += 500;
         string json = Save.ToJson(w);
         Assert.DoesNotContain("rosion", json);
-        var loaded = Save.FromJson(json);
+        var loaded = TestWorlds.Load(json);
         Assert.Equal(json, Save.ToJson(loaded));
         Assert.Equal(Tracks.Read(w, B), Tracks.Read(loaded, B));
         Assert.Equal(Tracks.TroddenAt(w, A, B), Tracks.TroddenAt(loaded, A, B));

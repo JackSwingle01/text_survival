@@ -4,9 +4,11 @@ namespace Survival.Tests;
 /// and the mechanical part of Companions/CompanionCombatTests, plus the agent-model rules the rebuild adds.
 public class CombatTests
 {
-    internal static (World World, TileId Tile) Field(int seed = 1)
+    internal static (World World, TileId Tile) Field(int seed = 1) => Field(TestWorlds.New(seed));
+
+    /// A search over seeds passes World.New(seed): each seed comes once, so a shared one would only hold memory.
+    internal static (World World, TileId Tile) Field(World world)
     {
-        var world = World.New(seed);
         var map = Map.Of(world);
         // A clearing: visibility 1, the old tests' default Location, so cover changes nothing.
         var tile = Enumerable.Range(0, map.Width).SelectMany(x => Enumerable.Range(0, map.Height).Select(y => new TileId(x, y)))
@@ -156,7 +158,7 @@ public class CombatTests
     {
         for (int seed = 1; seed <= 20; seed++)
         {
-            var (w, t) = Field(seed);
+            var (w, t) = Field(World.New(seed));
             var wolves = Herd(w, Species.Wolf, 4, t);
             var caribou = Herd(w, Species.Caribou, 2, t);
             var events = new List<WorldEvent>();
@@ -708,7 +710,7 @@ public class CombatTests
         PlayerVs(w, t, Species.Wolf, 6, count: 2, weapon: Spear(w));
         Sim.Step(w, new Fight(AgentId.Player, CombatAction.Wait), 1);
         Assert.Single(w.Encounters);
-        var loaded = Save.FromJson(Save.ToJson(w));
+        var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
         foreach (var world in new[] { w, loaded })
             for (int i = 0; i < 3 && world.Encounters.Count > 0 && Body.IsAlive(world.Agent(AgentId.Player).Body); i++)
@@ -780,7 +782,7 @@ public class CombatTests
     [Fact]
     public void AFledNpc_CanHuntElsewhere_AndBothFightsResolve()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         Sim.Advance(w, 60);
         w.Agent(AgentId.Player).Members[0] = BodyState.BaselineHuman();
         var tile = w.Agent(AgentId.Player).Tile;
@@ -838,7 +840,7 @@ public class CombatTests
     [Fact]
     public void AdvanceWhileInAFight_FightsWaitingRounds_UntilItEnds()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var wolves = Agents.SpawnGroup(w, Species.Wolf, camp, 3)[0];
         var enc = Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(wolves)], camp, 8, Awareness.Engaged, Awareness.Engaged);
@@ -860,7 +862,7 @@ public class CombatTests
     [Fact]
     public void AFightWhosePlayerDiedOutsideARound_EndsOnTheNextMinute()
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var camp = Map.Of(w).Camp;
         var wolves = Agents.SpawnGroup(w, Species.Wolf, camp, 3)[0];
         Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(wolves)], camp, 8, Awareness.Engaged, Awareness.Engaged);

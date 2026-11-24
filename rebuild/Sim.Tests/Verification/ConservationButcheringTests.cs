@@ -169,7 +169,7 @@ public class ConservationButcheringTests
             if (chunk.GapMinutes > 0 && Sim.IsAlive(w.Agent(P))) Sim.Step(w, new Wait(P), chunk.GapMinutes);
             if (chunk.SaveLoad)
             {
-                run.W = Save.FromJson(Save.ToJson(w));
+                run.W = TestWorlds.Load(Save.ToJson(w));
                 run.C = Carcasses.Find(run.W, Camp(run.W), run.CarcassId)!;
             }
             check?.Invoke(run, $"after session {sessions}'s break");

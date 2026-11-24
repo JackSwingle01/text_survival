@@ -11,7 +11,7 @@ public class TroddenEdgesTests
 
     static World World(WeatherSample sky)
     {
-        var w = new World { Seed = 17, GeneratedMap = Map.Generate(17), FixedWeather = sky };
+        var w = new World { Seed = 17, GeneratedMap = TestWorlds.Map(17), FixedWeather = sky };
         w.Agents[AgentId.Player] = new Agent { Id = AgentId.Player, Tile = Forest };
         return w;
     }

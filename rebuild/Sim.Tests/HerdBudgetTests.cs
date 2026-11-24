@@ -17,7 +17,7 @@ public class HerdBudgetTests
 
     static (World, Agent) Caribou(double hunger)
     {
-        var w = World.New(3);
+        var w = TestWorlds.New(3);
         var herd = w.Agent(Agents.Spawn(w, Species.Caribou, Open(w)));
         TestKit.SetHunger(herd, hunger);
         return (w, herd);
@@ -66,7 +66,7 @@ public class HerdBudgetTests
     [Fact]
     public void AStarvedWolf_PutsItsFatBackOn_AtAKill()
     {
-        var w = World.New(3);
+        var w = TestWorlds.New(3);
         var tile = Open(w);
         var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile));
         foreach (var b in pack.Members) { b.CaloriesKcal = 0; b.FatKg *= 0.6; }
@@ -81,7 +81,7 @@ public class HerdBudgetTests
     [Fact]
     public void SaberTooth_DoesNotStarveWhileItForages()
     {
-        var w = World.New(3);
+        var w = TestWorlds.New(3);
         var cat = w.Agent(Agents.Spawn(w, Species.SaberTooth, Open(w)));
         TestKit.SetHunger(cat, 0.8);
         Minutes(w, cat, new Graze(cat.Id), 60);
@@ -101,7 +101,7 @@ public class HerdBudgetTests
     [Fact]
     public void AWolf_FeedingOnACarcass_FillsItsStoresFromTheMeat()
     {
-        var w = World.New(3);
+        var w = TestWorlds.New(3);
         var tile = Open(w);
         var pack = w.Agent(Agents.Spawn(w, Species.Wolf, tile));
         TestKit.SetHunger(pack, 0.9);
@@ -114,7 +114,7 @@ public class HerdBudgetTests
     [Fact]
     public void TheCaveBear_IsBoldOnlyDefending()
     {
-        var w = World.New(3);
+        var w = TestWorlds.New(3);
         w.Minute = 15 * 60; // midnight: a cave bear's active hours would add their own boldness
         var bear = Agents.Spawn(w, Species.CaveBear, Open(w));
         var person = BodyState.BaselineHuman();

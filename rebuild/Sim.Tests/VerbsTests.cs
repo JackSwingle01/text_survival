@@ -8,7 +8,7 @@ public class VerbsTests
 
     static World Camp(out TileId camp)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         camp = Map.Of(w).Camp;
         return w;
     }
@@ -37,7 +37,7 @@ public class VerbsTests
         Assert.NotEmpty(verbs);
         foreach (var v in verbs)
         {
-            var copy = Save.FromJson(before);
+            var copy = TestWorlds.Load(before);
             copy.AccessGates = w.AccessGates; // never saved
             copy.GeneratedMap = Map.Of(w); // never saved: the seed's own terrain, which a load would generate again for every verb
             copy.GroundCache = w.GroundCache == null ? null : new(w.GroundCache); // never saved: a scene's ground (TestKit.EditGround)

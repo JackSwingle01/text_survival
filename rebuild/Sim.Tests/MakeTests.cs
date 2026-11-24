@@ -235,7 +235,7 @@ public class MakeTests
 
         var split = Start();
         foreach (int n in new[] { 1, 3, 2, 7 }) Sim.Step(split, new Make(P, "stone_tipped_spear"), n);
-        split = Save.FromJson(Save.ToJson(split));
+        split = TestWorlds.Load(Save.ToJson(split));
         while (Items.Pack(split, P).Projects != null) Sim.Step(split, new Make(P, "stone_tipped_spear"), 4);
 
         Assert.Equal(whole.Minute, split.Minute);

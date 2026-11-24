@@ -41,7 +41,7 @@ public class ConvectionTests(ITestOutputHelper output)
     [InlineData(2.0)]
     public void PastAGale_TheWholeBodyLosesHeatOnTheSquareRoot(double clo)
     {
-        var w = World.New(17);
+        var w = TestWorlds.New(17);
         var p = w.Agent(AgentId.Player);
         var still = Sim.Surroundings(w, p, new Wait(AgentId.Player), []) with { AirTempF = -10, FireBonusF = 0, TorchHeatF = 0, ClothingClo = clo, FireDryingWindLevel = null };
         HeatBalance At(double wind) => Body.CalculateHeatBalance(p.Body, still with { WindLevel = wind });
