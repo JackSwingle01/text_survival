@@ -331,16 +331,17 @@ _Avoid_: armor, hardness
 **Capacity**:
 How much of one thing a body can still do, from none to whole: moving, manipulation, consciousness,
 sight, hearing. Read from its tissue, its blood and breath, and its effects. Blood and breath are
-not capacities; they feed them.
+not capacities; they feed them. Capacities are the body's own business: nothing outside a body
+reads one.
 _Avoid_: stat (that is a need), ability (that is what a species can get at)
 
 **Crippled**:
-Of moving or manipulation: the limbs give it nothing, so the work it does is refused. One working
-limb, however weak, is not crippled.
+Of a faculty: at zero, so every verb that needs it is refused. Hands are crippled when no arm works
+at all; one working limb, however weak, is not crippled.
 _Avoid_: incapacitated, disabled
 
 **Lame**:
-Moving is crippled: the body cannot walk.
+Speed is crippled: the body cannot walk.
 _Avoid_: immobile, downed
 
 **Consciousness**:
@@ -355,7 +356,8 @@ _Avoid_: incapacitated, knocked out, downed
 
 **Faculty**:
 What a body can do right now, from its capacities and its build: strength, speed, dexterity,
-perception.
+perception. Faculties are all that anything outside a body reads of it: a verb is refused when the
+faculty it needs is at zero, and slowed by how far that faculty is below whole.
 _Avoid_: ability (that is what a species can get at), stat (that is a need), attribute, skill
 
 **Vitality**:
