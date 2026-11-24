@@ -350,8 +350,8 @@ without sleep or water all lower it.
 _Avoid_: alertness, awareness
 
 **Unconscious**:
-Consciousness is all but gone. Every verb is refused and time passes until the body comes round or
-dies.
+Consciousness is at zero. The limbs give nothing, so the body's faculties are crippled and every
+verb is refused; time passes until it comes round or dies.
 _Avoid_: incapacitated, knocked out, downed
 
 **Faculty**:
