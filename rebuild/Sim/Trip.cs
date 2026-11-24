@@ -61,7 +61,7 @@ public static class Trip
 
     /// One tile's half of a crossing: its segment minutes at this speed under this sky, how much its ground slows
     /// that, and whether care slows it.
-    readonly record struct Half(int Minutes, double GroundFactor, bool Slow);
+    internal readonly record struct Half(int Minutes, double GroundFactor, bool Slow);
 
     /// other: the tile across the edge, for the edge's half of tile; null for the bare tile.
     static Half HalfOf(World world, TileId tile, TileId? other, BodyState body, double speed, WeatherSample sky, Pace pace)
@@ -86,15 +86,15 @@ public static class Trip
     static int TroddenTotal(World world, TileId from, TileId to, BodyState body, double speed, WeatherSample sky, Pace pace, int edge) =>
         Total(Join(HalfOf(world, from, to, body, speed, sky, pace), HalfOf(world, to, from, body, speed, sky, pace), edge));
 
-    /// Prices one agent's crossings under one sky, each bare tile's half once however many crossings share it, and a
-    /// trodden edge's halves each time: the same total Terms gives (Join), without its breakdown.
-    sealed class Pricer(World world, Agent agent, Pace pace, WeatherSample sky)
+    /// Prices one agent's crossings under one sky: the same total Terms gives (Join), without its breakdown. Given a
+    /// search's scratch, each bare tile's half is priced once however many crossings share it; a trodden edge's
+    /// halves are priced each time.
+    sealed class Pricer(World world, Agent agent, Pace pace, WeatherSample sky, RouteScratch? scratch = null)
     {
         readonly BodyState body = Traversal.PaceBody(agent);
         double? speed;
         double Speed => speed ??= Body.Speed(body, new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
         readonly int? flight = Traversal.FlightMinutesPerTile(agent);
-        readonly Dictionary<TileId, Half> halves = [];
 
         public int Minutes(TileId from, TileId to)
         {
@@ -106,9 +106,40 @@ public static class Trip
 
         Half HalfAt(TileId tile)
         {
-            if (!halves.TryGetValue(tile, out var half))
-                halves[tile] = half = HalfOf(world, tile, null, body, Speed, sky, pace);
-            return half;
+            if (scratch == null) return HalfOf(world, tile, null, body, Speed, sky, pace);
+            int i = scratch.Index(tile);
+            if (scratch.HalfStamp[i] != scratch.Search)
+                (scratch.Halves[i], scratch.HalfStamp[i]) = (HalfOf(world, tile, null, body, Speed, sky, pace), scratch.Search);
+            return scratch.Halves[i];
+        }
+    }
+
+    /// One search's working state, flat by tile and kept on World between searches (World.RouteScratch, never saved).
+    /// A cell counts for this search only where its stamp is Search, so starting a search clears nothing.
+    internal sealed class RouteScratch(int width, int height)
+    {
+        public readonly int Width = width;
+        public int Search;
+        public readonly int[] Minutes = new int[width * height], Previous = new int[width * height];
+        public readonly int[] ReachedStamp = new int[width * height], SettledStamp = new int[width * height], HalfStamp = new int[width * height];
+        public readonly Half[] Halves = new Half[width * height];
+        public readonly List<int> Settled = [];
+        public readonly PriorityQueue<int, (int Minutes, TileId Tile)> Queue = new();
+
+        public bool Fits(GeneratedMap m) => Width == m.Width && Minutes.Length == m.Width * m.Height;
+        public int Index(TileId t) => t.Y * Width + t.X;
+        public TileId Tile(int i) => new(i % Width, i / Width);
+
+        public void Begin()
+        {
+            if (Search == int.MaxValue)
+            {
+                Array.Clear(ReachedStamp); Array.Clear(SettledStamp); Array.Clear(HalfStamp);
+                Search = 0;
+            }
+            Search++;
+            Settled.Clear();
+            Queue.Clear();
         }
     }
 
@@ -149,37 +180,60 @@ public static class Trip
         Func<TileId, bool>? refused = null, TileId? into = null)
     {
         var agent = world.Agent(who);
-        var pricer = new Pricer(world, agent, Pace.Quick, Weather.At(world, world.Minute));
         var m = Map.Of(world);
+        // Taken off World while in use: a search started from inside this one's callbacks gets its own.
+        var scratch = world.RouteScratch is { } kept && kept.Fits(m) ? kept : new RouteScratch(m.Width, m.Height);
+        world.RouteScratch = null;
+        scratch.Begin();
+        int search = scratch.Search;
+        var pricer = new Pricer(world, agent, Pace.Quick, Weather.At(world, world.Minute), scratch);
         var origin = into ?? agent.Tile;
-        var explored = agent.Mind is PersonMind person ? person.Memory.Explored ?? new GroundMemory(m.Width, m.Height) : null;
-        bool Open(TileId t) => explored == null || t == agent.Tile || explored.Contains(t);
-        var minutes = new Dictionary<TileId, int> { [origin] = 0 };
-        var previous = new Dictionary<TileId, TileId>();
-        var settled = new Dictionary<TileId, int>();
-        var queue = new PriorityQueue<TileId, (int Minutes, TileId Tile)>();
-        queue.Enqueue(origin, (0, origin));
-        while (queue.TryDequeue(out var t, out var key))
+        // A person with no explored ground yet reaches only where it stands.
+        bool walksSeenGround = agent.Mind is PersonMind;
+        var explored = (agent.Mind as PersonMind)?.Memory.Explored;
+        bool Open(TileId t) => !walksSeenGround || t == agent.Tile || explored?.Contains(t) == true;
+        int start = scratch.Index(origin);
+        (scratch.Minutes[start], scratch.ReachedStamp[start]) = (0, search);
+        scratch.Queue.Enqueue(start, (0, origin));
+        while (scratch.Queue.TryDequeue(out var i, out var key))
         {
-            if (settled.ContainsKey(t)) continue;
-            settled[t] = key.Minutes;
+            if (scratch.SettledStamp[i] == search) continue;
+            scratch.SettledStamp[i] = search;
+            scratch.Settled.Add(i);
+            var t = key.Tile;
             if (until?.Invoke(t, key.Minutes) == true) break;
-            foreach (var n in MapGen.Neighbors(t))
+            foreach (var (dx, dy) in NeighborSteps)
             {
-                if (!m.InBounds(n) || settled.ContainsKey(n) || !Open(n) || refused?.Invoke(n) == true) continue;
+                var n = new TileId(t.X + dx, t.Y + dy);
+                if (!m.InBounds(n)) continue;
+                int ni = scratch.Index(n);
+                if (scratch.SettledStamp[ni] == search || !Open(n) || refused?.Invoke(n) == true) continue;
                 var (from, to) = into == null ? (t, n) : (n, t);
                 if (Traversal.Blocked(world, agent, from, to) != null) continue;
                 long reach = (long)key.Minutes + pricer.Minutes(from, to);
                 if (reach > maxMinutes) continue;
                 int nd = (int)reach;
-                if (minutes.TryGetValue(n, out var old) && nd >= old) continue;
-                minutes[n] = nd;
-                previous[n] = t;
-                queue.Enqueue(n, (nd, n));
+                if (scratch.ReachedStamp[ni] == search && nd >= scratch.Minutes[ni]) continue;
+                (scratch.Minutes[ni], scratch.Previous[ni], scratch.ReachedStamp[ni]) = (nd, i, search);
+                scratch.Queue.Enqueue(ni, (nd, n));
             }
         }
-        return new RouteMap(origin, into != null, settled, previous, Traversal.KcalPerMinute(world, agent));
+        // The map owns a copy of what it reads, in settle order, so it stays true through later searches.
+        var minutes = new Dictionary<TileId, int>(scratch.Settled.Count);
+        var previous = new Dictionary<TileId, TileId>(scratch.Settled.Count);
+        foreach (int i in scratch.Settled)
+        {
+            var t = scratch.Tile(i);
+            minutes[t] = scratch.Minutes[i];
+            if (i != start) previous[t] = scratch.Tile(scratch.Previous[i]);
+        }
+        world.RouteScratch = scratch;
+        return new RouteMap(origin, into != null, minutes, previous, Traversal.KcalPerMinute(world, agent));
     }
+
+    /// MapGen.Neighbors' order, north, east, south, west, without an array a tile.
+    static readonly (int Dx, int Dy)[] NeighborSteps = [(0, -1), (1, 0), (0, 1), (-1, 0)];
+
     /// The odds of the one roll, on the tile walked onto, that Traversal.Begin would fix now, from the ground looked at.
     public static Odds Risk(World world, AgentId who, Direction dir, Pace pace)
     {
