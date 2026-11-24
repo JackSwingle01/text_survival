@@ -166,7 +166,7 @@ too.
    `Add_Merges_Commutatively_WithinItsBounds`.
 5. Run `dotnet stryker` and kill or excuse every survivor.
 
-Save migration tests are deliberately not part of this setup: save compatibility starts at the first playable release.
+Save migration tests are deliberately not part of this setup: there are no save migrations until the rebuild is finished (`decisions/2026-11-24-no-save-migrations-until-the-rebuild-is-finished.md`).
 
 ## Evidence of effectiveness (2026-11-21)
 

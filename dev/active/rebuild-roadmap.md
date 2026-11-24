@@ -273,8 +273,8 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 - `Verbs.At(world, who)` in Sim is the one source of "what can I do here", in design §3.5's shape.
 - Core additions before the UI: an explored-tile record with sight rays behind `Sight.Visible`, a
   breakdown of trip time, and the stat tiers shared between player and NPCs.
-- Save compatibility starts with the first build someone else plays. Until then saves may break,
-  but the format is designed now so that isn't a big refactor later.
+- Save compatibility starts once the rebuild is finished (decision 2026-11-24). Until then saves
+  break with each format change, but the format is designed now so that isn't a big refactor later.
 - Settle: one year, every agent stepped every minute, opt-in through a saved flag that stays off
   until §8 passes. Only hard floors reject a world. Reveal thresholds are computed from the find,
   in the same step.

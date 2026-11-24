@@ -3,14 +3,8 @@ namespace Survival.Tests;
 /// Words the glossary retired (GLOSSARY.md, "Avoid") stay out of the rebuild's code, content and UI.
 public class RetiredWordsTests
 {
-    /// What lies on a tile is a pile (#121). The format 25 migration and its fixture name the old fields.
-    static readonly string[] MayNameTheStash =
-    [
-        Path.Combine("Sim", "Save.cs"),
-        Path.Combine("Sim.Tests", "Fixtures", "sample-save-v25.json"),
-        Path.Combine("Sim.Tests", "SaveTests.cs"),
-        Path.Combine("Sim.Tests", "Architecture", "RetiredWordsTests.cs"),
-    ];
+    /// What lies on a tile is a pile (#121).
+    static readonly string[] MayNameTheStash = [Path.Combine("Sim.Tests", "Architecture", "RetiredWordsTests.cs")];
 
     static readonly string[] Extensions = [".cs", ".json", ".js", ".html", ".css", ".md"];
 

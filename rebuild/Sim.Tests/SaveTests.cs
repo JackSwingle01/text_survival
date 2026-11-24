@@ -136,54 +136,6 @@ public class SaveFixtureTests
             "Make the change deliberate: documentation/save-format.md.");
     }
 
-    static string FixturePath(string name) => Path.Combine(Path.GetDirectoryName(FixturePath())!, name);
-
-    /// Fixtures/sample-save-v25.json is the sample as format 25 wrote it, before the stash was renamed the
-    /// pile (#121). It loads as the same world the current sample is: its stashes are piles, its stash
-    /// events and causes are named for the pile. Never regenerated.
-    [Fact]
-    public void ASaveFromBeforeThePileRename_LoadsItsStashesAsPiles()
-    {
-        string old = File.ReadAllText(FixturePath("sample-save-v25.json"));
-        Assert.Contains("\"Version\": 25", old);
-
-        var w = Save.FromJson(old);
-
-        var piled = w.Tiles.Values.Where(t => t.Pile != null).ToList();
-        Assert.NotEmpty(piled);
-        Assert.All(piled, t => Assert.NotNull(t.PileId));
-        Assert.Contains(piled, t => t.PileCause?.What == "put down by the player");
-        Assert.Equal(2, w.NextPileId);
-        var events = w.Journal.Values.SelectMany(e => e).ToList();
-        Assert.Contains(events, e => e is PutOnPile);
-        Assert.Contains(events, e => e is PickedUp);
-        Assert.Contains(Memories.Of(w.Agent(P)).Places.Values, p => p.Pile != null);
-        Assert.Equal(Indented(Save.ToJson(SampleWorld())), Indented(Save.ToJson(w)));
-    }
-
-    /// What the sample does not hold: a person part-way through putting down, and the events whose text named
-    /// the stash. Written as format 25 would have written them, they load under the pile's names.
-    [Fact]
-    public void AFormat25Save_RenamesTheStashInActivitiesAndTheJournal()
-    {
-        var w = SampleWorld();
-        var npc = w.Agents.Keys.First(id => id != P && w.Agent(id).Mind is NpcMind);
-        w.Agent(npc).Doing = new Doing { Plain = new PutDown(npc, Resource.Pine, 1), MinutesLeft = 1 };
-        var tile = w.Agent(P).Tile;
-        w.Journal[tile] = [.. w.Journal.GetValueOrDefault(tile) ?? [],
-            new PlanRefused(w.Minute, npc, tile, nameof(PickUp), "no pine in the pile here"),
-            new PoolDiscovered(w.Minute, P, new PoolId(tile, 0), "Trapper's Bundle")];
-        string current = Save.ToJson(w);
-        string old = current.Replace($"{{\"Version\":{Save.FormatVersion},", "{\"Version\":25,")
-            .Replace("\"kind\":\"putdown\"", "\"kind\":\"stash\"")
-            .Replace("\"Activity\":\"PickUp\"", "\"Activity\":\"Unstash\"")
-            .Replace("no pine in the pile here", "no pine stashed here")
-            .Replace("Trapper's Bundle", "Trapper's Stash");
-        Assert.NotEqual(current, old);
-
-        Assert.Equal(current, Save.ToJson(Save.FromJson(old)));
-    }
-
     /// A loaded sample runs on like any world: the format holds everything the world needs.
     [Fact]
     public void TheSampleSave_RunsOn_AsTheWorldItWasSavedFrom()
