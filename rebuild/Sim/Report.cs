@@ -95,8 +95,8 @@ public static class Report
                 foreach (var sign in Signs.At(w, t)) AddSign(t, sign);
             }
 
-        // The carrion flock circling flesh on the tile (Tags.Beacon), as the find's text says it.
-        string Circled(TileId t) => Fauna.FlockAt(w, t) != null ? ", ravens circling" : "";
+        // Ravens circling flesh on the tile (Tags.Beacon), as the find's text says it.
+        string Circled(TileId t) => Fauna.RavensAt(w, t) != null ? ", ravens circling" : "";
 
         // The signs, as finds. What a pool shows of being worked is its pool row's business, above.
         void AddSign(TileId t, Sign sign)

@@ -278,6 +278,11 @@ _Avoid_: prediction, simulation, estimate
 Anything that decides and moves in the world on its own: a person or an animal.
 _Avoid_: actor, entity, unit
 
+**Opportunist**:
+An animal that neither hunts nor holds a kill and eats what it finds: forage, piles and carrion (carcass
+meat and a dead person's flesh). Ravens and foxes. Ravens perch over a kill a predator holds; foxes keep off it.
+_Avoid_: carrion (that is the food, not the animal), flock
+
 **Herd**:
 The animals of one species on one tile, from a lone bear to a hundred caribou: what they make
 together, not a thing of its own. A pack is a herd of predators familiar with each other.
