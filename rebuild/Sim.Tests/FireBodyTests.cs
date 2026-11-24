@@ -8,7 +8,7 @@ public class FireBodyTests
 
     static World LitCamp(int seed, WeatherSample? sky = null)
     {
-        var world = TestWorlds.New(seed);
+        var world = TestWorlds.Bare(seed);
         TestKit.Supply(world);
         world.FixedWeather = sky;
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)

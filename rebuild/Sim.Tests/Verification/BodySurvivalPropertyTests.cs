@@ -435,7 +435,6 @@ public class BodySurvivalPropertyTests
     /// The real code, a minute at a time, against the closed form, minute by minute. The step's
     /// rounding compounds over a day, hence 1e-9 and not 0.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ReferenceModel_StepByStepWetness_MatchesTheClosedForm()
     {
         Gen.Select(Gens.BodyInputs, Gens.Contexts).Check(t =>
@@ -457,7 +456,6 @@ public class BodySurvivalPropertyTests
     /// at or under the setpoint, out of a sweat and with the fire's heat not yet fading, the core does not
     /// touch wetness, so the closed form still holds. Warmer cases are left to the step-by-step test.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ReferenceModel_UpdateWetness_MatchesTheClosedForm_OutOfASweat()
     {
         var notSweating = Gens.BodyInputs.Where(i => i.CoreTempF < Body.SweatingThresholdF - 1);

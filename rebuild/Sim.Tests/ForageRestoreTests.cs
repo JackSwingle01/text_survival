@@ -12,7 +12,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -308,7 +308,6 @@ public class ForageRestoreTests(ITestOutputHelper output)
     // ---- darkness and held work ----
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ForagingInTheDarkWithoutLight_FindsLessThanByDay()
     {
         double Haul(int hour)

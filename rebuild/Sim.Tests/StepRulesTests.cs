@@ -7,7 +7,7 @@ public class StepRulesTests
 
     static World LitCamp(int seed = 1)
     {
-        var world = TestWorlds.New(seed);
+        var world = TestWorlds.Bare(seed);
         TestKit.Supply(world);
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
             Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);

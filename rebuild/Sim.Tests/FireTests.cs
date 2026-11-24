@@ -214,7 +214,7 @@ public class FireTests
 
     static World LitCamp(int seed = 1)
     {
-        var world = TestWorlds.New(seed);
+        var world = TestWorlds.Bare(seed);
         TestKit.Supply(world);
         // Striker with birch bark is 95%; retry so the test never depends on one roll.
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)

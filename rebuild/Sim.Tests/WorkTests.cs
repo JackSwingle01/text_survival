@@ -9,7 +9,7 @@ public class WorkTests
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -131,7 +131,6 @@ public class WorkTests
     }
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void AFocusedSearch_KeepsItsFocus_AndDropsAboutHalfTheRest()
     {
         double Fuel(ForageFocus focus)
@@ -152,7 +151,6 @@ public class WorkTests
 
     /// The old filter (FocusProcessor.ApplyFocus): a focus keeps its whole category and buys nothing more of it.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void AFocusedSearch_KeepsExactlyWhatAGeneralSearchFindsOfItsCategory_AndNoMoreOfAnything()
     {
         IReadOnlyDictionary<Resource, double> Haul(ForageFocus focus, int seed)

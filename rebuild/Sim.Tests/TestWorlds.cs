@@ -7,6 +7,8 @@ using Survival;
 /// attached costs ~6 ms. The game keeps no such cache: a map is read-only once generated, and sharing one
 /// across worlds and threads depends on that staying true.
 ///
+/// Ask for Bare unless the animals are the test's subject or it needs a populated valley around it.
+///
 /// Call World.New, Save.FromJson and Map.Generate directly only where generation or loading is the subject,
 /// or where seeds don't repeat (TestWorldSourceTests).
 static class TestWorlds
@@ -29,6 +31,20 @@ static class TestWorlds
 
     /// A world that saves the same as World.New(seed), on the seed's shared map.
     public static World New(int seed) => Load(TemplateOf(seed).Json);
+
+    // The same once-per-seed rule for the bare world's save.
+    static readonly ConcurrentDictionary<int, Lazy<string>> BareJson = new();
+
+    /// The seed's world with nobody in it but the player: World.New(seed) with every other agent removed.
+    /// For a test whose subject is not the animals. They are nearly all of a world's save (about 500 KB
+    /// of 520 on seed 17), so this loads in a fiftieth of the time, saves as fast, and no minute the test
+    /// lives pays for a herd. Herds still arrive in an empty valley, at midnight, as they would in the game.
+    public static World Bare(int seed) => Load(BareJson.GetOrAdd(seed, s => new Lazy<string>(() =>
+    {
+        var w = New(s);
+        foreach (var id in w.Agents.Keys.Where(id => id != AgentId.Player).ToList()) Agents.Remove(w, id);
+        return Save.ToJson(w);
+    })).Value);
 
     /// Save.FromJson with the shared map of the save's seed attached: the map Map.Of would generate again.
     public static World Load(string json)

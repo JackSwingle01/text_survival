@@ -10,7 +10,7 @@ public class FeelsTests
 
     static World ColdCamp(out TileId camp)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Cold;
         camp = Map.Of(w).Camp;
         return w;

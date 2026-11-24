@@ -22,7 +22,7 @@ public class CarcassTests
 
     static (World, Carcass) Make(string animal, double effectiveHours = 0)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         var (kg, muscle, fat, bird, mega) = Animals[animal];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
@@ -324,7 +324,6 @@ public class CarcassTests
     /// each step's cut, so a caribou butchered a minute at a time gave meat and nothing else, and a
     /// hare nothing at all but floored meat.
     [Theory, InlineData("Caribou"), InlineData("Hare")]
-    [Trait("Category", TestCategories.LongRun)]
     public void Butchering_InOneStepHoursOrMinutes_YieldsExactlyTheSame(string animal)
     {
         (World, Carcass) Start() { var (w, c) = Make(animal); BigPack(w); return (w, c); }

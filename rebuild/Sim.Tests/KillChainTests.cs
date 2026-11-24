@@ -13,9 +13,8 @@ public class KillChainTests
     /// Seed 17 with nothing else alive in it but the player, in a fixed sky (41 °F: rot at its base rate).
     internal static World Bare(double tempC = 5, int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, tempC, 0.1, 0, 0.8, WindDirection.North);
-        foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
         return w;
     }
 

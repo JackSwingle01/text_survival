@@ -10,7 +10,7 @@ public class ItemsTests
 
     static World New(int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = Mild;
         return w;
     }

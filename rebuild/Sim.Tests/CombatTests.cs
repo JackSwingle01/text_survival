@@ -4,7 +4,7 @@ namespace Survival.Tests;
 /// and the mechanical part of Companions/CompanionCombatTests, plus the agent-model rules the rebuild adds.
 public class CombatTests
 {
-    internal static (World World, TileId Tile) Field(int seed = 1) => Field(TestWorlds.New(seed));
+    internal static (World World, TileId Tile) Field(int seed = 1) => Field(TestWorlds.Bare(seed));
 
     /// A search over seeds passes World.New(seed): each seed comes once, so a shared one would only hold memory.
     internal static (World World, TileId Tile) Field(World world)
@@ -154,7 +154,6 @@ public class CombatTests
     }
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void PackHunt_LeavesConsistentWorldWhateverHappened()
     {
         for (int seed = 1; seed <= 20; seed++)

@@ -10,7 +10,7 @@ public class PoolsTests
 
     static World New(int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = Mild;
         return w;
     }
@@ -126,7 +126,6 @@ public class PoolsTests
     /// Statistical golden: the old ForageFeature at density 1.0 (mixed forest), one call a minute,
     /// over 4000 trials: 5.2956 kg in the first hour (3.5905 wood, 0.2575 food), 8.1236 kg in hours 2-3.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void Forage_YieldsAndThinsLikeTheOld()
     {
         int trials = 2000;

@@ -9,7 +9,7 @@ public class MemoryTests
 
     static World Mild17()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = Mild;
         return w;
     }
