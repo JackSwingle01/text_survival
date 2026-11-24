@@ -263,7 +263,10 @@ Animals and people share one body model and one way of looking for what they nee
   around it (standing there, or crossing onto one of them), the choice's total minutes are multiplied
   by (1 + cohesion). A caribou at cohesion 1 would rather take twice as long with the herd. A bear at
   0 doesn't care. Closed-group species count only familiar animals as kin. Counting the tiles around
-  lets a herd spread over several tiles while it grazes and stay one herd.
+  lets a herd spread over several tiles while it grazes and stay one herd. For a prey herd the same
+  ring decides when an animal is alone and goes to the nearest kin it can make out (#154): with kin
+  on a neighbouring tile it stays where it is. Packs and flocks are alone with no side on their own
+  tile, because a pack hunts as one side.
 - **Crowding: a tile capacity, counted by intake** (amended 2026-11-24, #83 and #132; it replaces
   "yield ÷ grazers", which capped herds at about 2.5).
   - **Load.** Each grazer standing on the tile (or stepping onto it) that eats a resource growing

@@ -114,12 +114,14 @@ public static partial class Fauna
     {
         if (SpeciesTable.Of(animal.Species).Cohesion <= 0 || mind.Choice is Feed or Hunt || !CanMove(animal)) return null;
         if (Following(world, animal) is ({ } going, _)) return (new Travel(animal.Id, going), UntilArrived);
-        if (SideCount(world, animal) > 1 || world.Minute % KinLookEveryMinutes != 0) return null;
+        if (WithKin(world, animal) || world.Minute % KinLookEveryMinutes != 0) return null;
         var near = Nearby.Within(world, animal.Tile, KinSenseTiles).Where(k => IsKin(animal, k)).ToList();
         if (near.Count == 0) return null;
         if (near.Any(k => k.Crossing is { } c && Map.Step(c.From, c.Dir) == animal.Tile && k.Tile == c.From)) return Wait(animal);
         return TowardNearest(world, animal, near.Select(k => k.Tile).ToHashSet());
     }
+
+    static bool WithKin(World world, Agent animal) => IsPrey(animal.Species) ? KinAt(world, animal, animal.Tile) : SideCount(world, animal) > 1;
 
     static int SideCount(World world, Agent animal)
     {
