@@ -1,0 +1,16 @@
+# 130-verbs-tests-short-step: VerbsTests check each verb against Step without living out its whole job
+
+Hypothesis:
+- Changes: `AssertEveryVerbIsTrue` in rebuild/Sim.Tests/VerbsTests.cs steps an allowed walk for its listed minutes and every other verb for one minute; VerbsTests lines come off rebuild/Sim.Tests/slow-fast-tests.txt.
+- Affects: the 14 VerbsTests tests that call the helper (16 calls). What the check asserts stays: a refused verb gets 0 minutes and the listed reason, an allowed verb gets at least one minute, an allowed walk that arrives takes its listed trip minutes.
+- Why one minute is enough: Sim.Step reads `minutes` only as `Doing.MinutesLeft`, counted down at the end of each lived minute (Sim.Live, "done"), and in Start's refusal-free path; no refusal (ActivityRefusal, Combat.Act's stale round at minute one, Crossed, Held) reads it, and no Begin takes it. A hunt replaces it with its fight's length anyway (Fauna.Begin). So whether a job is refused, or lives its first minute, is the same at 1 minute as at its full length: no verb has to keep its full length besides walks.
+- Stays green: VerbsTests; the fast suite.
+- First red: none; a speed change to a test helper. Its check is mutation by hand: break a listing and watch the check fail.
+
+Revised: no scout or design-review sub-agent → the change is one line of one test helper, and the scouting the issue asks for (does a job refuse differently in its first minutes) was a read of Sim.Step/Start/Live, recorded above
+Revised: 1 minute, not "a few" → the check reads only whether the first minute was lived; more minutes buy nothing
+Revised: stepping one minute cut the 14 tests only 51.5 s → 47.3 s; a probe showed each copy's first step regenerating the map (~45 ms; Save.FromJson leaves GeneratedMap null and Map.Of builds it) and that, not minutes lived, was the cost → each copy is handed the source world's map, as the helper already hands over AccessGates and GroundCache (never saved). A change the ticket didn't ask for, flagged in the PR. Open PR #134 (TestWorlds.Load) attaches the seed's shared map to every load and would make this line redundant; whichever merges second resolves a one-line conflict
+Revised: summed time of the VerbsTests class (Release, 4 cores, the class alone): 51.5 s before, 14.6 s after; the slowest now ABuriedFind at 2.9 s
+Revised: in the full parallel fast suite two VerbsTests read 5.2 s and 5.8 s (waiting on the others); CI re-runs flagged tests alone and gates on that (test_durations.py header), where all are under 3 s → all 14 VerbsTests lines come off slow-fast-tests.txt
+Revised: acceptance check by hand, each break a temporary `verbs.Select(v => v with ...)` in the helper on EveryVerb_AtTheStart: refused "Make sharp rock" listed allowed → fails ("listed allowed, Step refused 'you need 0.3 kg of stone'"); allowed "Forage" listed refused → fails ("Step said '' after 1 min"); refused reason changed → fails; "Walk north" trip +1 min → fails ("listed 6 min, took 5")
+Follow-up: the fast suite under 4-core contention flags 26 tests over 5 s before CI's serial re-run; WorkTests.AFocusedSearch (5.3 s), ActionSequenceTests.ShortScripts, ArchitectureTests.ABusyRun, CombatReachTests.ALongerReach_BracesForAnimalsToo are near the line

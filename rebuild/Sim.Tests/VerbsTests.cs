@@ -25,7 +25,10 @@ public class VerbsTests
     }
 
     /// Every verb listed, run on a copy of the world, is refused exactly when it says it is, with
-    /// the same words; and listing them changes nothing.
+    /// the same words; and listing them changes nothing. A walk that can start runs its whole trip,
+    /// to check the minutes it lists; every other verb runs one minute. That is all the check reads:
+    /// a refusal comes before any minute passes, and Step does not read the minutes it is given
+    /// until a job has lived its first.
     static void AssertEveryVerbIsTrue(World w, AgentId who)
     {
         string before = Save.ToJson(w);
@@ -36,8 +39,9 @@ public class VerbsTests
         {
             var copy = Save.FromJson(before);
             copy.AccessGates = w.AccessGates; // never saved
+            copy.GeneratedMap = Map.Of(w); // never saved: the seed's own terrain, which a load would generate again for every verb
             copy.GroundCache = w.GroundCache == null ? null : new(w.GroundCache); // never saved: a scene's ground (TestKit.EditGround)
-            var result = Sim.Step(copy, v.Activity, v.Minutes);
+            var result = Sim.Step(copy, v.Activity, v.Activity is Travel && v.Allowed ? v.Minutes : 1);
             if (v.Refused?.Reason != null) Assert.True(result.MinutesElapsed == 0 && result.InterruptedReason == v.Refused?.Reason,
                 $"{v.Label}: listed refused '{v.Refused}', Step said '{result.InterruptedReason}' after {result.MinutesElapsed} min");
             else Assert.True(result.MinutesElapsed > 0, $"{v.Label}: listed allowed, Step refused '{result.InterruptedReason}'");
