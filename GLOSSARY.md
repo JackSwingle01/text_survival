@@ -53,10 +53,10 @@ wet, frozen, spoiling, and for bodies only bleeding, pain, shivering. The same k
 three.
 _Avoid_: status, debuff
 
-**Discomfort**:
-An effect that wears a body down without harming it: hungry, thirsty, tired. Their losses stack with diminishing returns, so together they never take a
-capacity below about a fifth; wounds, blood loss and the cold take what they take on top.
-_Avoid_: debuff, need effect
+**Deprivation**:
+An effect from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
+without harming it, and it lifts when the need is met; nothing treats it.
+_Avoid_: discomfort, debuff, need effect
 
 **Condition**:
 What a verb sees about a location feature or an item: a fact read from its effects and its place
