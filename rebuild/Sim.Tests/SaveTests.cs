@@ -86,12 +86,12 @@ public class SaveTests
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
         Items.Add(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
-        var flock = Agents.SpawnGroup(w, Species.Raven, tile, 4, [tile])[0];
-        w.Agent(flock).Doing = new Doing { Plain = new Raid(flock), MinutesLeft = 1 };
+        var raven = Agents.SpawnGroup(w, Species.Raven, tile, 4, [tile])[0];
+        w.Agent(raven).Doing = new Doing { Plain = new Raid(raven), MinutesLeft = 1 };
 
         var loaded = Save.FromJson(Save.ToJson(w));
 
-        Assert.Equal(new Raid(flock), loaded.Agent(flock).Doing?.Activity);
+        Assert.Equal(new Raid(raven), loaded.Agent(raven).Doing?.Activity);
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
     }
 }

@@ -147,6 +147,7 @@ public class RenewalTests
         var fire = new FireId(w.NextFireId++);
         var seen = new HashSet<AgentId>(w.Agents.Keys);
         int arrivals = 0;
+        var arrived = new HashSet<Species>();
         // Each day's look is the minute after midnight, when the day's arrivals came in (Fauna.Renew).
         Sim.Advance(w, 1440 - Weather.MinuteOfDay(w.Minute));
         int day = 0;
@@ -171,6 +172,7 @@ public class RenewalTests
                 // A newborn on its mother's land: born here, not arrived.
                 if (lands.Any(l => l.SequenceEqual(land))) continue;
                 arrivals++;
+                arrived.Add(herd.Species);
                 Assert.False(Fauna.IsMegafauna(herd.Species));
                 Assert.True(MapGen.Manhattan(land[0], camp) > Fauna.SafeZoneTiles, $"{herd.Species} came in at {land[0]}, inside camp's safe zone");
                 Assert.True(MapGen.Manhattan(land[0], open) > Fauna.ArrivalClearanceTiles, $"{herd.Species} came in at {land[0]}, in sight of the player at {open}");
@@ -182,7 +184,9 @@ public class RenewalTests
         output.WriteLine($"seed {seed}: the player watched {day} days; {arrivals} herds arrived");
         Assert.True(day >= 100, $"seed {seed}: the player was there to be seen by for only {day} days"); // enough days of arrivals to judge
         Assert.True(arrivals > 0, $"seed {seed}: nothing came into an empty valley in two hundred days");
-        Assert.Contains(w.Agents.Values, h => h.Species == Species.Caribou);
+        // Caribou are among what comes, whoever is left at the end: on seed 17 the packs that arrive after
+        // them have eaten the last by day 155, and bison hold the grazing from then on (#177).
+        Assert.Contains(Species.Caribou, arrived);
         // Capacity is derived, never saved: a loaded world reads the same capacities off the same land.
         var loaded = TestWorlds.Load(Save.ToJson(w));
         foreach (var herd in w.Agents.Values.Where(a => a.Mind is HerdMind))
@@ -203,7 +207,9 @@ public class RenewalTests
         CaribouHerd(w, full / 2 - 1);
         CaribouHerd(w, full - full / 2);
         Sim.Advance(w, 50 * 1440);
-        int together = CaribouIn(w);
+        // Caribou arriving from outside onto other land are not these herds'.
+        var shared = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(x => x.Species == Species.Caribou)).Territory.ToHashSet();
+        int together = w.Agents.Values.Count(x => x.Species == Species.Caribou && x.Mind is HerdMind m && m.Territory.Any(shared.Contains));
         Assert.True(together <= full, $"{together} caribou on land carrying {full}");
     }
 
@@ -227,13 +233,14 @@ public class RenewalTests
             events.AddRange(Sim.Advance(w, 1));
         }
         Assert.DoesNotContain(events.OfType<EncounterEnded>(), f => mammoths.Ids.Contains(f.Agent));
-        Assert.True(wolves.Living(w) == 6, "the pack went for the mammoths and lost wolves to it");
+        // Hunger may thin the starving pack (Fauna.Thin); no wolf is lost to a mammoth.
+        Assert.DoesNotContain(events.OfType<Killed>(), k => wolves.Ids.Contains(k.Agent) && k.By is AgentId by && mammoths.Ids.Contains(by));
         Assert.Equal(6, mammoths.Living(w));
     }
 
-    /// Review: hyenas and the carrion flock never died but in a fight, and a pack only after fourteen
+    /// Review: hyenas and the carrion flock (now ravens) never died but in a fight, and a pack only after fourteen
     /// days unfed, so they followed nothing down. What lives on kills thins toward what its land
-    /// carries: a fed pack, hyenas and a flock on land with no prey near and little growing all lose
+    /// carries: a fed pack, hyenas and ravens on land with no prey near and little growing all lose
     /// members, and the herd that is left is no bigger than before.
     /// One seed is enough (#96): the world is hand-built, with nothing else alive, and every loss is an
     /// animal's own daily roll (Fauna.Thin, 0.02 a day for a wolf on land carrying none, 0.015 for a
@@ -247,14 +254,14 @@ public class RenewalTests
         var land = Fauna.MindOf(TestWorlds.New(17).Agents.Values.First(a => a.Species == Species.Wolf)).Territory;
         var wolves = Animals.Spawn(w, Species.Wolf, land[0], 8, [.. land]);
         var hyenas = Animals.Spawn(w, Species.Hyena, land[0], 6, [.. land]);
-        var flock = Animals.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
+        var ravens = Animals.Spawn(w, Species.Raven, land[0], 6, [land[0]]);
         Assert.Equal(0, Fauna.CapacityOf(w, w.Agent(wolves))); // no prey left in the valley
-        double flockRoom = Fauna.CapacityOf(w, w.Agent(flock));
-        Assert.True(flockRoom < 6, $"the flock's land carries {flockRoom:0.0}");
+        double ravensRoom = Fauna.CapacityOf(w, w.Agent(ravens));
+        Assert.True(ravensRoom < 6, $"the ravens' land carries {ravensRoom:0.0}");
         Sim.Advance(w, 60 * 1440);
         Assert.True(wolves.Living(w) < 8, "a pack on land with no prey lost no one");
         Assert.True(hyenas.Living(w) < 6, "hyenas on land with no prey lost no one");
-        Assert.True(flock.Living(w) < 6, "a flock over what its land carries lost no one");
+        Assert.True(ravens.Living(w) < 6, "ravens over what their land carries lost no one");
         Assert.Contains(w.Tiles.Values.SelectMany(t => t.Carcasses ?? []), c => c.Animal == "Hyena" && c.Cause?.What == "starvation");
     }
 

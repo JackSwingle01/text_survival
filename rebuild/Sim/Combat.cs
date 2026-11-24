@@ -201,8 +201,8 @@ public static partial class Combat
         enc.FireCell = (enc.Units.FirstOrDefault(IsPlayer) ?? enc.Units[0]).Position;
         world.Encounters.Add(enc);
         // Anyone awake beside a fight stops what they are at, and their mind chooses whether to help.
-        foreach (var id in Nearby.At(world, tile).Where(id => all.All(f => f.Agent != id)))
-            if (world.Agents[id] is { Mind: NpcMind, Doing: Doing d } bystander && Sim.Looks(bystander, d.Activity)) Sim.EndDoing(world, bystander, events ?? []);
+        foreach (var bystander in Nearby.At(world, tile).Where(a => all.All(f => f.Agent != a.Id)))
+            if (bystander is { Mind: NpcMind, Doing: Doing d } && Sim.Looks(bystander, d.Activity)) Sim.EndDoing(world, bystander, events ?? []);
         return enc;
     }
 
@@ -285,8 +285,9 @@ public static partial class Combat
     {
         var side = new List<Agent> { agent };
         if (agent.Mind is not HerdMind) return side;
-        foreach (var id in Nearby.At(world, agent.Tile))
-            if (OnSide(world, agent, world.Agents[id])) side.Add(world.Agents[id]);
+        var here = Nearby.At(world, agent.Tile);
+        for (int i = 0; i < here.Count; i++)
+            if (OnSide(world, agent, here[i])) side.Add(here[i]);
         return side;
     }
 

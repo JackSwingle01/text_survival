@@ -15,6 +15,12 @@ namespace text_survival.Tests.Actions;
 /// </summary>
 public class FireHandlerTests
 {
+    // Starting from an ember passes five minutes with random events allowed. About one fresh
+    // game in 500 rolls one, and it can cost half an hour or more: the kindling burns out and
+    // no log will go on. These tests are about which fire the screen acts on, so the roll is
+    // pinned, and each test checks no event came anyway.
+    public FireHandlerTests() => text_survival.Utils.Seed(1);
+
     [Fact]
     public async Task ManageFire_StartingFromEmber_PutsTheFireOnTheLocation()
     {
@@ -38,6 +44,7 @@ public class FireHandlerTests
 
         await FireHandler.ManageFire(ctx);
 
+        Assert.True(ui.EventsShown.Count == 0, NoEventExpected(ui));
         var fire = location.GetFeature<HeatSourceFeature>();
         Assert.NotNull(fire);
         Assert.True(fire.IsActive, "The fire the player lit should be burning on the location.");
@@ -72,10 +79,14 @@ public class FireHandlerTests
 
         await FireHandler.ManageFire(ctx);
 
+        Assert.True(ui.EventsShown.Count == 0, NoEventExpected(ui));
         var fire = location.GetFeature<HeatSourceFeature>();
         Assert.NotNull(fire);
         Assert.True(fire.TotalMassKg > 0.5, "The log should have gone onto the fire the player is looking at.");
     }
+
+    private static string NoEventExpected(ScriptedUi ui) =>
+        $"The seed in the constructor no longer avoids random events ({string.Join(", ", ui.EventsShown.Select(e => e.Name))}); pick one that does.";
 
     private static Gear LitEmberCarrier() => new()
     {

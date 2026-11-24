@@ -252,9 +252,25 @@ public class Phase2GateTests(ITestOutputHelper output)
     {
         if (!Alive(w)) return new StepResult([], 0, StepOutcome.Refused, "dead");
         var r = Sim.Step(w, a, minutes);
+        // A predator has come for the camper: nothing else can be done until the fight is over.
+        if (r.Outcome == StepOutcome.Refused && r.InterruptedReason == Sim.InAnEncounter && FightItOut(w)) r = Sim.Step(w, a, minutes);
         if (r.InterruptedReason == "died" || Log != null && r.Events.Any(e => e is Died))
             Log?.Invoke($"died at {w.Minute} during {a}: core {w.Agent(P).Body.CoreTempF:0.0} kcal {w.Agent(P).Body.CaloriesKcal:0} water {w.Agent(P).Body.HydrationMl:0} blood {w.Agent(P).Body.BloodPct:0.00} caps {Body.GetCapacities(w.Agent(P).Body)} effects {string.Join(",", w.Agent(P).Body.Effects.Select(e => $"{e.Kind}:{e.Severity:0.00}"))}");
         return r;
+    }
+
+    /// Fights the fight the camper is in to its end: strikes whoever it faces when in reach, and closes
+    /// when not. False if it died, or the fight outlasted the rounds allowed.
+    static bool FightItOut(World w)
+    {
+        for (int round = 0; round < 600 && Alive(w) && Combat.EncounterOf(w, P) is Encounter fight; round++)
+        {
+            var open = Combat.Actions(w, fight, Combat.UnitOf(fight, P));
+            var action = open.Contains(CombatAction.Attack) ? CombatAction.Attack : open.Contains(CombatAction.Advance) ? CombatAction.Advance : CombatAction.Wait;
+            var r = Sim.Step(w, new Fight(P, action), 1);
+            Log?.Invoke($"fight at {w.Minute}: {action}, {string.Join(", ", r.Events.Select(e => e.GetType().Name))}");
+        }
+        return Alive(w) && Combat.EncounterOf(w, P) is null;
     }
 
     /// Forages, and works out any stock it has already found here.

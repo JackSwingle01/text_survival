@@ -230,7 +230,12 @@ public static partial class Body
 
     const int CapacityCount = 8;
 
-    public static Capacities GetCapacities(BodyState body) => GetCapacities(body, Effects.CapacityDeltas(body));
+    public static Capacities GetCapacities(BodyState body)
+    {
+        Span<double> effectDeltas = stackalloc double[CapacityCount];
+        Effects.CapacityDeltas(body, effectDeltas);
+        return GetCapacities(body, effectDeltas);
+    }
 
     /// Tissue and blood alone, as digestion and life use: hunger does not slow absorbing food, and no effect stops a heart.
     static Capacities GetCapacitiesWithoutEffects(BodyState body) => GetCapacities(body, NoEffectDeltas);
@@ -238,10 +243,11 @@ public static partial class Body
     static readonly double[] NoEffectDeltas = new double[CapacityCount];
 
     // On the stack: every animal's life and legs are read every minute (Sim.IsAlive, Fauna's minds).
-    static Capacities GetCapacities(BodyState body, IReadOnlyList<double> effectDeltas)
+    static Capacities GetCapacities(BodyState body, ReadOnlySpan<double> effectDeltas)
     {
         Span<double> c = stackalloc double[CapacityCount];
-        (IsWhole(body) ? WholeTissueCapacities[(int)body.Kind] : TissueCapacities(body)).CopyTo(c);
+        if (IsWhole(body)) WholeTissueCapacities[(int)body.Kind].CopyTo(c);
+        else TissueCapacities(body, c);
 
         for (int i = 0; i < CapacityCount; i++)
             c[i] = Clamp01(Clamp01(c[i]) + Math.Clamp(effectDeltas[i], -1, 1));
@@ -278,43 +284,72 @@ public static partial class Body
         return true;
     }
 
-    static readonly double[][] WholeTissueCapacities =
-        [.. Enum.GetValues<BodyKind>().Select(k => TissueCapacities(BodyState.Create(k, BaselineWeightKg, BaselineFatPct, BaselineMusclePct)))];
+    static readonly double[][] WholeTissueCapacities = [.. Enum.GetValues<BodyKind>().Select(WholeCapacitiesOf)];
 
-    static double[] TissueCapacities(BodyState body)
+    static double[] WholeCapacitiesOf(BodyKind kind)
     {
-        var regions = body.Regions.Select(r => (r.Name, Caps: RegionCapacities(r))).ToList();
         var c = new double[CapacityCount];
-
-        // Moving: 90% legs, 10% everything else. Legs are found by name so four-legged bodies count too.
-        var legs = regions.Where(r => r.Name.Contains("Leg")).ToList();
-        var others = regions.Where(r => !r.Name.Contains("Leg")).ToList();
-        c[(int)Capacity.Moving] = legs.Count == 0
-            ? regions.Average(r => r.Caps[(int)Capacity.Moving])
-            : legs.Sum(r => r.Caps[(int)Capacity.Moving] * 0.9 / legs.Count)
-              + others.Sum(r => r.Caps[(int)Capacity.Moving] * 0.1 / others.Count);
-
-        // Manipulation: 90% arms, 2% each from the other human regions.
-        double ManipWeight(string name) => name switch
-        {
-            "Left Arm" or "Right Arm" => 0.45,
-            "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
-            _ => 0,
-        };
-        c[(int)Capacity.Manipulation] = regions.Sum(r => r.Caps[(int)Capacity.Manipulation] * ManipWeight(r.Name));
-
-        foreach (var cap in new[] { Capacity.Breathing, Capacity.BloodPumping, Capacity.Consciousness, Capacity.Sight, Capacity.Hearing, Capacity.Digestion })
-            foreach (var (_, caps) in regions)
-                c[(int)cap] = Clamp01(c[(int)cap] + caps[(int)cap]);
+        TissueCapacities(BodyState.Create(kind, BaselineWeightKg, BaselineFatPct, BaselineMusclePct), c);
         return c;
     }
+
+    /// Fills c (zeroed, one per Capacity). Nothing here allocates: a wounded animal is read as often as a whole one.
+    static void TissueCapacities(BodyState body, Span<double> c)
+    {
+        var regions = body.Regions;
+        // One row of capacities per region.
+        Span<double> caps = stackalloc double[regions.Count * CapacityCount];
+        for (int r = 0; r < regions.Count; r++) RegionCapacities(regions[r], caps.Slice(r * CapacityCount, CapacityCount));
+
+        // Moving: 90% legs, 10% everything else. Legs are found by name so four-legged bodies count too.
+        int legs = 0;
+        foreach (var r in regions) if (IsLeg(r)) legs++;
+        int others = regions.Count - legs;
+        const int moving = (int)Capacity.Moving, manipulation = (int)Capacity.Manipulation;
+        double legSum = 0, otherSum = 0, allSum = 0;
+        for (int r = 0; r < regions.Count; r++)
+        {
+            double m = caps[r * CapacityCount + moving];
+            if (legs == 0) allSum += m;
+            else if (IsLeg(regions[r])) legSum += m * 0.9 / legs;
+            else otherSum += m * 0.1 / others;
+        }
+        c[moving] = legs == 0 ? allSum / regions.Count : legSum + otherSum;
+
+        // Manipulation: 90% arms, 2% each from the other human regions.
+        double manip = 0;
+        for (int r = 0; r < regions.Count; r++)
+            manip += caps[r * CapacityCount + manipulation] * regions[r].Name switch
+            {
+                "Left Arm" or "Right Arm" => 0.45,
+                "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
+                _ => 0,
+            };
+        c[manipulation] = manip;
+
+        for (int cap = 0; cap < CapacityCount; cap++)
+        {
+            if (cap is moving or manipulation) continue;
+            for (int r = 0; r < regions.Count; r++)
+                c[cap] = Clamp01(c[cap] + caps[r * CapacityCount + cap]);
+        }
+    }
+
+    static bool IsLeg(Region region) => region.Name.Contains("Leg");
 
     /// Organs supply in proportion to their condition, plus the muscle's work, limited by the region's
     /// weakest layer. Not an average over tissues: that leaves two-thirds of breathing with both lungs destroyed.
     public static double[] RegionCapacities(Region region)
     {
         var result = new double[CapacityCount];
-        if (region.IsDestroyed) return result;
+        RegionCapacities(region, result);
+        return result;
+    }
+
+    /// Fills result (zeroed, one per Capacity).
+    static void RegionCapacities(Region region, Span<double> result)
+    {
+        if (region.IsDestroyed) return;
 
         foreach (var organ in region.Organs)
             if (organ.Provides is Capacity p)
@@ -323,8 +358,21 @@ public static partial class Body
         result[(int)Capacity.Manipulation] += 1;
 
         for (int i = 0; i < CapacityCount; i++)
-            result[i] = Clamp01(result[i]) * region.Layers.Min(t => LayerMultiplier(t, (Capacity)i));
-        return result;
+        {
+            var cap = (Capacity)i;
+            result[i] = Clamp01(result[i])
+                * WeakestOf(LayerMultiplier(region.Skin, cap), LayerMultiplier(region.Muscle, cap), LayerMultiplier(region.Bone, cap));
+        }
+    }
+
+    /// The least of the three, as Enumerable.Min reads them in order: the first of equals, and a NaN wins.
+    static double WeakestOf(double skin, double muscle, double bone)
+    {
+        if (double.IsNaN(skin)) return skin;
+        double least = skin;
+        if (muscle < least) least = muscle; else if (double.IsNaN(muscle)) return muscle;
+        if (bone < least) least = bone; else if (double.IsNaN(bone)) return bone;
+        return least;
     }
 
     /// 1 where the layer plays no part: skin carries a limb's work, not the organs' (a scalp wound does not dim the eyes).

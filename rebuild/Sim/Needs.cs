@@ -6,7 +6,7 @@ public sealed record Sensed(AgentId? Who, TileId Tile, long Minute, int? Carcass
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     Species? Quarry = null, int Count = 0);
 
-/// Water, rest and food on the shared planner: the top stat at Need or above gets a plan (the carrion flock's food: #85).
+/// Water, rest and food on the shared planner: the top stat at Need or above gets a plan.
 public static partial class Fauna
 {
     const string KinLeaving = "its kin are leaving";
@@ -14,9 +14,16 @@ public static partial class Fauna
     /// Asleep away from its den, a denning animal sleeps lighter (D).
     const double OpenSleepFactor = 0.75;
 
+    // Sightings are read by loops here and below: these run per tile or per minute, where a lambda costs an object each.
     sealed class AnimalView(World world, HerdMind mind) : WorldView
     {
-        public override bool Threat(TileId tile) => mind.Sightings?.Exists(s => s.Who != null && s.Tile == tile) == true;
+        public override bool Threat(TileId tile)
+        {
+            if (mind.Sightings is not { } seen) return false;
+            for (int i = 0; i < seen.Count; i++)
+                if (seen[i].Who != null && seen[i].Tile == tile) return true;
+            return false;
+        }
         public override bool OpenWater(TileId tile) => Work.HasUnfrozenWater(world, tile);
         public override GroundSeen Ground(TileId tile)
         {
@@ -46,10 +53,14 @@ public static partial class Fauna
         if (!ActiveNow(world, animal.Species) && body.EnergyPct < (resting ? 1 : Priorities.RestedPct) && rest < Priority.Need) rest = Priority.Need;
         var food = Priorities.AnimalFoodPriority(body, SpeciesTable.Of(animal.Species).FatPct, seeingTo: mind.Plan?.Stat == Stat.Food);
         var priorities = new StatPriorities(Priority.None, water, food, rest);
-        // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's plan does).
-        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need && !Priorities.Ladder.Any(s => Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority)))
-            return (plan.Stat, priorities[plan.Stat]);
-        return Priorities.Top(priorities, Priority.Need) is { } top && (top.Stat != Stat.Food || BehaviorOf(animal.Species) != HerdBehavior.Carrion) ? top : null;
+        // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
+        if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need)
+        {
+            bool outranked = false;
+            foreach (var s in Priorities.Ladder) outranked |= Priorities.Outranks(s, priorities[s], plan.Stat, plan.Priority);
+            if (!outranked) return (plan.Stat, priorities[plan.Stat]);
+        }
+        return Priorities.Top(priorities, Priority.Need);
     }
 
     static (Activity, int)? Needs(World world, Agent animal, HerdMind mind, List<WorldEvent> events)
@@ -62,6 +73,8 @@ public static partial class Fauna
             if (world.Minute % SenseEveryMinutes == 0) Sense(world, animal, mind);
             return GiveWay(world, animal, mind, events);
         }
+        // A raven or fox at a kill a predator holds waits it out over it, or keeps off, unless starving (Scavenging.cs).
+        if (stat == Stat.Food && priority < Priority.Critical && HeldKill(world, animal)) return KeepOff(world, animal, mind, events);
         if (stat == Stat.Food && WouldComeForSomeone(world, animal, events)) return null;
         // Alone, a hungry animal goes to kin it can make out first; its food plan's cohesion would keep it there.
         if (stat == Stat.Food && priority < Priority.Critical && SideCount(world, animal) == 1 && Cohere(world, animal, mind) is { } toKin) return toKin;
@@ -133,8 +146,12 @@ public static partial class Fauna
     static double MeatAt(World world, Agent animal, HerdMind mind, TileId tile)
     {
         if (IsPrey(animal.Species)) return 0;
-        if (tile == animal.Tile) return CanFeed(world, animal) ? FeedKcalPerMinute : 0;
-        return mind.Sightings?.Exists(s => s.Carcass != null && s.Tile == tile) == true ? FeedKcalPerMinute : 0;
+        if (tile == animal.Tile) return CanFeed(world, animal) && !HeldKill(world, animal) ? FeedKcalPerMinute : 0;
+        if (WalkerKeepsOff(world, animal, tile)) return 0;
+        if (mind.Sightings is not { } seen) return 0;
+        for (int i = 0; i < seen.Count; i++)
+            if (seen[i].Carcass != null && seen[i].Tile == tile) return FeedKcalPerMinute;
+        return 0;
     }
 
     static Source? FoodAt(World world, Agent animal, HerdMind mind, TileId tile, HuntingParty? hunting = null)
@@ -179,9 +196,8 @@ public static partial class Fauna
         int hunters = Hunters(world, predator).Count;
         Agent? best = null;
         double bestChance = 0;
-        foreach (var id in Nearby.At(world, predator.Tile))
+        foreach (var a in Nearby.At(world, predator.Tile))
         {
-            var a = world.Agents[id];
             if (a.Mind is not HerdMind || !IsQuarry(a.Species) || !Sim.IsAlive(a) || Combat.EncounterOf(world, a.Id) != null) continue;
             double chance = Combat.KillChance(predator.Species, hunters, a.Species, Combat.Side(world, a).Count);
             if (chance > bestChance) (best, bestChance) = (a, chance);
@@ -367,7 +383,7 @@ public static partial class Fauna
                 var standing = Nearby.At(world, new TileId(tile.X + dx, tile.Y + dy));
                 for (int i = 0; i < standing.Count; i++)
                 {
-                    var k = world.Agents[standing[i]];
+                    var k = standing[i];
                     if (k.Id == animal.Id || !IsKin(animal, k)) continue;
                     var at = k.Crossing is { } c ? Map.Step(c.From, c.Dir) : k.Tile;
                     if (Math.Abs(at.X - tile.X) <= 1 && Math.Abs(at.Y - tile.Y) <= 1) return true;
@@ -381,16 +397,11 @@ public static partial class Fauna
     {
         mind.Sightings?.RemoveAll(s => s.Carcass == null && world.Minute - s.Minute > KeepSightingMinutes);
         var behavior = BehaviorOf(animal.Species);
-        bool prey = behavior == HerdBehavior.Prey, meat = !prey && behavior != HerdBehavior.Carrion, foodSeen = false;
-        bool rivals = IsClosedGroup(animal.Species), hunts = meat && Combat.Hunts(animal.Species);
-        if (!prey && !meat && !rivals)
-        {
-            if (mind.Sightings?.Count == 0) mind.Sightings = null;
-            return false;
-        }
+        bool prey = behavior == HerdBehavior.Prey, foodSeen = false;
+        bool rivals = IsClosedGroup(animal.Species), hunts = !prey && Combat.Hunts(animal.Species);
         double budget = Sight.BudgetTiles(world, animal.Tile, Body.GetCapacities(animal.Body).Sight) * SpeciesTable.Of(animal.Species).PerceptionFactor;
         bool Sees(TileId t) => t == animal.Tile || MapGen.Manhattan(t, animal.Tile) <= budget && Sight.Sees(world, animal.Tile, t, budget);
-        if (meat)
+        if (!prey)
         {
             mind.Sightings?.RemoveAll(s => s.Carcass is int id && Sees(s.Tile) && !HasMeat(world, s.Tile, id));
             foreach (var t in Carcasses.TilesWith(world))
@@ -448,7 +459,13 @@ public static partial class Fauna
                 : other.Species == animal.Species && IsClosedGroup(animal.Species) && !IsKin(animal, other)
             : IsPrey(animal.Species) && other.Mind is PersonMind && Sim.InTheWorld(world, other));
 
-    static bool ThreatNear(HerdMind mind, TileId tile) => mind.Sightings?.Exists(s => s.Who != null && MapGen.Manhattan(s.Tile, tile) <= 1) == true;
+    static bool ThreatNear(HerdMind mind, TileId tile)
+    {
+        if (mind.Sightings is not { } seen) return false;
+        for (int i = 0; i < seen.Count; i++)
+            if (seen[i].Who != null && MapGen.Manhattan(seen[i].Tile, tile) <= 1) return true;
+        return false;
+    }
 
     static TileId? Threatened(Agent animal, HerdMind mind, long since = long.MinValue) =>
         mind.Sightings?.Where(s => s.Who != null && s.Minute >= since && MapGen.Manhattan(s.Tile, animal.Tile) <= 1).Select(s => (TileId?)s.Tile).FirstOrDefault();

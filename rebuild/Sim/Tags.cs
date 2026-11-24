@@ -85,7 +85,7 @@ public static class Tags
     static Tag OfBody(World world, Agent dead)
     {
         if (Remains.StageOf(world, dead) != RemainsStage.Flesh) return Tag.None;
-        return Tag.ScentSource | (Fauna.FlockAt(world, dead.Tile) != null ? Tag.Beacon : Tag.None);
+        return Tag.ScentSource | (Fauna.RavensAt(world, dead.Tile) != null ? Tag.Beacon : Tag.None);
     }
 
     static Tag OfAgent(World world, Agent a, AgentId? viewer)
@@ -121,11 +121,11 @@ public static class Tags
         if (Carcasses.MeatKg(c) > 0) tags |= Tag.Edible;
         if (!Carcasses.AllCut(c)) tags |= Tag.Harvestable;
         if (Carcasses.DecayLevelNow(world, tile, c) < FreshDecayLevel) tags |= Tag.Fresh;
-        // The carrion flock circling flesh: findable from far off (emergent-world-design §4).
-        if (Fauna.FlockAt(world, tile) != null) tags |= Tag.Beacon;
+        // Ravens circling flesh: findable from far off (emergent-world-design §4).
+        if (Fauna.RavensAt(world, tile) != null) tags |= Tag.Beacon;
         // Contested: another predator herd or a person (the viewer included) is there too.
         var occupants = Occupants(world, new LocationFeature(LocationFeatureKind.Carcass, tile, c.Id), viewer);
-        if (occupants.Count > 0 && Nearby.At(world, tile).Select(id => world.Agents[id]).Any(a => !occupants.Contains(a.Id) && Sim.IsAlive(a)
+        if (occupants.Count > 0 && Nearby.At(world, tile).Any(a => !occupants.Contains(a.Id) && Sim.IsAlive(a)
                 && (a.Mind is PersonMind || a.Mind is HerdMind && Fauna.IsPredator(a.Species))))
             tags |= Tag.Contested;
         return tags;
@@ -225,7 +225,7 @@ public static class Tags
     static Tag OfShelter(World world, TileId tile, ShelterState s, AgentId? viewer)
     {
         var tags = OwnedBy(world, s.Cause, viewer) | (Shelters.IsDestroyed(s) ? Tag.Depleted : Tag.Sheltering);
-        if (Nearby.At(world, tile).Any(id => id != viewer && Sim.IsAlive(world.Agents[id]))) tags |= Tag.Inhabited;
+        if (Nearby.At(world, tile).Any(a => a.Id != viewer && Sim.IsAlive(a))) tags |= Tag.Inhabited;
         return tags;
     }
 

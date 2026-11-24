@@ -193,6 +193,48 @@ public class PoolsTests
         Assert.Equal(0, Pools.GrazedLevel(w, Camp(w), Resource.Roots));
     }
 
+    /// Grazing that has grown back reads as none, so the hourly sweep (a crossing anywhere sets it off) drops
+    /// it, then a forage state with nothing left to say, then the tile: the save holds only what differs
+    /// from the land as generated. A month of herds left two grazing records in three dead in the save.
+    [Fact]
+    public void GrazingGrownBack_IsDroppedByTheSweep_WithItsStateAndTile()
+    {
+        var w = WithPools(new ForagePool("test", 1.0, Pools.MixedForest));
+        var camp = Map.Of(w).Camp;
+        Pools.SetGrazed(w, Camp(w), Resource.Berries, 0.01);
+        Pools.SetGrazed(w, Camp(w), Resource.Roots, 0.5);
+        var away = new TileId(camp.X + 5, camp.Y);
+        void Sweep() => Tracks.RecordMove(w, away, new TileId(away.X + 1, away.Y), TrackMaker.Hoof);
+
+        w.Minute += (long)(0.01 * Pools.ForageRespawnHours * 60) + 60;
+        Sweep();
+        var grazed = ((ForageState)Pools.StateOf(w, Camp(w))!).Grazed;
+        Assert.DoesNotContain(Resource.Berries, grazed.Keys); // grown back
+        Assert.Contains(Resource.Roots, grazed.Keys);         // still thin
+        Assert.True(Pools.GrazedLevel(w, Camp(w), Resource.Roots) > 0);
+
+        w.Minute += (long)(0.5 * Pools.ForageRespawnHours * 60);
+        Sweep();
+        Assert.Null(Pools.StateOf(w, Camp(w)));
+        Assert.False(w.Tiles.ContainsKey(camp));
+    }
+
+    /// Ground a person has searched keeps its state through the sweep, grazed or not: its thinning and
+    /// its clue draw are still to be read.
+    [Fact]
+    public void SearchedGround_KeepsItsState_WhenItsGrazingHasGrownBack()
+    {
+        var w = WithPools(new ForagePool("test", 1.0, Pools.MixedForest));
+        var camp = Map.Of(w).Camp;
+        Pools.SetGrazed(w, Camp(w), Resource.Berries, 0.01);
+        Pools.ForageStateFor(w, Camp(w)).HoursForaged = 2;
+        w.Minute += (long)(0.01 * Pools.ForageRespawnHours * 60) + 60;
+        Tracks.RecordMove(w, new TileId(camp.X + 5, camp.Y), new TileId(camp.X + 6, camp.Y), TrackMaker.Hoof);
+        var state = Assert.IsType<ForageState>(Pools.StateOf(w, Camp(w)));
+        Assert.Empty(state.Grazed);
+        Assert.Equal(2, state.HoursForaged);
+    }
+
     // ---- stock (harvestables, salvage, details) ----
 
     static StockPool Bush(double respawnHours = 168, ToolType? tool = null) =>

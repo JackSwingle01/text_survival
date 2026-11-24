@@ -78,8 +78,8 @@ public sealed class ForageState : PoolState
     public long LastForagedMinute { get; set; }
     /// Which draw of clues the ground shows now (Clues.At): a search or a walk about moves it on.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int ClueDraw { get; set; }
-    /// Herd grazing per resource: level 0-1 as of Minute, regrowing linearly after.
-    public Dictionary<Resource, Grazing> Grazed { get; init; } = [];
+    /// Herd grazing per resource: level 0-1 as of Minute, regrowing linearly after. Sorted, as records are dropped (DropRegrown).
+    public SortedList<Resource, Grazing> Grazed { get; init; } = [];
 }
 public readonly record struct Grazing(double Level, long Minute);
 
@@ -421,6 +421,24 @@ public static class Pools
 
     public static void SetGrazed(World world, PoolId id, Resource r, double level) =>
         StateFor(world, id, () => new ForageState()).Grazed[r] = new Grazing(Math.Clamp(level, 0, 1), world.Minute);
+
+    /// Drops grazing regrown to zero, then a forage state with nothing searched or grazed, then the tile's empty
+    /// pools: each reads the same gone as kept, so the save holds only what differs (Tracks.Sweep, hourly).
+    internal static void DropRegrown(World world, TileState tile)
+    {
+        if (tile.Pools is not { } pools) return;
+        for (int p = pools.Count - 1; p >= 0; p--)
+        {
+            if (pools.Values[p] is not ForageState forage) continue;
+            for (int g = forage.Grazed.Count - 1; g >= 0; g--)
+            {
+                var grazing = forage.Grazed.Values[g];
+                if (grazing.Level - (world.Minute - grazing.Minute) / 60.0 / ForageRespawnHours <= 0) forage.Grazed.RemoveAt(g);
+            }
+            if (forage.Grazed.Count == 0 && forage.HoursForaged <= 0 && forage.ClueDraw == 0) pools.RemoveAt(p);
+        }
+        if (pools.Count == 0) tile.Pools = null;
+    }
 
     static readonly (double Below, double Factor)[] Luck = [(0.15, 0.5), (0.75, 1.0), (0.95, 1.5), (0.99, 2.0), (1.0, 3.0)];
 

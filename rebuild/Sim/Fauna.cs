@@ -2,8 +2,8 @@ namespace Survival;
 
 public enum HerdState { Resting, Grazing, Patrolling, Hunting, Feeding, Fleeing }
 
-/// Carrion never hunts nor occupies a carcass, and follows whatever is dying or killing.
-public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Carrion }
+/// An opportunist (ravens, foxes) neither hunts nor holds a carcass, and eats what it finds (Scavenging.cs).
+public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Opportunist }
 
 public enum Diet { Carnivore, Omnivore, Browser, Grazer }
 
@@ -45,7 +45,7 @@ public static partial class Fauna
 {
     public static HerdBehavior BehaviorOf(Species s) => SpeciesTable.Of(s).Behavior;
 
-    public static bool IsPredator(Species s) => BehaviorOf(s) is not (HerdBehavior.Prey or HerdBehavior.Carrion);
+    public static bool IsPredator(Species s) => BehaviorOf(s) is not (HerdBehavior.Prey or HerdBehavior.Opportunist);
 
     public static bool IsPrey(Species s) => BehaviorOf(s) == HerdBehavior.Prey;
 
@@ -92,7 +92,7 @@ public static partial class Fauna
         herd.Mind as HerdMind ?? throw new InvalidOperationException($"{herd.Id} is not a herd");
 
     public static IEnumerable<Agent> AnimalsAt(World world, TileId tile) =>
-        Nearby.At(world, tile).Select(id => world.Agents[id]).Where(a => a.Mind is HerdMind);
+        Nearby.At(world, tile).Where(a => a.Mind is HerdMind);
 
     static void Become(World world, HerdMind mind, HerdState state)
     {
@@ -345,21 +345,26 @@ public static partial class Fauna
     /// counted there and not where it left: those with a plan to come later don't count.
     static double Load(World world, Agent animal, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
     {
-        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool);
-        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool);
+        Span<bool?> sharesByDiet = stackalloc bool?[DietCount];
+        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool, sharesByDiet);
+        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool, sharesByDiet);
         return load;
     }
 
-    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
+    static readonly int DietCount = Enum.GetValues<Diet>().Length;
+
+    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool, Span<bool?> sharesByDiet)
     {
         var here = Nearby.At(world, on);
         double load = 0;
         for (int i = 0; i < here.Count; i++)
         {
-            var other = world.Agents[here[i]];
-            if (other.Id == animal.Id || other.Mind is not HerdMind || SpeciesTable.Of(other.Species).GrazeKcalPerMinute <= 0
+            var other = here[i];
+            if (other.Id == animal.Id || other.Mind is not HerdMind) continue;
+            var row = SpeciesTable.Of(other.Species);
+            if (row.GrazeKcalPerMinute <= 0
                 || !(other.Crossing is { } c ? Map.Step(c.From, c.Dir) == tile : other.Tile == tile) || !Sim.IsAlive(other)) continue;
-            if (Shares(eats, Eats(DietOf(other.Species)), pool)) load += Intake(other);
+            if (sharesByDiet[(int)row.Diet] ??= Shares(eats, Eats(row.Diet), pool)) load += Intake(other);
         }
         return load;
     }
@@ -428,14 +433,14 @@ public static partial class Fauna
 
     const double FeedKgPerMinute = 0.1;
 
-    /// No faster than FeedKgPerMinute a head; the carrion flock picks at a dead person's body once the carcasses are bare.
+    /// No faster than FeedKgPerMinute a head; an opportunist picks at a dead person's body once the carcasses are bare.
     static void FeedMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
         double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, FeedKgPerMinute * herd.Members.Count), eaten = 0;
         foreach (var c in Edible(world, herd))
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
-        if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Carrion)
+        if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Opportunist)
             foreach (var body in PickableBodies(world, herd))
                 if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
         Nourish(herd, eaten * MeatKcalPerKg);
@@ -449,11 +454,11 @@ public static partial class Fauna
             && Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Carcass, herd.Tile, c.Id)) == null);
 
     static IEnumerable<AgentId> PickableBodies(World world, Agent herd) =>
-        Nearby.At(world, herd.Tile).Where(id => world.Agents[id] is { Mind: PersonMind } d && id != AgentId.Player && !Sim.IsAlive(d)
-            && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, LocationFeatures.OfAgent(world, id)) == null);
+        Nearby.At(world, herd.Tile).Where(d => d.Mind is PersonMind && d.Id != AgentId.Player && !Sim.IsAlive(d)
+            && Remains.StageOf(world, d) == RemainsStage.Flesh && Access.Refusal(world, herd.Id, LocationFeatures.OfAgent(world, d.Id)) == null).Select(d => d.Id);
 
     static bool CanFeed(World world, Agent herd) =>
-        Edible(world, herd).Any() || BehaviorOf(herd.Species) == HerdBehavior.Carrion && PickableBodies(world, herd).Any();
+        Edible(world, herd).Any() || BehaviorOf(herd.Species) == HerdBehavior.Opportunist && PickableBodies(world, herd).Any();
 
 
     /// The hunters (Hunters) against the quarry's lead and a few of its herd (Combat.SendSide), as a person's hunt faces them;
@@ -588,7 +593,7 @@ public static partial class Fauna
             HerdBehavior.Pack => DecidePack(world, herd, mind, events),
             HerdBehavior.Solitary => DecideSolitary(world, herd, mind),
             HerdBehavior.Scavenger => DecideScavenger(world, herd, mind, events),
-            HerdBehavior.Carrion => DecideCarrion(world, herd, mind),
+            HerdBehavior.Opportunist => DecideOpportunist(world, herd, mind, events),
         };
         if (choice.Item1 is not Travel t || mind.State == HerdState.Fleeing || !HeldOff(world, herd, Map.Step(herd.Tile, t.Dir), events)) return choice;
         return Wait(herd);
@@ -596,7 +601,7 @@ public static partial class Fauna
 
     static bool HeldOff(World world, Agent herd, TileId to, List<WorldEvent> events)
     {
-        if (!IsPredator(herd.Species) || !Nearby.At(world, to).Any(id => world.Agents[id] is { Mind: PersonMind } a && Sim.InTheWorld(world, a))) return false;
+        if (!IsPredator(herd.Species) || !Nearby.At(world, to).Any(a => a.Mind is PersonMind && Sim.InTheWorld(world, a))) return false;
         Fire.CatchUpOn(world, to, events);
         return !Combat.WouldEnter(world, herd, to);
     }
@@ -726,7 +731,7 @@ public static partial class Fauna
         if (mind.FleeFrom is TileId from && herd.Tile == from && CanMove(herd) && (Following(world, herd)?.Way ?? FleeDirection(world, herd, from, events)) is Direction away)
             return (new Travel(herd.Id, away), UntilArrived);
         mind.FleeFrom = null;
-        Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Carrion ? HerdState.Patrolling : HerdState.Resting);
+        Become(world, mind, behavior is HerdBehavior.Scavenger or HerdBehavior.Opportunist ? HerdState.Patrolling : HerdState.Resting);
         return Rest(herd);
     }
 
@@ -791,9 +796,8 @@ public static partial class Fauna
         Fire.CatchUpOn(world, predator.Tile, events); // every resolve here reads the tile's flames
         Agent? best = null;
         double bestResolve = double.NegativeInfinity;
-        foreach (var id in Nearby.At(world, predator.Tile))
+        foreach (var a in Nearby.At(world, predator.Tile))
         {
-            var a = world.Agents[id];
             if (a.Id == predator.Id || Combat.EncounterOf(world, a.Id) != null || WouldComeFor(world, predator, a, events) is not double resolve) continue;
             if (resolve > bestResolve) (best, bestResolve) = (a, resolve);
         }
