@@ -9,7 +9,7 @@ public class SurfaceViewTests
     [Fact]
     public void OnDayOne_AlmostNoTileHasSnowLying()
     {
-        var w = TestWorlds.New(1);
+        var w = TestWorlds.Bare(1);
         var m = Map.Of(w);
         var passable = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .Where(t => m.TerrainAt(t).IsPassable()).ToList();
@@ -21,7 +21,7 @@ public class SurfaceViewTests
     [Fact]
     public void SnowOnATile_IsReported_AndLookingWritesNothing()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var camp = Map.Of(w).Camp;
         double already = Ground.Underfoot(w, camp).SnowDepthM; // seed 17's camp has a dusting
         TestKit.EditGround(w, camp, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.4, CompactionPct = 0.3, FrozenFractionPct = 1 }));
@@ -35,7 +35,7 @@ public class SurfaceViewTests
     [Fact]
     public void FrozenStandingWater_IsIce()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var camp = Map.Of(w).Camp;
         TestKit.EditGround(w, camp, (g, _) => g.Layers.Insert(1, new SurfaceLayer { Material = SurfaceMaterial.Water, ThicknessM = 0.05, WaterSaturationPct = 1, FrozenFractionPct = 1 }));
         var s = Ground.Underfoot(w, camp);

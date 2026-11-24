@@ -254,7 +254,6 @@ public class ConservationItemsTests
     }
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void Raids_TakeOnlyWhatTheFlockEats() => RaidScenes.Check(Raid, iter: 10);
 
     [Fact]

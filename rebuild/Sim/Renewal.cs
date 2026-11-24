@@ -30,7 +30,7 @@ public static partial class Fauna
         Species.SaberTooth or Species.Human or Species.Hare => null,
     };
 
-    public const int PreyRangeTiles = ForayRadiusTiles;
+    public const int PreyRangeTiles = 40;
     const double ArrivalsPerDay = 0.05; // at the valley's full deficit
 
     /// Once a day, at midnight. Each animal rolls on its own stream (renewal) in id order, arrivals on the valley's.

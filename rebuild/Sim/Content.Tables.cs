@@ -19,6 +19,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<Species, SpeciesStats> Species,
     IReadOnlyDictionary<Diet, IReadOnlyList<Resource>> Diets,
     SightingPools Sightings,
+    IReadOnlyDictionary<Species, IReadOnlyDictionary<Species, IReadOnlyList<IReadOnlyList<double>>>> KillChances,
     IReadOnlyDictionary<EffectKind, EffectDef> Effects,
     IReadOnlyDictionary<ShelterKind, ShelterKindProps> ShelterKinds,
     IReadOnlyDictionary<string, ShelterDef> Tents,
@@ -55,7 +56,8 @@ public static partial class Content
     sealed record PackFile(Dictionary<string, IReadOnlyList<double>> Kg, IReadOnlyList<KitGear> Gear);
     sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits, DeterrenceProps Deterrence);
     sealed record SpeciesFile(Dictionary<string, SpeciesRow> Species, Dictionary<string, Temperament> Temperaments,
-        Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings);
+        Dictionary<string, IReadOnlyList<Resource>> Diets, SightingPools Sightings,
+        Dictionary<string, Dictionary<string, IReadOnlyList<IReadOnlyList<double>>>> KillChances);
     sealed record SpeciesRow(BodyKind Body, double WeightKg, double FatPct, double MusclePct, Role Role, bool IsSmall,
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion, Group Group,
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
@@ -127,6 +129,10 @@ public static partial class Content
         var pits = Keyed<PitType, PitProps>(fire.Pits, "fire.json pits", problems, complete: true);
         var speciesRows = Keyed<Species, SpeciesRow>(species.Species, "species.json species", problems, complete: true);
         var diets = Keyed<Diet, IReadOnlyList<Resource>>(species.Diets, "species.json diets", problems, complete: true);
+        var killChances = Keyed<Species, Dictionary<string, IReadOnlyList<IReadOnlyList<double>>>>(species.KillChances, "species.json killChances", problems)
+            .ToDictionary(p => p.Key, p => (IReadOnlyDictionary<Species, IReadOnlyList<IReadOnlyList<double>>>)ReadOnly(
+                Keyed<Species, IReadOnlyList<IReadOnlyList<double>>>(p.Value, $"species.json killChances {p.Key}", problems)));
+        problems.AddRange(KillChanceProblems(killChances));
         var effectRows = Keyed<EffectKind, EffectRow>(effects, "effects.json", problems, complete: true);
         var effectCaps = effectRows.ToDictionary(e => e.Key,
             e => Keyed<Capacity, double>(e.Value.Capacities ?? new Dictionary<string, double>(), $"effects.json {e.Key} capacities", problems));
@@ -175,7 +181,7 @@ public static partial class Content
             new StartingPackDef(ReadOnly(packKg), items.StartingPack.Gear), items.StartingClothes,
             ReadOnly(fuels), ReadOnly(pits), fire.Deterrence,
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
-            ReadOnly(diets), species.Sightings,
+            ReadOnly(diets), species.Sightings, ReadOnly(killChances),
             ReadOnly(effectRows.ToDictionary(e => e.Key, e => new EffectDef(e.Value.SeverityPerHour, e.Value.TreatmentAboveSeverity,
                 e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(), e.Value.Discomfort,
                 e.Value.MetabolicHeatDelta, e.Value.HealingDelta, e.Value.HungerFreeHours))),
@@ -481,6 +487,16 @@ public static partial class Content
     static string? FatRangeProblem(FatRange fat, double fatPct, double musclePct) =>
         fat.Min < fatPct || fat.Min > fat.Max || fat.Max + musclePct * (1 - fat.Max) / (1 - fatPct) >= 1
             ? "a range from the build's fat up, min not above max, that leaves room for the muscle" : null;
+
+    /// species.json killChances: a predator's row for each count of hunters, 1 to Fauna.MaxHunters, each a chance 0-1 for
+    /// each herd size 1 to Combat.KillChanceHerds.
+    static IEnumerable<string> KillChanceProblems(Dictionary<Species, IReadOnlyDictionary<Species, IReadOnlyList<IReadOnlyList<double>>>> table)
+    {
+        foreach (var (predator, quarries) in table)
+            foreach (var (quarry, rows) in quarries)
+                if (rows.Count != Fauna.MaxHunters || rows.Any(r => r.Count != Combat.KillChanceHerds || r.Any(p => p is < 0 or > 1)))
+                    yield return $"species.json killChances {predator} {quarry}: {Fauna.MaxHunters} rows of {Combat.KillChanceHerds} chances 0-1";
+    }
 
     static IEnumerable<string> SpeciesProblems(SpeciesFile f, Dictionary<Species, SpeciesRow> rows)
     {

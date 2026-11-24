@@ -8,7 +8,7 @@ public class NarrationTests
 
     static World Camp(out TileId camp)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         camp = Map.Of(w).Camp;
         return w;
     }

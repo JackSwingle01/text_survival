@@ -95,20 +95,27 @@ public static class Effects
     public static IReadOnlyList<double> CapacityDeltas(BodyState body)
     {
         if (body.Effects.Count == 0) return NoDeltas;
-        int count = CapacityCount;
-        var deltas = new double[count];
-        var discomfortLoss = new double[count];
+        var deltas = new double[CapacityCount];
+        CapacityDeltas(body, deltas);
+        return deltas;
+    }
+
+    /// Fills deltas (zeroed, one per Capacity): what Body.GetCapacities reads for every body every minute, so on the caller's stack.
+    internal static void CapacityDeltas(BodyState body, Span<double> deltas)
+    {
+        if (body.Effects.Count == 0) return;
+        Span<double> discomfortLoss = stackalloc double[CapacityCount];
         foreach (var e in body.Effects)
         {
             var def = DefOf(e.Kind);
-            foreach (var (cap, delta) in def.Capacities)
+            for (int i = 0; i < def.Capacities.Count; i++)
             {
+                var (cap, delta) = def.Capacities[i];
                 if (def.Discomfort) discomfortLoss[(int)cap] -= delta * e.Severity;
                 else deltas[(int)cap] += delta * e.Severity;
             }
         }
-        for (int i = 0; i < count; i++) deltas[i] -= DiscomfortLoss(discomfortLoss[i]);
-        return deltas;
+        for (int i = 0; i < CapacityCount; i++) deltas[i] -= DiscomfortLoss(discomfortLoss[i]);
     }
 
     static readonly int CapacityCount = Enum.GetValues<Capacity>().Length;

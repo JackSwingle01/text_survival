@@ -1630,11 +1630,20 @@
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,
-        "Foray": null,
         "LastFedMinute": 0,
         "Familiar": {
           "3": 1
-        }
+        },
+        "Sightings": [
+          {
+            "Who": null,
+            "Tile": "22,42",
+            "Minute": 172,
+            "Carcass": null,
+            "Quarry": "Caribou",
+            "Count": 1
+          }
+        ]
       },
       "Crossing": null
     },
@@ -1956,7 +1965,6 @@
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,
-        "Foray": null,
         "LastFedMinute": 0,
         "Familiar": {
           "2": 1
@@ -2281,7 +2289,6 @@
         "Fear": 0,
         "LastEncounterMinute": -1000000,
         "FleeFrom": null,
-        "Foray": null,
         "LastFedMinute": 172,
         "Plan": {
           "Stat": "Water",
@@ -2298,7 +2305,8 @@
             "Who": 2,
             "Tile": "19,42",
             "Minute": 172,
-            "Carcass": null
+            "Carcass": null,
+            "Count": 0
           }
         ]
       },

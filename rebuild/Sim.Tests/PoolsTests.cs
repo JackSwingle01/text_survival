@@ -10,7 +10,7 @@ public class PoolsTests
 
     static World New(int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = Mild;
         return w;
     }
@@ -79,7 +79,7 @@ public class PoolsTests
         // old game: drew terrain forage density from the process-wide RNG, so the same seed gave different tiles (bug, fixed).
         Assert.Equal(((ForagePool)Pools.At(a, tile)[0]).Density, ((ForagePool)Pools.At(TestWorlds.Load(Save.ToJson(a)), tile)[0]).Density);
         Assert.DoesNotContain("Pools", Save.ToJson(a));
-        Assert.NotEqual(Pools.At(a, tile), Pools.At(TestWorlds.New(18), tile));
+        Assert.NotEqual(Pools.At(a, tile), Pools.At(TestWorlds.Bare(18), tile));
     }
 
     [Fact]
@@ -126,7 +126,6 @@ public class PoolsTests
     /// Statistical golden: the old ForageFeature at density 1.0 (mixed forest), one call a minute,
     /// over 4000 trials: 5.2956 kg in the first hour (3.5905 wood, 0.2575 food), 8.1236 kg in hours 2-3.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void Forage_YieldsAndThinsLikeTheOld()
     {
         int trials = 2000;
@@ -361,7 +360,7 @@ public class SitePoolsTests
     [Fact]
     public void EverySite_PutsItsForageFirst_ItsVisibleStockInSight_AndKeepsTheTerrainsHiddenFinds()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         foreach (var (t, site) in m.Sites)
         {
@@ -385,7 +384,7 @@ public class SitePoolsTests
     [Fact]
     public void SearchingASite_FindsOnlyWhatWasHidden()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var (tile, _) = m.Sites.First(s => Pools.At(w, s.Key).Any(p => p is StockPool { RevealAtHours: 0 }));
         w.Agent(P).Tile = tile;
@@ -434,7 +433,7 @@ public class SitePoolsTests
     [Fact]
     public void CavePassages_HaveTheOldCaveForage_AMouthCatchesSticks()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         var tiles = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y))).ToList();
         var floor = tiles.First(t => m.CaveAt(t) == Cave.Floor && m.SiteAt(t) == null);
@@ -452,7 +451,7 @@ public class SitePoolsTests
     [Fact]
     public void SiteShelters_StandFromTheStart_CampKeepsOneOverhang()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         foreach (var (t, site) in m.Sites)
             if (site.All.OfType<SiteShelter>().FirstOrDefault() is { } s)

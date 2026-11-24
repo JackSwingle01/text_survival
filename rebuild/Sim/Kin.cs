@@ -4,6 +4,13 @@ namespace Survival;
 public static partial class Fauna
 {
     const double SeededFamiliarity = 1.0;
+    /// Familiar enough to be kin (a closed group's company, its side, its pack); under it, a stranger and a rival.
+    public const double KinFamiliarity = 0.25;
+    /// A look together takes this share of what is left to know: near full within a day on one tile.
+    const double FamiliarGrowthPerLook = 0.02;
+    /// A look apart keeps this much: halved in about 30 days apart, a stranger in about 60.
+    const double FamiliarFadePerLook = 0.99984;
+    const double ForgottenFamiliarity = 0.01;
     const int KinSenseTiles = 8;
     const int KinLookEveryMinutes = 10;
 
@@ -15,14 +22,14 @@ public static partial class Fauna
     /// A living animal of its species, known to it if its group is closed. Combat.Side is its kin on its tile.
     public static bool IsKin(Agent animal, Agent other) =>
         other.Id != animal.Id && other.Species == animal.Species && animal.Mind is HerdMind && other.Mind is HerdMind
-        && (!IsClosedGroup(animal.Species) || Familiarity(animal, other.Id) > 0) && Sim.IsAlive(other);
+        && (!IsClosedGroup(animal.Species) || Familiarity(animal, other.Id) >= KinFamiliarity) && Sim.IsAlive(other);
 
     /// Its herd: it, then its kin on its tile in id order, whether or not a fight holds them (Combat.Side leaves those out).
     public static List<Agent> HerdOf(World world, Agent animal)
     {
         var herd = new List<Agent> { animal };
-        foreach (var id in Nearby.At(world, animal.Tile))
-            if (world.Agents[id] is var other && other.Tile == animal.Tile && IsKin(animal, other)) herd.Add(other);
+        foreach (var other in Nearby.At(world, animal.Tile))
+            if (other.Tile == animal.Tile && IsKin(animal, other)) herd.Add(other);
         return herd;
     }
 
@@ -31,10 +38,9 @@ public static partial class Fauna
     {
         var groups = new List<List<Agent>>();
         var placed = new HashSet<AgentId>();
-        foreach (var id in Nearby.At(world, tile))
+        foreach (var a in Nearby.At(world, tile))
         {
-            if (placed.Contains(id)) continue;
-            var a = world.Agents[id];
+            if (placed.Contains(a.Id)) continue;
             var group = a.Mind is HerdMind && Sim.IsAlive(a) ? HerdOf(world, a).Where(k => !placed.Contains(k.Id)).ToList() : [a];
             placed.UnionWith(group.Select(k => k.Id));
             groups.Add(group);
@@ -64,6 +70,35 @@ public static partial class Fauna
                 theirs[young.Id] = id == mother.Id ? SeededFamiliarity : Familiarity(other, mother.Id);
     }
 
+    /// Each look it knows those it knows on its tile better, the rest less; strangers stay strangers, so rival packs never merge.
+    static void Acquainting(World world, Agent animal)
+    {
+        if (world.Minute % KinLookEveryMinutes != 0 || animal.Mind is not HerdMind { Familiar: { Count: > 0 } known }) return;
+        List<AgentId>? forgotten = null;
+        List<(AgentId, double)>? changed = null;
+        foreach (var (id, level) in known)
+        {
+            double next = world.Agents.TryGetValue(id, out var other) && other.Tile == animal.Tile
+                ? level + (1 - level) * FamiliarGrowthPerLook : level * FamiliarFadePerLook;
+            if (next < ForgottenFamiliarity) (forgotten ??= []).Add(id);
+            else if (next != level) (changed ??= []).Add((id, next));
+        }
+        foreach (var (id, level) in changed ?? []) known[id] = level;
+        foreach (var id in forgotten ?? []) known.Remove(id);
+    }
+
+    /// One attacking another: whatever they knew of each other is gone, both ways.
+    internal static void Fought(World world, IEnumerable<AgentId> one, IEnumerable<AgentId> other)
+    {
+        var them = other.ToList();
+        foreach (var a in one)
+            foreach (var b in them)
+            {
+                if (world.Agents.TryGetValue(a, out var x) && x.Mind is HerdMind { Familiar: { } ofX }) ofX.Remove(b);
+                if (world.Agents.TryGetValue(b, out var y) && y.Mind is HerdMind { Familiar: { } ofY }) ofY.Remove(a);
+            }
+    }
+
     internal static void Forget(World world, AgentId gone)
     {
         foreach (var a in world.Agents.Values)
@@ -82,7 +117,6 @@ public static partial class Fauna
         {
             // Where the one it follows is making for, so that when it leads in turn it leads them on, not back.
             var theirs = MindOf(lead);
-            mind.Foray = theirs.Foray;
             if (theirs.Territory.Count > 0 && mind.Territory.IndexOf(theirs.Territory[theirs.TerritoryIndex]) is int at and >= 0) mind.TerritoryIndex = at;
             return (new Travel(animal.Id, going), UntilArrived);
         }
@@ -96,8 +130,9 @@ public static partial class Fauna
     static int SideCount(World world, Agent animal)
     {
         int count = 1;
-        foreach (var id in Nearby.At(world, animal.Tile))
-            if (Combat.OnSide(world, animal, world.Agents[id])) count++;
+        var here = Nearby.At(world, animal.Tile);
+        for (int i = 0; i < here.Count; i++)
+            if (Combat.OnSide(world, animal, here[i])) count++;
         return count;
     }
 
@@ -110,16 +145,16 @@ public static partial class Fauna
         {
             if (++going[(int)dir] > (best is var (b, _) ? going[(int)b] : 0)) best = (dir, best is var (d, l) && d == dir ? l : other);
         }
-        foreach (var id in Nearby.At(world, animal.Tile))
+        var here = Nearby.At(world, animal.Tile);
+        for (int i = 0; i < here.Count; i++)
         {
-            var other = world.Agents[id];
+            var other = here[i];
             if (Leaving(other, animal.Tile) && Combat.OnSide(world, animal, other)) Count(going, ref best, other.Crossing!.Dir, other);
         }
         // Kin that just left (a flight ends within its own turn); those before it in id order see it a minute late.
         foreach (var n in MapGen.Neighbors(animal.Tile))
-            foreach (var id in Nearby.At(world, n))
+            foreach (var other in Nearby.At(world, n))
             {
-                var other = world.Agents[id];
                 if (other.LastLeft is { } left && left.From == animal.Tile && left.Minute >= world.Minute - 1 && other.Tile == n
                     && IsKin(animal, other) && !Sim.Held(world, other.Id)) Count(going, ref best, left.Dir, other);
             }

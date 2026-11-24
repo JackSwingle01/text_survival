@@ -13,7 +13,7 @@ public class ShelterTests
 
     static World At(WeatherSample sky)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         w.FixedWeather = sky;
         return w;
     }
@@ -439,7 +439,6 @@ public class ShelterTests
     /// Melting is settled by the hour whenever it is read; a refusal or a report reads without
     /// settling (Shelters.Peek), so being turned away leaves the save as it was.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void SnowShelter_MeltsByTheHour_HoweverOftenItIsLookedAt()
     {
         World Thaw(bool look, bool settle)
@@ -677,7 +676,7 @@ public class ShelterTests
         var finds = new List<ShelterDef>();
         for (int seed = 0; seed < 6 && finds.Count < 5; seed++)
         {
-            var w = TestWorlds.New(seed);
+            var w = TestWorlds.Bare(seed);
             var m = Map.Of(w);
             for (int x = 0; x < m.Width; x++)
                 for (int y = 0; y < m.Height; y++)

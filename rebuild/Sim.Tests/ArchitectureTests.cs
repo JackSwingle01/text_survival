@@ -27,7 +27,6 @@ public class ArchitectureTests
     }
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void SimSource_HasNoUiAsyncOrThreading()
     {
         var violations = Directory.EnumerateFiles(SimSourceDir(), "*.cs", SearchOption.AllDirectories)
@@ -233,7 +232,11 @@ public class ArchitectureTests
         if (!Sim.IsAlive(npc)) npc.Members[0] = BodyState.BaselineHuman();
         npc.Body.HydrationMl = Body.MaxHydrationMl;
         Items.Add(Items.Pack(world, npc.Id), Resource.Water, 3);
-        for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++) Sim.Advance(world, 1);
+        for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++)
+        {
+            Sim.Advance(world, 1);
+            if (!Sim.IsAlive(npc)) npc.Members[0] = BodyState.BaselineHuman(); // the pack may come for it again (#84: bolder on its kill)
+        }
         Assert.True(npc.Doing?.Work != null, $"no work in hand at minute {world.Minute}: {npc.Doing?.Activity} at {npc.Tile}, alive {Sim.IsAlive(npc)}");
         string json = JsonSerializer.Serialize(world, new JsonSerializerOptions { ReferenceHandler = ReferenceHandler.Preserve });
         int at = json.IndexOf("\"$ref\"", StringComparison.Ordinal);

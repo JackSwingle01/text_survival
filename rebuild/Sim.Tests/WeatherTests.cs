@@ -130,8 +130,8 @@ public class WeatherTests
     [Fact]
     public void At_IsIndependentOfQueryOrder()
     {
-        var forward = TestWorlds.New(7);
-        var backward = TestWorlds.New(7);
+        var forward = TestWorlds.Bare(7);
+        var backward = TestWorlds.Bare(7);
         var minutes = Enumerable.Range(0, 400).Select(i => (long)i * 397).ToList();
         var a = minutes.Select(m => Weather.At(forward, m)).ToList();
         var b = Enumerable.Reverse(minutes).Select(m => Weather.At(backward, m)).Reverse().ToList();
@@ -143,7 +143,7 @@ public class WeatherTests
     [Fact]
     public void At_SurvivesSaveAndLoad()
     {
-        var world = TestWorlds.New(11);
+        var world = TestWorlds.Bare(11);
         Sim.Step(world, new Wait(P), 600);
         var before = Enumerable.Range(0, 200).Select(i => Weather.At(world, i * 211L)).ToList();
         string json = Save.ToJson(world);
@@ -156,7 +156,7 @@ public class WeatherTests
     [Fact]
     public void FixedWeather_RoundTripsAndFollowsTheClock()
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         world.FixedWeather = Sky(0, -10, 0.15, 0, 0.3, WeatherCondition.Clear);
         var loaded = TestWorlds.Load(Save.ToJson(world));
         Assert.Equal(Weather.At(world, 123), Weather.At(loaded, 123));
@@ -167,7 +167,7 @@ public class WeatherTests
     [Fact]
     public void FixedWeather_CannotChangeOnceTheClockMoves()
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         var sky = Sky(0, -10, 0.15, 0, 0.3, WeatherCondition.Clear);
         world.FixedWeather = sky;
         world.FixedWeather = sky with { TemperatureC = 5 }; // still minute 0: fine
@@ -194,8 +194,8 @@ public class WeatherTests
     [Fact]
     public void Seeds_GiveDifferentWeather()
     {
-        var a = Enumerable.Range(0, 50).Select(i => Weather.At(TestWorlds.New(1), i * 600L).TemperatureC);
-        var b = Enumerable.Range(0, 50).Select(i => Weather.At(TestWorlds.New(2), i * 600L).TemperatureC);
+        var a = Enumerable.Range(0, 50).Select(i => Weather.At(TestWorlds.Bare(1), i * 600L).TemperatureC);
+        var b = Enumerable.Range(0, 50).Select(i => Weather.At(TestWorlds.Bare(2), i * 600L).TemperatureC);
         Assert.NotEqual(a, b);
     }
 
@@ -208,7 +208,7 @@ public class WeatherTests
 
     [Fact]
     public void BeforeThePreRoll_Throws() =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => Weather.At(TestWorlds.New(1), -Weather.PreRollMinutes - 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Weather.At(TestWorlds.Bare(1), -Weather.PreRollMinutes - 1));
 
     // ---- the pre-roll: turn 1 opens a month into the fronts, as old CreateNewGame + Settle did ----
 
@@ -336,7 +336,7 @@ public class WeatherTests
     [Fact]
     public void Surroundings_AppliesWindChill()
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         world.FixedWeather = Sky(0, -10, 0.5, 0, 0.3, WeatherCondition.Clear);
         world.Minute = 960; // Jul 2 01:00: no sun
         Shelters.Remove(world, Map.Of(world).Camp); // the open camp tile; its overhang is ShelterTests'
@@ -367,7 +367,7 @@ public class WeatherTests
     [Fact]
     public void ThePassProper_FeelsMuchColderThanCamp_UnderTheSameSky()
     {
-        var world = TestWorlds.New(17);
+        var world = TestWorlds.Bare(17);
         world.FixedWeather = Sky(0, -10, 0.5, 0.3, 0.8, WeatherCondition.Cloudy);
         var m = Map.Of(world);
         var pass = m.PassStageIndex.Single(kv => Map.PassStages[kv.Value].Name == "The Pass Proper").Key;
@@ -382,14 +382,14 @@ public class WeatherTests
     [Fact]
     public void ForestCover_WetsLessThanOpenPlain_AndKeepsTheSunOff()
     {
-        var world = TestWorlds.New(17);
+        var world = TestWorlds.Bare(17);
         world.FixedWeather = Sky(0, 3, 0.2, 0.8, 1, WeatherCondition.Rainy);
         var m = Map.Of(world);
         var forest = TileOf(m, Terrain.Forest);
         var plain = TileOf(m, Terrain.Plain);
         double Wetness(TileId at)
         {
-            var w = TestWorlds.New(17);
+            var w = TestWorlds.Bare(17);
             w.FixedWeather = world.FixedWeather;
             w.Agent(P).Tile = at;
             Assert.Equal(Map.OverheadCover(m, at), Sim.Surroundings(w, w.Agent(P), new Wait(P), []).OverheadCoverLevel);
@@ -407,9 +407,9 @@ public class WeatherTests
     [Fact]
     public void WindChill_CoolsTheBody()
     {
-        var chilled = TestWorlds.New(1);
+        var chilled = TestWorlds.Bare(1);
         chilled.FixedWeather = Sky(0, -10, 0.5, 0, 1, WeatherCondition.Cloudy);
-        var still = TestWorlds.New(1);
+        var still = TestWorlds.Bare(1);
         still.FixedWeather = Sky(0, -10, 0, 0, 1, WeatherCondition.Cloudy);
         Sim.Step(chilled, new Wait(P), 240);
         Sim.Step(still, new Wait(P), 240);
@@ -426,7 +426,7 @@ public class WeatherTests
     [InlineData(WeatherCondition.Clear, Precipitation.None)]
     public void Precipitation_MapsWhatFallsOnAPerson(WeatherCondition cond, Precipitation expected)
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         world.FixedWeather = Sky(0, 0, 0.2, 0.6, 1, cond); // 0 °C: either phase can fall, so the condition decides
         var ctx = Sim.Surroundings(world, world.Agent(P), new Wait(P), []);
         Assert.Equal(expected, ctx.Precipitation);
@@ -438,7 +438,7 @@ public class WeatherTests
     [InlineData(WeatherCondition.FreezingRain)]
     public void HeavySnowAndFreezingRain_WetAnExposedPerson(WeatherCondition cond)
     {
-        var world = TestWorlds.New(1);
+        var world = TestWorlds.Bare(1);
         world.FixedWeather = Sky(0, -1, 0.2, 0.8, 1, cond);
         Sim.Step(world, new Wait(P), 60);
         Assert.True(Effects.Severity(world.Agent(P).Body, EffectKind.Wet) > 0, $"{cond} should wet");
@@ -447,9 +447,9 @@ public class WeatherTests
     [Fact]
     public void Rain_WetsTheAgent()
     {
-        var rain = TestWorlds.New(1);
+        var rain = TestWorlds.Bare(1);
         rain.FixedWeather = Sky(0, 2, 0.2, 0.6, 1, WeatherCondition.Rainy);
-        var dry = TestWorlds.New(1);
+        var dry = TestWorlds.Bare(1);
         dry.FixedWeather = Sky(0, 2, 0.2, 0, 1, WeatherCondition.Cloudy);
         Sim.Step(rain, new Wait(P), 60);
         Sim.Step(dry, new Wait(P), 60);
@@ -487,7 +487,7 @@ public class WeatherTests
     [Fact]
     public void SeededYear_NeverSnowsAboveFreezingOrRainsInHardFrost()
     {
-        var world = TestWorlds.New(17);
+        var world = TestWorlds.Bare(17);
         int rainMinutes = 0;
         for (long m = 0; m < 365 * 1440L; m += 30)
         {

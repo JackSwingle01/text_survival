@@ -165,7 +165,9 @@ public class PredatorEngagementTests(ITestOutputHelper output)
         else Npc.Spawn(w, here);
         ((HerdMind)w.Agent(pack).Mind).StateSinceMinute = w.Minute - 30;
         var (then, _) = Fauna.Decide(w, w.Agent(pack), []);
-        Assert.False(then is Travel t && MapGen.Manhattan(Map.Step(start, t.Dir), here) < MapGen.Manhattan(start, here),
+        // Still hungry, it may roam off for prey (a food plan to a tile that pays nothing), whichever way that lies.
+        bool roaming = Fauna.MindOf(w.Agent(pack)).Plan is { Stat: Stat.Food, At: not null, PerMinute: 0 };
+        Assert.False(!roaming && then is Travel t && MapGen.Manhattan(Map.Step(start, t.Dir), here) < MapGen.Manhattan(start, here),
             $"with {change} it still came on: {then}");
     }
 

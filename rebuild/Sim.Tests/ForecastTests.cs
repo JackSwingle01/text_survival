@@ -228,7 +228,6 @@ public class ForecastTests
 
     /// Over many searches, what Forage finds averages to the forecast, on fresh ground and picked-over.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void TheForageForecast_AgreesWithWhatSearchingFinds()
     {
         Gen.Select(Gen.Double[0.1, 1.5], Gen.Int[0, 300], Gen.Int[30, 180]).Check(c =>
@@ -547,6 +546,21 @@ public class ForecastTests
         Assert.Equal(Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(Species.Wolf).SleepHoursPerDay) * (atItsDen ? 1 : 0.75), rest, 9);
         Sim.Advance(w, 1);
         Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
+    }
+
+    /// Combat.KillChance against fresh headless pack hunts (trials the table was not measured on): within three standard
+    /// deviations of 100 hunts. A pair against a herd of bison, a pack of six against it, a lone wolf on caribou, hyenas on megaloceros.
+    [Theory]
+    [InlineData(Species.Wolf, 2, Species.Bison, 4)]
+    [InlineData(Species.Wolf, 6, Species.Bison, 4)]
+    [InlineData(Species.Wolf, 1, Species.Caribou, 1)]
+    [InlineData(Species.Hyena, 2, Species.Megaloceros, 3)]
+    public void KillChance_AgreesWithHeadlessPackHunts(Species predator, int hunters, Species quarry, int herd)
+    {
+        double forecast = Combat.KillChance(predator, hunters, quarry, herd);
+        double measured = KillOdds.Measure(predator, hunters, quarry, herd, trials: 100, firstSeed: 5000);
+        double tolerance = Math.Max(0.05, 3 * Math.Sqrt(forecast * (1 - forecast) / 100));
+        Assert.True(Math.Abs(forecast - measured) <= tolerance, $"forecast {forecast:F2}, measured {measured:F2} (within {tolerance:F2})");
     }
 
     // ---- Body: health ----

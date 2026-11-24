@@ -8,7 +8,7 @@ public class VerbsTests
 
     static World Camp(out TileId camp)
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         camp = Map.Of(w).Camp;
         return w;
     }
@@ -56,7 +56,6 @@ public class VerbsTests
     static IEnumerable<Verb> All(Here here) => here.All;
 
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void EveryVerb_AtTheStart_IsRefusedExactlyWhenStepRefusesIt()
     {
         var w = Camp(out _);
@@ -66,7 +65,6 @@ public class VerbsTests
 
     /// Against the map's edge and the mountain wall a walk is listed, refused with the map's reason.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void AWalkIntoTheMountains_IsListed_RefusedWithTheMapsReason()
     {
         var w = Camp(out _);
@@ -83,7 +81,6 @@ public class VerbsTests
     /// Pace is a choice only where a quick crossing is risky enough to weigh, so only such a crossing
     /// is offered carefully too.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ACarefulWalk_IsOffered_OnlyWhereAQuickOneCarriesMeaningfulRisk()
     {
         var w = Camp(out _);
@@ -115,7 +112,6 @@ public class VerbsTests
 
     /// A pile of one thing shows taking it as its action; a pile of two is Interact.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void APile_OffersTakingEachThingInIt()
     {
         var w = Camp(out _);
@@ -133,7 +129,6 @@ public class VerbsTests
     /// A pit is a thing with several verbs: fuel for each fuel carried, melting snow, and lighting it
     /// again once it is out.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void TheFire_IsATileVerbToLight_ThenAPitWithAMenu()
     {
         var w = Camp(out var camp);
@@ -161,7 +156,6 @@ public class VerbsTests
     /// A thing behind a blocking condition shows it. With no clearing verb yet (step 4.4), the action
     /// shown is the thing's own, refused with the condition's reason.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ABuriedFind_ShowsItsBlockingCondition_AndItsActionRefusedByIt()
     {
         var w = Camp(out var camp);
@@ -185,7 +179,6 @@ public class VerbsTests
 
     /// The same rules for anyone: an NPC's list is as true as the player's.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void AnNpcsVerbs_AreAsTrueAsThePlayers()
     {
         var w = Camp(out var camp);
@@ -200,7 +193,6 @@ public class VerbsTests
     /// A herd on the tile is something to hunt: its one verb is the stalk, and taking it opens the fight
     /// with the best weapon in the pack. A person on the tile offers nothing.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void AHerdHere_OffersAHunt_ThatOpensTheStalk()
     {
         var w = Camp(out var camp);
@@ -237,7 +229,6 @@ public class VerbsTests
 
     /// A carcass offers butchering three ways: several verbs, so Interact; once begun one way, only that way.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ACarcass_OffersEachWayToButcherIt_UntilOneIsBegun()
     {
         var w = Camp(out var camp);
@@ -291,7 +282,6 @@ public class VerbsTests
     /// The pack's verbs: eat each food, put down each thing, wear each garment carried, take off each
     /// one worn. All of them as true as the rest.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ThePack_OffersEating_PuttingDown_Wearing_AndTakingOff()
     {
         var w = Camp(out _);
@@ -328,7 +318,6 @@ public class VerbsTests
 
     /// Every camp recipe is offered to build, refused with what it lacks (no hidden recipes), as the rest are.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void EveryStructure_IsOfferedToBuild()
     {
         var w = Camp(out _);
@@ -342,7 +331,6 @@ public class VerbsTests
 
     /// A tent in the pack can be pitched from the list, and the pitched tent packed again.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void ATentInThePack_IsPitchedFromTheList()
     {
         var w = Camp(out var camp);

@@ -8,7 +8,7 @@ public class FireBodyTests
 
     static World LitCamp(int seed, WeatherSample? sky = null)
     {
-        var world = TestWorlds.New(seed);
+        var world = TestWorlds.Bare(seed);
         TestKit.Supply(world);
         world.FixedWeather = sky;
         for (int i = 0; i < 20 && Fire.PitAt(world, Map.Of(world).Camp) == null; i++)
@@ -23,7 +23,7 @@ public class FireBodyTests
     {
         // -10 °C pinned: the seeded sky on July 1 may be mild, and this is about the fire's heat.
         var sky = new WeatherSample(0, WeatherCondition.Clear, -10, 0.15, 0, 0.3, WindDirection.North);
-        var cold = TestWorlds.New(1);
+        var cold = TestWorlds.Bare(1);
         cold.FixedWeather = sky;
         var warm = LitCamp(1, sky);
         double coldStartF = cold.Agent(P).Body.CoreTempF;

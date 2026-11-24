@@ -13,9 +13,8 @@ public class KillChainTests
     /// Seed 17 with nothing else alive in it but the player, in a fixed sky (41 °F: rot at its base rate).
     internal static World Bare(double tempC = 5, int seed = 17)
     {
-        var w = TestWorlds.New(seed);
+        var w = TestWorlds.Bare(seed);
         w.FixedWeather = new(0, WeatherCondition.Cloudy, tempC, 0.1, 0, 0.8, WindDirection.North);
-        foreach (var id in w.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(w, id);
         return w;
     }
 
@@ -695,7 +694,7 @@ public class KillChainTests
             foreach (var a in w.Agents.Values)
             {
                 var truth = w.Agents.Values.Where(b => b.Tile == a.Tile).Select(b => b.Id).ToList();
-                Assert.Equal(truth, Nearby.At(w, a.Tile));
+                Assert.Equal(truth, Nearby.At(w, a.Tile).Select(b => b.Id));
                 var within = w.Agents.Values.Where(b => MapGen.Manhattan(b.Tile, a.Tile) <= 6).Select(b => b.Id).ToList();
                 Assert.Equal(within, Nearby.Within(w, a.Tile, 6).Select(b => b.Id).ToList());
             }

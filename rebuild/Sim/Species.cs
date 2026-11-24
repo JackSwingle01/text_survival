@@ -54,10 +54,18 @@ public readonly record struct Running(Motion Motion, double SpeedPct, double Car
 
 public static class SpeciesTable
 {
-    static readonly IReadOnlyDictionary<Species, SpeciesStats> Rows = Content.Tables.Species;
+    // By the species' number: read for every animal many times a minute.
+    static readonly SpeciesStats?[] Rows = ByNumber(Content.Tables.Species);
+
+    static SpeciesStats?[] ByNumber(IReadOnlyDictionary<Species, SpeciesStats> table)
+    {
+        var rows = new SpeciesStats?[table.Keys.Max(s => (int)s) + 1];
+        foreach (var (species, row) in table) rows[(int)species] = row;
+        return rows;
+    }
 
     public static SpeciesStats Of(Species s) =>
-        Rows.TryGetValue(s, out var row) ? row : throw new KeyNotFoundException($"No species row for {s}");
+        (uint)s < (uint)Rows.Length && Rows[(int)s] is { } row ? row : throw new KeyNotFoundException($"No species row for {s}");
 
     public static BodyState NewBody(Species species, Rng rng, Sex sex = Sex.Male)
     {

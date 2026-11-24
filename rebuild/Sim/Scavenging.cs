@@ -96,7 +96,7 @@ public static partial class Fauna
         if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("no pile here");
         var inv = world.Tiles[herd.Tile].Pile!;
         if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the pile it eats");
-        if (Nearby.At(world, herd.Tile).Any(id => world.Agents[id] is { Mind: PersonMind } p && Sim.IsAlive(p))) return new("someone is keeping it");
+        if (Nearby.At(world, herd.Tile).Any(p => p.Mind is PersonMind && Sim.IsAlive(p))) return new("someone is keeping it");
         return Access.Refusal(world, herd.Id, pile);
     }
 

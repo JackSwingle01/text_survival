@@ -7,7 +7,7 @@ namespace Survival;
 /// under the same id (tests setting a scene) is the one change it cannot see.
 internal sealed class NearbyIndex
 {
-    readonly Dictionary<TileId, List<AgentId>> byTile = [];
+    readonly Dictionary<TileId, List<Agent>> byTile = [];
     internal readonly Agent[] All;
     readonly int nextAgentId;
 
@@ -18,26 +18,28 @@ internal sealed class NearbyIndex
         foreach (var a in All) // id order, so every list starts sorted
         {
             a.Index = this;
-            (byTile.TryGetValue(a.Tile, out var list) ? list : byTile[a.Tile] = []).Add(a.Id);
+            (byTile.TryGetValue(a.Tile, out var list) ? list : byTile[a.Tile] = []).Add(a);
         }
     }
 
     internal bool Fits(World world) => world.Agents.Count == All.Length && world.NextAgentId == nextAgentId;
 
-    internal IReadOnlyList<AgentId> At(TileId tile) => byTile.TryGetValue(tile, out var list) ? list : [];
+    internal IReadOnlyList<Agent> At(TileId tile) => byTile.TryGetValue(tile, out var list) ? list : [];
 
-    internal void Moved(AgentId id, TileId from, TileId to)
+    internal void Moved(Agent agent, TileId from, TileId to)
     {
         if (byTile.TryGetValue(from, out var old))
         {
-            int i = old.BinarySearch(id);
+            int i = old.BinarySearch(agent, ById);
             if (i >= 0) old.RemoveAt(i);
             if (old.Count == 0) byTile.Remove(from);
         }
         var list = byTile.TryGetValue(to, out var l) ? l : byTile[to] = [];
-        int at = list.BinarySearch(id);
-        if (at < 0) list.Insert(~at, id);
+        int at = list.BinarySearch(agent, ById);
+        if (at < 0) list.Insert(~at, agent);
     }
+
+    static readonly Comparer<Agent> ById = Comparer<Agent>.Create((a, b) => a.Id.CompareTo(b.Id));
 }
 
 public static class Nearby
@@ -49,7 +51,7 @@ public static class Nearby
     }
 
     /// Living or dead, in id order.
-    public static IReadOnlyList<AgentId> At(World world, TileId tile) => Index(world).At(tile);
+    public static IReadOnlyList<Agent> At(World world, TileId tile) => Index(world).At(tile);
 
     /// Agents within radius tiles (Manhattan), living or dead, in id order.
     public static List<Agent> Within(World world, TileId tile, int radius)
@@ -60,7 +62,7 @@ public static class Nearby
         {
             for (int dx = -radius; dx <= radius; dx++)
                 for (int dy = Math.Abs(dx) - radius; dy <= radius - Math.Abs(dx); dy++)
-                    foreach (var id in index.At(new TileId(tile.X + dx, tile.Y + dy))) found.Add(world.Agents[id]);
+                    found.AddRange(index.At(new TileId(tile.X + dx, tile.Y + dy)));
             found.Sort((a, b) => a.Id.CompareTo(b.Id));
         }
         else

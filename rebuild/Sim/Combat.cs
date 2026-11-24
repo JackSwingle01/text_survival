@@ -201,8 +201,8 @@ public static partial class Combat
         enc.FireCell = (enc.Units.FirstOrDefault(IsPlayer) ?? enc.Units[0]).Position;
         world.Encounters.Add(enc);
         // Anyone awake beside a fight stops what they are at, and their mind chooses whether to help.
-        foreach (var id in Nearby.At(world, tile).Where(id => all.All(f => f.Agent != id)))
-            if (world.Agents[id] is { Mind: NpcMind, Doing: Doing d } bystander && Sim.Looks(bystander, d.Activity)) Sim.EndDoing(world, bystander, events ?? []);
+        foreach (var bystander in Nearby.At(world, tile).Where(a => all.All(f => f.Agent != a.Id)))
+            if (bystander is { Mind: NpcMind, Doing: Doing d } && Sim.Looks(bystander, d.Activity)) Sim.EndDoing(world, bystander, events ?? []);
         return enc;
     }
 
@@ -285,8 +285,9 @@ public static partial class Combat
     {
         var side = new List<Agent> { agent };
         if (agent.Mind is not HerdMind) return side;
-        foreach (var id in Nearby.At(world, agent.Tile))
-            if (OnSide(world, agent, world.Agents[id])) side.Add(world.Agents[id]);
+        var here = Nearby.At(world, agent.Tile);
+        for (int i = 0; i < here.Count; i++)
+            if (OnSide(world, agent, here[i])) side.Add(here[i]);
         return side;
     }
 
@@ -303,6 +304,21 @@ public static partial class Combat
         for (int i = others.Count - 1; i > 0; i--) { int j = rng.NextInt(i + 1); (others[i], others[j]) = (others[j], others[i]); }
         return [new Fighter(lead), .. others.Take(extra).Select(id => new Fighter(id))];
     }
+
+    /// The herd sizes the kill-chance table tells apart: a herd of more fights as one of this many (SendSide's lead and three).
+    public const int KillChanceHerds = 4;
+
+    /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters kills, against a herd of the quarry this big,
+    /// measured from headless hunts (species.json killChances); 0 for a quarry the predator has no row for.
+    public static double KillChance(Species predator, int hunters, Species quarry, int herd)
+    {
+        if (hunters < 1 || herd < 1 || !Content.Tables.KillChances.TryGetValue(predator, out var quarries)
+            || !quarries.TryGetValue(quarry, out var rows)) return 0;
+        return rows[Math.Min(hunters, rows.Count) - 1][Math.Min(herd, KillChanceHerds) - 1];
+    }
+
+    /// Whether the predator has a kill chance for anything: what makes a meat-eater hunt.
+    public static bool Hunts(Species predator) => Content.Tables.KillChances.ContainsKey(predator);
 
     const double ActiveHoursBoldnessDelta = 0.1;
 

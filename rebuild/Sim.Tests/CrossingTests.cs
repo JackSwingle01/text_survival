@@ -25,13 +25,13 @@ public class CrossingTests
         Assert.Equal((hazard, wind, cover, visibility, tempF),
             (Map.TerrainHazardLevel(m, t), Map.WindFactor(m, t), Map.OverheadCover(m, t), Map.Visibility(m, t), Map.TemperatureDeltaF(m, t)));
         Assert.Equal(Terrain.Rock, m.TerrainAt(t));
-        Assert.Empty(Pools.At(TestWorlds.New(17), t)); // the old stages had nothing to forage or find
+        Assert.Empty(Pools.At(TestWorlds.Bare(17), t)); // the old stages had nothing to forage or find
     }
 
     [Fact]
     public void Outcome_IsDerived_SurvivingDeadOrAcross()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         Assert.Equal(RunOutcome.Surviving, Map.Outcome(w));
         var m = Map.Of(w);
         w.Agent(P).Tile = Map.Step(m.Exit, Direction.West);
@@ -50,10 +50,9 @@ public class CrossingTests
     /// Standing on the far side ends the run: the player can do nothing more, so cannot walk back
     /// and turn a win into Surviving, and the valley's clock runs on without them.
     [Fact]
-    [Trait("Category", TestCategories.LongRun)]
     public void Crossed_TheRunIsOver()
     {
-        var w = TestWorlds.New(17);
+        var w = TestWorlds.Bare(17);
         var m = Map.Of(w);
         w.Agent(P).Tile = Map.Step(m.Exit, Direction.West);
         Assert.Equal("crossed the pass", Sim.Step(w, new Travel(P, Direction.East, Pace.Careful), 600).InterruptedReason);

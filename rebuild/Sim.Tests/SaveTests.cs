@@ -156,6 +156,8 @@ public class SaveFixtureTests
         var caribou = (HerdMind)w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y))).Mind;
         caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
         caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
+        // The pack's wolf has the caribou in sight as quarry (Fauna.Sense): a sighting of a herd, by species and count.
+        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1)];
         return w;
     }
 
