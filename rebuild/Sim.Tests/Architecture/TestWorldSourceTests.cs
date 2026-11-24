@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Survival.Tests;
 
-/// Tests get their worlds, loads and maps from TestWorlds, which builds each seed once (#129). A direct call
+/// Tests get their worlds, loads and maps from TestWorlds, which builds each seed once. A direct call
 /// to World.New, Save.FromJson or Map.Generate is counted per test file and must be listed: in
 /// MayCallDirectly when generation or loading is the subject or the seeds don't repeat, or in
 /// NotYetOnTestWorlds, a ratchet (dev/ratchets.md, "test-worlds") that only shrinks.
@@ -18,12 +18,12 @@ public class TestWorldSourceTests
         ["SaveTests.cs"] = (10, "the save format and loading are the subject"),
         ["ContentTests.cs"] = (1, "a search over seeds"),
         ["PoolsTests.cs"] = (5, "searches over seeds 1-40"),
-        ["HerdTests.cs"] = (3, "searches over 24, 60 and 200 seeds"),
+        ["HerdTests.cs"] = (5, "searches over 24, 60 and 200 seeds, and the valley's population is the subject"),
         ["WeatherTests.cs"] = (1, "a search over 20 seeds"),
         ["CombatTests.cs"] = (1, "a search over 20 seeds"),
         ["CombatFlightTests.cs"] = (2, "searches over 60 and 300 seeds"),
         ["CombatReachTests.cs"] = (3, "searches over 30 and 60 seeds"),
-        ["IndividualsTests.cs"] = (3, "a populated World.New against a save midway is the subject"),
+        ["IndividualsTests.cs"] = (5, "a populated World.New against a save midway is the subject"),
         ["NpcTests.cs"] = (1, "a load midway against a straight run is the subject"),
         ["CoreTests.cs"] = (1, "a world reloaded every chunk against a straight run is the subject"),
         ["TravelTests.cs"] = (1, "a load mid-crossing against a straight run is the subject"),

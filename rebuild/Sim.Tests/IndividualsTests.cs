@@ -280,7 +280,7 @@ public class IndividualsTests(ITestOutputHelper output)
     [Fact]
     public void ThePopulatedValley_IsTheSameWorld_ThroughASaveMidRun()
     {
-        Assert.Equal(Save.ToJson(TestWorlds.New(23)), Save.ToJson(TestWorlds.New(23)));
+        Assert.Equal(Save.ToJson(World.New(23)), Save.ToJson(World.New(23)));
         var straight = World.New(23);
         Sim.Advance(straight, 2 * 1440);
         var saved = World.New(23);

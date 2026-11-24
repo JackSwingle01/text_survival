@@ -400,7 +400,7 @@ public class HerdTests(ITestOutputHelper output)
     [InlineData(42)]
     public void TheValley_IsPopulatedLikeTheOldGame(int seed)
     {
-        var w = TestWorlds.New(seed);
+        var w = World.New(seed);
         var m = Map.Of(w);
         // Every animal is its own agent, and the herds are where they were put together.
         Assert.All(Herds(w), a => Assert.Single(a.Members));
@@ -439,7 +439,7 @@ public class HerdTests(ITestOutputHelper output)
         // Predators hold their land apart from each other's.
         var wolfLand = herds.Where(h => h.Species == Species.Wolf).SelectMany(h => ((HerdMind)h.Mind).Territory).ToList();
         Assert.Equal(wolfLand.Count, wolfLand.Distinct().Count());
-        Assert.Equal(Save.ToJson(TestWorlds.New(seed)), Save.ToJson(w)); // same seed, same herds
+        Assert.Equal(Save.ToJson(World.New(seed)), Save.ToJson(w)); // same seed, same herds
     }
 
     [Fact]
