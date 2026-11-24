@@ -712,6 +712,7 @@ public class MemoryTests
 
     /// The NPC's old memory now lives in the shared one: it still remembers every tile it stood on.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void NpcMemory_IsTheSharedModel()
     {
         var w = TestWorlds.New(17);

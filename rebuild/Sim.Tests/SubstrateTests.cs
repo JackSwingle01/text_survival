@@ -224,6 +224,7 @@ public class SubstrateTests
     // ---- reading never writes ----
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void LocationFeaturesSignsAndTags_NeverChangeTheWorld()
     {
         var w = Phase3GateTests.BusyDay.Copy();

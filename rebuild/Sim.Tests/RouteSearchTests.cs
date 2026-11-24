@@ -71,6 +71,7 @@ public class RouteSearchTests(ITestOutputHelper output)
     static IEnumerable<AgentId> Animals(World w) => w.Agents.Values.Where(a => a.Mind is not PersonMind && Sim.IsAlive(a)).Select(a => a.Id);
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Routes_OnAGeneratedWorld_MatchThePlainSearch_ForPeopleAndAnimals_OutAndIntoASite()
     {
         var w = TestWorlds.New(17);

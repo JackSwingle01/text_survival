@@ -308,6 +308,7 @@ public class HerdTests(ITestOutputHelper output)
     // ---- gate: herds move, graze and wear trails ----
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void Gate_HerdsMoveGrazeAndWearTrails()
     {
         var w = TestWorlds.New(17);
@@ -378,6 +379,7 @@ public class HerdTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void APatrollingPack_RangesAcrossItsLand()
     {
         // old game: each patrol step aimed at the next tile in flood-fill order, so a pack never left its den's doorstep (bug, fixed).
@@ -750,6 +752,7 @@ public class HerdTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ALoneLameAnimal_MendsAndWalksAgain()
     {
         var w = TestWorlds.New(17);
@@ -1027,6 +1030,7 @@ public class DenTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void BoneHollow_HasTheMammoths_AndAKilledHerdStaysDead()
     {
         var w = TestWorlds.New(91237);

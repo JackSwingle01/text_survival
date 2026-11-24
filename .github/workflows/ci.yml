@@ -1,6 +1,6 @@
 name: CI
 
-# The fast suite (everything not tagged Slow) on every PR and on pushes to main. The Slow tests and the
+# The fast suite (everything not tagged Slow) on every PR and on pushes to main, in three checks. The Slow tests and the
 # random property search run nightly (nightly.yml); mutation testing at most daily (mutation.yml).
 # Branches are checked through their PR (merged with main); push covers only main itself.
 on:
@@ -9,29 +9,40 @@ on:
   pull_request:
 
 jobs:
-  # Build and test stay one job: the tests need the build, and a separate build job would only build twice.
-  # The build is its own step, so a compile error still shows as the failing step.
-  test:
-    runs-on: ubuntu-latest
+  # Three test checks, split by kind of test so a red check says what kind of thing broke. Each builds
+  # only what it tests (between them, every project in the solution) and has to finish inside two minutes.
+  # The rebuild's two run on arm64: those runners have four real cores where the x64 ones have two
+  # hyperthreaded, and they are one model of machine where x64 hands out anything from an EPYC 7763 up.
+  # Measured for the same tests: quick 102 s -> 72 s, long-run 144 s -> 122 s.
+
+  # The rebuild's quick tests: Sim.Tests without its LongRun tier, and the tools' suites.
+  quick:
+    name: rebuild quick
+    runs-on: ubuntu-24.04-arm
+    env:
+      # Most of these tests finish before the JIT would optimize what they run: by default it waits for
+      # 100 ms without new code before it promotes anything, and a test suite is always reaching new
+      # code. No delay and no instrumented tier measured 63 s -> 46 s for these tests on an x64 runner.
+      DOTNET_TC_CallCountingDelayMs: 0
+      DOTNET_TieredPGO: 0
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - run: dotnet restore text_survival.sln
-      - run: dotnet build text_survival.sln -c Release --no-restore
-      - run: dotnet test text_survival.sln -c Release --no-build --no-restore --filter "Category!=Slow" --logger trx --results-directory TestResults
-      # Ratchet: a fast test takes at most 5 s, except those in rebuild/Sim.Tests/slow-fast-tests.txt
-      # (dev/ratchets.md, "fast-test-time"). A time in the parallel run includes waiting on other tests
-      # and assemblies, so it only screens: what it flags runs again alone and serially, and that run gates.
-      # Tiered compilation is off for that run: a short process otherwise runs the sim's hot code
-      # unoptimized for its first seconds (FallingAsleep: 2.9 s in the suite, 6.5 s alone, 4.6 s alone untiered).
-      - name: Fast tests stay fast
+      # The build is its own step, so a compile error shows as the failing step.
+      - run: dotnet build rebuild/tests.slnf -c Release
+      - run: dotnet test rebuild/tests.slnf -c Release --no-build --no-restore --filter "Category!=Slow&Category!=LongRun" --logger trx --results-directory TestResults
+      # A quick test takes at most 5 s; one that needs longer is LongRun (rebuild/Sim.Tests/TestCategories.cs).
+      # A time in the parallel run includes waiting on other tests, so it only screens: what it flags
+      # runs again alone and serially, and that run gates. Tiered compilation is off for that run: a
+      # short process otherwise runs the sim's hot code unoptimized for its first seconds.
+      - name: Quick tests stay quick
         if: ${{ !cancelled() }}
         shell: bash
         run: |
           set -euo pipefail
-          check=(python3 .github/scripts/test_durations.py --max-seconds 5 --allow rebuild/Sim.Tests/slow-fast-tests.txt)
+          check=(python3 .github/scripts/test_durations.py --max-seconds 5)
           mapfile -t trx < <(grep -l "Sim.Tests.dll" TestResults/*.trx)
           "${check[@]}" "${trx[@]}" && exit 0
           mapfile -t over < <("${check[@]}" --names-only "${trx[@]}")
@@ -41,6 +52,54 @@ jobs:
           DOTNET_TieredCompilation=0 dotnet test rebuild/Sim.Tests -c Release --no-build --no-restore --filter "${filter%|}" \
             --logger "trx;LogFileName=$PWD/TestResults/isolated/alone.trx" -- xUnit.ParallelizeTestCollections=false
           "${check[@]}" TestResults/isolated/alone.trx
+
+  # Sim.Tests' LongRun tier: the tests that step a world for hours or days.
+  long-run:
+    name: rebuild long-run
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build rebuild/Sim.Tests -c Release
+      - run: dotnet test rebuild/Sim.Tests -c Release --no-build --no-restore --filter "Category=LongRun" --logger trx --results-directory TestResults
+      # Reports, never gates: what this check's time is made of, so its growth shows.
+      - name: Slowest long-run tests
+        if: ${{ !cancelled() }}
+        run: python3 .github/scripts/test_durations.py TestResults/*.trx --top 25
+
+  # The old game's suite. On x64: its UI tests load cimgui, which ships no linux-arm64 build.
+  # The old game references nothing under rebuild/, so a change confined to rebuild/ and the notes
+  # cannot break it and the suite is skipped (CLAUDE.md gives agents the same rule locally).
+  old-game:
+    name: old game
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Whether the change reaches the old game
+        id: reach
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          # The PR checkout is a merge commit whose first parent is the base branch.
+          outside=$(git diff --name-only HEAD^1 HEAD | grep -v -E '^(rebuild|documentation|dev|\.agent-logs)/|\.md$' || true)
+          if [ -z "$outside" ]; then
+            echo "Only rebuild/ and notes changed: skipping the old game's suite."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            printf 'Reaches the old game:\n%s\n' "$outside"
+          fi
+      - uses: actions/setup-dotnet@v6
+        if: steps.reach.outputs.skip != 'true'
+        with:
+          global-json-file: global.json
+      - if: steps.reach.outputs.skip != 'true'
+        run: dotnet build text_survival.Tests -c Release
+      - if: steps.reach.outputs.skip != 'true'
+        run: dotnet test text_survival.Tests -c Release --no-build --no-restore --filter "Category!=Slow"
 
   # GitHub only reports a workflow it cannot parse; actionlint also catches bad expressions,
   # unknown action inputs and shellcheck problems in run steps. Same version as the

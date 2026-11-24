@@ -308,6 +308,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
     // ---- darkness and held work ----
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void ForagingInTheDarkWithoutLight_FindsLessThanByDay()
     {
         double Haul(int hour)

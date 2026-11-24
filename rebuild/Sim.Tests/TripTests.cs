@@ -11,6 +11,7 @@ public class TripTests
     /// Across the valley's ground, both paces, a heavy load and a lame body, under the seeded sky:
     /// the terms add up to the total, and the total is the crossing's own.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void TheTerms_AddUpToTheCrossingsOwnMinutes_Everywhere()
     {
         var w = TestWorlds.New(17);

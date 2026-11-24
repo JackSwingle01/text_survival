@@ -228,6 +228,7 @@ public class ForecastTests
 
     /// Over many searches, what Forage finds averages to the forecast, on fresh ground and picked-over.
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void TheForageForecast_AgreesWithWhatSearchingFinds()
     {
         Gen.Select(Gen.Double[0.1, 1.5], Gen.Int[0, 300], Gen.Int[30, 180]).Check(c =>
