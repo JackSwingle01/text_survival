@@ -286,7 +286,7 @@ public class TracksTests
         Assert.Single(w.Trails);
     }
 
-    /// The route search asks this of every crossing it prices (#155): a SortedDictionary lookup boxed the key.
+    /// The route search asks this of every crossing it prices.
     [Fact]
     public void IsTrodden_AllocatesNothing()
     {

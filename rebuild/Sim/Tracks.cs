@@ -94,8 +94,9 @@ public static class Tracks
         // Saturating, as grazing does: the first crossings pack the most, and each packs a share of what is still loose.
         var edge = new EdgeId(from, to);
         double settled = TroddenAt(world, edge, now);
+        var trodden = TroddenEdges(world); // before the write: after it, the count differs
         world.Trails[edge] = new EdgeTrodden(settled + (1 - settled) * Math.Min(1, StampPct * individualDepth), now);
-        TrodEdgesOf(world).Add(edge);
+        trodden.Add(edge);
         Trip.Forget(world, from, to);
     }
 
@@ -205,11 +206,12 @@ public static class Tracks
             // Ground never lets go of a tile it has observed; worked pools, piles and carcasses are kept too.
             Map.Tidy(world, tile);
         }
+        var trodden = TroddenEdges(world);
         foreach (var (edge, _) in world.Trails.ToList())
             if (TroddenAt(world, edge, now) <= 0)
             {
                 world.Trails.Remove(edge);
-                TrodEdgesOf(world).Remove(edge);
+                trodden.Remove(edge);
             }
     }
 
@@ -228,28 +230,19 @@ public static class Tracks
 
     /// Whether anything has walked the edge between neighbours a and b: only then does its half of a tile read differently.
     public static bool IsTrodden(World world, TileId a, TileId b) =>
-        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && TrodEdgesOf(world).Edges.Contains(new EdgeId(a, b));
+        Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) == 1 && TroddenEdges(world).Contains(new EdgeId(a, b));
 
-    /// World.Trails' keys, for a lookup that allocates nothing: a SortedDictionary's boxes the key until the JIT
-    /// optimises it, and the route search asks of every crossing it prices (#155). Tracks keeps it as it writes;
-    /// a write to Trails from elsewhere (tests, scenarios, a load) changes its count, and the next read rebuilds it.
-    /// Membership only, so overwriting an edge's amount needs nothing.
-    internal sealed class TrodEdges
+    /// Trails' edges, never saved: a SortedDictionary lookup boxes its key until the JIT optimises it. A write from
+    /// outside Tracks is caught by the count, so a remove and an add with no read between would not be.
+    static HashSet<EdgeId> TroddenEdges(World world)
     {
-        public readonly HashSet<EdgeId> Edges = [];
-        public void Add(EdgeId edge) => Edges.Add(edge);
-        public void Remove(EdgeId edge) => Edges.Remove(edge);
-    }
-
-    static TrodEdges TrodEdgesOf(World world)
-    {
-        var index = world.TrodEdges ??= new TrodEdges();
-        if (index.Edges.Count != world.Trails.Count)
+        var edges = world.TroddenEdges ??= [];
+        if (edges.Count != world.Trails.Count)
         {
-            index.Edges.Clear();
-            foreach (var edge in world.Trails.Keys) index.Edges.Add(edge);
+            edges.Clear();
+            edges.UnionWith(world.Trails.Keys);
         }
-        return index;
+        return edges;
     }
 
     static double TroddenAt(World world, EdgeId edge, long now)
