@@ -115,8 +115,8 @@ public static partial class Fauna
     {
         bool closed = IsClosedGroup(animal.Species);
         if (!CanMove(animal) || Threatened(animal, mind, closed ? world.Minute - SenseEveryMinutes : long.MinValue) is not TileId threat) return null;
-        // A pack steps a tile off a rival it has just seen; prey keep their way (Flee from the threat's tile).
-        if (!closed || FleeDirection(world, animal, threat, events) is not Direction away)
+        // It steps a tile off a threat beside it; prey with one on their tile keep their way (Flee).
+        if (!closed && threat == animal.Tile || FleeDirection(world, animal, threat, events) is not Direction away)
         {
             StartFleeing(world, mind, threat);
             return Flee(world, animal, mind, events);
@@ -205,8 +205,9 @@ public static partial class Fauna
     static bool WouldComeForSomeone(World world, Agent predator, List<WorldEvent> events)
     {
         if (BehaviorOf(predator.Species) != HerdBehavior.Pack || Hunger(predator) <= ComesForPeopleHunger || MindOf(predator).Fear > Tags.AfraidLevel) return false;
-        foreach (var a in Nearby.Within(world, predator.Tile, DetectionRangeTiles(predator.Species)))
-            if (a.Mind is PersonMind && Combat.EncounterOf(world, a.Id) == null && WouldComeFor(world, predator, a, events) != null) return true;
+        var senses = Senses.Of(world, predator);
+        foreach (var a in Nearby.People(world))
+            if (Combat.EncounterOf(world, a.Id) == null && senses.Finds(world, a.Tile, Scent.Of(world, a)) && WouldComeFor(world, predator, a, events) != null) return true;
         return false;
     }
 
@@ -383,23 +384,23 @@ public static partial class Fauna
         return false;
     }
 
-    /// Prey sense predators and people, a pack its rivals, hunters quarry, meat-eaters carcasses, by sight x perception; true: food anew.
+    /// Prey sense predators and people, a pack its rivals, hunters quarry, meat-eaters carcasses (Senses); true: food anew.
     static bool Sense(World world, Agent animal, HerdMind mind)
     {
         mind.Sightings?.RemoveAll(s => s.Carcass == null && world.Minute - s.Minute > KeepSightingMinutes);
         var behavior = BehaviorOf(animal.Species);
         bool prey = behavior == HerdBehavior.Prey, foodSeen = false;
         bool rivals = IsClosedGroup(animal.Species), hunts = !prey && Combat.Hunts(animal.Species);
-        double budget = Sight.BudgetTiles(world, animal.Tile, Body.GetCapacities(animal.Body).Sight) * SpeciesTable.Of(animal.Species).PerceptionFactor;
-        bool Sees(TileId t) => t == animal.Tile || MapGen.Manhattan(t, animal.Tile) <= budget && Sight.Sees(world, animal.Tile, t, budget);
+        var senses = Senses.Of(world, animal);
         if (!prey)
         {
-            mind.Sightings?.RemoveAll(s => s.Carcass is int id && Sees(s.Tile) && !HasMeat(world, s.Tile, id));
+            mind.Sightings?.RemoveAll(s => s.Carcass is int id && senses.Sees(world, s.Tile) && !HasMeat(world, s.Tile, id));
             foreach (var t in Carcasses.TilesWith(world))
             {
-                if (MapGen.Manhattan(t, animal.Tile) > budget || !Sees(t)) continue;
+                bool? seen = null;
                 foreach (var c in world.Tiles[t].Carcasses ?? [])
                 {
+                    if (!senses.Smells(t, Carcasses.Scent(world, c)) && !(seen ??= senses.Sees(world, t))) continue;
                     if (Remains.MeatKg(world, t, c) <= 0 || mind.Sightings?.Exists(s => s.Carcass == c.Id) == true) continue;
                     (mind.Sightings ??= []).Add(new Sensed(null, t, world.Minute, c.Id));
                     foodSeen = true;
@@ -408,30 +409,35 @@ public static partial class Fauna
         }
         if (!prey && !rivals && !hunts) return Done();
         List<Sensed>? herds = null;
-        foreach (var other in Nearby.Within(world, animal.Tile, (int)Math.Ceiling(budget)))
+        foreach (var other in Nearby.Within(world, animal.Tile, senses.AnimalScanTiles))
+            if (other.Mind is not PersonMind) Consider(other);
+        if (prey)
+            foreach (var person in Nearby.People(world)) Consider(person);
+        if (hunts)
+        {
+            foreach (var h in herds ?? [])
+                if (mind.Sightings?.Exists(s => s.Quarry == h.Quarry && s.Tile == h.Tile) != true) foodSeen = true;
+            mind.Sightings?.RemoveAll(s => s.Quarry is Species q && senses.Finds(world, s.Tile, SpeciesTable.Of(q).ScentLevel));
+            if (herds != null) (mind.Sightings ??= []).AddRange(herds);
+        }
+        return Done();
+
+        void Consider(Agent other)
         {
             bool threat = (prey || rivals) && IsThreatTo(world, animal, other), quarry = hunts && IsQuarry(other.Species) && other.Mind is HerdMind && Sim.IsAlive(other);
-            if (!threat && !quarry || !Sight.Sees(world, animal.Tile, other.Tile, budget)) continue;
+            if (!threat && !quarry || !senses.Finds(world, other.Tile, Scent.Of(world, other))) return;
             if (threat)
             {
                 mind.Sightings ??= [];
                 mind.Sightings.RemoveAll(s => s.Who == other.Id);
                 mind.Sightings.Add(new Sensed(other.Id, other.Tile, world.Minute));
-                continue;
+                return;
             }
             herds ??= [];
             int at = herds.FindIndex(h => h.Tile == other.Tile && h.Quarry == other.Species);
             if (at < 0) herds.Add(new Sensed(null, other.Tile, world.Minute, Quarry: other.Species, Count: 1));
             else herds[at] = herds[at] with { Count = herds[at].Count + 1 };
         }
-        if (hunts)
-        {
-            foreach (var h in herds ?? [])
-                if (mind.Sightings?.Exists(s => s.Quarry == h.Quarry && s.Tile == h.Tile) != true) foodSeen = true;
-            mind.Sightings?.RemoveAll(s => s.Quarry != null && Sees(s.Tile));
-            if (herds != null) (mind.Sightings ??= []).AddRange(herds);
-        }
-        return Done();
 
         bool Done()
         {

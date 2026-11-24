@@ -105,6 +105,7 @@ public class ArchitectureTests
              ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
              ("Trip.cs", "Routes", "the same crossings' minutes for a route search, under the one sky of its minute"),
              ("Memory.cs", "BudgetTiles", "how far a person can see: the weather's visibility, nothing about warmth"),
+             ("Scent.cs", "Of", "which way scent carries: the wind's heading, nothing about warmth"),
              ("Clues.cs", "Place", "what a forager notices: wind, rain and hard frost as signs on the ground, nothing about warmth"),
              ("Remains.cs", "At", "rot's hourly air, through Exposure.SiteAirF"),
              ("Remains.cs", "TempF", "the same, for one hour")]),

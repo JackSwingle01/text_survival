@@ -220,7 +220,7 @@ public class IndividualsTests(ITestOutputHelper output)
         foreach (var other in Animals(w).Select(a => a.Id).ToList()) Agents.Remove(w, other);
         while (Weather.DayOfYear(w.Minute) != 110) w.Minute += 1440; // the whelping season opens, before anyone is put down
         var m = Map.Of(w);
-        int apartTiles = Fauna.DetectionRangeTiles(Species.Wolf) + 8;
+        int apartTiles = 12 + 8; // past a wolf's old 12-tile reach for people, as it was
         bool Open(TileId t) => m.InBounds(t) && m.TerrainAt(t) == Terrain.Plain && m.CaveAt(t) == Cave.None && m.SiteAt(t) == null;
         var den = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
             .First(t => MapGen.Manhattan(t, m.Camp) > 30 && Open(t) && Open(Map.Step(t, Direction.North)) && Open(new TileId(t.X + apartTiles, t.Y)));

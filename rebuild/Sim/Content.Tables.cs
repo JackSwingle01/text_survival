@@ -63,8 +63,9 @@ public static partial class Content
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
         double StrikeBackResolve, double ChaseLimitSeconds, double SleepHoursPerDay, ActivityPattern Activity,
+        double SmellFactor, double ScentLevel,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null, double PerceptionFactor = 1,
-        double StealthFactor = 1, int DetectionRangeTiles = 8);
+        double StealthFactor = 1);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
@@ -316,7 +317,7 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor, r.DetectionRangeTiles);
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor);
 
     // ---- checks, one family at a time ----
 
@@ -432,6 +433,8 @@ public static partial class Content
             if (def.Category is not (ResourceCategory.Food or ResourceCategory.Water) && (def.KcalPerKg != 0 || def.HydrationMlPerKg != 0))
                 yield return $"items.json: {r} is not food or water and gives kcal or water";
             if (def.KcalPerKg < 0) yield return $"items.json: {r} kcalPerKg {def.KcalPerKg}";
+            if ((def.Category == ResourceCategory.Food) != (def.ScentLevel != null)) yield return $"items.json: {r}: food, and only food, states its scentLevel";
+            if (def.ScentLevel is < 0 or > 1) yield return $"items.json: {r} scentLevel {def.ScentLevel} is not in 0-1";
         }
         foreach (var (kind, g) in f.Gear)
         {
@@ -514,6 +517,7 @@ public static partial class Content
             if (RunningProblem(r.TopSpeedMps, r.EnduranceSpeedMps) is string slow) yield return $"{at}: {slow}";
             if (r.StrikeBackResolve is < -1 or > 0) yield return $"{at}: strikeBackResolve in -1 to 0 (a giving-ground resolve)";
             if (r.ChaseLimitSeconds <= 0) yield return $"{at}: chaseLimitSeconds above 0";
+            if (r.SmellFactor <= 0 || r.ScentLevel is < 0 or > 1) yield return $"{at}: smellFactor above 0, scentLevel in 0-1";
             if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
                 yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";
             bool person = s == Survival.Species.Human;
