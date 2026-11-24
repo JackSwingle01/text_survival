@@ -12,6 +12,13 @@ public static partial class Fauna
 
     public static bool Flies(Species s) => SpeciesTable.Of(s).FlightMinutesPerTile != null;
 
+    /// Ravens: an opportunist on the wing. The ravens' signs and the raid are theirs, not a fox's.
+    public static bool IsRaven(Species s) => BehaviorOf(s) == HerdBehavior.Opportunist && Flies(s);
+
+    /// A fox goes to no flesh a predator holds, here or seen from afar.
+    static bool WalkerKeepsOff(World world, Agent herd, TileId tile) =>
+        BehaviorOf(herd.Species) == HerdBehavior.Opportunist && !Flies(herd.Species) && PredatorAt(world, tile);
+
     static (Activity, int) DecideOpportunist(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         if (CanFeed(world, herd))
@@ -63,7 +70,7 @@ public static partial class Fauna
         var near = Nearby.Within(world, herd.Tile, CarrionRangeTiles);
         foreach (var a in near)
             if (a.Mind is PersonMind && a.Id != AgentId.Player && !Sim.IsAlive(a) && Remains.StageOf(world, a) == RemainsStage.Flesh) flesh.Add(a.Tile);
-        if (!flies) flesh.RemoveWhere(t => PredatorAt(world, t));
+        flesh.RemoveWhere(t => WalkerKeepsOff(world, herd, t));
         if (Nearest(herd.Tile, flesh) is TileId food) return food;
         if (!flies) return null;
         var predators = near.Where(a => a.Mind is HerdMind && IsPredator(a.Species) && Sim.IsAlive(a)).Select(a => a.Tile).ToHashSet();
@@ -80,12 +87,12 @@ public static partial class Fauna
         AnimalsAt(world, tile).Any(h => IsPredator(h.Species) && Sim.IsAlive(h));
 
     public static Agent? RavensAt(World world, TileId tile) =>
-        AnimalsAt(world, tile).FirstOrDefault(h => BehaviorOf(h.Species) == HerdBehavior.Opportunist && Flies(h.Species) && Sim.IsAlive(h));
+        AnimalsAt(world, tile).FirstOrDefault(h => IsRaven(h.Species) && Sim.IsAlive(h));
 
     /// The ravens' raid, the carrion flock's unchanged: #124 replaces it.
     static Refusal? RaidRefusal(World world, Agent herd)
     {
-        if (BehaviorOf(herd.Species) != HerdBehavior.Opportunist || !Flies(herd.Species)) return new("only ravens raid");
+        if (!IsRaven(herd.Species)) return new("only ravens raid");
         if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("no pile here");
         var inv = world.Tiles[herd.Tile].Pile!;
         if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the pile it eats");

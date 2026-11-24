@@ -27,8 +27,8 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Npc.cs:48`, `Npc.cs:519` - NPCs spawn with an axe and knife and cannot make a fire starter, standing in
   for the old NPC's crafting. Upgrade: once crafting exists, shrink the kit to the player's and craft at these points.
 - `Shelter.cs:81` - old `CacheFeature` (capacity, predator/weather protection, food preservation) not ported;
-  no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. The carrion flock raids
-  unwatched stashes now (`Carrion.cs`), so a cache's protection has something to protect against. Upgrade: port it.
+  no branch-to-log frame rebuild (old 60% salvage), no reclaim from an abandoned project. Ravens raid
+  unwatched stashes now (`Scavenging.cs`), so a cache's protection has something to protect against. Upgrade: port it.
 - `Content/loot.json:16` - the old ancient cache's fishing rod or net is left out. Upgrade: add with fishing.
 - `Content.cs:61`, `Pools.cs:162` - a site's small game, caches, `FirstVisitEvent` and `SiteEvent` are carried as data only.
   Upgrade: small game as a density to hunt in; events fire on arrival and in `Pools.Search` when found (emergent-world moments).
@@ -57,7 +57,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
   and the combat unit model, so it waits for a ticket of its own.
 - `Fauna.cs:281` - old hungry wolves chased escaping prey 40% of the time; here they patrol on.
 - `Fauna.cs:505` - old hyenas shadowed feeding predators and wolf packs; only carcasses draw them here. The carrion
-  flock (`Carrion.cs`) is the one that follows predators. Hyenas stay the old scavenger: they fight, and never starve
+  flock (`Scavenging.cs`, ravens since #85) is the one that follows predators. Hyenas stay the old scavenger: they fight, and never starve
   (`Renewal.cs`, judgment: the old hyena never went hungry).
 - `Populate.cs:8` - old territory details (tracks, droppings, bones as pools) not ported; herds leave real prints instead.
   Upgrade: emergent-world signs.
@@ -214,7 +214,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 - `Sim.cs:279` - every agent steps every minute. Upgrade: distant agents step hourly at hour-aligned minutes (plan decision 3).
   Build step 3 part B. A populated year is about 23 s on seed 17 (1.9 s a sim month, up from 1.2: more herds live,
-  since prey renew instead of dying out, plus the carrion flocks).
+  since prey renew instead of dying out, plus ravens and foxes).
 - `Tracks.cs:174` - fading tracks are swept by a full pass, at most hourly. Upgrade: index by expiry if saves grow.
 - `MapGen.cs:8` - `Math.Sin/Cos/Pow` are libm calls, so terrain is exact per platform, not across platforms.
   Upgrade: a portable sin if saves must move between operating systems.
@@ -252,7 +252,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 
 ## Emergent-world kill chain (build step 3, part A)
 
-- `Tags.cs` (Beacon) - the carrion flock circling flesh sets `Tag.Beacon`, read by `Report` ("ravens circling"),
+- `Tags.cs` (Beacon) - ravens circling flesh sets `Tag.Beacon`, read by `Report` ("ravens circling"),
   but nothing reveals a beacon at range yet: `Knowledge.Glance` sees a 5-tile diamond. Upgrade: part B's computed
   reveal reads `Beacon` (and `Fauna.CarrionRangeTiles`) for the find's vantage term.
 - `Renewal.cs` - every renewal number is a judgment (the old game had no calving, recruitment, arrivals or starving
@@ -263,7 +263,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Renewal.cs` (Arrive) - arrivals land anywhere on open land outside camp's safe zone, off the packs' land for a
   predator, out of everyone's sight (twice `Sight.RadiusTiles`), sized to the room left on that land; not at the
   valley's edge or along a migration route. Upgrade: arrive from the map's edge and walk in.
-- `Renewal.cs` (Thin, CurrentOn) - what lives on kills (packs, hyenas, the carrion flock) loses members to hunger
+- `Renewal.cs` (Thin, CurrentOn) - what lives on kills (packs, hyenas, ravens and foxes) loses members to hunger
   over its land's capacity at the birth rate run backwards, all year; grazers, browsers and bears only stop breeding
   (Populate puts some herds on land far below their size, and a cave bear's cave floor carries nothing). Overlapping
   herds share capacity by the share of each one's land inside the other's; for meat-eaters, by the overlap of their
@@ -282,7 +282,7 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Remains.cs` (Scatter) - a dead person's kit goes into the tile's stash when the skeleton scatters, not strewn by
   whatever ate them (interaction table: "pack eats a body, scatters its kit", step 5).
 - `Signs.cs` - bones that weather away leave nothing: no kill site sign yet (step 5's stored signs).
-- `Carrion.cs` - the flock's members are small quadrupeds (no bird body plan) and leave no prints or wear (it flies).
+- `Scavenging.cs` - ravens are built on the quadruped body plan (no bird body plan) and leave no prints or wear (they fly).
   It raids at most about once per eight unwatched hours, 0.05 kg a member. Upgrade: split ravens (beacon) from
   wolverines (raiders) if the information side needs separate tuning (design open question 4).
 - `Nearby.cs` - the index cannot see an agent replaced by hand in `World.Agents` under the same id (count and next

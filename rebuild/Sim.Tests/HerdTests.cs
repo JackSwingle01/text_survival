@@ -1117,7 +1117,7 @@ public class TerritorySweepTests(ITestOutputHelper output)
         [Species.CaveBear] = 3,
         [Species.Hyena] = 3,
         [Species.Raven] = 100,
-        [Species.Fox] = 20,
+        [Species.Fox] = 60,
     };
 
     [Fact]

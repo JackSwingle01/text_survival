@@ -485,6 +485,26 @@ public class KillChainTests
         Assert.True(ravens.In(w).Sum(r => r.Body.CaloriesKcal) <= held, "the ravens fed under the pack");
     }
 
+    /// A hungry fox keeps off a kill a pack holds, from afar as on arriving, rather than walking up to it and away again.
+    [Fact]
+    public void A_HungryFox_KeepsOffAKillAPredatorHolds()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        Caribou(w, tile);
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
+        var start = new TileId(tile.X, tile.Y + 3);
+        var fox = Animals.Spawn(w, Species.Fox, start, 1, [start, tile]);
+        for (int i = 0; i < 120; i++)
+        {
+            foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
+            TestKit.SetHunger(w.Agent(fox), 0.7);
+            Sim.Advance(w, 1);
+            Assert.NotEqual(tile, w.Agent(fox).Tile);
+        }
+    }
+
     [Fact]
     public void Ravens_FollowAPredator_AndReadAsRavensOverIt()
     {

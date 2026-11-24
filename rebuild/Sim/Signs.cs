@@ -41,7 +41,7 @@ public static class Signs
     static IEnumerable<Sign> OfAgent(World world, LocationFeature t)
     {
         var a = world.Agent(new AgentId(t.Index));
-        if (Fauna.BehaviorOf(a.Species) != HerdBehavior.Opportunist || !Fauna.Flies(a.Species) || Fauna.MeatHere(world, t.Tile) > 0) yield break;
+        if (!Fauna.IsRaven(a.Species) || Fauna.MeatHere(world, t.Tile) > 0) yield break;
         var followed = Fauna.AnimalsAt(world, t.Tile).FirstOrDefault(h => Fauna.IsPredator(h.Species) && Sim.IsAlive(h));
         if (followed != null) yield return new Sign(t, SignKind.RavensOver, null, Cause.By(world, followed.Id));
     }
