@@ -228,7 +228,7 @@ public static class Work
                 return Items.Have(pack, e.Food) > 0 ? null : new($"no {Names.Of(e.Food)} to eat", new MissingResource(e.Food, e.Kg));
             case Drink d:
                 if (d.Liters <= 0) throw new ArgumentOutOfRangeException(nameof(activity), d.Liters, "Drink a positive amount");
-                if (Items.Have(pack, Resource.Water) <= 0 && !HasOpenWater(world, agent.Tile)) return new("no water here", new MissingResource(Resource.Water, d.Liters));
+                if (Items.Have(pack, Resource.Water) <= 0 && !CanDrinkHere(world, agent.Tile)) return new("no water here", new MissingResource(Resource.Water, d.Liters));
                 return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? new("not thirsty") : null;
             case Cook c:
                 if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
@@ -281,6 +281,10 @@ public static class Work
         return MapGen.Neighbors(tile).Any(n => m.InBounds(n) && m.TerrainAt(n) == Terrain.Water && !Map.IsFrozen(m, n, world.Minute)
             && Map.Blocked(m, tile, n) == null);
     }
+
+    /// Water a person can drink here: open water (HasOpenWater) or an unfrozen pond standing on the tile.
+    public static bool CanDrinkHere(World world, TileId tile) =>
+        HasOpenWater(world, tile) || Ground.Underfoot(world, tile).DrinkableWaterM >= MinStandingWaterM;
 
     /// HasOpenWater without the ice, for an animal, which cuts no hole.
     public static bool HasUnfrozenWater(World world, TileId tile)

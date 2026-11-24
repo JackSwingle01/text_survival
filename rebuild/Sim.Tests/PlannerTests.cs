@@ -8,7 +8,7 @@ public class PlannerTests
     /// A July day, mild and dry: lakes open, no snow.
     static readonly WeatherSample Mild = new(0, WeatherCondition.Clear, 15, 0.1, 0, 0.2, WindDirection.North);
 
-    const int Width = 40;
+    internal const int Width = 40;
 
     /// A plain Width tiles long and `rows` deep (a corridor between mountains when rows is 1), with the camp and the
     /// pass's exit in the top corners, these tiles open water, and nothing growing anywhere.
