@@ -335,7 +335,8 @@ not capacities; they feed them.
 _Avoid_: stat (that is a need), ability (that is what a species can get at)
 
 **Crippled**:
-Of moving or manipulation: so little is left that the work it does is refused.
+Of moving or manipulation: the limbs give it nothing, so the work it does is refused. One working
+limb, however weak, is not crippled.
 _Avoid_: incapacitated, disabled
 
 **Lame**:
