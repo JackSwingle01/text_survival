@@ -271,7 +271,7 @@ gathering and camp comforts about half a day.
 
 ### The recipe list
 
-Times are as today unless given. Tools are capabilities. "Binding" means sinew or plant fibre.
+Times are as today where a recipe exists; a new recipe takes the old game's time for its nearest old recipe, as given here. Tools are capabilities. "Binding" means sinew or plant fibre (50 g of fibre, or 1 sinew). Gram amounts for medicine follow the old game's piece weights.
 
 | Recipe | Inputs | Tools / requires | Result and notes |
 |---|---|---|---|
@@ -282,21 +282,21 @@ Times are as today unless given. Tools are capabilities. "Binding" means sinew o
 | Crude edge | 1 stone | none, light | 5 min; replaces sharp rock and the old crude edge |
 | Stone | 1 stone | none | 1 min; throwing, Striking, ice-breaking; replaces the hammerstone |
 | Flint knife | 1 flint + 1 stick + 1 binding | striking, light | |
-| Obsidian knife | 1 obsidian + 1 stick + 1 binding | striking, light | sharper, more fragile |
-| Bone knife | 1 bone + 1 stick + 1 binding | striking, light | |
+| Obsidian knife | 1 obsidian + 1 stick + 1 binding | striking, light | 20 min; sharper, more fragile |
+| Bone knife | 1 bone + 1 stick + 1 binding | striking, light | 15 min |
 | Ground stone axe | 1 stone + 1 branch + 1 binding | striking, light | about 4 h project; durable, chops slower |
 | Flint axe | 1 flint + 1 branch + 1 binding | striking, light | about 30 min; chops faster, wears faster, also Cutting |
-| Bone shovel | 1 bone + 1 branch + 1 binding | striking, light | Digging |
+| Bone shovel | 1 bone + 1 branch + 1 binding | striking, light | 20 min; Digging |
 | Bone needle | 1 bone | cutting, light | Sewing |
 | Staff | 1 branch | none | 2 min |
 | Wooden spear | 1 branch | cutting, fire, light | sharpened and fire-hardened in one |
-| Flint-tipped spear | 1 branch + 1 flint + 1 binding | cutting, striking, light | |
-| Obsidian-tipped spear | 1 branch + 1 obsidian + 1 binding | cutting, striking, light | |
+| Flint-tipped spear | 1 branch + 1 flint + 1 binding | cutting, striking, light | 40 min |
+| Obsidian-tipped spear | 1 branch + 1 obsidian + 1 binding | cutting, striking, light | 40 min |
 | Ivory-tipped spear | 1 branch + 1 ivory + 2 sinew | cutting, striking, light | 60 min |
 | Stone club | 1 stone + 1 branch + 1 binding | cutting, light | about 20 min; blunt, reach 1.0 m, not thrown, high durability; damage tuned later |
-| Simple snare | 1 stick + 30 g fibre | cutting | ships with trapping |
-| Sinew snare | 1 stick + 1 sinew | cutting | ships with trapping |
-| Fishing rod | 1 branch + 2 sinew + 1 bone | cutting | ships with fishing |
+| Simple snare | 1 stick + 30 g fibre | cutting | 10 min; ships with trapping |
+| Sinew snare | 1 stick + 1 sinew | cutting | 15 min; ships with trapping |
+| Fishing rod | 1 branch + 2 sinew + 1 bone | cutting | 30 min; ships with fishing |
 | Net | 200 g fibre or 2 rope + 2 stick | cutting | 60 min; ships with fishing |
 | Scrape hide | 1 hide | cutting, light | 0.8 × the hide |
 | Dry hide | 1 scraped hide | fire | 0.9 × the scraped hide; stays until the curing rack (design session 3) |
@@ -304,39 +304,41 @@ Times are as today unless given. Tools are capabilities. "Binding" means sinew o
 | Render fat | 1 raw fat | fire | 0.6 × the fat as tallow; 20 min |
 | Willow fibre | 100 g willow bark | none | 0.8 × as plant fibre; 10 min |
 | Cordage | 300 g plant fibre | none | 1 rope |
-| Willow bark tea, pine needle tea, chaga tea | 1 piece or a handful + 0.3 L water | fire, water container | 10–15 min |
-| Polypore poultice | 1 birch polypore | none | |
-| Usnea poultice | usnea + 1 raw fat | none | |
-| Resin seal | resin + 1 raw fat | none | |
-| Fibre wrap | 50 g plant fibre | none | |
-| Moss bandage | 50 g fibre + sphagnum moss | cutting | replaces the hide bandage |
-| Sealed bandage | 50 g fibre + sphagnum moss + resin | cutting | |
+| Willow bark tea | 60 g willow bark + 0.3 L water | fire, water container | 10 min |
+| Pine needle tea | 60 g pine needles + 0.3 L water | fire, water container | 10 min |
+| Chaga tea | 1 chaga + 0.3 L water | fire, water container | 15 min |
+| Polypore poultice | 1 birch polypore | none | 10 min |
+| Usnea poultice | 50 g usnea + 1 raw fat | none | 10 min |
+| Resin seal | 50 g pine resin + 1 raw fat | none | 10 min |
+| Fibre wrap | 50 g plant fibre | none | 5 min |
+| Moss bandage | 50 g fibre + 200 g sphagnum moss | cutting | 10 min; replaces the hide bandage |
+| Sealed bandage | 50 g fibre + 200 g sphagnum moss + 50 g pine resin | cutting | 15 min |
 | Hide gloves, hide cap | 2 hide strip + 1 sinew | sewing, light | |
 | Hide boots | 1 cured hide + 1 sinew | sewing, light | |
 | Hide wrap | 2 cured hide + 2 sinew | sewing, light | |
 | Hide leggings | 2 cured hide + 1 sinew | sewing, light | |
 | Scrape and dry mammoth hide | as for a hide | as for a hide | cured mammoth hide |
-| Mammoth hide coat | 1 cured mammoth hide + 1 cured hide + 4 sinew | sewing, light | |
-| Mammoth hood | 1 cured mammoth hide + 2 sinew | sewing, light | |
+| Mammoth hide coat | 1 cured mammoth hide + 1 cured hide + 4 sinew | sewing, light | 180 min |
+| Mammoth hood | 1 cured mammoth hide + 2 sinew | sewing, light | 90 min |
 | Torch | 1 stick + 50 g birch bark or tinder | none | |
 | Resin torch | 1 stick + 30 g resin + 20 g tinder | none | burns about twice as long |
-| Birch-bark pouch | 100 g birch bark + 50 g fibre | cutting | +0.5 kg |
-| Rope belt | 2 rope | none | +3 kg |
-| Hide belt | 2 hide strip | cutting | +4 kg |
-| Large bag | 3 cured hide + 2 sinew + 2 rope | sewing | +10 kg |
-| Mammoth hide pack | 1 cured mammoth hide + 2 sinew + 1 rope | sewing | +15 kg |
+| Birch-bark pouch | 100 g birch bark + 50 g fibre | cutting | 15 min; +0.5 kg |
+| Rope belt | 2 rope | none | 20 min; +3 kg |
+| Hide belt | 2 hide strip | cutting | 30 min; +4 kg |
+| Large bag | 3 cured hide + 2 sinew + 2 rope | sewing | 60 min; +10 kg |
+| Mammoth hide pack | 1 cured mammoth hide + 2 sinew + 1 rope | sewing | 120 min; +15 kg |
 | Makeshift bedding | none | none | as today |
 | Padded bedding | 1 kg fibre + 1 cured hide | light | |
 | Moss bedding | 1.2 kg moss + 240 g pine needles + 1 cured hide | light | |
 | Lean-to | 6 branch | light | coverage up to 50% |
 | Branch hut | 12 branch + 2 rope | light | coverage up to 80%; built over a lean-to it takes it down and returns its branches whole |
 | Mound fire pit | none | digging | about 3 h |
-| Stone ring | 10 stone | requires a mound pit; digging speeds it | |
+| Stone ring | 10 stone | requires a mound pit; digging speeds it | 100 min (the old 300 for 30 stones, scaled to 10) |
 | Snow shelter | none | digging, frost, light | as today |
-| Hide tent | 4 cured hide + 4 branch + 2 rope + 4 sinew | sewing | gear, pitched as today |
-| Mammoth hide tent | 2 cured mammoth hide + 4 branch + 4 sinew | sewing | gear, pitched as today |
+| Hide tent | 4 cured hide + 4 branch + 2 rope + 4 sinew | sewing | 180 min; gear, pitched as today |
+| Mammoth hide tent | 2 cured mammoth hide + 4 branch + 4 sinew | sewing | 240 min; gear, pitched as today |
 | Sleeping bag | 4 cured hide + 6 sinew | sewing, light | |
-| Mend (any hide garment) | 1 hide strip + 1 sinew | sewing, light | restores 80% of missing condition |
+| Mend (any hide garment) | 1 hide strip + 1 sinew | sewing, light | 15 min (20 for a wrap); restores 80% of missing condition |
 | Sharpen (any blade) | none | striking | 10 min; restores 50% of missing condition |
 
 Removed: sharp rock, hammerstone, stone knife, shale knife, crude spear, heavy spear, stone-tipped spear
