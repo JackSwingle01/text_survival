@@ -132,6 +132,9 @@ public class ContentStrictTests
     [InlineData("effects.json", "\"bleedMlPerHour\": 3000", "\"bleedMlPerHour\": -3000", "bleedMlPerHour -3000")]
     [InlineData("effects.json", "\"Pain\": { \"severityPerHour\": -0.15", "\"Pain\": { \"severityPerHour\": 0.15", "severityPerHour 0.15 grows by itself")]
     [InlineData("effects.json", "\"Moving\": -0.35", "\"Moving\": 0.35", "Moving 0.35 is not a loss")]
+    // An effect names a capacity, blood or breath, and nothing else: not the gut, not the old names.
+    [InlineData("effects.json", "\"Blood\": -0.3", "\"Digestion\": -0.3", "effects.json Shock capacities: Digestion is not a capacity, blood or breath")]
+    [InlineData("effects.json", "\"Blood\": -0.3", "\"BloodPumping\": -0.3", "effects.json Shock capacities: no Capacity 'BloodPumping'")]
     [InlineData("species.json", "\"aggression\": 0.8", "\"aggression\": 1.8", "aggression in 0-1")]
     [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3", "\"smellFactor\": 0, \"scentLevel\": 0.3", "smellFactor above 0, scentLevel in 0-1")]
     [InlineData("species.json", "\"smellFactor\": 2.5, \"scentLevel\": 0.3", "\"smellFactor\": 2.5, \"scentLevel\": 1.3", "smellFactor above 0, scentLevel in 0-1")]

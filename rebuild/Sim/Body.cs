@@ -4,7 +4,9 @@ namespace Survival;
 
 public enum BodyKind { Human, Quadruped }
 
-public enum Capacity { Moving, Manipulation, Breathing, BloodPumping, Consciousness, Sight, Hearing, Digestion }
+/// What an organ supplies and an effect names: the five capacities, and blood and breath, which feed them. Digestion
+/// is the gut's, read by eating and healing alone, and no effect names it. Saved by number: append, never insert.
+public enum Capacity { Moving, Manipulation, Breath, Blood, Consciousness, Sight, Hearing, Digestion }
 
 public enum TissueKind { Skin, Muscle, Bone, Organ }
 
@@ -183,9 +185,9 @@ public static partial class Body
 
     static List<Tissue> HeartAndLungs() =>
     [
-        Organ("Heart", 0.5, Capacity.BloodPumping, 1.0),
-        Organ("Left Lung", 0.6, Capacity.Breathing, 0.5),
-        Organ("Right Lung", 0.6, Capacity.Breathing, 0.5),
+        Organ("Heart", 0.5, Capacity.Blood, 1.0),
+        Organ("Left Lung", 0.6, Capacity.Breath, 0.5),
+        Organ("Right Lung", 0.6, Capacity.Breath, 0.5),
     ];
 
     static List<Tissue> Gut() => [Organ("Liver", 0.6, Capacity.Digestion, 0.6), Organ("Stomach", 0.5, Capacity.Digestion, 0.4)];
@@ -575,7 +577,7 @@ public static partial class Body
     /// every kilocalorie absorbed is either in the store or on the body.
     public static void Eat(BodyState body, double kcal)
     {
-        double absorbed = kcal * (0.5 + 0.5 * Capacities.WithoutEffects(body).Digestion);
+        double absorbed = kcal * (0.5 + 0.5 * TissueReads.Digestion(body));
         double stored = body.CaloriesKcal + absorbed;
         double capacity = CaloriesCapacityKcal(body);
         body.CaloriesKcal = Math.Min(capacity, stored);
