@@ -11,14 +11,16 @@
 //   tools: capabilities the pack must give (each used once per finished piece); faster: capabilities
 //     that speed the work when carried (optional), each by fasterFactor (optional, 1.5 if not given);
 //   requires: what the place must have to start and to go on (Light, Fire, Frost, Shelter, Dry,
-//     NoShelter); Tent is a tent carried, checked to start, and the tent goes into the work;
+//     NoShelter, MoundPit: a mound fire pit here); Tent is a tent carried, checked to start, and the tent goes into the work;
 //   minutes: the work for someone whole, warm and dry;
 //   result: { "gear": kind } for one piece, weighing what items.json says, never more than its lightest possible
 //     inputs; { "resource": r, "count": n, "sharePct": s } for n pieces of a discrete r, together s of the actual
 //     weight that went in (less what an outcome wastes), each in r's range; { "resource": r, "g": n } for a
 //     continuous r, or { "resource": r, "sharePct": s } for s of the actual weight that went in; or, placed on the tile,
-//     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
-//     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile). A placed result's project stays on the tile for anyone there to
+//     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one), with "replaces": a ShelterKind
+//     whose built shelter it takes down when it goes up, its pieces given back whole, or
+//     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile) or { "pit": PitType } (the fire
+//     pit here raised to Mound or Stone, or dug cold; refused where one is as good, burns, or is someone else's). A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
 //     { "repairs": [gear kinds], "restoresPct": s }: worked on one held piece of those kinds (taken off, if worn, and
 //     put back on), restoring s of its missing condition, the materials joining its parts record; its name is the
@@ -255,6 +257,19 @@
   "result": { "gear": "mammoth_hide_pack" },
   "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
 
+ // ---- tents: sewn hides on branch poles, carried as gear and pitched as a shelter. The heavy poles are listed last,
+ // so the made inputs are fetched before the pack is loaded with them (MakeTests' run where you prepare). ----
+ "hide_tent": { "name": "Hide tent", "category": "Camp",
+  "inputs": [ { "of": "CuredHide", "count": 4 }, { "of": "Rope", "count": 2 }, { "of": "Sinew", "count": 4 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 } ],
+  "tools": ["Sewing"], "requires": [], "minutes": 180,
+  "result": { "gear": "hide_tent" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "mammoth_hide_tent": { "name": "Mammoth hide tent", "category": "Camp",
+  "inputs": [ { "of": "CuredMammothHide", "count": 2 }, { "of": "Sinew", "count": 4 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 } ],
+  "tools": ["Sewing"], "requires": [], "minutes": 240,
+  "result": { "gear": "mammoth_hide_tent" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.5=.05", "fail:break_tool:Sewing=.02"] },
+
  // ---- hide clothing: hide strips or cured hides and sinew, sewn with a needle ----
  "hide_gloves": { "name": "Hide gloves", "category": "Clothing",
   "inputs": [ { "of": "HideStrip", "count": 2 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 30,
@@ -303,25 +318,34 @@
   "inputs": [], "tools": [], "faster": ["Digging"], "fasterFactor": 2, "requires": [], "minutes": 45,
   "result": { "bedding": "Makeshift" }, "outcomes": [] },
  "padded_bedding": { "name": "Padded bed", "category": "Camp",
-  "inputs": [ { "of": "PlantFiber", "g": 1000 }, { "of": "Hide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 45,
+  "inputs": [ { "of": "PlantFiber", "g": 1000 }, { "of": "CuredHide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 45,
   "result": { "bedding": "Padded" }, "outcomes": [] },
  "moss_bedding": { "name": "Moss bed", "category": "Camp",
-  "inputs": [ { "of": "SphagnumMoss", "g": 1200 }, { "of": "PineNeedles", "g": 240 }, { "of": "Hide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 50,
+  "inputs": [ { "of": "SphagnumMoss", "g": 1200 }, { "of": "PineNeedles", "g": 240 }, { "of": "CuredHide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 50,
   "result": { "bedding": "MossPadded" }, "outcomes": [] },
  // 15 minutes' setup and three hours' sewing.
  "sleeping_bag": { "name": "Sleeping bag", "category": "Camp",
-  "inputs": [ { "of": "CuredHide", "count": 6 }, { "of": "Sinew", "count": 6 } ], "tools": [], "requires": ["Light"], "minutes": 195,
+  "inputs": [ { "of": "CuredHide", "count": 4 }, { "of": "Sinew", "count": 6 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 195,
   "result": { "bedding": "SleepingBag" }, "outcomes": [] },
- "branch_frame": { "name": "Branch frame shelter", "category": "Camp",
-  "inputs": [ { "of": "Stick", "count": 4 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
-  "result": { "shelter": "BranchFrame", "shelterName": "Branch Frame Shelter" }, "outcomes": [] },
- "log_frame": { "name": "Log frame shelter", "category": "Camp",
-  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 3 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
-  "result": { "shelter": "LogFrame", "shelterName": "Log Frame Shelter" }, "outcomes": [] },
+ "lean_to": { "name": "Lean-to", "category": "Camp",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 6 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
+  "result": { "shelter": "LeanTo", "shelterName": "Lean-to" }, "outcomes": [] },
+ // Built where a lean-to stands, it takes the lean-to down when it goes up, and the lean-to's branches come back whole.
+ "branch_hut": { "name": "Branch hut", "category": "Camp",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 12 }, { "of": "Rope", "count": 2 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
+  "result": { "shelter": "BranchHut", "shelterName": "Branch hut", "replaces": "LeanTo" }, "outcomes": [] },
  // 15 minutes' setup and two hours' digging.
  "snow_shelter": { "name": "Snow shelter", "category": "Camp",
   "inputs": [], "tools": ["Digging"], "faster": ["Digging"], "fasterFactor": 2, "requires": ["Light", "NoShelter", "Frost"], "minutes": 135,
   "result": { "shelter": "SnowShelter", "shelterName": "Snow shelter" }, "outcomes": [] },
+ // Earth banked round the hearth: the fire pit here, or a new one, becomes a mound pit.
+ "mound_fire_pit": { "name": "Mound fire pit", "category": "Camp",
+  "inputs": [], "tools": ["Digging"], "requires": [], "minutes": 180,
+  "result": { "pit": "Mound" }, "outcomes": [] },
+ // The old 300 minutes for 30 stones, scaled to 10.
+ "stone_ring": { "name": "Stone ring", "category": "Camp",
+  "inputs": [ { "of": "Stone", "count": 10 } ], "tools": [], "faster": ["Digging"], "requires": ["MoundPit"], "minutes": 100,
+  "result": { "pit": "Stone" }, "outcomes": [] },
  // Four branches for the frame, four sticks across it, a rope to lash it. Room for four things (Stations.RackRoom).
  "curing_rack": { "name": "Curing rack", "category": "Camp",
   "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 }, { "of": "Stick", "count": 4 }, { "of": "Rope", "count": 1 } ],

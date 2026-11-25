@@ -115,7 +115,7 @@ public class SaveFixtureTests
     }
 
     /// A small world with a bit of most of what a save holds: a fire burning, a pile, a shelter and
-    /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
+    /// bedding, a lean-to with its branches, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
     /// streams, a journal, a made thing's parts and an unfinished one in the pack, a worn piece being mended, meat half cooked at the fire, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
@@ -126,6 +126,10 @@ public class SaveFixtureTests
         var shelter = Shelters.Place(w, camp, Shelters.CampOverhang);
         (shelter.WorkingPiece, shelter.WorkingPieceStat, shelter.WorkingPieceLeftPct) = (Resource.Hide, ShelterStat.Insulation, 0.5); // a hide half worked in
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
+        // A lean-to built beside camp, keeping its branches to give back if a hut goes up over it (#151).
+        var leanTo = new Inventory();
+        TestKit.GivePieces(leanTo, Resource.PineBranch, 6);
+        Shelters.Place(w, new TileId(camp.X, camp.Y + 2), new ShelterDef("Lean-to", ShelterKind.LeanTo), null, new Cause(P, "built by the player"), materials: leanTo);
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);
         Agents.SpawnGroup(w, Species.Wolf, new TileId(camp.X + 12, camp.Y), 2); // a pack: two wolves that know each other

@@ -90,7 +90,7 @@ public static partial class Content
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
         ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, double CapG = 0, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0,
-        StationKind? Station = null);
+        StationKind? Station = null, ShelterKind? Replaces = null, PitType? Pit = null);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -398,10 +398,10 @@ public static partial class Content
             if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
             if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
             var r = row.Result;
-            bool placed = r.Shelter != null || r.Bedding != null || r.Station != null;
+            bool placed = r.Shelter != null || r.Bedding != null || r.Station != null || r.Pit != null;
             bool stationWorked = row.Station != null || row.Driver != null;
-            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null, r.Station != null }.Count(x => x) != 1)
-                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding, a station or a repair, exactly one");
+            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null, r.Station != null, r.Pit != null }.Count(x => x) != 1)
+                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding, a station, a pit or a repair, exactly one");
             else if (r.Repairs != null) problems.AddRange(RepairProblems(at, row, items, gear, repaired));
             else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
@@ -418,7 +418,7 @@ public static partial class Content
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
                 if (caps.Contains(Capability.None) || caps.Distinct().Count() != caps.Count) problems.Add($"{at}: {name} names None or a capability twice");
             if (row.Requires.Distinct().Count() != row.Requires.Count) problems.Add($"{at}: a requirement listed twice");
-            if (!placed && row.Requires.Any(q => q is Requirement.NoShelter or Requirement.Tent)) problems.Add($"{at}: NoShelter and Tent are for a placed result");
+            if (!placed && row.Requires.Any(q => q is Requirement.NoShelter or Requirement.Tent or Requirement.MoundPit)) problems.Add($"{at}: NoShelter, Tent and MoundPit are for a placed result");
             var outcomes = new List<Outcome>();
             foreach (var line in row.Outcomes)
             {
@@ -450,7 +450,7 @@ public static partial class Content
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
                 new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct, r.CapG / 1000,
-                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null, r.Station), outcomes.AsReadOnly(),
+                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null, r.Station, r.Replaces, r.Pit), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
@@ -568,6 +568,11 @@ public static partial class Content
         if (r.Station != null && row.Station != null) yield return $"{at}: a station is built by hand, not worked by a station";
         if (r.Shelter != null && tent != (r.Shelter == ShelterKind.HideTent)) yield return $"{at}: a tent's shelter is HideTent, and only a tent's";
         if (r.Shelter != null && tent == (r.ShelterName != null)) yield return $"{at}: a shelter is named, unless it is the tent carried";
+        if (r.Replaces is ShelterKind replaced && (r.Shelter == null || tent || replaced == r.Shelter || replaced is ShelterKind.HideTent or ShelterKind.SnowShelter))
+            yield return $"{at}: only a built shelter replaces another kind, and never a tent or snow";
+        if (r.Pit is PitType pit && (pit == PitType.Open || r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter)))
+            yield return $"{at}: a pit result is Mound or Stone, not named, needing no tent and standing beside a shelter";
+        if (row.Requires.Contains(Requirement.MoundPit) != (r.Pit == PitType.Stone)) yield return $"{at}: a stone ring needs a mound pit, and only a stone ring does";
     }
 
     /// The most a recipe's outcomes may take of the odds before skill and hands move them: the plain

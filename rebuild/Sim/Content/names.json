@@ -271,7 +271,8 @@
   "Shelter": "shelter",
   "Dry": "a roof or a dry sky",
   "NoShelter": "no shelter here yet",
-  "Tent": "a tent carried"
+  "Tent": "a tent carried",
+  "MoundPit": "a mound fire pit"
  },
  "TrackMaker": {
   "Human": "human",
