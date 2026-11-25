@@ -169,7 +169,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       # No new build starts once any usage window (5-hour, 7-day) is this full.
-      MAX_PLAN_UTILIZATION: "0.8"
+      MAX_PLAN_UTILIZATION: "0.9"
       ISSUE: ${{ matrix.issue }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:

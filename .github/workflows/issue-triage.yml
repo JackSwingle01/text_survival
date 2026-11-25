@@ -12,13 +12,14 @@ name: Issue triage
 # - issues closed: closing an issue (usually by merging its PR) unblocks the issues waiting on it.
 # - schedule (hourly, :23): resumes after a usage limit, and catches issues filed with GITHUB_TOKEN
 #   (ratchet.yml), which start no workflows. A drain with nothing eligible makes no Claude call.
-#   ci.yml's `main-red` issue is filed that way too; its script dispatches this workflow for it.
+#   ci.yml's `main-red` issue and nightly.yml's `nightly` issue are filed that way too; each
+#   dispatches this workflow for its issue.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
-# without write access (except the `ratchet` and `main-red` issues the workflows file), issues
-# labelled `needs-user` or `ready-for-agent`, issues with an open PR or an `<issue#>-` branch, and
-# issues with an open native "blocked by" link. Everything that takes reading the issue (a design ticket, a map, blocking
-# written in the text, a vague spec) is the triage call's judgement on Sonnet.
+# without write access (except the `ratchet`, `main-red` and `nightly` issues the workflows file),
+# issues labelled `needs-user` or `ready-for-agent`, issues with an open PR or an `<issue#>-` branch,
+# and issues with an open native "blocked by" link. Everything that takes reading the issue (a design
+# ticket, a map, blocking written in the text, a vague spec) is the triage call's judgement on Sonnet.
 #
 # Outcomes. Ready: label `ready-for-agent`. Needs a person (or already done, or another PR does it):
 # comment and label `needs-user`; answer on the issue and remove the label to requeue it. Blocked:

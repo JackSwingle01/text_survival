@@ -20,6 +20,24 @@ NS = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
 BODY_BUDGET, MESSAGE_CHARS, STACK_CHARS = 55_000, 3_000, 2_000
 
 
+# The issue is a ticket for the issue agent (issue_queue.py lets the bot's `nightly` issues through),
+# and this is its rule. ci.yml's `main-red` issue carries the same one (.github/scripts/main_red.sh).
+AGENT_RULE = """## For the issue agent
+
+Make the failing tests below pass on main again.
+
+- **Ready** only when every failure's message shows its cause and the fix is small and obvious: a few \
+lines that restore what the test expects. For example, a test that reads something a merged PR renamed.
+- **Needs a person** otherwise: a message does not show the cause, a failure may be flaky or depend on \
+the seed alone, the fix changes what the game does or takes a number (a budget, a rate, a balance \
+value), or it would skip, delete or loosen a test.
+- **Acceptance:** each test passes when replayed by its command, and so does the fast suite \
+(`CLAUDE.md`, Build and Test).
+- The build answers needs_user, with no pull request, if a fix turns out not to be small and obvious.
+
+"""
+
+
 def cut(text, limit):
     return text if len(text) <= limit else text[:limit] + f"\n... (cut at {limit} characters; the run's log has the rest)"
 
@@ -65,7 +83,8 @@ def main(results):
         return 3
     body = (f"The nightly run failed {total} test(s) at {sha}.\n\nRun: {run}\n\n"
             "Each test below has the command that replays it. Several may share one cause: find the causes "
-            "first, then fix them together. The next failing nightly run rewrites this issue with its own failures.\n\n")
+            "first, then fix them together. The next failing nightly run rewrites this issue with its own failures.\n\n"
+            + AGENT_RULE)
     for part in parts:
         body += part if isinstance(part, str) else section(*part, full=len(body) < BODY_BUDGET)
     print(body)
