@@ -257,7 +257,101 @@ public class RackTests
     public void Drying_IsNotByHand()
     {
         var w = WithRack();
-        Assert.DoesNotContain(Verbs.At(w, P).Make, v => v.Activity is Make { Recipe: "dry_meat" or "dry_fish" or "dry_berries" });
+        Assert.DoesNotContain(Verbs.At(w, P).Make, v => v.Activity is Make { Recipe: "dry_meat" or "dry_fish" or "dry_berries" or "cure_hide" or "cure_mammoth_hide" });
         Assert.Contains("put it on at a rack", Sim.Refusal(w, new Make(P, "dry_meat"))!.Reason);
+        Assert.Contains("put it on at a rack", Sim.Refusal(w, new Make(P, "cure_hide"))!.Reason);
+    }
+
+    // ---- hides (#191) ----
+
+    [Fact]
+    public void AScrapedHide_IsACuredHide_FortyEightHoursLater_WithNoOneActing()
+    {
+        var w = WithRack();
+        Items.AddPiece(Pack(w), Resource.ScrapedHide, 2.4);
+        long setAt = w.Minute;
+        PutOn(w, a => a is PutOn { Recipe: "cure_hide" });
+        Assert.Equal(0, Items.Count(Pack(w), Resource.ScrapedHide));
+
+        var done = FinishOf(w, 48 * 60 + 5);
+        Assert.Equal(setAt + 48 * 60, done.Minute);
+        Assert.Equal(Resource.CuredHide, done.Made);
+        Assert.Equal(2.16, done.Kg, 9);
+        var take = Offer(w, a => a is TakeFinished);
+        Sim.Step(w, take.Activity, take.Minutes);
+        Assert.Equal(2.16, Assert.Single(Pack(w).Pieces[Resource.CuredHide]), 9);
+    }
+
+    [Fact]
+    public void AScrapedMammothHide_CuresToNineTenthsOfItsWeight()
+    {
+        var w = WithRack();
+        Items.AddPiece(Pack(w), Resource.ScrapedMammothHide, 8.0);
+        long setAt = w.Minute;
+        PutOn(w, a => a is PutOn { Recipe: "cure_mammoth_hide" });
+        var done = FinishOf(w, 48 * 60 + 5);
+        Assert.Equal(setAt + 48 * 60, done.Minute);
+        Assert.Equal(Resource.CuredMammothHide, done.Made);
+        Assert.Equal(7.2, done.Kg, 9);
+    }
+
+    [Fact]
+    public void AHalfCuredHide_SurvivesSaveAndLoad_WithTheFinishMinuteUnchanged()
+    {
+        var w = WithRack();
+        Items.AddPiece(Pack(w), Resource.ScrapedHide, 2.4);
+        long setAt = w.Minute;
+        PutOn(w, a => a is PutOn { Recipe: "cure_hide" });
+        Sim.Advance(w, 24 * 60);
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        var done = FinishOf(loaded, 24 * 60 + 5);
+        Assert.Equal(setAt + 48 * 60, done.Minute);
+        Assert.Equal(2.16, done.Kg, 9);
+    }
+
+    /// One place takes one hide, however many are carried.
+    [Fact]
+    public void ARawHide_IsNotOfferedForTheRack_AndAPlaceTakesOneScrapedHide()
+    {
+        var w = WithRack();
+        Items.AddPiece(Pack(w), Resource.Hide, 3.0);
+        Items.AddPiece(Pack(w), Resource.MammothHide, 10.0);
+        Assert.DoesNotContain(RackMenu(w), v => v.Activity is PutOn);
+        Items.AddPieces(Pack(w), Resource.ScrapedHide, [2.4, 1.0]);
+        Assert.Equal("cure_hide", Assert.IsType<PutOn>(Assert.Single(RackMenu(w), v => v.Activity is PutOn).Activity).Recipe);
+        PutOn(w, a => a is PutOn { Recipe: "cure_hide" });
+        Assert.Equal(1, Items.Count(Pack(w), Resource.ScrapedHide));
+        Assert.Equal(1, Items.Count(Pack(w), Resource.Hide));
+    }
+
+    [Fact]
+    public void NoHandRecipe_CuresAHide()
+    {
+        Assert.DoesNotContain(Recipes.ByHand, r => r.Result.Resource is Resource.CuredHide or Resource.CuredMammothHide);
+        Assert.DoesNotContain(Verbs.At(WithRack(), P).Make, v => v.Label.Contains("hide by the fire"));
+    }
+
+    /// The way to anything sewn from a cured hide: a hide scraped by hand, cured on the rack, cut into strips.
+    [Fact]
+    public void AHide_IsScraped_ThenCuredOnTheRack_ThenCutIntoStrips()
+    {
+        var w = WithRack();
+        w.Minute = Math.Max(w.Minute, 3 * 60); // daylight, for the scraping and the cutting
+        Pack(w).Gear.Add(Items.Make("flint_knife"));
+        Items.AddPiece(Pack(w), Resource.Hide, 3.0);
+        Assert.Null(Sim.Step(w, new Make(P, "scrape_hide"), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_hide"), null, []));
+        Assert.Equal(2.4, Assert.Single(Pack(w).Pieces[Resource.ScrapedHide]), 9);
+
+        PutOn(w, a => a is PutOn { Recipe: "cure_hide" });
+        FinishOf(w, 48 * 60 + 5);
+        var take = Offer(w, a => a is TakeFinished);
+        Sim.Step(w, take.Activity, take.Minutes);
+        Assert.Equal(2.16, Assert.Single(Pack(w).Pieces[Resource.CuredHide]), 9);
+
+        Assert.Null(Sim.Step(w, new Make(P, "hide_strips"), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("hide_strips"), null, []));
+        Assert.Equal(0, Items.Count(Pack(w), Resource.CuredHide));
+        Assert.True(Items.Count(Pack(w), Resource.HideStrip) >= 2);
     }
 }
