@@ -40,7 +40,7 @@ The hard-to-reverse ones are recorded with their reasons in `documentation/decis
    everywhere") come from real signs. Old hallucination scenes are cut.
 9. **Stat priorities** (`GLOSSARY.md`): every stat is Critical (imminent death, drop everything), Need
    (survive the day, or back to baseline) or Want (stockpile, surplus). Priority ranks first; within a
-   priority, warmth, then water, then food, then rest. The NPC and the player-facing alerts use it.
+   priority, warmth, then water, then rest, then food. The NPC and the player-facing alerts use it.
 10. **Effects code is verified** to a stated bar (§3.3): a pure kernel, property tests, a
     reference model, and mutation testing.
 

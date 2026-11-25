@@ -179,7 +179,7 @@ Animals and people share one body model and one way of looking for what they nee
     stored paths only if they pay.
 49. As a developer, I want the change to stay within a set allocation budget, so that long sims and
     sweeps stay usable.
-50. As a developer, I want old saves to fail loudly and the save format version bumped, so that format
+50. As a developer, I want old saves to fail loudly and the save format changed on purpose, so that format
     changes are deliberate.
 51. As a developer, I want the tests that pinned the old herd mind rewritten as behaviour tests, so
     that coverage of what the player sees isn't lost.
@@ -515,7 +515,7 @@ They become one system:
 
 ### Save
 
-- The save format version is bumped, and the fixture save is regenerated on purpose.
+- The save format changes (`documentation/save-format.md`), and the fixture save is regenerated on purpose.
 - The save gains: per-animal agents, each animal's mind (plan, path, sightings), familiarity, and the
   new body fields animals now use.
 - The territory field is removed.

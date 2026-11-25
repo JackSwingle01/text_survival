@@ -309,7 +309,7 @@ toward the bear's country, no fire.
 
 - New saved state: caches (kind, contents, torn open), Dirty on bodies, and pile-or-cache entries on
   animals' sightings lists. The rename from stash to pile and the removal of raven raid state go into
-  the same save version bump. Old saves are refused, not migrated
+  the same save format change. Old saves are refused, not migrated
   (decision "No save migrations until the rebuild is finished", 2026-11-24).
 
 ### Blocking
