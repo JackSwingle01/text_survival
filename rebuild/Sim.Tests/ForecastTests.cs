@@ -690,4 +690,48 @@ public class ForecastTests
         var lame = Assert.IsType<MissingState>(Sim.Refusal(w, new Travel(P, Direction.East))!.Missing);
         Assert.Equal((Lack.MovingPct, Traversal.LameMovingPct, Body.GetCapacities(body).Moving), (lame.Lack, lame.Need, lame.Have));
     }
+
+    // ---- Stations: the finish of a transformation ----
+
+    /// The finish the fire's menu shows for the piece on it (its Take back), and the minute it then finishes, if
+    /// within a day. Nobody tends the fire: the forecast assumes everything else stays as it is.
+    static (long? Forecast, long? Finished) CookOn(Resource fuel, double burningKg)
+    {
+        var w = At();
+        w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+        PitWith(w, fuel, burningKg);
+        Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
+        Sim.Advance(w, 1);
+        Sim.Step(w, new PutOn(P, "cook_meat"), 1);
+        var forecast = TakeBack(w).Progress!.FinishMinute;
+        for (int i = 0; i < 1440; i++)
+            if (Sim.Advance(w, 1).OfType<TransformationFinished>().FirstOrDefault() is { } done) return (forecast, done.Minute);
+        return (forecast, null);
+    }
+
+    static Verb TakeBack(World w) =>
+        Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature.Kind == LocationFeatureKind.Fire).Menu.Single(v => v.Activity is TakeBack);
+
+    [Theory]
+    [InlineData(Resource.Birch, 5.0)] // a good fire with fuel to spare
+    [InlineData(Resource.Birch, 0.45)] // weak: slower all the way
+    [InlineData(Resource.Kindling, 1.0)]
+    [InlineData(Resource.Kindling, 0.2)] // down to embers, and out on them, before it is done
+    [InlineData(Resource.Kindling, 0.05)] // a sliver: out before the meat is done
+    public void AStationsForecastFinish_AgreesWithWhatThenHappens(Resource fuel, double kg)
+    {
+        var (forecast, finished) = CookOn(fuel, kg);
+        Assert.Equal(finished, forecast);
+    }
+
+    [Fact]
+    public void AFireWithEnoughFuel_ForecastsAFinish_AWeakOneALaterOne_AndOneThatWillDieFirstNone()
+    {
+        var (good, _) = CookOn(Resource.Birch, 5);
+        var (dying, _) = CookOn(Resource.Kindling, 0.05);
+        var (weak, _) = CookOn(Resource.Birch, 0.45);
+        Assert.NotNull(good);
+        Assert.Null(dying);
+        Assert.True(weak > good, $"weak {weak}, good {good}");
+    }
 }

@@ -105,6 +105,8 @@ export function createMap(canvas, state, { onHover, onClick }) {
       if (p.carcass) sprite('carcass', px + TS - sp * 0.7, py + TS - sp * 0.7, sp * 0.6, vis ? 1 : 0.6);
       if (p.pile) sprite('cache', px + 4, py + TS - sp * 0.6, sp * 0.5, vis ? 1 : 0.6);
       if (p.den) sprite('danger', px + TS - sp * 0.55, py + 4, sp * 0.5, vis ? 1 : 0.7);
+      // the fire's station: something working (dim), something ready (bright)
+      if (p.station) sprite('ui/meat', px + 4, py + 4, sp * 0.5, p.station === 'ready' ? 1 : 0.4);
       if (p.fire && p.fire !== 'Cold') {
         const burning = p.fire !== 'Embers';
         if (vis && burning) {

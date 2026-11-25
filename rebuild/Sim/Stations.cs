@@ -23,6 +23,21 @@ public sealed class StationState
 public sealed record TransformationFinished(long Minute, TileId Tile, FireId Fire, AgentId SetBy, string Recipe, Resource Made, double Kg)
     : WorldEvent(Minute, Tile);
 
+/// Why a station stopped working: the fire went out (drying's reasons come with the rack).
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<StopReason>))]
+public enum StopReason { FireOut }
+
+public sealed record TransformationStopped(long Minute, TileId Tile, FireId Fire, IReadOnlyList<Resource> Left, StopReason Why)
+    : WorldEvent(Minute, Tile);
+
+public enum Slowed { FireLow, Embers, FireOut }
+
+/// FinishMinute null: not while things stay as they are. Why null: at the recipe's own time.
+public sealed record StationProgress(long? FinishMinute, Slowed? Why);
+
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<StationMark>))]
+public enum StationMark { Working, Ready }
+
 /// The making system's stations. A fire is asked only for its temperature. Every station with work on it lives
 /// each world minute (Scheduler.Minute), so a finish's minute does not depend on who watches or how the world steps.
 public static class Stations
@@ -53,6 +68,40 @@ public static class Stations
 
     /// Finished results take a place too: there is no queue.
     public static int Used(StationState s) => s.Working.Count + s.Ready.Pieces.Values.Sum(p => p.Count);
+
+    /// One minute of work at this rate: whether the piece is done. The world's minute and the forecast both take it.
+    static bool Advance(ref double donePct, double ratePct, Recipe r)
+    {
+        donePct += ratePct / r.Minutes;
+        return donePct >= 1 - DoneSlack;
+    }
+
+    /// GLOSSARY: Forecast. A piece done this far, by the fire's own forecast of its burn; null if it goes cold first.
+    /// The same for everyone. The minute now has already been worked.
+    public static long? FinishMinute(World world, FireId pit, Recipe r, double donePct)
+    {
+        var fire = world.Fires[pit];
+        if (Fire.IsActive(fire) || fire.HasEmbers) Fire.RequireCurrent(world, pit, fire); // a cold fire has no burn to lag behind
+        if (r.Station != StationKind.Fire) throw new ArgumentException($"{r.Id} is not worked at a fire", nameof(r));
+        foreach (var ahead in Fire.Ahead(fire))
+            if (Advance(ref donePct, HeatRatePct(ahead), r)) return ahead.LastUpdatedMinute;
+        return null;
+    }
+
+    public static long? Forecast(World world, FireId pit, Transformation t) => FinishMinute(world, pit, Recipes.Get(t.Recipe), t.DonePct);
+
+    public static Slowed? SlowedBy(FireState fire) =>
+        fire.HasEmbers ? Slowed.Embers : !Fire.IsActive(fire) ? Slowed.FireOut : HeatRatePct(fire) < 1 ? Slowed.FireLow : null;
+
+    public static StationProgress Progress(World world, FireId pit, Transformation t) =>
+        new(Forecast(world, pit, t), SlowedBy(world.Fires[pit]));
+
+    public static Transformation? Working(World world, AgentId who, TakeBack a) =>
+        Fire.PitAt(world, world.Agent(who).Tile) is FireId id ? Piece(At(world, id), a) : null;
+
+    /// Ready wins: something finished and not taken; else something working; else nothing.
+    public static StationMark? Mark(StationState? s) =>
+        s == null ? null : Items.HasResources(s.Ready) ? StationMark.Ready : s.Working.Count > 0 ? StationMark.Working : null;
 
     /// 1 is the recipe's stated time.
     public static double HeatRatePct(FireState fire)
@@ -138,15 +187,23 @@ public static class Stations
         foreach (var (id, s) in world.Stations)
         {
             if (s.Working.Count == 0) continue;
+            // Only this catches a working fire up, so heat at the last minute and none at this one is the stop.
+            bool wasWorking = HeatRatePct(world.Fires[id]) > 0;
             Fire.CatchUp(world, id, events);
             var fire = world.Fires[id];
             double rate = HeatRatePct(fire);
-            if (rate <= 0) continue;
+            if (rate <= 0)
+            {
+                if (wasWorking) events.Add(new TransformationStopped(world.Minute, fire.Tile, id, [.. s.Working.Select(t => t.Input)], StopReason.FireOut));
+                continue;
+            }
             foreach (var t in s.Working.ToList())
             {
                 var r = Recipes.Get(t.Recipe);
-                t.DonePct += rate / r.Minutes;
-                if (t.DonePct < 1 - DoneSlack) continue;
+                double done = t.DonePct;
+                bool finished = Advance(ref done, rate, r);
+                t.DonePct = done;
+                if (!finished) continue;
                 s.Working.Remove(t);
                 var made = r.Result.Resource!.Value;
                 double kg = t.InputKg * r.Result.SharePct;

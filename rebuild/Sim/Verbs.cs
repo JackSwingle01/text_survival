@@ -32,8 +32,9 @@ public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, Moving
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
 /// Trip (Trip.Time) is the one number dock and preview show; Risk is the injury odds the crossing rolls.
 /// Durations: the lengths it can be run for, Minutes among them, where how long is the person's choice (a forage).
+/// Progress: on a Take back, how the piece on the station is going (its forecast finish, and why it is slow).
 public sealed record Verb(string Label, Activity Activity, int Minutes, Refusal? Refused, Odds? Odds = null, TripTime? Trip = null,
-    MakeOdds? Outcomes = null, Odds? Risk = null, IReadOnlyList<int>? Durations = null)
+    MakeOdds? Outcomes = null, Odds? Risk = null, IReadOnlyList<int>? Durations = null, StationProgress? Progress = null)
 {
     public bool Allowed => Refused == null;
 }
@@ -149,7 +150,8 @@ public static class Verbs
                 v.Activity is Travel go && refused == null ? Trip.Time(world, who, go.Dir, go.Pace) : null,
                 v.Activity is Make m ? Making.Odds(world, agent, Recipes.Get(m.Recipe)) : null,
                 v.Activity is Travel walk && refused == null ? Trip.Risk(world, who, walk.Dir, walk.Pace) : null,
-                v.Activity is Gather g && Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is ForagePool ? ForageDurations : null);
+                v.Activity is Gather g && Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is ForagePool ? ForageDurations : null,
+                v.Activity is TakeBack back && Stations.Working(world, who, back) is { } piece ? Stations.Progress(world, Fire.PitAt(world, agent.Tile)!.Value, piece) : null);
         }
     }
 

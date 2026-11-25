@@ -753,6 +753,7 @@
               "ForageDensity": 0.38,
               "Fire": 1,
               "FireHours": 0.1,
+              "Station": "Working",
               "Pile": {
                 "Pine": 1.7000000000000002
               },

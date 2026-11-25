@@ -66,9 +66,14 @@ public sealed record ConditionDto(string Name, bool Blocking);
 /// Minutes: what it runs for, or null for work that stops itself. Refused: why it cannot start now.
 /// Uses: what it takes from the pack, in words, where the verb says (lighting a fire, feeding one).
 /// Durations: the minutes it can be run for (ActDto.Minutes), where how long is the player's choice.
+/// Progress: on a Take back, how the piece on the station is going.
 public sealed record VerbDto(string Id, string Label, string Kind, int? Minutes, string? Refused,
     OddsDto? Odds = null, TripDto? Trip = null, MakeDto? Make = null, string? Dir = null, bool Careful = false,
-    IReadOnlyList<string>? Uses = null, IReadOnlyList<int>? Durations = null);
+    IReadOnlyList<string>? Uses = null, IReadOnlyList<int>? Durations = null, ProgressDto? Progress = null);
+
+/// FinishMinute: the world minute it is forecast to finish, or null when it will not as things stand.
+/// Why: why it is slower than its recipe's time ("the fire is low"), or null.
+public sealed record ProgressDto(long? FinishMinute, string? Why);
 
 /// The forage ground here, as the forage screen draws it. Quality: the ground's word, once foraged here. Effort: how
 /// hard the player has searched the tile (never what is left). Foci: a verb for each focus on offer, General last, each
@@ -145,8 +150,9 @@ public sealed record SurfaceDto(int I,
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.
+/// Station: "working" or "ready" (ready wins), as last seen beside it; null with nothing at its fire.
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
-    bool Pile, bool Den, bool Hurt);
+    bool Pile, bool Den, bool Hurt, string? Station = null);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
 /// Prints on a tile in sight near the player. Maker: human, paw, hoof or bird. Traffic: how many passed, as the
 /// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),

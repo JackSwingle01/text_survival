@@ -32,18 +32,21 @@ static class MapView
         var places = new List<PlaceMarkDto>();
         // The fire underfoot is the one the fire panel shows (FireHere): memory catches up with it only on
         // the next minute awake, so on waking it would still hold the fire slept beside.
-        var pitHere = Fire.PitAt(world, person.Tile) is FireId pid ? world.Fires[pid] : null;
+        var pitIdHere = Fire.PitAt(world, person.Tile);
+        var pitHere = pitIdHere is FireId pid ? world.Fires[pid] : null;
+        var stationHere = pitIdHere is FireId sid ? Stations.Mark(world.Stations.GetValueOrDefault(sid)) : null;
         foreach (var (t, mem) in memory.Places)
         {
             bool underfoot = t == person.Tile;
             var fire = underfoot ? (pitHere is { } ph ? Fire.Phase(ph) : null) : mem.Fire;
-            bool notable = fire != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Pile is { Count: > 0 } || mem.Danger != Danger.None;
+            var station = underfoot ? stationHere : mem.Station;
+            bool notable = fire != null || station != null || mem.Shelter != null || mem.Carcasses is { Count: > 0 } || mem.Pile is { Count: > 0 } || mem.Danger != Danger.None;
             if (!notable) continue;
             // The fuel was reckoned beside the fire; age it from then. A fire seen burning since keeps that reckoning.
             double? hoursLeft = underfoot ? (pitHere != null && Fire.IsActive(pitHere) ? Math.Round(Fire.FuelHours(pitHere), 1) : null)
                 : mem.FireHours is double h && mem.VisitedMinute is long v ? Math.Max(0, Math.Round(h - (world.Minute - v) / 60.0, 1)) : null;
             places.Add(new PlaceMarkDto(t.X, t.Y, underfoot ? world.Minute : mem.SeenMinute, fire is { } f ? Names.Title(f) : null, hoursLeft, mem.Shelter,
-                mem.Carcasses is { Count: > 0 }, mem.Pile is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt)));
+                mem.Carcasses is { Count: > 0 }, mem.Pile is { Count: > 0 }, mem.Danger.HasFlag(Danger.Den), mem.Danger.HasFlag(Danger.Hurt), station is { } sm ? Words.Code(sm) : null));
         }
         var sightings = memory.Sightings.Where(s => s.Key != person.Id)
             .Select(s => new SightingDto(s.Value.Tile.X, s.Value.Tile.Y, Words.SpeciesIcon(s.Value.Species), s.Value.Count, s.Value.Minute)).ToList();
