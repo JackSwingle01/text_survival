@@ -66,6 +66,18 @@ public class ContentStrictTests
     public void Loader_RefusesAResource_NotCountedAsItsForm(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
+    // ---- 1c. a repair works on pieces that wear, each kind by one recipe, none a tool of its own repair (#148) ----
+
+    [Theory]
+    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"stone_axe\", \"worn_knife\"", "stone_axe never wears")]
+    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"hide_gloves\", \"worn_knife\"", "hide_gloves is repaired by another recipe too")]
+    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"hammerstone\", \"worn_knife\"", "hammerstone gives a capability its own repair uses")]
+    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"no_such\", \"worn_knife\"", "no gear kind 'no_such'")]
+    [InlineData("\"restoresPct\": 0.5", "\"restoresPct\": 1.5", "restoresPct 1.5 is a share")]
+    [InlineData("\"restoresPct\": 0.5", "\"restoresPct\": 0.5, \"gear\": \"stone_knife\"", "exactly one")]
+    public void Loader_RefusesARepair_ThatCannotWork(string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn("recipes.json", from, to));
+
     // ---- 1c. a recipe worked by a station rolls nothing, takes one piece and names what drives it (#184) ----
 
     [Theory]

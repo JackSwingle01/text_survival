@@ -25,7 +25,7 @@ const S = {
   displayMinute: null,   // the clock as shown while time is being played out
   selected: null,
   openFeature: null,       // the location feature whose Interact menu is open
-  makeSel: null,         // the recipe selected in the make drawer
+  makeSel: null,         // the entry selected in the make drawer: a recipe, or a repair's recipe:target
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
 };
@@ -272,10 +272,15 @@ function head(ic, title, extra = '') {
 const section = (label, body, aside = '') => `<div class="sec"><div class="sec-h"><span class="label">${esc(label)}</span>${aside ? `<span class="aside">${aside}</span>` : ''}</div>${body}</div>`;
 const costChip = c => `<span class="cost">${img('ui/clock')}${esc(c)}</span>`;
 
+/** How a piece at a station is going: its forecast finish, and why it is slow. */
+const progressLine = p => [p.finishMinute != null ? `done about ${finishClock(p.finishMinute)}` : 'no finish', p.why].filter(Boolean).join(' · ');
+const finishClock = m => `${dayOf(m) !== S.view.clock.day ? `day ${dayOf(m)}, ` : ''}${clock(minuteOfDay(m))}`;
+const stationWords = s => s === 'ready' ? 'Ready at the fire' : 'Working at the fire';
+
 /** A row for a verb in a list: its label, its time or its refusal. */
 function menuItem(vb, { name = vb.label, sub = verbTime(vb), pressed = false, open = null } = {}) {
   return `<button class="mi" ${open ? `data-open="${open}"` : `data-verb="${vb.id}"`} ${vb.refused && !open ? 'disabled' : ''} aria-pressed="${pressed}">
-    ${img(verbIcon(vb))}<span>${px(name)}${vb.refused ? `<small class="no">${esc(cap(vb.refused))}</small>` : ''}</span><span class="m">${esc(vb.refused ? '' : sub)}</span></button>`;
+    ${img(verbIcon(vb))}<span>${px(name)}${vb.refused ? `<small class="no">${esc(cap(vb.refused))}</small>` : ''}${vb.progress ? `<small>${esc(progressLine(vb.progress))}</small>` : ''}</span><span class="m">${esc(vb.refused ? '' : sub)}</span></button>`;
 }
 
 /** The odds sheet: a big total, the bar (base and additions solid, subtractions hatched), each factor. */
@@ -390,6 +395,7 @@ function renderPlace(d, v) {
   const p = m.places.find(q => q.x === x && q.y === y), sights = m.sightings.filter(s => s.x === x && s.y === y);
   const lines = [];
   if (p?.fire) lines.push([p.fire === 'Embers' || p.fire === 'Cold' ? 'embers' : 'fire', `Fire: ${p.fire}`, ago(v.minute - p.seenMinute)]);
+  if (p?.station) lines.push(['ui/meat', stationWords(p.station), '']);
   if (p?.shelter) lines.push(['shelter', p.shelter, '']);
   if (p?.carcass) lines.push(['carcass', 'A carcass', '']);
   if (p?.pile) lines.push(['cache', 'A pile', '']);
@@ -407,8 +413,10 @@ function renderPlace(d, v) {
 function renderMake(d, v) {
   head('ui/project', 'Make', '');
   const makes = v.make.filter(x => x.kind === 'make'), abandons = v.make.filter(x => x.kind === 'abandon'), builds = v.make.filter(x => x.kind === 'build');
-  if (!S.makeSel || !makes.some(x => x.make.recipe === S.makeSel)) S.makeSel = (makes.find(x => !x.refused) ?? makes[0])?.make.recipe;
-  const sel = makes.find(x => x.make.recipe === S.makeSel);
+  // A repair is one entry per piece it works on: the recipe and the target name it.
+  const key = x => x.make.target ? `${x.make.recipe}:${x.make.target}` : x.make.recipe;
+  if (!S.makeSel || !makes.some(x => key(x) === S.makeSel)) S.makeSel = key(makes.find(x => !x.refused) ?? makes[0] ?? { make: {} });
+  const sel = makes.find(x => key(x) === S.makeSel);
   let detail = '';
   if (sel) {
     const mk = sel.make;
@@ -428,7 +436,7 @@ function renderMake(d, v) {
   let lastCat = '';
   const list = makes.map(x => {
     const cat = x.make.category !== lastCat ? `<div class="cat">${esc(x.make.category)}</div>` : ''; lastCat = x.make.category;
-    return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: x.make.recipe === S.makeSel, open: `recipe:${x.make.recipe}` })
+    return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: key(x) === S.makeSel, open: `recipe:${key(x)}` })
       ;
   }).join('');
   $('sideBody').innerHTML = `${detail}
@@ -637,6 +645,7 @@ function hoverTile(t, e) {
   if (code !== '.') {
     const p = m.places.find(q => q.x === t.x && q.y === t.y);
     if (p?.fire) rows.push(`${img(p.fire === 'Embers' || p.fire === 'Cold' ? 'embers' : 'fire')}Fire: ${esc(p.fire)}`);
+    if (p?.station) rows.push(`${img('ui/meat')}${stationWords(p.station)}`);
     if (p?.shelter) rows.push(`${img('shelter')}${esc(p.shelter)}`);
     for (const s of m.sightings.filter(s => s.x === t.x && s.y === t.y)) rows.push(`${img(s.species)}${s.count > 1 ? `${s.count} × ` : ''}${esc(s.species.split('/').pop())} · ${ago(S.view.minute - s.minute)}`);
     const dir = dirTo(S.view.place, t), w = dir && walkVerb(S.view, dir);

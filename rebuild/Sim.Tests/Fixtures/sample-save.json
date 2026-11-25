@@ -692,6 +692,11 @@
               "Kind": "flint_knife",
               "Durability": -1,
               "MaxDurability": -1
+            },
+            {
+              "Kind": "bone_needle",
+              "Durability": 20,
+              "MaxDurability": 20
             }
           ],
           "Projects": [
@@ -706,6 +711,30 @@
                   ]
                 },
                 "Gear": []
+              }
+            },
+            {
+              "Recipe": "mend",
+              "Target": "hide_gloves",
+              "Worn": true,
+              "MinutesDone": 0,
+              "Materials": {
+                "Amounts": {},
+                "Pieces": {
+                  "Sinew": [
+                    0.1
+                  ],
+                  "HideStrip": [
+                    0.3
+                  ]
+                },
+                "Gear": [
+                  {
+                    "Kind": "hide_gloves",
+                    "Durability": 40,
+                    "MaxDurability": 80
+                  }
+                ]
               }
             }
           ]
@@ -781,6 +810,7 @@
               "ForageDensity": 0.38,
               "Fire": 1,
               "FireHours": 0.1,
+              "Station": "Working",
               "Pile": {
                 "PineBranch": 1.7000000000000002
               },
@@ -2833,6 +2863,7 @@
         "Spent": {},
         "Produced": {},
         "ExtraGear": [],
+        "Target": null,
         "Minute": 162,
         "Tile": "7,42"
       }

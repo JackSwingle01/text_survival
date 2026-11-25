@@ -269,7 +269,7 @@ public static class Fire
         return f;
     }
 
-    static void RequireCurrent(World world, FireId id, FireState f)
+    internal static void RequireCurrent(World world, FireId id, FireState f)
     {
         if (f.LastUpdatedMinute != world.Minute)
             throw new InvalidOperationException($"Fire {id.Value} is at minute {f.LastUpdatedMinute}, world at {world.Minute}: catch it up first");
@@ -678,6 +678,19 @@ public static class Fire
             minutes++;
         }
         return minutes;
+    }
+
+    /// A forecast of its burn untended: one copy, yielded after each minute's tick until cold; read it before the next.
+    public static IEnumerable<FireState> Ahead(FireState f)
+    {
+        if (f.CarriedBy != null) throw new ArgumentException("A carried torch has no burn to forecast here", nameof(f));
+        var copy = BurnCopy(f);
+        while (IsActive(copy) || copy.HasEmbers)
+        {
+            copy.LastUpdatedMinute++;
+            Tick(copy, default, copy.LastUpdatedMinute, []);
+            yield return copy;
+        }
     }
 
     /// A forecast: the minutes of light to work by here (HasLight) if nobody tends it. Fires around who must be caught up.

@@ -149,12 +149,15 @@ public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int
 }
 
 /// A gear kind; Kg of a continuous resource, or SharePct of the inputs' actual weight; Count pieces of a discrete one,
-/// together SharePct of that weight; or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
+/// together SharePct of that weight; placed on the tile: a shelter (ShelterName, or the tent) or a bedding; or a repair of one held piece.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
-    int Count = 0, double SharePct = 0)
+    int Count = 0, double SharePct = 0, RepairResult? Repair = null)
 {
     public bool Placed => Shelter != null || Bedding != null;
 }
+
+/// Works on one held piece of any of Kinds, restoring RestoresPct of its missing condition.
+public sealed record RepairResult(IReadOnlyList<string> Kinds, double RestoresPct);
 
 /// (GLOSSARY: Recipe). Items are gear kinds consumed into the result. Tools are capabilities: a
 /// required one gates the recipe and wears once per piece; a faster one only speeds it, by FasterFactor.
@@ -200,13 +203,14 @@ public sealed record MakeOdds(IReadOnlyList<OutcomeOdds> Outcomes)
 /// Outcome is null for the plain result. Spent: kilos gone from what anyone holds. Produced: kilos
 /// made. ExtraGear: pieces made over the result, from the offcuts. Everything else moved: into the
 /// result's recorded parts, or back to the pack.
+/// Target: the gear kind a repair worked on.
 public sealed record Made(long Minute, AgentId Who, TileId Tile, string Recipe, string? Outcome, bool Succeeded,
-    SortedDictionary<Resource, double> Spent, SortedDictionary<Resource, double> Produced, IReadOnlyList<string> ExtraGear) : WorldEvent(Minute, Tile);
+    SortedDictionary<Resource, double> Spent, SortedDictionary<Resource, double> Produced, IReadOnlyList<string> ExtraGear, string? Target = null) : WorldEvent(Minute, Tile);
 
 /// Spent: the kilos built into it, gone from what anyone holds.
 public sealed record Built(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Spent) : WorldEvent(Minute, Tile);
 
-public sealed record ProjectAbandoned(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Lost) : WorldEvent(Minute, Tile);
+public sealed record ProjectAbandoned(long Minute, AgentId Who, TileId Tile, string Recipe, SortedDictionary<Resource, double> Lost, string? Target = null) : WorldEvent(Minute, Tile);
 
 /// One Make activity for everything made (emergent-world-design §3.7), shared by the player and
 /// NPCs. A placed result's project is on the tile (World.Projects), the rest in the pack.
@@ -223,15 +227,34 @@ public static class Making
 
     public static bool Handles(Activity a) => a is Make or Abandon;
 
-    public static MakeProject? ProjectFor(Inventory pack, string recipe) => pack.Projects?.FirstOrDefault(p => p.Recipe == recipe);
+    public static MakeProject? ProjectFor(Inventory pack, string recipe, string? target = null) =>
+        pack.Projects?.FirstOrDefault(p => p.Recipe == recipe && p.Target == target);
 
     public static TileProject? TileProjectFor(World world, Agent agent, Recipe r) =>
         world.Projects.TryGetValue(agent.Tile, out var p) && p.Recipe == r.Id ? p : null;
 
     /// Null if none is begun.
-    public static double? MinutesDone(World world, Agent agent, Recipe r) => r.Result.Placed
+    public static double? MinutesDone(World world, Agent agent, Recipe r, string? target = null) => r.Result.Placed
         ? TileProjectFor(world, agent, r)?.MinutesDone
-        : Items.PackOf(agent) is { } pack ? ProjectFor(pack, r.Id)?.MinutesDone : null;
+        : Items.PackOf(agent) is { } pack ? ProjectFor(pack, r.Id, target)?.MinutesDone : null;
+
+    public static string Verb(Recipe r) => Names.Lower(r.Name);
+    public static string Doing(Recipe r) => Verb(r) + "ing";
+    public static string Label(Recipe r, string? target) => target == null ? r.Name : $"{r.Name} {Names.GearWords(target)}";
+
+    public static IEnumerable<Gear> Held(Agent agent, Inventory pack) => pack.Gear.Concat(agent.Body.Worn);
+
+    /// The most worn held piece of the kind, in the pack or worn, with condition to restore (a broken one too).
+    public static Gear? RepairTarget(Agent agent, Inventory pack, string kind) =>
+        Held(agent, pack).Where(g => g.Kind == kind && g.MaxDurability > 0 && g.Durability < g.MaxDurability)
+            .OrderBy(Items.ConditionPct).FirstOrDefault();
+
+    /// Restores the share of the missing condition, in whole points, at least one.
+    public static void Restore(Gear g, double sharePct)
+    {
+        int now = Math.Max(0, g.Durability), missing = g.MaxDurability - now;
+        g.Durability = Math.Min(g.MaxDurability, now + Math.Max(1, (int)Math.Round(missing * sharePct, MidpointRounding.AwayFromZero)));
+    }
 
 
     public static Refusal? Refusal(World world, Activity activity)
@@ -245,17 +268,29 @@ public static class Making
                     var r = Recipes.Get(m.Recipe);
                     if (r.Station is StationKind station) return new($"{Names.Lower(r.Name)} is not done by hand: put it on at a {Stations.Word(station)}");
                     if (r.Result.Placed) return PlacedRefusal(world, agent, pack, r);
-                    bool begun = ProjectFor(pack, r.Id) != null;
+                    bool begun = ProjectFor(pack, r.Id, m.Target) != null;
+                    if (!begun && TargetRefusal(agent, pack, r, m.Target) is { } target) return target;
                     if (!begun && MissingMaterial(pack, r) is { } material) return material;
                     return MissingTool(pack, r, begun) ?? Unmet(world, agent, r);
                 }
             case Abandon a:
                 {
                     var r = Recipes.Get(a.Recipe);
-                    return ProjectFor(pack, r.Id) == null ? new($"you have no unfinished {r.Name.ToLowerInvariant()}") : null;
+                    return ProjectFor(pack, r.Id, a.Target) == null ? new($"you have no unfinished {Names.Lower(Label(r, a.Target))}") : null;
                 }
             default: throw new NotSupportedException($"{activity.GetType().Name} is not making");
         }
+    }
+
+    /// A repair names a kind it takes, and a held piece of it with condition to restore; nothing else names one.
+    static Refusal? TargetRefusal(Agent agent, Inventory pack, Recipe r, string? target)
+    {
+        if (r.Result.Repair is not { } repair) return target == null ? null : new($"a {Names.Lower(r.Name)} is not made on a piece of gear");
+        if (target == null) return new($"{Verb(r)} what?");
+        string words = Items.GearKinds.ContainsKey(target) ? Names.GearWords(target) : target;
+        if (!repair.Kinds.Contains(target)) return new($"you cannot {Verb(r)} {words}");
+        if (!Held(agent, pack).Any(g => g.Kind == target)) return new($"you have no {words}", new MissingGear(target));
+        return RepairTarget(agent, pack, target) == null ? new($"your {words}: nothing to {Verb(r)}") : null;
     }
 
     /// The old Build's order: light, what stands or is half-built here, tools, the place, then what it takes.
@@ -395,10 +430,14 @@ public static class Making
                     world.Projects[agent.Tile] = p;
                     break;
                 }
-            case Make m when ProjectFor(pack, m.Recipe) == null:
+            case Make m when ProjectFor(pack, m.Recipe, m.Target) == null:
                 {
                     var r = Recipes.Get(m.Recipe);
-                    var p = new MakeProject { Recipe = r.Id };
+                    var piece = m.Target is { } kind ? RepairTarget(agent, pack, kind) : null;
+                    bool worn = piece != null && agent.Body.Worn.Remove(piece);
+                    if (piece != null && !worn) pack.Gear.Remove(piece);
+                    var p = new MakeProject { Recipe = r.Id, Target = m.Target, Worn = worn };
+                    if (piece != null) p.Materials.Gear.Add(piece);
                     foreach (var g in ItemsToConsume(pack, r))
                     {
                         pack.Gear.Remove(g);
@@ -411,9 +450,10 @@ public static class Making
             case Make: break; // going on with it
             case Abandon a:
                 {
-                    var p = ProjectFor(pack, a.Recipe)!;
+                    var p = ProjectFor(pack, a.Recipe, a.Target)!;
                     RemoveProject(pack, p);
                     var back = new Inventory { Gear = [.. p.Materials.Gear] };
+                    PutBackOn(agent, p, back);
                     var lost = new SortedDictionary<Resource, double>();
                     foreach (var (res, kg) in p.Materials.Amounts)
                     {
@@ -429,7 +469,7 @@ public static class Making
                         Items.AddPieces(back, res, pieces.Skip(gone.Count));
                     }
                     Items.Receive(world, agent, back, events);
-                    events.Add(new ProjectAbandoned(world.Minute, agent.Id, agent.Tile, a.Recipe, lost));
+                    events.Add(new ProjectAbandoned(world.Minute, agent.Id, agent.Tile, a.Recipe, lost, a.Target));
                     break;
                 }
         }
@@ -476,11 +516,11 @@ public static class Making
         var pack = Items.Pack(world, agent.Id);
         var r = Recipes.Get(m.Recipe);
         if (r.Result.Placed) return PlacedMinute(world, agent, pack, r, events);
-        var p = ProjectFor(pack, r.Id) ?? throw new InvalidOperationException($"{agent.Id} is making {r.Id} with no project for it");
+        var p = ProjectFor(pack, r.Id, m.Target) ?? throw new InvalidOperationException($"{agent.Id} is making {r.Id} with no project for it");
         if ((MissingTool(pack, r, begun: true) ?? Unmet(world, agent, r)) is { } stop) return stop.Reason;
         p.MinutesDone += WorkPerMinute(world, agent, pack, r);
         Skills.Award(world, agent, Skill.Crafting, Skills.CraftXpPerHour / 60, events);
-        return p.MinutesDone < r.Minutes - 1e-9 ? null : Finish(world, agent, r, events);
+        return p.MinutesDone < r.Minutes - 1e-9 ? null : Finish(world, agent, r, m.Target, events);
     }
 
     static string? PlacedMinute(World world, Agent agent, Inventory pack, Recipe r, List<WorldEvent> events)
@@ -524,14 +564,14 @@ public static class Making
 
     /// Rolled at this minute's odds, not the sheet shown at the start: hands that froze or a light
     /// that failed since change the roll.
-    static string Finish(World world, Agent agent, Recipe r, List<WorldEvent> events)
+    static string Finish(World world, Agent agent, Recipe r, string? target, List<WorldEvent> events)
     {
         var odds = Odds(world, agent, r);
         double roll = world.Rng("make", agent.Id).NextDouble();
         Outcome? outcome = null;
         foreach (var o in odds.Outcomes)
             if ((roll -= o.Odds.TotalPct) < 0) { outcome = o.Outcome; break; }
-        return Complete(world, agent, r, outcome, events);
+        return Complete(world, agent, r, outcome, events, target);
     }
 
     /// An extra product of a discrete result itself: more, smaller pieces of the same weight.
@@ -539,13 +579,15 @@ public static class Making
         effects.OfType<ExtraProduct>().Where(x => x.What == result.ToString()).Sum(x => (int)x.Amount);
 
     /// Outcome null is the plain result. Tests name the outcome here.
-    internal static string Complete(World world, Agent agent, Recipe r, Outcome? outcome, List<WorldEvent> events)
+    internal static string Complete(World world, Agent agent, Recipe r, Outcome? outcome, List<WorldEvent> events, string? target = null)
     {
         var pack = Items.Pack(world, agent.Id);
-        var p = ProjectFor(pack, r.Id) ?? throw new InvalidOperationException($"{agent.Id} has no unfinished {r.Id}");
+        var p = ProjectFor(pack, r.Id, target) ?? throw new InvalidOperationException($"{agent.Id} has no unfinished {r.Id}");
         var effects = outcome?.Effects ?? [];
         RemoveProject(pack, p);
         var materials = p.Materials;
+        var piece = r.Result.Repair != null ? materials.Gear.Single() : null;
+        if (piece != null) materials.Gear.Remove(piece);
         var spent = new SortedDictionary<Resource, double>();
         var produced = new SortedDictionary<Resource, double>();
         var extraGear = new List<string>();
@@ -580,6 +622,11 @@ public static class Making
 
         bool succeeded = outcome?.Kind != OutcomeKind.Fail;
         if (!succeeded) Items.AddAll(gained, materials); // time lost: what is left comes back
+        else if (r.Result.Repair is { } repair)
+        {
+            Restore(piece!, repair.RestoresPct);
+            Items.AddAll(piece!.MadeOf ??= new(), Composition(materials));
+        }
         else if (r.Result.Gear is string kind)
         {
             var item = Items.Make(kind);
@@ -627,9 +674,24 @@ public static class Making
                     break;
             }
 
+        if (piece != null)
+        {
+            gained.Gear.Add(piece);
+            PutBackOn(agent, p, gained);
+        }
         Items.Receive(world, agent, gained, events);
-        events.Add(new Made(world.Minute, agent.Id, agent.Tile, r.Id, outcome?.Text, succeeded, spent, produced, extraGear.AsReadOnly()));
+        events.Add(new Made(world.Minute, agent.Id, agent.Tile, r.Id, outcome?.Text, succeeded, spent, produced, extraGear.AsReadOnly(), target));
         return died ?? (succeeded ? MadeIt : Spoiled);
+    }
+
+    /// Back on, if it was worn and nothing has taken its slot.
+    static void PutBackOn(Agent agent, MakeProject p, Inventory back)
+    {
+        if (!p.Worn || back.Gear.FirstOrDefault(g => g.Kind == p.Target) is not Gear piece) return;
+        var slot = Items.Def(piece).Slot;
+        if (agent.Body.Worn.Any(g => Items.Def(g).Slot == slot)) return;
+        back.Gear.Remove(piece);
+        agent.Body.Worn.Add(piece);
     }
 
     /// The parts record: the very pieces and amounts that went in, and the parts of any item consumed.

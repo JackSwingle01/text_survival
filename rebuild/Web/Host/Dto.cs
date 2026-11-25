@@ -66,9 +66,14 @@ public sealed record ConditionDto(string Name, bool Blocking);
 /// Minutes: what it runs for, or null for work that stops itself. Refused: why it cannot start now.
 /// Uses: what it takes from the pack, in words, where the verb says (lighting a fire, feeding one).
 /// Durations: the minutes it can be run for (ActDto.Minutes), where how long is the player's choice.
+/// Progress: on a Take back, how the piece on the station is going.
 public sealed record VerbDto(string Id, string Label, string Kind, int? Minutes, string? Refused,
     OddsDto? Odds = null, TripDto? Trip = null, MakeDto? Make = null, string? Dir = null, bool Careful = false,
-    IReadOnlyList<string>? Uses = null, IReadOnlyList<int>? Durations = null);
+    IReadOnlyList<string>? Uses = null, IReadOnlyList<int>? Durations = null, ProgressDto? Progress = null);
+
+/// FinishMinute: the world minute it is forecast to finish, or null when it will not as things stand.
+/// Why: why it is slower than its recipe's time ("the fire is low"), or null.
+public sealed record ProgressDto(long? FinishMinute, string? Why);
 
 /// The forage ground here, as the forage screen draws it. Quality: the ground's word, once foraged here. Effort: how
 /// hard the player has searched the tile (never what is left). Foci: a verb for each focus on offer, General last, each
@@ -89,10 +94,11 @@ public sealed record OddsTermDto(string Factor, string Op, double Value, double 
 public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown, OddsDto? Risk = null);
 public sealed record TripTermDto(string Factor, int Minutes);
 
-/// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result.
+/// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result. Target: the gear kind a
+/// repair works on, which with Recipe names the entry.
 public sealed record MakeDto(string Recipe, string Name, string Category, int WorkMinutes, IReadOnlyList<string> Materials,
     IReadOnlyList<string> Tools, IReadOnlyList<string> Requires, string Result, double PlainPct, IReadOnlyList<MakeOutcomeDto> Outcomes,
-    double? ProgressPct);
+    double? ProgressPct, string? Target = null);
 public sealed record MakeOutcomeDto(string Text, bool Succeeds, bool FailureLike, OddsDto Odds);
 
 public sealed record PackDto(double CarriedKg, double CapacityKg, IReadOnlyList<StackDto> Stacks, IReadOnlyList<GearDto> Gear,
@@ -145,8 +151,9 @@ public sealed record SurfaceDto(int I,
 
 /// A remembered tile with something on it. Fire: the phase as last seen. FireHoursLeft: the fuel
 /// reckoned when last beside it, aged to now (null when not known to be burning). SeenMinute: when.
+/// Station: "working" or "ready" (ready wins), as last seen beside it; null with nothing at its fire.
 public sealed record PlaceMarkDto(int X, int Y, long SeenMinute, string? Fire, double? FireHoursLeft, string? Shelter, bool Carcass,
-    bool Pile, bool Den, bool Hurt);
+    bool Pile, bool Den, bool Hurt, string? Station = null);
 public sealed record SightingDto(int X, int Y, string Species, int Count, long Minute);
 /// Prints on a tile in sight near the player. Maker: human, paw, hoof or bird. Traffic: how many passed, as the
 /// prints read. Heading: the way the net traffic went (north, east, south, west); Pattern: heading (one way),

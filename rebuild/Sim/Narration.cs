@@ -51,7 +51,7 @@ public static class Narration
             SkillLeveledUp x => x.Who == me,
             Made x => x.Who == me,
             ProjectAbandoned x => x.Who == me,
-            FireBurnedToEmbers or FireDied or ShelterCollapsed or TransformationFinished => e.Tile == here,
+            FireBurnedToEmbers or FireDied or ShelterCollapsed or TransformationFinished or TransformationStopped => e.Tile == here,
             _ => false,
         };
         return mine ? Of(world, e) : null;
@@ -81,6 +81,10 @@ public static class Narration
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
             TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} is done at the fire.", Tone.Good),
+            TransformationStopped x => (x.Why switch
+            {
+                StopReason.FireOut => $"The fire goes out with {string.Join(" and ", x.Left.Distinct().Select(r => Names.Of(r)))} on it.",
+            }, Tone.Bad),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
             Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
                 : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd
@@ -108,7 +112,8 @@ public static class Narration
             ShelterCollapsed x => ($"The {Names.Lower(x.Name)} comes down.", Tone.Bad),
             SkillLeveledUp x => ($"{Names.Title(x.Skill)} rises to {x.Level}.", Tone.Rare),
             Made x => MadeLine(world, x),
-            ProjectAbandoned x => ($"{Does(x.Who, "give")} up on the {Names.Lower(Recipes.Get(x.Recipe).Name)}.", Tone.Plain),
+            ProjectAbandoned x => (x.Target is { } kind ? $"{Does(x.Who, "give")} up {Making.Doing(Recipes.Get(x.Recipe))} the {Names.GearWords(kind)}."
+                : $"{Does(x.Who, "give")} up on the {Names.Lower(Recipes.Get(x.Recipe).Name)}.", Tone.Plain),
             _ => null,
         };
         return line is { } l ? new Narrated(e.Minute, l.Text, l.Tone, e) : null;
@@ -121,6 +126,14 @@ public static class Narration
         var lines = Clues.Table.Failures.First(b => b.Words.Contains(word)).Lines;
         return lines[(int)((ulong)minute * 2654435761UL % (ulong)lines.Count)];
     }
+
+    /// Why a transformation is slow or stopped, as the station's menu says it.
+    public static string Why(Slowed why) => why switch
+    {
+        Slowed.FireLow => "the fire is low",
+        Slowed.Embers => "the fire is down to embers",
+        Slowed.FireOut => "the fire is out",
+    };
 
     public static string Change(Change c) => c.Kind switch
     {
@@ -158,8 +171,12 @@ public static class Narration
 
     static (string, Tone) MadeLine(World world, Made m)
     {
-        string name = Names.Lower(Recipes.Get(m.Recipe).Name);
+        var r = Recipes.Get(m.Recipe);
+        string name = Names.Lower(r.Name);
         string you = m.Who == AgentId.Player ? "You" : Names.Cap(Cause.Describe(world, m.Who));
+        if (m.Target is { } kind)
+            return m.Succeeded ? ($"{you} {Making.Verb(r)}{(m.Who == AgentId.Player ? "" : "s")} the {Names.GearWords(kind)}.", Tone.Good)
+                : ($"{Names.Cap(Making.Doing(r))} the {Names.GearWords(kind)} goes wrong.", Tone.Bad);
         if (!m.Succeeded) return ($"The {name} fails.", Tone.Bad);
         string make = m.Who == AgentId.Player ? "make" : "makes";
         return (m.ExtraGear.Count > 0 ? $"{you} {make} a {name}, and offcuts for more." : $"{you} {make} a {name}.", Tone.Good);

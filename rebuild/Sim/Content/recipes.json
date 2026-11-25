@@ -19,7 +19,10 @@
 //     continuous r, or { "resource": r, "sharePct": s } for s of the actual weight that went in; or, placed on the tile,
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
 //     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
-//     go on with; its materials are used up when the work starts, and it has no outcomes;
+//     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
+//     { "repairs": [gear kinds], "restoresPct": s }: worked on one held piece of those kinds (taken off, if worn, and
+//     put back on), restoring s of its missing condition, the materials joining its parts record; its name is the
+//     verb ("Mend"), and each kind is repaired by one recipe;
 //   station and driver (optional): a recipe worked by a station (StationKind) rather than a person, and what
 //     drives it (StationDriver). It has one input, one piece of one discrete resource; its result is a count of 1
 //     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs; and it has no
@@ -59,6 +62,11 @@
   "inputs": [ { "of": "Bone", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
   "result": { "gear": "bone_needle" },
   "outcomes": ["fail:waste_material:Bone:1=.15"] },
+ // Sharpen: any blade that wears, worked on one held piece with a stone, restoring half its missing condition (#148).
+ "sharpen": { "name": "Sharpen", "category": "CuttingTool",
+  "inputs": [], "tools": ["Striking"], "requires": [], "minutes": 10,
+  "result": { "repairs": ["sharp_rock", "worn_knife", "bone_knife", "stone_knife"], "restoresPct": 0.5 },
+  "outcomes": [] },
 
  // ---- fire-starting ----
  "hand_drill": { "name": "Hand drill", "category": "FireStarting",
@@ -226,6 +234,18 @@
   "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "Sinew", "count": 2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 90,
   "result": { "gear": "mammoth_hood" },
   "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+
+ // ---- mending: worked on one held garment, restoring a share of its missing condition (#148) ----
+ // Mend: any garment of hide or fur (fur is hide with the hair on), a strip and a sinew; a wrap takes longer.
+ "mend": { "name": "Mend", "category": "Clothing",
+  "inputs": [ { "of": "HideStrip", "count": 1 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 15,
+  "result": { "repairs": ["hide_gloves", "hide_cap", "hide_leggings", "hide_boots", "mammoth_hide_coat", "mammoth_hood", "worn_hide_boots",
+   "hide_handwraps", "bear_hide_chest", "mammoth_hide_chest", "mammoth_hide_legs"], "restoresPct": 0.8 },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:HideStrip:1=.05", "fail:break_tool:Sewing=.02"] },
+ "mend_wrap": { "name": "Mend", "category": "Clothing",
+  "inputs": [ { "of": "HideStrip", "count": 1 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 20,
+  "result": { "repairs": ["hide_wrap", "fur_chest_wrap", "worn_fur_chest_wrap", "fur_leg_wraps"], "restoresPct": 0.8 },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:HideStrip:1=.05", "fail:break_tool:Sewing=.02"] },
 
  // ---- camp: placed on the tile, the project left there for anyone to go on with ----
  "makeshift_bedding": { "name": "Makeshift bed", "category": "Camp",
