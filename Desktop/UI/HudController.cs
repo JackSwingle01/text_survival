@@ -42,7 +42,7 @@ public sealed class HudController
             ImGui.EndDisabled();
             if (combatInteractive && combat != null) _combatInput = combat;
             if (combatInteractive && _combatInput == null && !ImGui.GetIO().WantCaptureMouse && world.HandleCombatClick() is { } cell)
-                {
+            {
                 if (world.HoveredCombatUnit is { } unit) State.Combat.Select(ctx.ActiveCombat, unit);
                 else if (!State.Combat.Inspecting) _combatInput = new CombatInput(null, new Environments.Grid.GridPosition(cell.x, cell.y));
             }

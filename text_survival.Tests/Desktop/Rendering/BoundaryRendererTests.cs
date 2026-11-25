@@ -12,21 +12,21 @@ public class BoundaryRendererTests
     {
         const float pitch = 102;
         for (int x = -3; x <= 3; x++)
-        for (int y = -3; y <= 3; y++)
-        {
-            EdgeRenderer.Boundary Build(int bx, int by, bool vertical) =>
-                EdgeRenderer.BuildBoundary(bx, by, vertical, new Vector2(bx, by) * pitch,
-                    pitch, river, Vector2.UnitY);
-            var horizontal = Build(x, y, false);
-            var vertical = Build(x, y, true);
-            var next = Build(x + 1, y, false);
-            var corner = Build(x + 1, y, true);
-            var below = Build(x, y + 1, true);
-            Same(horizontal, 0, vertical, 0);
-            Same(horizontal, horizontal.Points.Length - 1, next, 0);
-            Same(horizontal, horizontal.Points.Length - 1, corner, 0);
-            Same(vertical, vertical.Points.Length - 1, below, 0);
-        }
+            for (int y = -3; y <= 3; y++)
+            {
+                EdgeRenderer.Boundary Build(int bx, int by, bool vertical) =>
+                    EdgeRenderer.BuildBoundary(bx, by, vertical, new Vector2(bx, by) * pitch,
+                        pitch, river, Vector2.UnitY);
+                var horizontal = Build(x, y, false);
+                var vertical = Build(x, y, true);
+                var next = Build(x + 1, y, false);
+                var corner = Build(x + 1, y, true);
+                var below = Build(x, y + 1, true);
+                Same(horizontal, 0, vertical, 0);
+                Same(horizontal, horizontal.Points.Length - 1, next, 0);
+                Same(horizontal, horizontal.Points.Length - 1, corner, 0);
+                Same(vertical, vertical.Points.Length - 1, below, 0);
+            }
     }
 
     [Fact]

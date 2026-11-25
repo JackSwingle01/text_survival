@@ -75,24 +75,43 @@ public static class HudActions
 
     private static string IconFor(CampAction action) => action switch
     {
-        CampAction.Inventory => "backpack", CampAction.Crafting => "gear",
-        CampAction.DiscoveryLog => "journal", CampAction.NPCs => "person", CampAction.Wait => "clock",
-        CampAction.StartFire or CampAction.TendFire => "fire", CampAction.Food => "food",
-        CampAction.TreatWounds => "medicine", CampAction.Storage => "storage", CampAction.CuringRack => "curing",
-        CampAction.Sleep => "moon", _ => "shelter"
+        CampAction.Inventory => "backpack",
+        CampAction.Crafting => "gear",
+        CampAction.DiscoveryLog => "journal",
+        CampAction.NPCs => "person",
+        CampAction.Wait => "clock",
+        CampAction.StartFire or CampAction.TendFire => "fire",
+        CampAction.Food => "food",
+        CampAction.TreatWounds => "medicine",
+        CampAction.Storage => "storage",
+        CampAction.CuringRack => "curing",
+        CampAction.Sleep => "moon",
+        _ => "shelter"
     };
 
     public static IReadOnlyDictionary<Type, string> WorkIcons { get; } = new Dictionary<Type, string>
     {
-        [typeof(ForageStrategy)] = "foraging", [typeof(HarvestStrategy)] = "foraging",
-        [typeof(HuntStrategy)] = "spear", [typeof(MegafaunaStrategy)] = "spear",
-        [typeof(FishingStrategy)] = "fish", [typeof(SetNetStrategy)] = "net", [typeof(CheckNetStrategy)] = "net",
-        [typeof(ButcherStrategy)] = "knife", [typeof(ShelterImprovementStrategy)] = "shelter",
-        [typeof(CacheStrategy)] = "storage", [typeof(GroundStashStrategy)] = "storage",
-        [typeof(TrailMarkingStrategy)] = "tracks", [typeof(IceCuttingStrategy)] = "ice-cutting",
-        [typeof(ExamineStrategy)] = "inspect", [typeof(TrapStrategy)] = "trap", [typeof(SalvageStrategy)] = "salvage",
-        [typeof(BuryStrategy)] = "burial", [typeof(LootBodyStrategy)] = "backpack", [typeof(DigUpStrategy)] = "dig",
-        [typeof(ChoppingStrategy)] = "gear", [typeof(CraftingProjectStrategy)] = "project"
+        [typeof(ForageStrategy)] = "foraging",
+        [typeof(HarvestStrategy)] = "foraging",
+        [typeof(HuntStrategy)] = "spear",
+        [typeof(MegafaunaStrategy)] = "spear",
+        [typeof(FishingStrategy)] = "fish",
+        [typeof(SetNetStrategy)] = "net",
+        [typeof(CheckNetStrategy)] = "net",
+        [typeof(ButcherStrategy)] = "knife",
+        [typeof(ShelterImprovementStrategy)] = "shelter",
+        [typeof(CacheStrategy)] = "storage",
+        [typeof(GroundStashStrategy)] = "storage",
+        [typeof(TrailMarkingStrategy)] = "tracks",
+        [typeof(IceCuttingStrategy)] = "ice-cutting",
+        [typeof(ExamineStrategy)] = "inspect",
+        [typeof(TrapStrategy)] = "trap",
+        [typeof(SalvageStrategy)] = "salvage",
+        [typeof(BuryStrategy)] = "burial",
+        [typeof(LootBodyStrategy)] = "backpack",
+        [typeof(DigUpStrategy)] = "dig",
+        [typeof(ChoppingStrategy)] = "gear",
+        [typeof(CraftingProjectStrategy)] = "project"
     };
     private static string IconFor(IWorkStrategy strategy) => WorkIcons.GetValueOrDefault(strategy.GetType(), "help");
 

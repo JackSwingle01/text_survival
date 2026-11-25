@@ -20,8 +20,13 @@ public static class UiStyle
     public static Vector4 Danger => new(1, .46f, .42f, 1);
     public static Vector4 Success => new(.56f, .85f, .60f, 1);
     public static Vector4 BarFill(Vector4 color) => new(color.X * .28f, color.Y * .28f, color.Z * .28f, 1);
-    public static Vector4 Color(UiTone tone) => tone switch {
-        UiTone.Caution => Caution, UiTone.Danger => Danger, UiTone.Success => Success, _ => Text };
+    public static Vector4 Color(UiTone tone) => tone switch
+    {
+        UiTone.Caution => Caution,
+        UiTone.Danger => Danger,
+        UiTone.Success => Success,
+        _ => Text
+    };
 
     public static void Initialize(UiSettings? settings = null) => Apply(settings ?? UiSettings.Load(UiSettings.DefaultPath));
     public static void Apply(UiSettings settings)

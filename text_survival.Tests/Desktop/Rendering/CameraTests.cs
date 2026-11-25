@@ -27,17 +27,17 @@ public class CameraTests
                     camera.GetTileCenter(camera.Center.X, camera.Center.Y));
                 var visible = camera.GetVisibleTiles().ToHashSet();
                 foreach (float x in new[] { 300.5f, 300 + camera.GridWidth / 2f, 300 + camera.GridWidth - .5f })
-                foreach (float y in new[] { 100.5f, 100 + camera.GridHeight / 2f, 100 + camera.GridHeight - .5f })
-                {
-                    var point = new Vector2(x, y);
-                    Assert.True(camera.ContainsScreenPoint(point));
-                    var tile = camera.ScreenToWorld(point);
-                    Assert.NotNull(tile);
-                    Assert.Contains(tile.Value, visible);
-                    var origin = camera.WorldToScreen(tile.Value.x, tile.Value.y);
-                    Assert.InRange(point.X - origin.X, 0, camera.TileSize);
-                    Assert.InRange(point.Y - origin.Y, 0, camera.TileSize);
-                }
+                    foreach (float y in new[] { 100.5f, 100 + camera.GridHeight / 2f, 100 + camera.GridHeight - .5f })
+                    {
+                        var point = new Vector2(x, y);
+                        Assert.True(camera.ContainsScreenPoint(point));
+                        var tile = camera.ScreenToWorld(point);
+                        Assert.NotNull(tile);
+                        Assert.Contains(tile.Value, visible);
+                        var origin = camera.WorldToScreen(tile.Value.x, tile.Value.y);
+                        Assert.InRange(point.X - origin.X, 0, camera.TileSize);
+                        Assert.InRange(point.Y - origin.Y, 0, camera.TileSize);
+                    }
                 Assert.Null(camera.ScreenToWorld(new Vector2(300 + camera.GridWidth, 100)));
                 Assert.Null(camera.ScreenToWorld(new Vector2(300, 100 + camera.GridHeight)));
             }
@@ -79,11 +79,11 @@ public class CameraTests
         Assert.Null(camera.ScreenToWorld(new Vector2(camera.ScreenOffsetX - 1, camera.ScreenOffsetY)));
         var tiles = camera.GetVisibleTiles().ToHashSet();
         for (int x = camera.ScreenOffsetX; x < camera.ScreenOffsetX + camera.GridWidth; x += 9)
-        for (int y = camera.ScreenOffsetY; y < camera.ScreenOffsetY + camera.GridHeight; y += 9)
-        {
-            var picked = camera.ScreenToWorld(new Vector2(x, y));
-            if (picked.HasValue) Assert.Contains(picked.Value, tiles);
-        }
+            for (int y = camera.ScreenOffsetY; y < camera.ScreenOffsetY + camera.GridHeight; y += 9)
+            {
+                var picked = camera.ScreenToWorld(new Vector2(x, y));
+                if (picked.HasValue) Assert.Contains(picked.Value, tiles);
+            }
     }
     [Theory]
     [InlineData(2, 3)]
@@ -102,8 +102,8 @@ public class CameraTests
         Assert.Equal((12, 12), camera.ScreenToWorld(camera.GetTileCenter(12, 12)));
         var visible = camera.GetVisibleTiles().ToHashSet();
         for (int x = camera.ScreenOffsetX; x < camera.ScreenOffsetX + camera.GridWidth; x += 9)
-        for (int y = camera.ScreenOffsetY; y < camera.ScreenOffsetY + camera.GridHeight; y += 9)
-            Assert.Contains(camera.ScreenToWorld(new Vector2(x, y))!.Value, visible);
+            for (int y = camera.ScreenOffsetY; y < camera.ScreenOffsetY + camera.GridHeight; y += 9)
+                Assert.Contains(camera.ScreenToWorld(new Vector2(x, y))!.Value, visible);
         camera.ConfigureForViewport(300, 50, 500, 500);
         Assert.Equal(expectedSize, camera.ViewSize);
         Assert.True(camera.ResetZoom());
