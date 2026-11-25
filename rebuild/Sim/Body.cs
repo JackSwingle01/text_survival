@@ -223,6 +223,7 @@ public static partial class Body
     public static double Strength(BodyState body) => Faculties.Strength(body);
     public static double Speed(BodyState body, AbilityContext context = default) => Faculties.Speed(body, context);
     public static double Dexterity(BodyState body, AbilityContext context = default) => Faculties.Dexterity(body, context);
+    public static IReadOnlyList<CrippledBy> SpeedCrippledBy(BodyState body, AbilityContext context = default) => Faculties.SpeedCrippledBy(body, context);
     public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default) => Faculties.DexterityCosts(body, context);
     public static double Perception(BodyState body, AbilityContext context = default) => Faculties.Perception(body, context);
     public static double Vitality(BodyState body, Species species) => Survival.Vitality.Of(body, species);

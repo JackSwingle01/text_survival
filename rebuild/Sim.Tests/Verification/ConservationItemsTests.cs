@@ -25,7 +25,7 @@ public class ConservationItemsTests
     static readonly Resource[] Fuels = [Resource.BirchBranch, Resource.PineBranch, Resource.Stick, Resource.Tinder];
     static readonly Species[] Prey = [Species.Caribou, Species.Hare, Species.Fox, Species.Wolf, Species.Bison];
 
-    public enum OpKind { PutDown, PickUp, Eat, Drink, Cook, Butcher, AddFuel, StartFire, Wear, Wait, MeltSnow, GatherCharcoal }
+    public enum OpKind { PutDown, PickUp, Eat, Drink, Butcher, AddFuel, StartFire, Wear, Wait, GatherCharcoal }
 
     public sealed record Op(OpKind Kind, int Res, double Kg, int Minutes, int Mode);
 
@@ -96,14 +96,12 @@ public class ConservationItemsTests
             OpKind.PickUp => new PickUp(P, r, op.Kg),
             OpKind.Eat => new Eat(P, Foods[op.Res % Foods.Length], op.Kg),
             OpKind.Drink => new Drink(P, Math.Clamp(op.Kg / 4, 0.05, 1)),
-            OpKind.Cook => new Cook(P, op.Res % 2 == 0 ? Resource.RawMeat : Resource.RawFish, op.Kg),
             OpKind.Butcher => w.Tiles.GetValueOrDefault(Camp(w))?.Carcasses?.FirstOrDefault() is { } c
                 ? new Butcher(P, c.Id, (ButcherMode)(op.Mode % 3)) : new Wait(P),
             OpKind.AddFuel => new AddFuel(P, Fuels[op.Res % Fuels.Length], op.Kg),
             OpKind.StartFire => new StartFire(P, ToolType.FireStriker, Resource.Tinder, Math.Min(0.05, op.Kg / 40), op.Kg / 4, (PitType)(op.Mode % 3)),
             OpKind.Wear => pack.Gear.FirstOrDefault(g => Items.Def(g).Slot != null) is { } g ? new Wear(P, g.Kind) : new Wait(P),
             OpKind.Wait => new Wait(P),
-            OpKind.MeltSnow => new MeltSnow(P),
             OpKind.GatherCharcoal => new GatherCharcoal(P),
             _ => throw new ArgumentOutOfRangeException(nameof(op)),
         };
@@ -133,15 +131,6 @@ public class ConservationItemsTests
             AddTo(d, Resource.Stick, -kindling);
         }
         if (a is GatherCharcoal && step.MinutesElapsed > 0) AddTo(d, Resource.Charcoal, before.PitCharcoalKg);
-        if (step.InterruptedReason == "melted") AddTo(d, Resource.Water, Work.MeltSnowLiters);
-        if (a is Cook cook)
-        {
-            // A transform: what left the raw stack arrived as cooked, kilo for kilo.
-            double raw = before.Items.GetValueOrDefault(cook.Raw) - itemsAfter.GetValueOrDefault(cook.Raw);
-            var cooked = cook.Raw == Resource.RawMeat ? Resource.CookedMeat : Resource.CookedFish;
-            AddTo(d, cook.Raw, -raw);
-            AddTo(d, cooked, raw);
-        }
         foreach (var (c, yieldBefore) in before.Carcasses)
         {
             foreach (var r in c.YieldKg.Keys.Union(yieldBefore.Keys))

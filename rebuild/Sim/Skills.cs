@@ -21,7 +21,7 @@ public static class Skills
     public const double FireSuccessXp = 3, FireFailureXp = 1;
     public const double ForageXpPerHour = 1, ButcherXpPerHour = 2, CraftXpPerHour = 2, CookXpPerKg = 1;
 
-    public const double FirecraftPctPerLevel = 0.02, ForageYieldPctPerLevel = 0.015, CookSpeedPctPerLevel = 0.02, ButcherYieldPctPerLevel = 0.01;
+    public const double FirecraftPctPerLevel = 0.02, ForageYieldPctPerLevel = 0.015, ButcherYieldPctPerLevel = 0.01;
 
     public static int Level(Agent agent, Skill skill) =>
         agent.Mind is PersonMind p && p.Skills.TryGetValue(skill, out var s) ? s.Level : 0;
@@ -46,6 +46,5 @@ public static class Skills
     /// Added to the fire-start odds, not multiplied.
     public static double FirecraftPct(int level) => level * FirecraftPctPerLevel;
     public static double ForageYieldFactor(int level) => 1 + level * ForageYieldPctPerLevel;
-    public static double CookSpeedFactor(int level) => 1 + level * CookSpeedPctPerLevel;
     public static double ButcherYieldFactor(int level) => 1 + level * ButcherYieldPctPerLevel;
 }

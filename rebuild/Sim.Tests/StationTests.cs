@@ -523,4 +523,35 @@ public class StationTests
         f.EmberDurationHours = f.EmberHoursRemaining = 3 / 60.0;
         Assert.Single(Sim.Advance(w, 30).OfType<TransformationStopped>());
     }
+
+    // ---- the fire is the only way to cook and melt (#188) ----
+
+    /// Cooking and melting are only put on: the fire's menu offers no hand work for them.
+    [Fact]
+    public void TheFiresMenu_OffersCookingAndMelting_OnlyAsPutOn()
+    {
+        var w = Camp(out _);
+        Pit(w, 5);
+        Meat(w, 0.4);
+        var menu = FireMenu(w);
+        Assert.Contains(menu, v => v.Activity is PutOn { Recipe: "cook_meat" });
+        Assert.Contains(menu, v => v.Activity is PutOn { Recipe: "melt_snow" });
+        Assert.DoesNotContain(menu, v => v.Label.StartsWith("Cook") || v.Label.Contains("by hand"));
+    }
+
+    /// A hand recipe that needs a fire (the rebuild has no tea yet; fire-hardening is the one) is still offered and
+    /// made by hand at the fire, and refused with none.
+    [Fact]
+    public void AHandRecipeThatNeedsAFire_IsStillMadeByHand_AtAFire()
+    {
+        var w = Camp(out _);
+        Items.Pack(w, P).Gear.Add(Items.Make("crude_spear"));
+        Assert.False(Verbs.At(w, P).Make.Single(v => v.Activity is Make { Recipe: "wooden_spear" }).Allowed);
+        Pit(w, 5);
+        var verb = Verbs.At(w, P).Make.Single(v => v.Activity is Make { Recipe: "wooden_spear" });
+        Assert.True(verb.Allowed, verb.Refused?.Reason);
+        var step = Sim.Step(w, verb.Activity, Verbs.UntilDoneMinutes);
+        Assert.Contains(step.Reason, new[] { Making.MadeIt, Making.Spoiled });
+        Assert.Equal(Recipes.Get("wooden_spear").Minutes, step.MinutesElapsed);
+    }
 }

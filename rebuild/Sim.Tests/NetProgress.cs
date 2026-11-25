@@ -30,7 +30,7 @@ public sealed class NetProgress(int radiusTiles)
             if (a.Mind is not HerdMind mind || !Sim.IsAlive(a)) continue;
             var why = WantsToMove(mind);
             if (!_tracked.TryGetValue(a.Id, out var p) || MapGen.Manhattan(p.Anchor, a.Tile) > radiusTiles
-                || Body.GetCapacities(a.Body).Moving <= 0.1)
+                || Body.Speed(a.Body) <= 0)
                 p = (a.Tile, 0, why ?? "still");
             if (why != null && !Sim.Held(w, a.Id)) p = (p.Anchor, p.WantingMinutes + 1, why);
             _tracked[a.Id] = p;

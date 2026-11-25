@@ -63,8 +63,9 @@ public class ActionSequenceTests
     public void LongScripts_SameWorld_HoweverSteppedOrSaved() =>
         ActionGen.ScriptGen(5, 40, scale: 1.0).Check(Holds, iter: Iterations("ACTION_SEQ_ITER", 60));
 
-    /// Found by the long property (CsCheck seed e5dkWcb4mia1), minimised. "You can barely move" is
-    /// checked when a walk starts (Traversal.Refusal) and never during it (Traversal.Advance): a
+    /// Found by the long property (CsCheck seed e5dkWcb4mia1), minimised, when the walk was refused at a
+    /// tenth of Moving (now at speed zero, Traversal.CannotWalk). It was checked when a walk starts
+    /// (Traversal.Refusal) and never during it (Traversal.Advance): a
     /// player whose Moving capacity falls to 0.1 part-way across the tile finishes the crossing in
     /// one long step, but the same minutes cut into 17-minute steps stop at the next step, refused,
     /// five minutes short of the far side. The worlds differ from $.Minute on (1132 vs 1127).
