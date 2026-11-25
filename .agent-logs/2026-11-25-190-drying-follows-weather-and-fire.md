@@ -19,3 +19,10 @@ Revised: RackTests' Mild sky (5 °C, wind 0.1) is above the reference air and wi
 Revised: RackTests.Meat_DriesAtFullRate_InFallingSnow asserted #187's interim rule → replaced by Meat_MakesNoProgress_InFallingSnow_AndLosesNothing.
 Revised: GameHostTests' rack test asserted the seeded world's finish at 24 h − 1 → it asserts the page shows the sim's own forecast, since the seeded sky now sets the rate.
 Revised: Make's Falling and DryRoofLevel → moved into Exposure (FallsOn, DryRoofLevel), so Make's Dry requirement and the rack read one roof rule.
+Revised (review): a drying rate up to 2 and added terms broke principles-code's Pct rule (0 to 1, multiplies) → DryingFactor, MaxDryingFactor, GaleDryingDelta, WarmDelta.
+Revised (review): SpedBy repeated DryingRatePct's formula → both read one DryingDeltas (air, fire, wind).
+Revised (review): SlowedBy's default arm called any precipitation snow → Snow and Blizzard named, anything else throws.
+Revised (review): the drying constants' comment pointed at the work log → it says the reason in place.
+Revised (review): the predators spec makes an item's cover additive with the tile's, where FallsOn takes Make's rule (the tile's overhead thins what reaches it; only a shelter's roof of 0.5 keeps it off) → kept: no item cover is built yet (#124), and changing Make's Dry requirement is outside this ticket.
+Follow-up: when items' cover lands (#124, predators spec "Cover is additive with the tile"), the rack and Make's Dry requirement should read it, so a rack under a rock overhang tile stays dry without a built shelter.
+Follow-up: the stepping property covers a rack beside a fire in a dry sky; one with weather that starts and stops and a melting snow shelter would need the seeded timeline (ConservationWorlds.Seeded) and a longer horizon.

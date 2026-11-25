@@ -68,8 +68,9 @@ public static class Stations
     public const double ReferenceTempF = 650;
     /// Embers: low but above zero, below the weakest flame (sticks at half its size, 300 °F, 0.46).
     public const double EmberRatePct = 0.25;
-    /// Drying: each DryingSpanF above the reference, fire heat included, adds 1; a gale adds DryingWindPct (#190's work log).
-    public const double DryingReferenceAirF = 14, DryingSpanF = 36, DryingWindPct = 0.2, MaxDryingRatePct = 2;
+    /// Drying: each DryingSpanF above the reference (−10 °C, where winter's and spring's skies overlap), fire heat
+    /// included, adds 1, so a steady fire doubles it there; a gale adds a little.
+    public const double DryingReferenceAirF = 14, DryingSpanF = 36, GaleDryingDelta = 0.2, MaxDryingFactor = 2;
     public const int RackRoom = 4;
     public const int HandlingMinutes = 1;
     /// A hair of slack: fifteen fifteenths are not exactly 1 in floating point.
@@ -136,10 +137,10 @@ public static class Stations
         return Fire.PitAt(world, tile) is FireId id ? new(new(LocationFeatureKind.Fire, tile, id.Value), At(world, id), Room(world, id)) : null;
     }
 
-    /// One minute of work at this rate: whether it is done. The world's minute and the forecast both take it.
-    static bool Advance(ref double donePct, double ratePct, Recipe r)
+    /// One minute of work at this rate (1 the recipe's time): whether it is done. The world's minute and the forecast both take it.
+    static bool Advance(ref double donePct, double rate, Recipe r)
     {
-        donePct += ratePct / r.Minutes;
+        donePct += rate / r.Minutes;
         return donePct >= 1 - DoneSlack;
     }
 
@@ -173,7 +174,7 @@ public static class Stations
         {
             bool burning = ahead?.MoveNext() == true;
             if (burning) pit = ahead!.Current; // the last copy stays: the cold pit the real minute reads
-            double rate = DryingRatePct(Exposure.Standing(world, tile, world.Minute, pit, shelter));
+            double rate = DryingFactor(Exposure.Standing(world, tile, world.Minute, pit, shelter));
             if (!burning && rate <= 0) return null; // nothing left to change
             if (Advance(ref donePct, rate, r)) return minute;
         }
@@ -207,21 +208,32 @@ public static class Stations
     {
         Precipitation.None => null,
         Precipitation.Rain => Slowed.Raining,
-        _ => Slowed.Snowing,
+        Precipitation.Snow or Precipitation.Blizzard => Slowed.Snowing,
+        _ => throw new ArgumentOutOfRangeException(nameof(e), e.Falling, "no words for it"),
     };
 
     public static Sped? SpedBy(StandingExposure e)
     {
-        if (DryingRatePct(e) <= 1) return null;
-        double air = WarmPct(e.AirF), fire = WarmPct(e.AirF + e.FireHeatF) - air, wind = e.WindLevel * DryingWindPct;
+        if (DryingFactor(e) <= 1) return null;
+        var (air, fire, wind) = DryingDeltas(e);
         return fire >= air && fire >= wind ? Sped.FireBeside : air >= wind ? Sped.WarmAir : Sped.Wind;
     }
 
     /// 1 is the recipe's stated time: a dry, still day at or below the reference air. Rain or snow on it stops it.
-    public static double DryingRatePct(StandingExposure e) => e.Falling != Precipitation.None ? 0
-        : Math.Min(MaxDryingRatePct, 1 + WarmPct(e.AirF + e.FireHeatF) + e.WindLevel * DryingWindPct);
+    public static double DryingFactor(StandingExposure e)
+    {
+        if (e.Falling != Precipitation.None) return 0;
+        var (air, fire, wind) = DryingDeltas(e);
+        return Math.Min(MaxDryingFactor, 1 + air + fire + wind);
+    }
 
-    static double WarmPct(double airF) => Math.Max(0, airF - DryingReferenceAirF) / DryingSpanF;
+    static (double Air, double Fire, double Wind) DryingDeltas(StandingExposure e)
+    {
+        double air = WarmDelta(e.AirF);
+        return (air, WarmDelta(e.AirF + e.FireHeatF) - air, e.WindLevel * GaleDryingDelta);
+    }
+
+    static double WarmDelta(double airF) => Math.Max(0, airF - DryingReferenceAirF) / DryingSpanF;
 
     public static StationMark? MarkAt(World world, FireId pit) => Mark(world.Stations.GetValueOrDefault(pit));
 
@@ -356,7 +368,7 @@ public static class Stations
         }
         foreach (var (id, rack) in world.Racks)
             if (rack.Work.Working.Count > 0)
-                Work(world, rack.Work, new LocationFeature(LocationFeatureKind.Rack, rack.Tile, id.Value), DryingRatePct(RackExposure(world, rack.Tile, events)), events);
+                Work(world, rack.Work, new LocationFeature(LocationFeatureKind.Rack, rack.Tile, id.Value), DryingFactor(RackExposure(world, rack.Tile, events)), events);
     }
 
     static StandingExposure RackExposure(World world, TileId tile, List<WorldEvent> events)
