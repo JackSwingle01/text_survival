@@ -10,7 +10,7 @@ namespace Survival.Tests;
 /// and tests (ArchUnitNET), not their source. The reads that exist today are listed by member: a ratchet.
 public class CapacityReadTests
 {
-    static readonly Lazy<CompiledCode> Compiled = new(() => new ArchUnitNET.Loader.ArchLoader()
+    internal static readonly Lazy<CompiledCode> Compiled = new(() => new ArchUnitNET.Loader.ArchLoader()
         .LoadAssemblies(typeof(World).Assembly, typeof(Survival.Web.ViewDto).Assembly, typeof(CapacityReadTests).Assembly)
         .Build());
 
@@ -18,8 +18,11 @@ public class CapacityReadTests
     static readonly string BodyType = typeof(Body).FullName!;
     static readonly HashSet<string> CapacityNames = [.. typeof(Capacities).GetProperties().Select(p => p.Name)];
 
-    /// The body's own code: the type that derives the capacities, and the capacities themselves.
-    static bool IsTheBodys(IType t) => t.FullName == BodyType || t.FullName == CapacitiesType;
+    /// The body's own code: its tiers (BodyTierTests), which derive the capacities, and the screen's read-out of them.
+    static bool IsTheBodys(IType t) => BodyTierTests.TheBodysTypes.Any(b => BodyTierTests.IsOrIsIn(t, b));
+
+    /// The tiers below the capacities: reading them from outside is reading a capacity by another door.
+    static readonly Type[] BelowTheCapacities = [typeof(TissueReads), typeof(BloodAndBreath)];
 
     /// What one dependency reads: a capacity by name, the whole record, or a region's capacities. Null for
     /// anything else.
@@ -27,6 +30,7 @@ public class CapacityReadTests
 
     static string? ReadBy(ITypeDependency d)
     {
+        if (BelowTheCapacities.FirstOrDefault(t => BodyTierTests.IsOrIsIn(d.Target, t)) is Type below) return below.Name;
         if (d.Target.FullName == CapacitiesType)
         {
             string? member = (d as IMemberMemberDependency)?.TargetMember.Name;
@@ -57,9 +61,10 @@ public class CapacityReadTests
             }
     }
 
-    /// Every read outside the body but this rule's own class, which names the type to look for it.
+    /// Every read outside the body but this rule's and the tier rules' own classes, which name the types to look for.
     static readonly Lazy<List<string>> ReadsToday = new(() => [.. CapacityReads(Compiled.Value.Types
-        .Where(t => t.FullName != typeof(CapacityReadTests).FullName && t.FullName != typeof(BreachingSample).FullName))]);
+        .Where(t => t.FullName != typeof(CapacityReadTests).FullName && t.FullName != typeof(BodyTierTests).FullName
+            && t.FullName != typeof(BreachingSample).FullName))]);
 
     const string Fix = "Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception)";
 
@@ -140,9 +145,6 @@ public class CapacityReadTests
         "Traversal.InjuryOdds: Moving",
         "Traversal.Moving: Moving",
         "Work.ImpairmentFactor: Breathing, Manipulation, Moving",
-        // The screen.
-        "Web.ViewBuilder.Alerts: Manipulation, Moving, Sight",
-        "Web.ViewBuilder.BodyOf: BloodPumping, Breathing, Consciousness, Hearing, Manipulation, Moving, Sight",
         // The tests.
         "EffectsPropertyTests.Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
         "HerdTests.ALoneLameAnimal_MendsAndWalksAgain: Moving",

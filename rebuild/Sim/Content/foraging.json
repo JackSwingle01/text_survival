@@ -47,7 +47,7 @@
   "Bone": "animal parts", "Hide": "animal parts", "ScrapedHide": "animal parts", "CuredHide": "animal parts", "Sinew": "animal parts",
   "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "Feather": "animal parts",
   "Charcoal": "charcoal", "RawMeat": "meat", "CookedMeat": "meat", "DriedMeat": "meat", "Berries": "berries", "DriedBerries": "berries",
-  "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Stick": "sticks", "Tinder": "tinder", "PineBranch": "branches", "BirchBranch": "branches",
+  "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Stick": "sticks", "Tinder": "tinder", "ResinTinder": "tinder", "PineBranch": "branches", "BirchBranch": "branches",
   "OakBranch": "branches", "PineFirewood": "firewood", "BirchFirewood": "firewood", "OakFirewood": "firewood", "BirchBark": "bark", "Peat": "peat", "RawFish": "fish", "CookedFish": "fish", "DriedFish": "fish", "Water": "water"
  },
  "clues": [

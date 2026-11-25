@@ -29,6 +29,7 @@
  "resources": {
   "Tinder": { "category": "Fuel", "form": "Continuous" },
   "BirchBark": { "category": "Fuel", "form": "Continuous" },
+  "ResinTinder": { "category": "Fuel", "form": "Continuous" },
   "Stick": { "category": "Fuel", "form": "Discrete", "pieceKg": [0.05, 1] },
   "PineBranch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
   "BirchBranch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },

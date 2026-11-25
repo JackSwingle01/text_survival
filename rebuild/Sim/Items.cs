@@ -10,6 +10,7 @@ public enum Resource
     Stone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite, ScrapedHide, CuredHide, RawFat, Tallow, Charcoal, Rope,
     Ivory, MammothHide, Feather,
     BirchPolypore, RoseHip, JuniperBerry, WillowBark, PineNeedles, PineResin, SphagnumMoss,
+    ResinTinder,
 }
 
 public enum ResourceCategory { Fuel, Food, Water, Medicine, Material }

@@ -503,7 +503,7 @@ public static partial class Body
         bool rested = sleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
         if (!fed || !watered || !warm || !rested) return 0;
         double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
-        return BaseHealingPerHour / 60.0 * minutes * nutritionPct * GetCapacitiesWithoutEffects(body).Digestion * Effects.HealingFactor(body);
+        return BaseHealingPerHour / 60.0 * minutes * nutritionPct * Capacities.WithoutEffects(body).Digestion * Effects.HealingFactor(body);
     }
 
     /// A forecast: the lowest the blood falls before the bleeding stops, if the body goes on healing awake as it heals

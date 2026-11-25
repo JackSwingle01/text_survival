@@ -205,7 +205,7 @@ public class FireTests
     [Fact]
     public void StartChance_MatchesOldTable()
     {
-        Assert.Equal(0.35 + 0.25, Fire.StartChancePct(ToolType.HandDrill, Resource.BirchBark), 9);
+        Assert.Equal(0.35 + 0.30, Fire.StartChancePct(ToolType.HandDrill, Resource.BirchBark), 9); // birch bark +30% (#144)
         Assert.Equal(0.95, Fire.StartChancePct(ToolType.FireStriker, Resource.BirchBark));
         Assert.Equal(0.05, Fire.StartChancePct(ToolType.HandDrill, Resource.Tinder, consciousnessImpaired: true, dexterityPct: 0));
     }

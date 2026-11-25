@@ -309,7 +309,7 @@ public static class Npc
         {
             var tool = Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
             if (tool == null) return null;
-            var tinder = Fire.Tinders.Where(r => Items.Have(pack, r) >= Verbs.TinderKg).DefaultIfEmpty(Fire.Tinders[0]).First();
+            var tinder = Fire.TinderToStrike(pack, Verbs.TinderKg);
             return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
         }
 
