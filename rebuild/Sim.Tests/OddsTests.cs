@@ -38,7 +38,7 @@ public class OddsTests
     }
 
     static readonly ToolType[] Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
-    static readonly Resource[] Tinders = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Kindling];
+    static readonly Resource[] Tinders = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Kindling];
     static readonly double[] Dexterities = [0, 0.13, 0.3, 0.5, 0.77, 0.9999, 1];
 
     /// The fold is the formula: the total is base plus each term in order, clamped, exactly.
@@ -90,7 +90,7 @@ public class OddsTests
         var plain = Fire.StartOdds(ToolType.BowDrill, Resource.Amadou);
         Assert.False(plain.Capped);
         Assert.Equal(("Bow drill", 0.5), (plain.Base, plain.BasePct)); // the player's words (names.json), not the code key
-        Assert.Equal(0.5 + 0.20, plain.TotalPct, 12);
+        Assert.Equal(0.5 + 0.40, plain.TotalPct, 12); // amadou +40% (#144)
     }
 
     /// Fire.cs called StartChancePct with no skill: the player's practice counted for nothing

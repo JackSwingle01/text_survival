@@ -65,11 +65,16 @@
   "tools": ["Cutting"], "requires": ["Light"], "minutes": 25,
   "result": { "gear": "bow_drill" },
   "outcomes": ["fail=.08"] },
- // Old pyrite strike-a-light.
+ // The strike-a-light: a flint and a pyrite, paired by feel. Nothing to shape, so no tool and no light.
  "fire_striker": { "name": "Fire striker", "category": "FireStarting",
-  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Pyrite", "count": 1 } ], "tools": ["Striking"], "requires": ["Light"], "minutes": 10,
+  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Pyrite", "count": 1 } ], "tools": [], "requires": [], "minutes": 5,
   "result": { "gear": "fire_striker" },
   "outcomes": ["fail:waste_material:Flint:1=.05"] },
+ // Tinder worked through with a little pine resin, by feel: the surest catch (fire.json).
+ "resin_tinder": { "name": "Resin tinder", "category": "FireStarting",
+  "inputs": [ { "of": "Tinder", "g": 40 }, { "of": "PineResin", "g": 10 } ], "tools": [], "requires": [], "minutes": 5,
+  "result": { "resource": "ResinTinder", "g": 50 },
+  "outcomes": [] },
 
  // ---- cordage and hides ----
  // Twisted by feel: no light needed.

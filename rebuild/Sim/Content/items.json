@@ -71,7 +71,8 @@
   "PineNeedles": { "category": "Medicine", "form": "Continuous" },
   "PineResin": { "category": "Medicine", "form": "Continuous" },
   "Usnea": { "category": "Medicine", "form": "Continuous" },
-  "SphagnumMoss": { "category": "Medicine", "form": "Continuous" }
+  "SphagnumMoss": { "category": "Medicine", "form": "Continuous" },
+  "ResinTinder": { "category": "Fuel", "form": "Continuous" }
  },
 
  "gear": {

@@ -734,7 +734,8 @@ public static class Fire
 
     public static readonly IReadOnlyList<ToolType> Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
 
-    public static readonly IReadOnlyList<Resource> Tinders = [Resource.BirchBark, Resource.Amadou, Resource.Usnea, Resource.Chaga, Resource.Tinder];
+    /// Best catch first: a strike takes the first the pack holds enough of.
+    public static readonly IReadOnlyList<Resource> Tinders = [Resource.ResinTinder, Resource.Amadou, Resource.BirchBark, Resource.Usnea, Resource.Tinder, Resource.Chaga];
 
     /// A forecast for warmth (Priorities.WarmthPriority): hours of fire from only the fuel a fire could get hot enough to take, from
     /// the pit if it burns or glows, else struck from the fuel's tinder (canStrike); the fuel counts as one load.

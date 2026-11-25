@@ -15,10 +15,12 @@
 {
  "fuels": {
   "Tinder": { "peakTempF": 450, "burnRateKgPerHour": 3.0, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
-  "BirchBark": { "peakTempF": 500, "burnRateKgPerHour": 2.5, "minFireTempF": 0, "ignitionBonusPct": 0.25 },
-  "Amadou": { "peakTempF": 490, "burnRateKgPerHour": 2.6, "minFireTempF": 0, "ignitionBonusPct": 0.20 },
+  "BirchBark": { "peakTempF": 500, "burnRateKgPerHour": 2.5, "minFireTempF": 0, "ignitionBonusPct": 0.30 },
+  "Amadou": { "peakTempF": 490, "burnRateKgPerHour": 2.6, "minFireTempF": 0, "ignitionBonusPct": 0.40 },
   "Usnea": { "peakTempF": 480, "burnRateKgPerHour": 2.8, "minFireTempF": 0, "ignitionBonusPct": 0.18 },
   "Chaga": { "peakTempF": 470, "burnRateKgPerHour": 2.2, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
+  // Tinder worked with a little pine resin (recipes.json resin_tinder): the surest catch, and it burns slower.
+  "ResinTinder": { "peakTempF": 520, "burnRateKgPerHour": 2.0, "minFireTempF": 0, "ignitionBonusPct": 0.45 },
   "Kindling": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
   "Pine": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
   "Birch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
