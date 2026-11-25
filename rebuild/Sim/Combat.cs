@@ -326,7 +326,7 @@ public static partial class Combat
     /// against the people standing with the target, the target's wounds, its active hours. It decides whether a
     /// predator engages and seeds its morale (Fighter.BoldnessDelta = this - 0.5). Hunger and learned fear
     /// live on HerdMind (Fauna); callers pass them in (neutral by default).
-    public static double Boldness(World world, AgentId herd, BodyState target, bool defending = false,
+    public static double Boldness(World world, AgentId herd, BodyState target, Species targetSpecies, bool defending = false,
         double hunger = 0, double fear = 0, int othersWithTarget = 0)
     {
         var agent = world.Agent(herd);
@@ -338,7 +338,7 @@ public static partial class Combat
         if (defending) bold += t.DefendBonus;
         if (Effects.Has(target, EffectKind.Bleeding) || Effects.Severity(target, EffectKind.Bloody) > 0.3) bold += 0.15;
         if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
-        if (Body.Vitality(target) < 0.7) bold += 0.1;
+        if (Body.Vitality(target, targetSpecies) < 0.7) bold += 0.1;
         if (Fauna.ActiveNow(world, agent.Species)) bold += ActiveHoursBoldnessDelta;
         if (fear > 0) bold *= 1.0 - fear;
         return Math.Clamp(bold, 0, t.Cap);
@@ -430,7 +430,8 @@ public static partial class Combat
         if (u.Member >= members.Count) throw new InvalidOperationException($"{u.Agent} lost member {u.Member} mid-fight");
         return members[u.Member];
     }
-    static SpeciesStats StatsOf(World world, CombatUnit u) => SpeciesTable.Of(world.Agent(u.Agent).Species);
+    static Species SpeciesOf(World world, CombatUnit u) => world.Agent(u.Agent).Species;
+    static SpeciesStats StatsOf(World world, CombatUnit u) => SpeciesTable.Of(SpeciesOf(world, u));
 
     /// How this fighter runs now: its kind's running, cut by its wounds, tiredness and what it carries.
     public static Running RunningOf(World world, CombatUnit u)
@@ -860,8 +861,9 @@ public static partial class Combat
     static (double Amount, DamageType Type) Behind(World world, CombatUnit attacker, double damage, DamageType type)
     {
         var body = BodyOf(world, attacker);
-        double strengthPct = SpeciesTable.StrengthPct(world.Agent(attacker.Agent).Species, body);
-        return (damage * (strengthPct / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body)), type);
+        var species = SpeciesOf(world, attacker);
+        double strengthPct = SpeciesTable.StrengthPct(species, body);
+        return (damage * (strengthPct / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body, species)), type);
     }
 
     static DamageType TypeOf(Weapon weapon) => weapon.Class switch

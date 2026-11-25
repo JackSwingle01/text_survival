@@ -53,7 +53,7 @@ public static class ReferenceBodies
             SpeciesTable.Running(species, body).SpeedPct,
             Body.Dexterity(body) / Body.Dexterity(fresh),
             Body.Perception(body) / Body.Perception(fresh),
-            Body.Vitality(body));
+            Body.Vitality(body, species));
     }
 
     public static string Table()
@@ -63,10 +63,13 @@ public static class ReferenceBodies
         foreach (var (name, species, build) in All)
         {
             var shares = Measure(species, build());
-            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {shares.DexterityPct,9:0.00}  {shares.PerceptionPct,10:0.00}  {shares.Vitality,8:0.00}");
+            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.Vitality,8:0.00}");
         }
         return string.Join('\n', lines);
     }
+
+    /// A faculty a fresh body of the species lacks (a wolf's dexterity, 0 of 0) is left out of vitality: "-".
+    static string Share(double pct) => double.IsNaN(pct) ? "-" : pct.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
 
     static BodyState Person() => SpeciesTable.Average(Species.Human);
 

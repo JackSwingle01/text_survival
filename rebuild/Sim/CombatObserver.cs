@@ -51,10 +51,11 @@ public static partial class Combat
             bool reads = body != null && Body.IsAlive(body) && u.InField && !u.Released;
             var target = reads ? TargetOf(enc, u) : null;
             bool targetReads = target != null && world.Agents.TryGetValue(target.Agent, out var t) && target.Member < t.Members.Count;
-            return new FighterView(i, u.Agent, u.Member, u.Team, agent?.Species ?? enc.ObservedSpecies![u.Agent], u.Position,
+            var species = agent?.Species ?? enc.ObservedSpecies![u.Agent];
+            return new FighterView(i, u.Agent, u.Member, u.Team, species, u.Position,
                 body == null ? FighterState.Down : StateOf(world, u), u.RoundAction, u.RoundTarget,
                 targetReads ? Resolve(world, enc, u, target!) : null, reads ? UnitBoldness(world, enc, u) : null,
-                body == null ? null : Body.Vitality(body), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
+                body == null ? null : Body.Vitality(body, species), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
                 body == null ? null : WoundLevel(body));
         }).ToList();
         foreach (var u in enc.Units) (u.RoundAction, u.RoundTarget) = (null, null);

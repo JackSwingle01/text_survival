@@ -102,15 +102,8 @@ public class BodyTierTests
         Assert.True(cycles.Count == 0, string.Join("\n", cycles));
     }
 
-    /// What reads a tier of its rank or above today. Only shrinks: the faculties' vitality goes next (#200).
-    static readonly string[] TierBreachesToday =
-    [
-        "Faculties.DexterityCosts -> Vitality",
-        "Faculties.Dexterity -> Vitality",
-        "Faculties.Perception -> Vitality",
-        "Faculties.Speed -> Vitality",
-        "Faculties.Strength -> Vitality",
-    ];
+    /// What reads a tier of its rank or above today. Only shrinks.
+    static readonly string[] TierBreachesToday = [];
 
     /// Deliberately breaching tiers: the low one reads the high one through a lambda and an in parameter.
     static class SampleLow

@@ -46,19 +46,20 @@ public static partial class Combat
     // ---- morale ----
 
     /// How dangerous this fighter is right now: its species' threat, scaled by how alive it is.
-    public static double Threat(World world, CombatUnit u) => StatsOf(world, u).Threat * Body.Vitality(BodyOf(world, u));
+    public static double Threat(World world, CombatUnit u) => StatsOf(world, u).Threat * Body.Vitality(BodyOf(world, u), SpeciesOf(world, u));
 
     /// Courage now: the species' own, its allies' strength and what has happened in the fight, less what
     /// its wounds cost it.
     public static double UnitBoldness(World world, Encounter enc, CombatUnit u) =>
-        Courage(StatsOf(world, u), u.BoldnessModifier, BodyOf(world, u)) + AllyBonus(world, enc, u);
+        Courage(SpeciesOf(world, u), u.BoldnessModifier, BodyOf(world, u)) + AllyBonus(world, enc, u);
 
     /// A fighter's own courage: its kind's, what has moved it so far, less its wounds. UnitBoldness adds its allies.
-    static double Courage(SpeciesStats stats, double boldnessModifier, BodyState body) => stats.Boldness + boldnessModifier - HealthPenalty(body);
+    static double Courage(Species species, double boldnessModifier, BodyState body) =>
+        SpeciesTable.Of(species).Boldness + boldnessModifier - HealthPenalty(body, species);
 
     /// What its wounds cost a fighter's courage: how far from alive it is, and the blood it has lost
     /// (derived from vitality and blood, no number per hit).
-    public static double HealthPenalty(BodyState body) => (1 - Body.Vitality(body)) + 0.5 * (1 - body.BloodPct);
+    public static double HealthPenalty(BodyState body, Species species) => (1 - Body.Vitality(body, species)) + 0.5 * (1 - body.BloodPct);
 
     /// How much this fighter trusts its side.
     // Cohesion could scale by its opinion of each ally; nothing writes opinions yet (Npc Opinions).
@@ -151,7 +152,8 @@ public static partial class Combat
         world.Rng("combat", shouter.Agent).NextDouble() < IntimidationChance(world, target, shouter) ? 0.3 : 0.05;
 
     public static double IntimidationChance(World world, CombatUnit target, CombatUnit shouter) =>
-        0.3 + Body.Vitality(BodyOf(world, shouter)) * 0.2 + (Body.Vitality(BodyOf(world, target)) < 0.5 ? 0.15 : 0);
+        0.3 + Body.Vitality(BodyOf(world, shouter), SpeciesOf(world, shouter)) * 0.2
+        + (Body.Vitality(BodyOf(world, target), SpeciesOf(world, target)) < 0.5 ? 0.15 : 0);
 
     // ---- the state ----
 
@@ -278,9 +280,9 @@ public static partial class Combat
         var them = SpeciesTable.Of(threat.Species);
         var living = Combat.Side(world, threat).Where(Sim.IsAlive).Select(a => a.Body).ToList();
         if (living.Count == 0) throw new ArgumentException($"{threat.Id} has nobody alive to stand against");
-        double worst = living.Max(m => them.Threat * Body.Vitality(m));
+        double worst = living.Max(m => them.Threat * Body.Vitality(m, threat.Species));
         // Resolve's terms, before the fight: no allies, no morale yet, and fire deters no person.
-        double resolve = Courage(SpeciesTable.Of(world.Agent(me.Agent).Species), me.BoldnessDelta, world.Agent(me.Agent).Members[me.Member])
+        double resolve = Courage(world.Agent(me.Agent).Species, me.BoldnessDelta, world.Agent(me.Agent).Members[me.Member])
             - PerceivedThreat(worst, distanceM);
         return NextState(FighterState.Standoff, resolve);
     }
@@ -299,11 +301,12 @@ public static partial class Combat
         var body = target.Body;
         var others = PeopleWith(world, target);
         double delta = BoldnessToward(world, animal, target) - 0.5;
-        int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(stats, delta, living[i]));
-        double nerve = Courage(stats, delta, living[lead]) + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m)));
+        int lead = Enumerable.Range(0, living.Count).MaxBy(i => Courage(animal.Species, delta, living[i]));
+        double nerve = Courage(animal.Species, delta, living[lead])
+            + AllyBonus(stats.Cohesion, living.Where((_, i) => i != lead).Select(m => stats.Threat * Body.Vitality(m, animal.Species)));
         double deterrence = FireDeterrence(stats, Fire.FlamesOn(world, target.Tile).Select(f => (f.IntensityPct, 0.0)));
-        double threat = SpeciesTable.Of(target.Species).Threat * Body.Vitality(body);
-        double pressure = OtherPressureFactor * others.Sum(p => SpeciesTable.Of(p.Species).Threat * Body.Vitality(p.Body));
+        double threat = SpeciesTable.Of(target.Species).Threat * Body.Vitality(body, target.Species);
+        double pressure = OtherPressureFactor * others.Sum(p => SpeciesTable.Of(p.Species).Threat * Body.Vitality(p.Body, p.Species));
         return nerve - deterrence - PerceivedThreat(threat, 0) - pressure;
     }
 
@@ -313,7 +316,7 @@ public static partial class Combat
     public static double BoldnessToward(World world, Agent animal, Agent target)
     {
         var mind = Fauna.MindOf(animal);
-        return Boldness(world, animal.Id, target.Body, defending: Fauna.HoldsAKill(world, animal), hunger: Fauna.Hunger(animal), fear: mind.Fear,
+        return Boldness(world, animal.Id, target.Body, target.Species, defending: Fauna.HoldsAKill(world, animal), hunger: Fauna.Hunger(animal), fear: mind.Fear,
             othersWithTarget: PeopleWith(world, target).Count);
     }
 

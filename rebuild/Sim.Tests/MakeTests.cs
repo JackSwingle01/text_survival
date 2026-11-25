@@ -765,12 +765,11 @@ public class MakeTests
     [Fact]
     public void Odds_NeverAddUpToMoreThanACertainty()
     {
-        // As risky as the loader allows, with no dexterity and a fogged head: 0.5 x 2 x 1.2 = 1.2.
+        // As risky as the loader allows, with no dexterity (a foggy head is in it): 0.5 x 2 = 1.
         var risky = Recipes.Get("hammerstone") with { Outcomes = [.. Outcomes.Parse("fail=.3"), .. Outcomes.Parse("fail:break_tool:Striking=.2")] };
-        var odds = Making.Odds(risky, craftingLevel: 0, dexterityPct: 0, dazed: true);
+        var odds = Making.Odds(risky, craftingLevel: 0, dexterityPct: 0);
         Assert.Equal(1.0, odds.Outcomes.Sum(o => o.Odds.TotalPct), 12);
         Assert.Equal(0.3 / 0.5, odds.Outcomes[0].Odds.TotalPct, 12); // each keeps its share
-        Assert.All(odds.Outcomes, o => Assert.Contains(o.Odds.Terms, t => t.Factor == "Capped"));
         Assert.Equal(0, odds.PlainPct, 12);
     }
 

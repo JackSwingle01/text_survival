@@ -1,0 +1,165 @@
+using CsCheck;
+using Survival.Tests.Verification;
+
+namespace Survival.Tests;
+
+/// The body's faculties seam (documentation/specs/2026-11-24-a-body-is-read-in-tiers.md, "The faculties" and
+/// "Vitality"): build a body, read its four faculties, vitality and life. A foggy head reaches only dexterity
+/// and perception; vitality is read from the faculties, and no faculty reads it.
+public class FacultiesTests
+{
+    static BodyState Whole() => BodyState.BaselineHuman();
+
+    static BodyState BlowToTheHead(double brain = 0.5)
+    {
+        var b = Whole();
+        b.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Brain").Condition = brain;
+        return b;
+    }
+
+    static void Destroy(BodyState b, string region)
+    {
+        foreach (var layer in b.Regions.Single(r => r.Name == region).Layers) layer.Condition = 0;
+    }
+
+    [Fact]
+    public void ABlowToTheHead_LeavesStrengthAndSpeedWhole()
+    {
+        var hit = BlowToTheHead();
+        Assert.True(Body.Perception(hit) < Body.Perception(Whole())); // the blow landed
+        Assert.Equal(Body.Strength(Whole()), Body.Strength(hit), 12);
+        Assert.Equal(Body.Speed(Whole()), Body.Speed(hit), 12);
+        var load = new AbilityContext(EncumbrancePct: 0.8);
+        Assert.Equal(Body.Speed(Whole(), load), Body.Speed(hit, load), 12);
+    }
+
+    /// The brain at half is consciousness at half: dexterity is manipulation times (a half plus half of it),
+    /// and perception counts it once.
+    [Fact]
+    public void ABlowToTheHead_LowersDexterityAndPerception()
+    {
+        var hit = BlowToTheHead();
+        Assert.Equal(Body.Dexterity(Whole()) * 0.75, Body.Dexterity(hit), 12);
+        Assert.Equal(Body.Perception(Whole()) * 0.5, Body.Perception(hit), 12);
+        Assert.Contains("foggy head", Body.DexterityCosts(hit));
+        Assert.DoesNotContain("foggy head", Body.DexterityCosts(Whole()));
+    }
+
+    /// Vitality is read with no surroundings, so the dark and a full pack, which cost speed, perception and
+    /// dexterity, do not reach it.
+    [Fact]
+    public void AWholeBody_HasVitalityOne()
+    {
+        Assert.Equal(1, Body.Vitality(Whole(), Species.Human));
+        Assert.Equal(1, Body.Vitality(BodyState.BaselineHuman(Sex.Female), Species.Human));
+        var wet = Whole();
+        Effects.Set(wet, EffectKind.Wet, 1.0);
+        Assert.True(Body.Dexterity(wet) < Body.Dexterity(Whole()));
+        Assert.Equal(1, Body.Vitality(wet, Species.Human));
+    }
+
+    [Fact]
+    public void Vitality_IsTheMeanOfTheFacultiesShares()
+    {
+        var hit = BlowToTheHead();
+        var whole = Whole();
+        double expected = (1 + 1 + Body.Dexterity(hit) / Body.Dexterity(whole) + Body.Perception(hit) / Body.Perception(whole)) / 4;
+        Assert.Equal(expected, Body.Vitality(hit, Species.Human), 12);
+    }
+
+    [Fact]
+    public void AWolf_HasNoDexterity_SoItsVitalityLeavesItOut()
+    {
+        var wolf = SpeciesTable.Average(Species.Wolf);
+        Assert.Equal(0, Body.Dexterity(wolf));
+        Assert.Equal(1, Body.Vitality(wolf, Species.Wolf));
+        Destroy(wolf, "Front Left Leg");
+        double strength = Body.Strength(wolf) / Body.Strength(SpeciesTable.Average(Species.Wolf));
+        double speed = Body.Speed(wolf) / Body.Speed(SpeciesTable.Average(Species.Wolf));
+        Assert.Equal((strength + speed + 1) / 3, Body.Vitality(wolf, Species.Wolf), 12);
+    }
+
+    static readonly Gen<double> Condition = Gen.Double[0, 1];
+
+    [Fact]
+    public void AWolfsVitality_IsARealNumber_ForAnyWounds()
+    {
+        Gen.Select(Condition.Array[18], Condition.Array[5], Gen.Double[0.4, 1]).Check(t =>
+        {
+            var (layers, organs, blood) = t;
+            var wolf = SpeciesTable.Average(Species.Wolf);
+            int i = 0;
+            foreach (var layer in wolf.Regions.SelectMany(r => r.Layers)) layer.Condition = layers[i++];
+            var head = wolf.Regions.Single(r => r.Name == "Head").Organs;
+            for (int o = 0; o < head.Count; o++) head[o].Condition = organs[o];
+            wolf.BloodPct = blood;
+            Assert.InRange(Body.Vitality(wolf, Species.Wolf), 0, 1);
+        }, iter: 300);
+    }
+
+    /// Strength's build stays when the limbs and senses are gone; life is heart, lungs and brain.
+    [Fact]
+    public void ABodyWithEveryFacultyAtItsLowest_IsAliveWhileItsHeartLungsAndBrainLive()
+    {
+        var b = Whole();
+        foreach (var limb in new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" }) Destroy(b, limb);
+        foreach (var organ in b.Regions.SelectMany(r => r.Organs).Where(o => o.Name.Contains("Eye") || o.Name.Contains("Ear"))) organ.Condition = 0;
+        foreach (var kind in new[] { EffectKind.Tired, EffectKind.Thirsty, EffectKind.Hungry, EffectKind.Hypothermia }) Effects.Add(b, kind, 1.0);
+        foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed }) Effects.Add(b, kind, 0.8);
+        Assert.Equal(0, Body.Dexterity(b), 9);
+        Assert.Equal(0, Body.Perception(b), 9);
+        Assert.True(Body.IsAlive(b));
+    }
+
+    // ---- the world's reads ----
+
+    static Agent Me(World w) => w.Agent(AgentId.Player);
+
+    [Fact]
+    public void ABlowToTheHead_SlowsMakingAndMakesItRiskier_ThroughDexterityAlone()
+    {
+        var w = TestWorlds.Bare(1);
+        var r = Recipes.Get("stone_tipped_spear");
+        var pack = Items.Pack(w, AgentId.Player);
+        Me(w).Members[0] = Whole();
+        var whole = Making.Odds(w, Me(w), r);
+        double wholeRate = Making.WorkPerMinute(w, Me(w), pack, r);
+
+        Me(w).Members[0] = BlowToTheHead(0.2);
+        var hit = Making.Odds(w, Me(w), r);
+        Assert.True(hit.Outcomes.Where(o => o.Outcome.FailureLike).Sum(o => o.Odds.TotalPct)
+            > whole.Outcomes.Where(o => o.Outcome.FailureLike).Sum(o => o.Odds.TotalPct));
+        Assert.True(Making.WorkPerMinute(w, Me(w), pack, r) < wholeRate);
+        Assert.DoesNotContain(hit.Outcomes.SelectMany(o => o.Odds.Terms), t => t.Factor == "Dazed");
+        var context = Fire.AbilityContextFor(w, Me(w));
+        var byDexterity = Making.Odds(r, 0, Body.Dexterity(Me(w).Body, context), string.Join(", ", Body.DexterityCosts(Me(w).Body, context)));
+        Assert.Equal(byDexterity.Outcomes.Select(o => o.Odds.TotalPct), hit.Outcomes.Select(o => o.Odds.TotalPct));
+    }
+
+    [Fact]
+    public void ABlowToTheHead_MakesFireStartingLessLikely_ThroughDexterityAlone()
+    {
+        var w = TestWorlds.Bare(1);
+        Me(w).Members[0] = Whole();
+        double whole = Fire.StartOdds(w, Me(w), ToolType.HandDrill, Resource.Tinder).TotalPct;
+        Me(w).Members[0] = BlowToTheHead();
+        var hit = Fire.StartOdds(w, Me(w), ToolType.HandDrill, Resource.Tinder);
+        Assert.True(hit.TotalPct < whole);
+        Assert.DoesNotContain(hit.Terms, t => t.Factor == "Dazed");
+        var context = Fire.AbilityContextFor(w, Me(w));
+        Assert.Equal(Fire.StartOdds(ToolType.HandDrill, Resource.Tinder, 0, Body.Dexterity(Me(w).Body, context)).TotalPct, hit.TotalPct, 12);
+    }
+
+    /// Sight costs no speed and no old vitality: only the new vitality sees the blinded one as the weakest.
+    [Fact]
+    public void AHunter_SinglesOutTheHerdsLeastVital()
+    {
+        var (w, t) = CombatTests.Field();
+        var herd = CombatTests.Herd(w, Species.Caribou, 3, t);
+        CombatTests.Normalize(w, herd);
+        var blinded = w.Agent(herd.Ids[1]);
+        foreach (var eye in blinded.Body.Regions.SelectMany(r => r.Organs).Where(o => o.Name.Contains("Eye"))) eye.Condition = 0;
+        Assert.Equal(Body.Speed(w.Agent(herd.Ids[0]).Body), Body.Speed(blinded.Body), 12);
+        Assert.Equal(herd.Ids[1], Fauna.Weakest(w, w.Agent(herd.Ids[0])).Id);
+    }
+}
