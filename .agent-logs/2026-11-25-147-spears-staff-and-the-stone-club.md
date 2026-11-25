@@ -20,3 +20,5 @@ Revised: combat tuner at 4000 fights, lone wolf, win or drive off: wooden spear 
 Follow-up: no recipe uses an `{ "item": kind }` input now; the mechanism is exercised only by its parse check until a refit recipe (spec Out of Scope, repointing a broken spear) uses it, or it is removed.
 Follow-up: the obsidian spear leads the axe by 0.1 points at 4000 fights (noise is about 1.2), so its order may cost fitness in a search; its 10 uses wear on blocks mid-fight.
 Follow-up: the pack pick (Combat.WeaponWorth) ignores durability, so a fighter holding several spears takes the ivory or obsidian one; no NPC carries a spear today.
+Revised (review): SpearsAndClubTests copied MakeTests' Noon and Burning → MakeTests' are internal and shared; the one-letter W helper is Damage/Uses; the wooden spear's plain fail is listed first, as its neighbours.
+Revised (review): the spec measures the club on a person, a wolf and a caribou, and short on a bear, where the test checked the wolf → a theory over Human, Wolf and Caribou (club ≤ spear) and a bear fact (club > spear), all passing.

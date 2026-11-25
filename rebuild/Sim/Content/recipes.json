@@ -196,7 +196,7 @@
  "wooden_spear": { "name": "Wooden spear", "category": "HuntingWeapon",
   "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Fire", "Light"], "minutes": 50,
   "result": { "gear": "wooden_spear" },
-  "outcomes": ["fail:waste_material:PineBranch:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04", "fail=.05"] },
+  "outcomes": ["fail=.05", "fail:waste_material:PineBranch:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
  // A knapped point hafted to a branch and bound; the striker knaps it, the blade notches the haft.
  "flint_tipped_spear": { "name": "Flint-tipped spear", "category": "HuntingWeapon",
   "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "Flint", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],

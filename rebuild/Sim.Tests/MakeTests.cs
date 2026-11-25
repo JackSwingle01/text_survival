@@ -166,7 +166,7 @@ public class MakeTests
     // ---- the activity ----
 
     /// The bare seed-17 world under a mild grey sky at noon, the player at camp with an empty pack.
-    static World Noon(out Inventory pack, double tempC = -2)
+    internal static World Noon(out Inventory pack, double tempC = -2)
     {
         var w = Verification.ConservationWorlds.Bare(tempC);
         w.Minute = 3 * 60; // the clock starts at nine in the morning
@@ -176,7 +176,7 @@ public class MakeTests
         return w;
     }
 
-    static void Burning(World w, double kindlingKg = 1.0, double birchKg = 10)
+    internal static void Burning(World w, double kindlingKg = 1.0, double birchKg = 10)
     {
         var f = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
         Fire.AddFuel(f, Resource.BirchBark, 0.05);

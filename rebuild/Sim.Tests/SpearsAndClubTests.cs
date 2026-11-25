@@ -6,26 +6,9 @@ public class SpearsAndClubTests
 {
     static readonly AgentId P = AgentId.Player;
 
-    /// The bare seed-17 world at noon, the player at camp with an empty pack.
-    static World Noon(out Inventory pack)
-    {
-        var w = Verification.ConservationWorlds.Bare(-2);
-        w.Minute = 3 * 60;
-        pack = Items.Pack(w, P);
-        TestKit.ClearResources(pack);
-        pack.Gear.Clear();
-        return w;
-    }
+    static World Noon(out Inventory pack) => MakeTests.Noon(out pack);
 
-    static void Burning(World w)
-    {
-        var f = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
-        Fire.AddFuel(f, Resource.BirchBark, 0.05);
-        Fire.AddFuel(f, Resource.Stick, 1.0);
-        Fire.IgniteAll(f);
-        Fire.AddFuel(f, Resource.BirchBranch, 10);
-        w.Fires[new FireId(w.NextFireId++)] = f;
-    }
+    static void Burning(World w) => MakeTests.Burning(w);
 
     /// A binding is a sinew or 50 g of plant fibre; some rows bind with one, some with the other.
     static void Kit(Inventory pack, string recipe)
@@ -116,25 +99,26 @@ public class SpearsAndClubTests
     [Fact]
     public void ThePoints_RankAsTheirMaterials()
     {
-        static Weapon W(string kind) => Items.GearKinds[kind].Weapon!;
-        Assert.True(W("obsidian_tipped_spear").Damage > W("flint_tipped_spear").Damage);
-        Assert.True(Items.GearKinds["obsidian_tipped_spear"].MaxDurability < Items.GearKinds["flint_tipped_spear"].MaxDurability);
-        Assert.True(W("ivory_tipped_spear").Damage > W("obsidian_tipped_spear").Damage);
-        Assert.True(W("flint_tipped_spear").Damage > W("wooden_spear").Damage);
+        static double Damage(string kind) => Items.GearKinds[kind].Weapon!.Damage;
+        static int Uses(string kind) => Items.GearKinds[kind].MaxDurability;
+        Assert.True(Damage("obsidian_tipped_spear") > Damage("flint_tipped_spear"));
+        Assert.True(Uses("obsidian_tipped_spear") < Uses("flint_tipped_spear"));
+        Assert.True(Damage("ivory_tipped_spear") > Damage("obsidian_tipped_spear"));
+        Assert.True(Damage("flint_tipped_spear") > Damage("wooden_spear"));
     }
 
     // ---- the club's blows ----
 
-    /// Blows, each the weapon's damage with the fight's luck on it, until a fresh average wolf is down (dead,
-    /// or too far gone to know where it is), as the fight's own Body.Damage lands them. The mean over seeded wolves.
-    static double MeanBlowsToDown(string kind, int wolves)
+    /// Blows, each the weapon's damage with the fight's luck on it, until a fresh average member of the species is
+    /// down (dead, or too far gone to know where it is), as the fight's own Body.Damage lands them. The mean over seeds.
+    static double MeanBlowsToDown(string kind, Species species, int bodies)
     {
         var weapon = Items.GearKinds[kind].Weapon!;
         var blow = (weapon.Damage, Combat.TypeOf(weapon));
         double total = 0;
-        for (int seed = 0; seed < wolves; seed++)
+        for (int seed = 0; seed < bodies; seed++)
         {
-            var body = SpeciesTable.Average(Species.Wolf);
+            var body = SpeciesTable.Average(species);
             var rng = Rng.ForSystem(seed, "blows");
             int blows = 0;
             while (!Combat.IsDown(body) && blows < 100)
@@ -145,15 +129,26 @@ public class SpearsAndClubTests
             }
             total += blows;
         }
-        return total / wolves;
+        return total / bodies;
     }
 
-    /// The spec's measurement: a club of 3.5 downs a wolf in no more blows than the wooden spear does.
-    [Fact]
-    public void AClubOf35_DownsAWolf_InNoMoreBlowsThanTheWoodenSpear()
+    /// The spec's measurement: a club of 3.5 downs a person, a wolf or a caribou in no more blows than the wooden
+    /// spear does, and falls short on a bear.
+    [Theory]
+    [InlineData(Species.Human)]
+    [InlineData(Species.Wolf)]
+    [InlineData(Species.Caribou)]
+    public void AClubOf35_Downs_InNoMoreBlowsThanTheWoodenSpear(Species species)
     {
-        double club = MeanBlowsToDown("stone_club", 400), spear = MeanBlowsToDown("wooden_spear", 400);
-        Assert.True(club <= spear, $"club {club:F2} blows, spear {spear:F2}");
+        double club = MeanBlowsToDown("stone_club", species, 400), spear = MeanBlowsToDown("wooden_spear", species, 400);
+        Assert.True(club <= spear, $"{species}: club {club:F2} blows, spear {spear:F2}");
+    }
+
+    [Fact]
+    public void AClubOf35_FallsShortOfTheWoodenSpear_OnABear()
+    {
+        double club = MeanBlowsToDown("stone_club", Species.Bear, 400), spear = MeanBlowsToDown("wooden_spear", Species.Bear, 400);
+        Assert.True(club > spear, $"club {club:F2} blows, spear {spear:F2}");
     }
 
     // ---- content ----
