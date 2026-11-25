@@ -395,7 +395,7 @@ public static partial class Content
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
             else if (r.Resource is Resource made2 && !resources[made2].Discrete
-                && (!(r.G > 0 && r.SharePct == 0 || r.G == 0 && r.SharePct is > 0 and <= 1) || r.Count != 0 || r.Kg != 0))
+                && (!((r.G > 0 && r.SharePct == 0) || (r.G == 0 && r.SharePct is > 0 and <= 1)) || r.Count != 0 || r.Kg != 0))
                 problems.Add($"{at}: a continuous result {made2} is grams (g) or a sharePct (0-1] of the inputs' weight");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
             if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
@@ -478,9 +478,8 @@ public static partial class Content
                 double light = lo * r.SharePct / pieces, heavy = hi * r.SharePct / pieces;
                 if (light < resources[made].MinPieceKg - 1e-9 || heavy > resources[made].MaxPieceKg + 1e-9)
                     yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
-                if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             }
-            else if (r.SharePct * lightest > lightest - saved + 1e-9)
+            if (r.SharePct * lightest > lightest - saved + 1e-9)
                 yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             else if (r.G / 1000 > lightest - saved + 1e-9)
                 yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";

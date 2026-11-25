@@ -580,13 +580,12 @@ public static class Making
         }
         else
         {
-            // A resource result: the inputs are worked into it, less in proportion to what was wasted; a discrete
-            // one is its share of the actual weight that went in, in whole pieces. Saved material is a bonus over a
-            // full result (the loader keeps it from making mass).
+            // A resource result: its share of the actual weight that went in (a discrete one in whole pieces), or a
+            // fixed amount less in proportion to what was wasted. Saved material is a bonus over a full result (the
+            // loader keeps it from making mass).
             foreach (var (res, kg) in Items.Totals(materials)) spent[res] = spent.GetValueOrDefault(res) + kg;
             var made = r.Result.Resource!.Value;
-            double kgMade;
-            kgMade = r.Result.SharePct > 0 ? r.Result.SharePct * Math.Max(0, inputKg - wastedKg) : r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);
+            double kgMade = r.Result.SharePct > 0 ? r.Result.SharePct * Math.Max(0, inputKg - wastedKg) : r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);
             if (Items.IsDiscrete(made))
             {
                 int pieces = r.Result.Count + ExtraPieces(effects, made);

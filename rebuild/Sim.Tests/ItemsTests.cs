@@ -89,7 +89,7 @@ public class ItemsTests
     public void TheCarryingThings_Stack()
     {
         var pack = new Inventory { Gear = [.. new[] { "small_pouch", "rope_belt", "hide_belt", "large_bag", "mammoth_hide_pack" }.Select(k => Items.Make(k))] };
-        Assert.Equal(15 + 0.5 + 3 + 4 + 10 + 15, Items.CapacityKg(pack), 12);
+        Assert.Equal(Items.BaseCapacityKg + 0.5 + 3 + 4 + 10 + 15, Items.CapacityKg(pack), 12);
     }
 
     // ---- golden: encumbrance reaches speed exactly as the old AbilityCalculator ----

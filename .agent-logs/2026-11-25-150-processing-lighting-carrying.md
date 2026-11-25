@@ -18,3 +18,9 @@ Revised: pre-existing EveryRecipe_CanBeMade's pack-lightening, run inside a sub-
 Revised: the carrying recipes needed a menu category → MakeCategory gains Carrying (appended; not saved).
 Revised: the ticket names no outcomes for the new recipes → the pouch and hide belt can waste half their bark or strips on a fail, the bag and pack sew as the garments do (a cut, a wasted hide, a broken needle), render fat, willow fibre and rope belt roll none; the torches keep their old ones.
 Revised: CommentHygieneTests put Fire.cs at 13% → the TorchFadeMinutes comment went; the name says it.
+Revised: Fire.TorchBurnMinutes did not simply go → it became TorchFadeMinutes (60), the window a torch's heat fades over (3 + 2 × min(1, left / 60) °F), so a resin torch holds a torch's full heat until its last hour and FireState gains no saved field.
+Revised (review): the continuous share check copied the discrete one word for word → one check after the discrete piece-range check.
+Revised (review): Make.cs's comment said only a discrete result is a share, and kgMade was declared then assigned → comment names both forms, one declaration.
+Revised (review): the loader's continuous-result condition mixed && and || ungrouped → grouped; TorchFadeMinutes private, only Fire reads it; TheCarryingThings_Stack reads Items.BaseCapacityKg.
+Revised (review): a recipe result form switched on in the loader, Making.Complete and ViewBuilder, string lookups of the torch's burnMinutes, small_pouch's id, the test's input strings → kept: each is one line at an existing seam, and the pouch's id is what loot and saves name.
+Revised (review): the last line's reason for small_pouch is wrong, nothing outside items.json and recipes.json names it → kept the id anyway: the recipe and gear ids match, and the display name says birch bark.

@@ -51,7 +51,7 @@ public static class Fire
 
     const double BaseCatchRateKgPerMinute = 0.05;
     const double CharcoalYieldPct = 0.04;
-    public const double TorchFadeMinutes = 60;
+    const double TorchFadeMinutes = 60;
 
     public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
     public static double WindProtectionLevel(PitType pit) => Pits[pit].WindProtectionLevel;
