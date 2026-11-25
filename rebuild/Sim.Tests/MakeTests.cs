@@ -470,11 +470,12 @@ public class MakeTests
 
     // ---- hides, strips and clothing (#146) ----
 
-    /// Scraping and drying keep a share of the hide's own weight: a big hide gives more than a small one.
+    /// Scraping keeps a share of the hide's own weight: a big hide gives more than a small one. Curing is the
+    /// rack's (RackTests).
     [Theory]
-    [InlineData(3.0, 2.4, 2.16)]
-    [InlineData(1.0, 0.8, 0.72)]
-    public void AHide_ScrapesAndDries_ToAShareOfItsWeight(double hideKg, double scrapedKg, double curedKg)
+    [InlineData(3.0, 2.4)]
+    [InlineData(1.0, 0.8)]
+    public void AHide_Scrapes_ToAShareOfItsWeight(double hideKg, double scrapedKg)
     {
         var w = Begun("scrape_hide", pack =>
         {
@@ -484,11 +485,6 @@ public class MakeTests
         Assert.Equal(Making.MadeIt, Complete(w, "scrape_hide", "succeed:injury:LeftArm:0.03=0.02", out _));
         var pack = Items.Pack(w, P);
         Assert.Equal(scrapedKg, Assert.Single(pack.Pieces[Resource.ScrapedHide]), 9);
-
-        Burning(w);
-        Assert.Null(Sim.Step(w, new Make(P, "dry_hide"), 1).InterruptedReason);
-        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("dry_hide"), null, []));
-        Assert.Equal(curedKg, Assert.Single(pack.Pieces[Resource.CuredHide]), 9);
     }
 
     [Theory]
@@ -584,7 +580,7 @@ public class MakeTests
             Assert.Equal(0, Items.Count(pack, r));
     }
 
-    /// A mammoth hide is scraped and dried like any hide; nothing is sewn from it raw.
+    /// A mammoth hide is scraped like any hide, and cured on the rack (RackTests); nothing is sewn from it raw.
     [Fact]
     public void AMammothHide_IsCuredBeforeItIsSewn()
     {
@@ -597,10 +593,6 @@ public class MakeTests
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_mammoth_hide"), null, []));
         var pack = Items.Pack(w, P);
         Assert.Equal(8.0, Assert.Single(pack.Pieces[Resource.ScrapedMammothHide]), 9);
-        Burning(w);
-        Assert.Null(Sim.Step(w, new Make(P, "dry_mammoth_hide"), 1).InterruptedReason);
-        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("dry_mammoth_hide"), null, []));
-        Assert.Equal(7.2, Assert.Single(pack.Pieces[Resource.CuredMammothHide]), 9);
     }
 
     // ---- processing, lighting and carrying (#150) ----
@@ -739,6 +731,37 @@ public class MakeTests
 
         var made = new HashSet<string>();
         var producers = Recipes.ByHand.Where(r => r.Result.Resource != null).ToDictionary(r => r.Result.Resource!.Value);
+        // A hide is cured only on a rack (#191): its scraped hide is made by hand, put on a rack at camp, and taken
+        // two days on. The rack's own recipe is RackTests'.
+        var onRack = Stations.RecipesOf(StationKind.Rack).ToDictionary(r => r.Result.Resource!.Value);
+        RackId? rack = null;
+
+        // Fetches or makes the rack recipe's one input, puts it on, and waits out the drying with the camp kept up.
+        bool Cure(Recipe r, int depth, IReadOnlySet<Resource> uses)
+        {
+            var input = r.Materials[0];
+            var keep = uses.Append(Stations.InputOf(r)).ToHashSet();
+            for (int fetched = 0; !TestKit.Enough(pack, input); fetched++)
+            {
+                Assert.True(fetched < 20, $"{r.Id}: {Stations.InputOf(r)} never reaches the pack ({Items.Describe(pack)})");
+                if (land.Contains(Stations.InputOf(r))) TestKit.GiveFor(pack, Stations.InputOf(r), input);
+                else if (!producers.TryGetValue(Stations.InputOf(r), out var from) || !MakeOne(from, depth + 1, keep)) return false;
+            }
+            rack ??= Stations.Build(w, camp);
+            if (Sim.Step(w, new PutOn(P, r.Id, rack), 1).InterruptedReason is string refused) Assert.Fail($"{r.Id}: {refused}");
+            bool done = false;
+            for (int hours = 0; !done; hours++)
+            {
+                Assert.True(hours < 2 * r.Minutes / 60, $"{r.Id}: not done on the rack");
+                KeepTheFireUp(w, pack);
+                var body = w.Agent(P).Body;
+                (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+                body.Effects.Clear();
+                done = Sim.Advance(w, 60).OfType<TransformationFinished>().Any(f => f.Recipe == r.Id);
+            }
+            Sim.Step(w, new TakeFinished(P, rack), 1);
+            return true;
+        }
 
         // Makes the recipe once, fetching raw materials from the land and making the rest first.
         // False if it cannot be started with what the land, the kill and earlier recipes give.
@@ -757,6 +780,7 @@ public class MakeTests
                             Assert.True(fetched < 20, $"{r.Id}: {string.Join("|", m.AnyOf)} never reaches the pack ({Items.Describe(pack)})");
                             if (m.AnyOf.Where(land.Contains).Select(x => (Resource?)x).FirstOrDefault() is Resource raw) TestKit.GiveFor(pack, raw, m);
                             else if (producers.TryGetValue(m.AnyOf[0], out var from)) { if (!MakeOne(from, depth + 1, uses)) return false; }
+                            else if (onRack.TryGetValue(m.AnyOf[0], out var cure)) { if (!Cure(cure, depth + 1, uses)) return false; }
                             else return false;
                         }
                 KeepTheFireUp(w, pack);
@@ -785,16 +809,18 @@ public class MakeTests
                 made.Add(r.Id);
                 progress = true;
                 // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile,
-                // and what the land gives goes back to it.
+                // and what the land gives goes back to it, with what only a rack takes (a scraped hide).
                 foreach (var g in pack.Gear.Where(g => !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
                 {
                     pack.Gear.Remove(g);
                     Items.PileAt(w, camp).Gear.Add(g);
                 }
-                foreach (var res in Items.KgByResource(pack).Keys.Where(land.Contains).ToList()) TestKit.Remove(pack, res);
+                foreach (var res in Items.KgByResource(pack).Keys.Where(x => land.Contains(x) || !Carried.Any(c => c.Materials.Any(m => m.AnyOf.Contains(x)))).ToList())
+                    TestKit.Remove(pack, res);
             }
         }
         Assert.Equal(Carried.Select(r => r.Id).Order(), made.Order());
+        Assert.True(rack is RackId built && w.Racks[built].Work.Working.Count == 0, "a cured mammoth hide comes only off a rack, and the walk took it");
     }
 
     /// Camp work needs a shovel and a tent no recipe makes yet; ShelterTests builds each. A repair makes nothing: RepairTests.
