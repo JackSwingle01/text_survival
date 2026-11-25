@@ -22,7 +22,8 @@
 //     go on with; its materials are used up when the work starts, and it has no outcomes;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
-//     save_material:<input>:<share>, extra_product:<gear or resource>:<n>, injury:<BodyTarget>:<damage>,
+//     save_material:<input>:<share>, extra_product:<gear or resource>:<n> (of the recipe's own discrete result, n more
+//     whole pieces sharing its weight), injury:<BodyTarget>:<damage>,
 //     break_tool:<capability>[:<uses lost>] (no amount breaks it outright). `|` in a parameter lists
 //     alternatives, the odds split evenly. An input of alternatives is named by any of them. Base odds
 //     add up to at most 0.5.
@@ -87,12 +88,26 @@
   "inputs": [ { "of": "Hide", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 30,
   "result": { "resource": "ScrapedHide", "count": 1, "sharePct": 0.8 },
   "outcomes": ["fail:waste_material:Hide:0.25=.05", "succeed:injury:LeftArm|RightArm:0.03=.02"] },
- // Stands in for the curing rack (roadmap 11): four hours drying and smoking one scraped hide by a
- // fire. A hide is 0.8 of itself scraped and 0.7 cured.
+ // Stands in for the curing rack (roadmap 11, #191 deletes it): four hours drying and smoking one scraped hide
+ // by a fire. A scraped hide is 0.8 of the hide, a cured one 0.9 of the scraped hide.
  "dry_hide": { "name": "Dry a hide by the fire", "category": "Processing",
   "inputs": [ { "of": "ScrapedHide", "count": 1 } ], "tools": [], "requires": ["Fire"], "minutes": 240,
-  "result": { "resource": "CuredHide", "count": 1, "sharePct": 0.875 },
+  "result": { "resource": "CuredHide", "count": 1, "sharePct": 0.9 },
   "outcomes": ["fail:waste_material:ScrapedHide:0.5=.08"] },
+ // A mammoth hide is scraped and dried like any hide.
+ "scrape_mammoth_hide": { "name": "Scrape a mammoth hide", "category": "Processing",
+  "inputs": [ { "of": "MammothHide", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 30,
+  "result": { "resource": "ScrapedMammothHide", "count": 1, "sharePct": 0.8 },
+  "outcomes": ["fail:waste_material:MammothHide:0.25=.05", "succeed:injury:LeftArm|RightArm:0.03=.02"] },
+ "dry_mammoth_hide": { "name": "Dry a mammoth hide by the fire", "category": "Processing",
+  "inputs": [ { "of": "ScrapedMammothHide", "count": 1 } ], "tools": [], "requires": ["Fire"], "minutes": 240,
+  "result": { "resource": "CuredMammothHide", "count": 1, "sharePct": 0.9 },
+  "outcomes": ["fail:waste_material:ScrapedMammothHide:0.5=.08"] },
+ // A cured hide cut whole into strips for small garments and mending: two, and half the time a third.
+ "hide_strips": { "name": "Cut hide strips", "category": "Processing",
+  "inputs": [ { "of": "CuredHide", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 10,
+  "result": { "resource": "HideStrip", "count": 2, "sharePct": 1 },
+  "outcomes": ["succeed:extra_product:HideStrip:1=.5"] },
 
  // ---- weapons ----
  "stone": { "name": "Stone", "category": "HuntingWeapon",
@@ -139,17 +154,17 @@
   "result": { "gear": "torch" },
   "outcomes": ["succeed:save_material:PineResin:1=.10"] },
 
- // ---- hide clothing: cured hide and sinew, sewn with a needle ----
+ // ---- hide clothing: hide strips or cured hides and sinew, sewn with a needle ----
  "hide_gloves": { "name": "Hide gloves", "category": "Clothing",
-  "inputs": [ { "of": "CuredHide", "count": 1 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 30,
+  "inputs": [ { "of": "HideStrip", "count": 2 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 30,
   "result": { "gear": "hide_gloves" },
-  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:HideStrip:0.25=.05", "fail:break_tool:Sewing=.02"] },
  "hide_cap": { "name": "Hide cap", "category": "Clothing",
-  "inputs": [ { "of": "CuredHide", "count": 1 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 25,
+  "inputs": [ { "of": "HideStrip", "count": 2 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 25,
   "result": { "gear": "hide_cap" },
-  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:HideStrip:0.25=.05", "fail:break_tool:Sewing=.02"] },
  "hide_wrap": { "name": "Hide wrap", "category": "Clothing",
-  "inputs": [ { "of": "CuredHide", "count": 3 }, { "of": "Sinew", "count": 2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 45,
+  "inputs": [ { "of": "CuredHide", "count": 2 }, { "of": "Sinew", "count": 2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 45,
   "result": { "gear": "hide_wrap" },
   "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
  "hide_leggings": { "name": "Hide leggings", "category": "Clothing",
@@ -160,6 +175,15 @@
   "inputs": [ { "of": "CuredHide", "count": 1 }, { "of": "Sinew", "count": 1 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 35,
   "result": { "gear": "hide_boots" },
   "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ // Old mammoth-hide-coat and mammoth-hood, from the hide cured, never raw.
+ "mammoth_hide_coat": { "name": "Mammoth hide coat", "category": "Clothing",
+  "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "CuredHide", "count": 1 }, { "of": "Sinew", "count": 4 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 180,
+  "result": { "gear": "mammoth_hide_coat" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "mammoth_hood": { "name": "Mammoth hood", "category": "Clothing",
+  "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "Sinew", "count": 2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 90,
+  "result": { "gear": "mammoth_hood" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
 
  // ---- camp: placed on the tile, the project left there for anyone to go on with ----
  "makeshift_bedding": { "name": "Makeshift bed", "category": "Camp",
