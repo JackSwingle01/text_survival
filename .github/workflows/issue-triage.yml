@@ -12,11 +12,12 @@ name: Issue triage
 # - issues closed: closing an issue (usually by merging its PR) unblocks the issues waiting on it.
 # - schedule (hourly, :23): resumes after a usage limit, and catches issues filed with GITHUB_TOKEN
 #   (ratchet.yml), which start no workflows. A drain with nothing eligible makes no Claude call.
+#   ci.yml's `main-red` issue is filed that way too; its script dispatches this workflow for it.
 #
 # .github/scripts/issue_queue.py keeps out only what GitHub records as fact: issues from people
-# without write access (except the `ratchet` issues ratchet.yml files), issues labelled `needs-user`
-# or `ready-for-agent`, issues with an open PR or an `<issue#>-` branch, and issues with an open
-# native "blocked by" link. Everything that takes reading the issue (a design ticket, a map, blocking
+# without write access (except the `ratchet` and `main-red` issues the workflows file), issues
+# labelled `needs-user` or `ready-for-agent`, issues with an open PR or an `<issue#>-` branch, and
+# issues with an open native "blocked by" link. Everything that takes reading the issue (a design ticket, a map, blocking
 # written in the text, a vague spec) is the triage call's judgement on Sonnet.
 #
 # Outcomes. Ready: label `ready-for-agent`. Needs a person (or already done, or another PR does it):
@@ -50,6 +51,7 @@ on:
     - cron: "23 * * * *"
 
 permissions:
+  actions: read
   contents: read
   issues: write
   pull-requests: read
@@ -111,6 +113,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # For the brief of a `main-red` issue: the failed jobs' log.
+      actions: read
       contents: read
       issues: write
       pull-requests: read
@@ -158,8 +162,8 @@ jobs:
             ${{ runner.temp }}/issue.md holds the issue and its comments from people with write access,
             then what was fetched for you: its GitHub links (blocked by, blocking, parent, sub-issues), every
             issue and PR it mentions with its state (and, for issues opened by people with write access,
-            their text and those people's comments), the open pull requests, and whether each repo path it
-            names exists. You have no GitHub access: that file is all of GitHub you get, by design.
+            their text and those people's comments), the open pull requests, whether each repo path it
+            names exists, and, for the issue a red main opens, the failed jobs' log. You have no GitHub access: that file is all of GitHub you get, by design.
 
             Read GLOSSARY.md, the decision records in documentation/decisions/ that touch the issue's area,
             and any spec it links. Then search the code, by domain concept and not only by the issue's

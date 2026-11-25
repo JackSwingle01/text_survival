@@ -12,7 +12,8 @@ The `ready-for-agent` label is the hand-off: triage adds it, the build takes onl
                             opened, a blocker linked); the build takes the label off them.
   issue_queue.py brief N    the issue and its comments from people with write access, then the facts
                             an agent would otherwise fetch: referenced issues and their state, GitHub
-                            links, open PRs, and whether each repo path it names exists. Markdown.
+                            links, open PRs, whether each repo path it names exists, and, for a
+                            `main-red` issue, the failed jobs' log. Markdown.
   issue_queue.py pr N       URL of an open pull request for N, or nothing.
 
 Needs GH_TOKEN and GITHUB_REPOSITORY. Calls the API through the gh CLI.
@@ -31,10 +32,12 @@ READY = "ready-for-agent"
 WORKING = "agent-working"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
-# Issues the daily ratchet run (.github/workflows/ratchet.yml) files with this repo's GITHUB_TOKEN.
+# Issues this repo's workflows file with its GITHUB_TOKEN: the daily ratchet run's batches
+# (.github/workflows/ratchet.yml) and the one issue open while main's CI is red (ci.yml's main-red job).
 # Only this repo's workflows act as that bot here, and no workflow runs untrusted code with write
-# access, so its issues carrying this label are as trusted as the tracker on main they came from.
-RATCHET_BOT, RATCHET_LABEL = "github-actions[bot]", "ratchet"
+# access, so its issues carrying one of these labels are as trusted as the main they came from.
+WORKFLOW_BOT, MAIN_RED = "github-actions[bot]", "main-red"
+WORKFLOW_LABELS = {"ratchet", MAIN_RED}
 
 
 # GitHub's own failures, as the gh CLI words them on stderr: a 5xx status, or no answer at all.
@@ -120,8 +123,7 @@ def skip_reason(issue, repo):
     ready, a design ticket, a map or blocked in its text is triage's judgement."""
     n = issue["number"]
     labels = labels_of(issue)
-    from_ratchet_run = issue["user"]["login"] == RATCHET_BOT and RATCHET_LABEL in labels
-    if issue["author_association"] not in TRUSTED and not from_ratchet_run:
+    if issue["author_association"] not in TRUSTED and not from_workflow(issue):
         return f"opened by {issue['user']['login']}, who has no write access"
     if NEEDS_USER in labels:
         return f"labelled {NEEDS_USER}"
@@ -136,6 +138,10 @@ def skip_reason(issue, repo):
 
 def labels_of(issue):
     return {label["name"] for label in issue["labels"]}
+
+
+def from_workflow(issue):
+    return issue["user"]["login"] == WORKFLOW_BOT and bool(WORKFLOW_LABELS & labels_of(issue))
 
 
 def triage_skip_reason(issue, repo):
@@ -205,6 +211,57 @@ def mentioned_text(item):
     return f"### #{n}: {item['title']}\n\n{text}"
 
 
+LOG_CONTEXT_BEFORE, LOG_CONTEXT_AFTER, LOG_TAIL_LINES, LOG_CHARS = 3, 15, 40, 12000
+LOG_FAILURE = re.compile(r"##\[error\]|\berror\b|\[FAIL\]|^\s*Failed\s", re.IGNORECASE)
+
+
+def log_excerpt(log):
+    """The lines of a job's log that say what failed: each line that reads as a failure with the lines
+    around it (the assertion and the top of the stack trace follow the test's name), and the log's end.
+    Cut to LOG_CHARS from the front, so a log that fails everywhere still shows its first failures."""
+    lines = [re.sub(r"^\S*\d{4}-\d\d-\d\dT[\d:.]+Z ", "", line) for line in log.splitlines()]
+    keep = set(range(max(0, len(lines) - LOG_TAIL_LINES), len(lines)))
+    for i, line in enumerate(lines):
+        if LOG_FAILURE.search(line):
+            keep.update(range(max(0, i - LOG_CONTEXT_BEFORE), min(len(lines), i + LOG_CONTEXT_AFTER + 1)))
+    out, last = [], None
+    for i in sorted(keep):
+        if last is not None and i != last + 1:
+            out.append("[...]")
+        out.append(lines[i])
+        last = i
+    text = "\n".join(out)
+    return text if len(text) <= LOG_CHARS else text[:LOG_CHARS] + f"\n(cut at {LOG_CHARS} characters)"
+
+
+def failed_run_logs(text):
+    """For a `main-red` issue: the failed jobs of the newest CI run its text links, each with its log's
+    excerpt. The issue itself only names the checks, and triage has no GitHub access to read the run."""
+    runs = re.findall(rf"github\.com/{re.escape(REPO)}/actions/runs/(\d+)", text, re.IGNORECASE)
+    if not runs:
+        return "No CI run is linked."
+    run = runs[-1]
+    listing, note = try_api(f"repos/{REPO}/actions/runs/{run}/jobs?filter=latest&per_page=100", f"jobs of run {run}")
+    if note:
+        return note
+    out = []
+    for job in listing["jobs"]:
+        if job["conclusion"] != "failure":
+            continue
+        steps = ", ".join(s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure")
+        out.append(f"### {job['name']} (failed step: {steps or 'not recorded'})")
+        # A log is text, not JSON, so it is fetched without api().
+        got = subprocess.run(["gh", "api", f"repos/{REPO}/actions/jobs/{job['id']}/logs"],
+                             capture_output=True, text=True, errors="replace")
+        if got.returncode != 0:
+            why = got.stderr.strip()[:200]
+            out.append(f"(log could not be fetched: {why})")
+            print(f"brief: log of job {job['id']} could not be fetched: {why}", file=sys.stderr)
+        else:
+            out.append("```\n" + log_excerpt(got.stdout).replace("```", "~~~") + "\n```")
+    return f"Run {run}.\n\n" + ("\n\n".join(out) if out else "No job of it failed.")
+
+
 def brief(number):
     issue = api(f"repos/{REPO}/issues/{number}")
     out = [f"# #{number}: {issue['title']}\n", f"Opened by {issue['user']['login']} on {issue['created_at']}.\n",
@@ -212,8 +269,10 @@ def brief(number):
     trusted_text = [issue["body"] or ""]
     comments = api(f"repos/{REPO}/issues/{number}/comments?per_page=100")
     untrusted = 0
+    # On an issue a workflow filed, the workflows' own comments are part of it (each later red run).
+    own_bot = WORKFLOW_BOT if from_workflow(issue) else None
     for c in comments:
-        if c["author_association"] not in TRUSTED:
+        if c["author_association"] not in TRUSTED and c["user"]["login"] != own_bot:
             untrusted += 1
             continue
         trusted_text.append(c["body"] or "")
@@ -273,6 +332,8 @@ def brief(number):
     if root and paths:
         out.append("\n## Repo paths it names (checked in this checkout)\n\n" + "\n".join(
             f"- `{p}`: {'exists' if os.path.exists(os.path.join(root, p)) else 'MISSING'}" for p in paths))
+    if from_workflow(issue) and MAIN_RED in labels_of(issue):
+        out.append("\n## The failing CI run (log excerpts)\n\n" + failed_run_logs("\n".join(trusted_text)))
     return "\n".join(out)
 
 
