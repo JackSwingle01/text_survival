@@ -160,7 +160,7 @@ public static partial class Fauna
         return null;
     }
 
-    static bool Mobile(BodyState body) => Body.GetCapacities(body).Moving > 0.1;
+    static bool Mobile(BodyState body) => Body.Speed(body) > 0;
 
     static bool Hurt(BodyState body) => !Body.IsMended(body);
 

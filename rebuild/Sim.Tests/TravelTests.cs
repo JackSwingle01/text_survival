@@ -60,8 +60,10 @@ public class TravelTests
         var body = TestKit.OldBaselineHuman(); // the old game's traveller
         Assert.Equal(quick, Traversal.CrossingMinutes(world, body, a, b, Pace.Quick, s));
         Assert.Equal(careful, Traversal.CrossingMinutes(world, body, a, b, Pace.Careful, s));
-        Assert.Equal(risk, Traversal.InjuryRiskPct(world, b, body, s), 12);
-        Assert.Equal(risk / 4, Traversal.InjuryRiskPct(world, b, body, s, Pace.Careful), 12);
+        // The old risk read only the legs; bad legs now read speed's share of a fresh body, which the old traveller's build is short of.
+        var fresh = SpeciesTable.Average(Species.Human);
+        Assert.Equal(risk, Traversal.InjuryRiskPct(world, b, fresh, s), 12);
+        Assert.Equal(risk / 4, Traversal.InjuryRiskPct(world, b, fresh, s, Pace.Careful), 12);
     }
 
     /// A December afternoon of falling snow on seed 5: deep snow over puddles that froze in autumn.
@@ -114,9 +116,9 @@ public class TravelTests
         var body = world.Agent(P).Body;
         double healthy = Traversal.InjuryRiskPct(world, forestOnRiver, body, Calm);
         Body.Damage(body, new DamageInfo(0.6, DamageType.Blunt, BodyTarget.LeftLeg), world.Rng("body"));
-        double moving = Body.GetCapacities(body).Moving;
-        Assert.True(moving < 1);
-        Assert.Equal(Math.Pow(0.45 * (1 + (1 - moving) * 0.3), Math.E) / 2, Traversal.InjuryRiskPct(world, forestOnRiver, body, Calm), 12);
+        double speedPct = SpeciesTable.SpeedPct(Species.Human, body); // the baseline man is the fresh body
+        Assert.True(speedPct < 1);
+        Assert.Equal(Math.Pow(0.45 * (1 + (1 - speedPct) * 0.3), Math.E) / 2, Traversal.InjuryRiskPct(world, forestOnRiver, body, Calm), 12);
         Assert.True(Traversal.InjuryRiskPct(world, forestOnRiver, body, Calm) > healthy);
         Assert.False(Traversal.PaceMatters(Traversal.InjuryRiskPct(world, new TileId(2, 33), body, Calm)), "easy ground stays easy on a limp");
     }
@@ -259,13 +261,12 @@ public class TravelTests
     {
         var world = At(2, 51);
         var body = world.Agent(P).Body;
-        foreach (var leg in new[] { BodyTarget.LeftLeg, BodyTarget.RightLeg })
-            for (int i = 0; i < 6 && Body.GetCapacities(body).Moving > 0.1; i++)
-                Body.Damage(body, new DamageInfo(1.0, DamageType.Blunt, leg), world.Rng("body"));
-        Assert.True(Body.GetCapacities(body).Moving <= 0.1, $"moving {Body.GetCapacities(body).Moving}");
+        foreach (var leg in body.Regions.Where(r => r.Name.EndsWith("Leg")))
+            foreach (var layer in leg.Layers) layer.Condition = 0;
+        Assert.Equal(0, Body.Speed(body));
         Assert.True(Body.IsAlive(body));
         var r = Sim.Step(world, new Travel(P, Direction.South), 60);
-        Assert.Equal(("you can barely move", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal((Traversal.CannotWalkPrefix + "no working leg", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     /// A walker bled nearly white and still bleeding, setting out on the 34-minute careful crossing onto The Pass Proper.
@@ -273,30 +274,30 @@ public class TravelTests
     {
         var world = At(211, 43);
         var body = world.Agent(P).Body;
-        body.BloodPct = 0.57; // circulation 0.14: Moving falls to 0.1 at 0.55
-        Assert.InRange(Body.GetCapacities(body).Moving, 0.1001, 0.2);
+        body.BloodPct = 0.55; // circulation fails at 0.5, a few minutes' bleeding away
+        Assert.True(Body.Speed(body) > 0);
         Effects.Add(body, EffectKind.Bleeding, 1.0);
         return world;
     }
 
-    /// Found by ActionSequenceTests: "you can barely move" was checked only when a step started, so a walker
+    /// Found by ActionSequenceTests: being too lame to go on was checked only when a step started, so a walker
     /// worn down mid-crossing finished it in one long step but was stopped short when the minutes were
-    /// cut up. Now every minute asks: the walk stops at the same minute, on the origin with the crossing kept.
+    /// cut up. Now every minute asks (Traversal.Advance). Lost blood takes speed to zero only as it takes the
+    /// head, so this walker bleeds out: the walk stops at the same minute, on the origin.
     [Fact]
     public void WornDownMidCrossing_StopsAtTheSameMinute_HoweverStepped()
     {
         var whole = Failing();
         var walk = new Travel(P, Direction.East, Pace.Careful);
         var r = Sim.Step(whole, walk, 600);
-        Assert.Equal("you can barely move", r.InterruptedReason);
+        Assert.Equal("died", r.InterruptedReason);
         Assert.InRange(r.MinutesElapsed, 1, 33); // stopped part way across, not refused at the start
         Assert.Equal(new TileId(211, 43), whole.Agent(P).Tile);
-        Assert.Equal(r.MinutesElapsed, whole.Agent(P).Crossing!.ElapsedMinutes);
 
         var chunked = Failing();
         string? reason = null;
         while (reason == null) reason = Sim.Step(chunked, walk, 7).InterruptedReason;
-        Assert.Equal("you can barely move", reason);
+        Assert.Equal("died", reason);
         Assert.Equal(Save.ToJson(whole), Save.ToJson(chunked));
     }
 

@@ -26,7 +26,10 @@ public sealed record MissingGear(IReadOnlyList<string> AnyOf) : Missing
 /// Need is the line and Have where it stands, in the unit the Lack names; both null for a state that is there or not.
 public sealed record MissingState(Lack Lack, double? Need = null, double? Have = null) : Missing;
 
-public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, MovingPct, FrostF, Shelter, Dry, StationRoom }
+public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, FrostF, Shelter, Dry, StationRoom }
+
+/// A faculty at zero (GLOSSARY: Crippled), and why: what would have to mend or be put down.
+public sealed record MissingFaculty(Faculty Faculty, IReadOnlyList<CrippledBy> Because) : Missing;
 
 /// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
