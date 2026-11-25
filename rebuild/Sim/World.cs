@@ -49,6 +49,8 @@ public sealed class World
     public SortedDictionary<TileId, BeddingKind> Beddings { get; init; } = [];
     /// Placed recipes' unfinished work. Owned by Making.
     public SortedDictionary<TileId, TileProject> Projects { get; init; } = [];
+    /// What is at each fire working as a station: only fires with something on them. Owned by Stations.
+    public SortedDictionary<FireId, StationState> Stations { get; init; } = [];
     /// Shelter finds waiting for a taken tile: the index of the pool (Pools.At). Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// Owned by Journal.
@@ -87,6 +89,7 @@ public sealed class World
         };
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
+        Items.LayStartingCamp(world, map.Camp);
         Map.PlaceSiteShelters(world);
         Fauna.Populate(world);
         // The map opens on what is in view, not on nothing. A burning fire placed by generation would report events here, and this throws to say so.

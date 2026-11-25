@@ -117,7 +117,7 @@ public static class Npc
 
     static Req FuelReq(double hours, double usedPerHour) => new("fuel", FuelResources, r => Fire.FuelHours(r, 1), hours, ForageFocus.Fuel, Counted: true, usedPerHour);
     static Req TinderReq(double kg) => new("tinder", Fire.Tinders, _ => 1, kg, ForageFocus.Fuel);
-    static Req KindlingReq(double kg) => new("kindling", [Resource.Kindling], _ => 1, kg, ForageFocus.Fuel);
+    static Req StickReq(double kg) => new("sticks", [Resource.Stick], _ => 1, kg, ForageFocus.Fuel);
     static Req FoodReq(double kcal) => new("food", FoodResources, r => Items.Resources[r].KcalPerKg, kcal, ForageFocus.Food);
 
     static Req Of(MissingResource m) => new(string.Join("/", m.AnyOf), m.AnyOf, _ => 1, m.Kg,
@@ -190,7 +190,7 @@ public static class Npc
         {
             Stat.Warmth => AtCamp && Cold ? Light(Tree.None, now: true) ?? (BurningHere ? Stoke(HoursToSunrise()) : null) : null,
             Stat.Water => Sim.Refusal(world, new Drink(Id)) == null ? new(new Drink(Id), Work.DrinkMinutes, Work.DrinkMinutes)
-                : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water))
+                : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water), [])
                 : BurningHere && Sim.Refusal(world, new MeltSnow(Id)) == null ? new(new MeltSnow(Id), Work.MeltSnowMinutes, Work.MeltSnowMinutes) : null,
             Stat.Food => EatToHand(),
             _ => null,
@@ -296,8 +296,8 @@ public static class Npc
                 if (Strike() is not { } strike) return Impossible("a fire starter");
                 double odds = Math.Max(LeastStrikePct, Fire.StartOdds(world, agent, strike.Tool, strike.Tinder).TotalPct);
                 reqs.Add(TinderReq(Verbs.TinderKg * Math.Clamp(StrikesPerFire / odds, MinStrikes, MaxStrikes)));
-                reqs.Add(KindlingReq(Verbs.KindlingKg));
-                if (Here == site && Sim.Refusal(world, strike)?.Missing is MissingResource m && !m.AnyOf.Any(r => Fire.Tinders.Contains(r) || r == Resource.Kindling))
+                reqs.Add(StickReq(Verbs.KindlingKg));
+                if (Here == site && Sim.Refusal(world, strike)?.Missing is MissingResource m && !m.AnyOf.Any(r => Fire.Tinders.Contains(r) || r == Resource.Stick))
                     reqs.Add(Of(m));
             }
             // A fire burning while it fetches by night: an hour out must bring more than an hour of fire.
@@ -310,7 +310,7 @@ public static class Npc
             var tool = Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
             if (tool == null) return null;
             var tinder = Fire.TinderToStrike(pack, Verbs.TinderKg);
-            return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Kindling)));
+            return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
         }
 
         /// A strike it can make whose fire, by the light forecast, will take a log it carries or left on the pile here.
@@ -381,7 +381,7 @@ public static class Npc
         {
             double wantedKg = plan.Leaves.Where(l => l.Tile != Here).Sum(l => l.Kg);
             if (!AtCamp || wantedKg + FullPackKg < RoomKg) return null;
-            var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).Concat(Fire.Tinders).Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).ToHashSet();
+            var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).Concat(Fire.Tinders).Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).ToHashSet();
             var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !kept.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
             return put is Resource r ? new(new PutDown(Id, r, Items.Have(pack, r)), 1, 1) : null;
         }
@@ -504,7 +504,7 @@ public static class Npc
             }
             if (ReadyFood(pack) is Resource food)
                 return new(new Eat(Id, food, Math.Min(Items.Have(pack, food), MealKcal() / Items.Resources[food].KcalPerKg)), Work.EatMinutes, Work.EatMinutes);
-            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled));
+            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled), []);
             return null;
         }
 
@@ -618,7 +618,7 @@ public static class Npc
                 {
                     ForagePool => MaxStintMinutes,
                     TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id))) + 1,
-                    StockPool s when (t != Here || Pools.HasStock(world, id)) && s.Items.Any(x => req.AnyOf.Contains(x.Resource)) => MaxStintMinutes,
+                    StockPool s when (t != Here || Pools.HasStock(world, id, pack)) && s.Items.Any(x => req.AnyOf.Contains(x.Resource) && Pools.CanWork(x, pack)) => MaxStintMinutes,
                     _ => 0,
                 };
                 if (minutes <= 0) continue;
@@ -685,13 +685,13 @@ public static class Npc
 
         static bool IsLog(Resource r) => FuelResources.Contains(r) && Fire.Props[r].MinFireTempF > 0;
 
-        /// A full pack makes room first: the heaviest thing that is not makings, water or food goes down.
-        Next? Take(Resource r, double kg)
+        /// A full pack makes room first: the heaviest thing that is not makings, water, food or what the same requirement wants goes down.
+        Next? Take(Resource r, double kg, IEnumerable<Resource> wanted)
         {
             var take = new PickUp(Id, r, kg);
             if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
             {
-                var keep = Fire.Tinders.Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).Append(r).ToHashSet();
+                var keep = Fire.Tinders.Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).Append(r).Concat(wanted).ToHashSet();
                 var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
                 return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
             }
@@ -701,7 +701,7 @@ public static class Npc
         Next? Do(Leaf leaf)
         {
             var act = ActivityFor(leaf);
-            if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource))) : null;
+            if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource)), leaf.For.AnyOf) : null;
             if (Sim.Refusal(world, act) != null) return null;
             int minutes = act is Butcher ? Verbs.UntilDoneMinutes : Math.Clamp(leaf.WorkMinutes, 1, StintMinutes);
             return new(act, minutes, minutes);

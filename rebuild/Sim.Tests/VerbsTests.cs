@@ -117,14 +117,14 @@ public class VerbsTests
         var w = Camp(out _);
         TestKit.Supply(w);
         // Whole logs: what went down is what is offered back, all of it.
-        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
-        double pine = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.Pine);
-        Assert.Equal(new PickUp(P, Resource.Pine, pine), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
-        Sim.Step(w, new PutDown(P, Resource.Birch, 3), 1);
-        double birch = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.Birch);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 2), 1);
+        double pine = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.PineBranch);
+        Assert.Equal(new PickUp(P, Resource.PineBranch, pine), Listed(w, LocationFeatureKind.Pile).Action!.Activity);
+        Sim.Step(w, new PutDown(P, Resource.BirchBranch, 3), 1);
+        double birch = Items.Have(Items.PileAt(w, Map.Of(w).Camp), Resource.BirchBranch);
         var pile = Listed(w, LocationFeatureKind.Pile);
         Assert.True(pile.Interact);
-        Assert.Equal(new Activity[] { new PickUp(P, Resource.Pine, pine), new PickUp(P, Resource.Birch, birch) }, pile.Menu.Select(v => v.Activity));
+        Assert.Equal(new Activity[] { new PickUp(P, Resource.PineBranch, pine), new PickUp(P, Resource.BirchBranch, birch) }, pile.Menu.Select(v => v.Activity));
         AssertEveryVerbIsTrue(w, P);
     }
 
@@ -139,7 +139,7 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         // Kindling in whole sticks, lightest first, up to a kilo.
-        Assert.Equal(new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, Items.WouldMoveKg(Items.Pack(w, P), Resource.Kindling, 1.0)), light.Activity);
+        Assert.Equal(new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, Items.WouldMoveKg(Items.Pack(w, P), Resource.Stick, 1.0)), light.Activity);
         var odds = Fire.StartOdds(w, w.Agent(P), ToolType.FireStriker, Resource.BirchBark);
         Assert.Equal(odds.TotalPct, light.Odds!.TotalPct);
         Assert.Equal(odds.Terms, light.Odds.Terms);
@@ -382,7 +382,7 @@ public class VerbsTests
         Agents.SpawnGroup(w, Species.Wolf, camp, 2);
         Npc.Spawn(w, camp);
         var pit = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
-        Fire.AddFuel(pit, Resource.Kindling, 1);
+        Fire.AddFuel(pit, Resource.Stick, 1);
         Fire.IgniteAll(pit);
         w.Fires[new FireId(w.NextFireId++)] = pit;
 

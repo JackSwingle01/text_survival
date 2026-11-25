@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -68,7 +68,8 @@ static class ActionGen
             (4, Gen.Const(Act.Gather)), (2, Gen.Const(Act.StartFire)), (2, Gen.Const(Act.AddFuel)), (1, Gen.Const(Act.LightTorch)), (1, Gen.Const(Act.WalkAbout)),
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.Wash)), (1, Gen.Const(Act.MeltSnow)), (1, Gen.Const(Act.Cook)),
             (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
-            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)))
+            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)),
+            (1, Gen.Const(Act.PutOn)), (1, Gen.Const(Act.TakeFinished)), (1, Gen.Const(Act.TakeBack)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
 
     public static Gen<Script> ScriptGen(int minIntents, int maxIntents, double scale) =>
@@ -134,7 +135,7 @@ static class ActionGen
                     // The best tool and tinder held, mostly, so fires get lit and what needs one gets reached.
                     var tools = pack.Gear.Where(g => Items.Def(g).Tool is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill)
                         .Select(g => Items.Def(g).Tool!.Value).Distinct().OrderBy(t => t == ToolType.FireStriker ? 0 : 1).ToList();
-                    var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Kindling && r != Resource.Charcoal)
+                    var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Stick && r != Resource.Charcoal)
                         .OrderByDescending(r => Fire.Props[r].IgnitionBonusPct).ToList();
                     if (pick % 3 != 0) (tools, tinders) = (tools.Take(1).ToList(), tinders.Take(1).ToList());
                     var pit = Fire.PitAt(w, tile) is FireId id ? w.Fires[id].Pit : (PitType)(pick % 3 == 2 ? 1 : 0);
@@ -142,7 +143,7 @@ static class ActionGen
                         0.03 + pick % 4 * 0.02, pick % 5 * 0.1, pit);
                 }
             case Act.AddFuel:
-                return new AddFuel(P, PickOf(Held(Fire.IsFuel), pick, Resource.Kindling), 0.2 + pick % 8 * 0.4);
+                return new AddFuel(P, PickOf(Held(Fire.IsFuel), pick, Resource.Stick), 0.2 + pick % 8 * 0.4);
             case Act.LightTorch: return new LightTorch(P);
             case Act.Eat:
                 return new Eat(P, PickOf(Held(r => Items.Resources[r].Category == ResourceCategory.Food), pick, Resource.Berries), 0.1 + pick % 5 * 0.1);
@@ -153,12 +154,12 @@ static class ActionGen
             case Act.Cook:
                 return new Cook(P, PickOf(Held(r => r is Resource.RawMeat or Resource.RawFish), pick, Resource.RawMeat), 0.2 + pick % 5 * 0.2);
             case Act.PutDown:
-                return new PutDown(P, PickOf(Held(_ => true), pick, Resource.Kindling), 0.1 + pick % 5 * 0.2);
+                return new PutDown(P, PickOf(Held(_ => true), pick, Resource.Stick), 0.1 + pick % 5 * 0.2);
             case Act.PickUp:
                 {
                     var pile = w.Tiles.GetValueOrDefault(tile)?.Pile;
                     List<Resource> there = pile == null ? [] : Items.KgByResource(pile).Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
-                    return new PickUp(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
+                    return new PickUp(P, PickOf(there, pick, Resource.Stick), 0.1 + pick % 5 * 0.3);
                 }
             case Act.Butcher:
                 {
@@ -183,7 +184,7 @@ static class ActionGen
                     // A project in the pack is the one to go on with; otherwise any recipe, a repair on a held piece it takes.
                     var projects = Items.Pack(w, P).Projects ?? [];
                     if (projects.Count > 0 && pick % 3 != 0) { var p = projects[pick % projects.Count]; return new Make(P, p.Recipe, p.Target); }
-                    var r = Recipes.All[pick % Recipes.All.Count];
+                    var r = Recipes.ByHand[pick % Recipes.ByHand.Count];
                     var agent = w.Agent(P);
                     string? target = r.Result.Repair is { } repair
                         ? Items.Pack(w, P).Gear.Concat(agent.Body.Worn).Select(g => g.Kind).FirstOrDefault(repair.Kinds.Contains) : null;
@@ -192,9 +193,17 @@ static class ActionGen
             case Act.Abandon:
                 {
                     var projects = Items.Pack(w, P).Projects ?? [];
-                    if (projects.Count == 0) return new Abandon(P, Recipes.All[pick % Recipes.All.Count].Id);
+                    if (projects.Count == 0) return new Abandon(P, Recipes.ByHand[pick % Recipes.ByHand.Count].Id);
                     var p = projects[pick % projects.Count];
                     return new Abandon(P, p.Recipe, p.Target);
+                }
+            case Act.PutOn: return new PutOn(P, PickOf([.. Stations.FireRecipes.Select(r => r.Id)], pick, "cook_meat"));
+            case Act.TakeFinished: return new TakeFinished(P);
+            case Act.TakeBack:
+                {
+                    var working = Fire.PitAt(w, tile) is FireId pit ? Stations.At(w, pit).Working : [];
+                    var x = PickOf(working, pick, null);
+                    return new TakeBack(P, x?.Input ?? Resource.RawMeat, x?.InputKg ?? 0.4);
                 }
             default: throw new NotSupportedException(i.Act.ToString());
         }

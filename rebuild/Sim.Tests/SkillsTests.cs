@@ -23,7 +23,7 @@ public class SkillsTests
     static FireId LightPit(World w)
     {
         var id = new FireId(w.NextFireId++);
-        w.Fires[id] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = 5 } };
+        w.Fires[id] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.BirchBranch] = 5 } };
         return id;
     }
 
@@ -87,18 +87,18 @@ public class SkillsTests
         {
             var w = TestWorlds.Bare(3);
             TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
-            TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
-            TestKit.Give(Items.Pack(w, P), Resource.Pine, 2);
+            TestKit.Give(Items.Pack(w, P), Resource.Stick, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.PineBranch, 2);
             w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
             var r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1);
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
             if (!r.Events.Any(e => e is FireLit)) { missed = true; continue; }
             lit = true;
-            Sim.Step(w, new AddFuel(P, Resource.Kindling, 0.2), 1); // more kindling is not a log
+            Sim.Step(w, new AddFuel(P, Resource.Stick, 0.2), 1); // more kindling is not a log
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
-            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1);
+            Sim.Step(w, new AddFuel(P, Resource.PineBranch, 1), 1);
             Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
-            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1); // once per fire
+            Sim.Step(w, new AddFuel(P, Resource.PineBranch, 1), 1); // once per fire
             Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
         }
         Assert.True(lit && missed);
@@ -113,8 +113,8 @@ public class SkillsTests
         {
             var w = TestWorlds.Bare(3);
             TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
-            TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
-            TestKit.Give(Items.Pack(w, P), Resource.Pine, 2);
+            TestKit.Give(Items.Pack(w, P), Resource.Stick, 1);
+            TestKit.Give(Items.Pack(w, P), Resource.PineBranch, 2);
             w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
             if (!Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1).Events.Any(e => e is FireLit)) continue;
             var pit = Fire.PitAt(w, w.Agent(P).Tile)!.Value;
@@ -122,8 +122,8 @@ public class SkillsTests
             Assert.False(Fire.IsActive(w.Fires[pit]), "the kindling fire never went out");
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
             // Out, a log on the cold pit teaches nothing more.
-            TestKit.Give(Items.Pack(w, P), Resource.Pine, 1);
-            Sim.Step(w, new AddFuel(P, Resource.Pine, 1), 1);
+            TestKit.Give(Items.Pack(w, P), Resource.PineBranch, 1);
+            Sim.Step(w, new AddFuel(P, Resource.PineBranch, 1), 1);
             Assert.Equal(Skills.FireFailureXp, Xp(w, Skill.Firecraft));
             return;
         }
@@ -143,9 +143,9 @@ public class SkillsTests
                 var w = TestWorlds.Bare(3);
                 var tile = w.Agent(P).Tile;
                 TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
-                TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1);
+                TestKit.Give(Items.Pack(w, P), Resource.Stick, 1);
                 var pit = new FireId(w.NextFireId++);
-                w.Fires[pit] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Pine] = 3 } };
+                w.Fires[pit] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.PineBranch] = 3 } };
                 w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
                 if (!Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1).Events.Any(e => e is FireLit)) return null;
                 Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft));
@@ -154,7 +154,7 @@ public class SkillsTests
                     Sim.Step(w, new Wait(P), 1);
                     if (look) Fire.CatchUp(w, pit, []);
                 }
-                Assert.True(w.Fires[pit].BurningKg.ContainsKey(Resource.Pine), "the pine should have caught");
+                Assert.True(w.Fires[pit].BurningKg.ContainsKey(Resource.PineBranch), "the pine should have caught");
                 Assert.Equal(Skills.FireSuccessXp, Xp(w, Skill.Firecraft)); // once
                 return Save.ToJson(w);
             }

@@ -9,11 +9,10 @@ public class OddsTests
 
     // ---- the references: the formulas as they were ----
 
-    static double OldFireChance(ToolType tool, Resource tinder, bool impaired, double dexterity)
+    static double OldFireChance(ToolType tool, Resource tinder, double dexterity)
     {
         double chance = tool switch { ToolType.FireStriker => 0.90, ToolType.BowDrill => 0.50, _ => 0.35 };
         chance += 0 * 0.1 + Fire.Props[tinder].IgnitionBonusPct;
-        if (impaired) chance -= 0.2;
         chance -= (1.0 - dexterity) * 0.5;
         return Math.Clamp(chance, 0.05, 0.95);
     }
@@ -38,7 +37,7 @@ public class OddsTests
     }
 
     static readonly ToolType[] Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
-    static readonly Resource[] StrikeFuels = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Kindling];
+    static readonly Resource[] StrikeFuels = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Stick];
     static readonly double[] Dexterities = [0, 0.13, 0.3, 0.5, 0.77, 0.9999, 1];
 
     /// The fold is the formula: the total is base plus each term in order, clamped, exactly.
@@ -62,14 +61,13 @@ public class OddsTests
     {
         foreach (var tool in Starters)
             foreach (var tinder in StrikeFuels)
-                foreach (bool impaired in new[] { false, true })
-                    foreach (double dex in Dexterities)
-                    {
-                        var odds = Fire.StartOdds(tool, tinder, 0, impaired, dex);
-                        Assert.Equal(OldFireChance(tool, tinder, impaired, dex), odds.TotalPct);
-                        Assert.Equal(odds.TotalPct, Fire.StartChancePct(tool, tinder, 0, impaired, dex));
-                        AssertAddsUp(odds);
-                    }
+                foreach (double dex in Dexterities)
+                {
+                    var odds = Fire.StartOdds(tool, tinder, 0, dex);
+                    Assert.Equal(OldFireChance(tool, tinder, dex), odds.TotalPct);
+                    Assert.Equal(odds.TotalPct, Fire.StartChancePct(tool, tinder, 0, dex));
+                    AssertAddsUp(odds);
+                }
     }
 
     [Fact]
@@ -80,11 +78,11 @@ public class OddsTests
         Assert.True(best.Capped);
         AssertAddsUp(best);
 
-        var worst = Fire.StartOdds(ToolType.HandDrill, Resource.Kindling, 0, consciousnessImpaired: true, dexterityPct: 0, handsWhy: "dark, wet");
+        var worst = Fire.StartOdds(ToolType.HandDrill, Resource.Stick, 0, dexterityPct: 0, handsWhy: "dark, wet");
         Assert.Equal(0.05, worst.TotalPct);
         Assert.True(worst.Capped);
-        Assert.Equal(["Dazed", "Hands (dark, wet)"], worst.Terms.Select(t => t.Factor));
-        Assert.Equal([-0.2, -0.5], worst.Contributions.Select(c => c.DeltaPct));
+        Assert.Equal(["Hands (dark, wet)"], worst.Terms.Select(t => t.Factor));
+        Assert.Equal([-0.5], worst.Contributions.Select(c => c.DeltaPct));
         AssertAddsUp(worst);
 
         var plain = Fire.StartOdds(ToolType.BowDrill, Resource.Amadou);

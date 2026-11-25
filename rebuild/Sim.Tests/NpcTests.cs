@@ -28,7 +28,7 @@ public class NpcTests(ITestOutputHelper output)
     static FireState Pit(World w, TileId tile, Resource fuel, double kg)
     {
         var pit = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
-        Fire.AddFuel(pit, Resource.Kindling, 1);
+        Fire.AddFuel(pit, Resource.Stick, 1);
         Fire.IgniteAll(pit);
         Fire.AddFuel(pit, fuel, kg);
         w.Fires[new FireId(w.NextFireId++)] = pit;
@@ -39,15 +39,27 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Freezing beside a fire that is burning low, and parched with nothing to drink: warmth comes first, so it feeds
     /// the fire before it sees to water.
+    /// A pile of firewood at camp (a new run's) once had the NPC take one wood and put the other down, minute after minute,
+    /// for hours: both are the fire's wants, so neither goes down to make room for the other.
+    [Fact]
+    public void AnNpcAtACampPile_DoesNotSwapItsFuelBackAndForth()
+    {
+        var w = TestWorlds.New(17);
+        var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
+        var events = new List<WorldEvent>();
+        for (int m = 0; m < 30; m++) events.AddRange(Sim.Advance(w, 1));
+        Assert.True(events.OfType<PutOnPile>().Count(e => e.Who == npc) <= 2, $"{events.OfType<PutOnPile>().Count(e => e.Who == npc)} put-downs in half an hour");
+    }
+
     [Fact]
     public void Freezing_WithAFireOnHand_TendsItBeforeFetchingWater()
     {
         var (w, npc) = Alone(-15);
         var camp = Map.Of(w).Camp;
-        Pit(w, camp, Resource.Kindling, 0.2);
+        Pit(w, camp, Resource.Stick, 0.2);
         var pack = MindOf(npc).Pack;
         TestKit.Remove(pack, Resource.Water);
-        TestKit.Give(pack, Resource.Birch, 4);
+        TestKit.Give(pack, Resource.BirchBranch, 4);
         npc.Body.CoreTempF = 96.0;
         npc.Body.HydrationMl = 0.4 * Body.MaxHydrationMl;
         var (a, _) = Decide(w, npc);
@@ -120,7 +132,7 @@ public class NpcTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var pack = MindOf(npc).Pack;
         foreach (var t in Fire.Tinders) TestKit.Remove(pack, t);
-        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 20);
+        TestKit.Give(Items.PileAt(w, camp), Resource.BirchBranch, 20);
         w.Minute = 9 * 60; // evening: a fire is wanted tonight
         var moves = new List<(TileId To, bool Worked)>(); // where it stepped, and whether it did anything there before moving on
         bool lit = false;
@@ -156,7 +168,7 @@ public class NpcTests(ITestOutputHelper output)
                 if (m.InBounds(new TileId(camp.X + dx, camp.Y + dy))) w.PoolCache[new TileId(camp.X + dx, camp.Y + dy)] = [];
         w.PoolCache[near[1]] = [forage];
         w.PoolCache[near[4]] = [forage];
-        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 40); // warmth seen to: food is the Need, and its sources are the forage
+        TestKit.Give(Items.PileAt(w, camp), Resource.BirchBranch, 40); // warmth seen to: food is the Need, and its sources are the forage
         TestKit.Give(Items.PileAt(w, camp), Resource.Tinder, 1);
         npc.Body.CaloriesKcal = 0;
         var (a, _) = Decide(w, npc);
@@ -254,8 +266,8 @@ public class NpcTests(ITestOutputHelper output)
         var npc = Npc.Spawn(w, camp);
         var next = MapGen.Neighbors(camp).First(t => Map.Blocked(Map.Of(w), camp, t) == null);
         Agents.Spawn(w, Species.CaveBear, next);
-        TestKit.Give(Items.PileAt(w, camp), Resource.Birch, 40);
-        Pit(w, camp, Resource.Kindling, 3);
+        TestKit.Give(Items.PileAt(w, camp), Resource.BirchBranch, 40);
+        Pit(w, camp, Resource.Stick, 3);
         bool slept = false;
         while (w.Minute < 1440 && Body.IsAlive(w.Agent(npc).Body))
         {

@@ -170,7 +170,7 @@ public static class Sim
     static readonly HashSet<string> Finishing =
     [
         Traversal.Arrived, Traversal.CrossedThePassReason,
-        Work.Ate, Work.Drank, Work.WashedReason, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason, Work.WalkedAbout,
+        Work.Ate, Work.Drank, Work.WashedReason, Work.CookedReason, Work.Melted, Work.TreeCutUp, Work.ButcheredReason, Work.WalkedAbout,
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over
@@ -264,6 +264,7 @@ public static class Sim
         else if (Work.Handles(activity)) work = Work.Begin(world, activity, events);
         else if (Shelters.Handles(activity)) Shelters.Begin(world, activity);
         else if (Making.Handles(activity)) Making.Begin(world, activity, events);
+        else if (Stations.Handles(activity)) acted = Stations.Act(world, activity, events);
         else if (Fauna.Handles(activity) && Fauna.Begin(world, activity, events) is int fought) minutes = fought; // a hunt lasts as long as its fight
 
         if (activity is not Travel) agent.Crossing = null; // turned back: it never left its tile
@@ -288,7 +289,8 @@ public static class Sim
     public const string Asleep = "You are asleep.";
 
     static bool ReadsTheFire(Activity activity) =>
-        activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity);
+        activity is StartFire or AddFuel or LightTorch or GatherCharcoal || Work.Handles(activity) || Shelters.Handles(activity) || Making.Handles(activity)
+        || Stations.Handles(activity);
 
     /// The owning system's refusal for this activity: the one dispatch Start and Refusal share.
     static Refusal? ActivityRefusal(World world, Activity activity) => activity switch
@@ -299,6 +301,7 @@ public static class Sim
         _ when Work.Handles(activity) => Work.Refusal(world, activity),
         _ when Shelters.Handles(activity) => Shelters.Refusal(world, activity),
         _ when Making.Handles(activity) => Making.Refusal(world, activity),
+        _ when Stations.Handles(activity) => Stations.Refusal(world, activity),
         Fight fight => Combat.Refusal(world, fight),
         _ when Fauna.Handles(activity) => Fauna.Refusal(world, activity),
         Wait or Rest or Sleep => null,
@@ -369,7 +372,7 @@ public static class Sim
         {
             Sleep => (0.5, 2.0, true, true),
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Wear or TakeOff => (1.0, 2.0, false, true),
-            Eat or Drink or Wash or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, washing, tending the fire
+            Eat or Drink or Wash or Cook or MeltSnow or PutOn or TakeFinished or TakeBack => (1.0, 2.0, false, true), // eating, washing, tending the fire
             ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
@@ -387,7 +390,8 @@ public static class Sim
         {
             Sleep or Rest => SurfaceContact.RestingOnGround,
             Gather when gathering is StockPool { Kind: StockKind.Detail } => SurfaceContact.RestingOnGround,
-            StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Wash or Cook or MeltSnow or Butcher => SurfaceContact.WorkingOnGround,
+            StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Wash or Cook or MeltSnow or PutOn or TakeFinished or TakeBack or Butcher
+                => SurfaceContact.WorkingOnGround,
             _ => SurfaceContact.Walking,
         };
         return new Hold(activityFactor, fireProximityFactor, sleeping, stationary, contact);
@@ -533,6 +537,7 @@ public static class Scheduler
         // What lies dead goes on rotting, and herds renew toward what their land carries: settled on
         // the clock, before anyone lives the minute, so every way of stepping the world agrees.
         Remains.Hour(world);
+        Stations.Minute(world, events);
         Fauna.Renew(world, events);
         Tracks.RecordActivity(world);
         foreach (var id in world.Agents.Keys.ToList())
@@ -542,6 +547,9 @@ public static class Scheduler
             if (agent.Mind is not HerdMind && !Sim.IsAlive(agent)) continue;
             // A fight holds its fighters' activities (the player's rounds move them), not their bodies:
             // they live the minute where they stand. A fled fighter is out of it and lives on its own mind.
+            // Dead to the last, off the field of a fight it has not left: Fauna.Tick keeps its dead for
+            // that fight's aftermath (the units name members by index), so until then it plans nothing.
+            if (agent.Mind is HerdMind && !Sim.IsAlive(agent) && Combat.EncounterOf(world, id) != null) continue;
             if (Sim.Held(world, id)) { Sim.LiveBodies(world, agent, new Fight(id, CombatAction.Wait), events); continue; }
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;

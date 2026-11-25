@@ -90,7 +90,7 @@ sealed class ViewBuilder(World world, int gen)
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
-                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Kindling, f.KindlingKg) } : [], Names.Of(f.Tool)],
+                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Stick, f.KindlingKg) } : [], Names.Of(f.Tool)],
                 AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },
@@ -126,6 +126,9 @@ sealed class ViewBuilder(World world, int gen)
         Make m when Recipes.Get(m.Recipe).Result.Placed => "build", // camp work: the page lists it as building here
         Make => "make",
         Abandon => "abandon",
+        PutOn => "puton",
+        TakeFinished => "take",
+        TakeBack => "takeback",
         Hunt => "hunt",
         _ => "other",
     };
@@ -293,7 +296,7 @@ sealed class ViewBuilder(World world, int gen)
             var body = Combat.BodyOf(world, u);
             string name = u.Agent == AgentId.Player ? "You" : Words.Cap(Words.Of(agent.Species));
             return new UnitDto(i, u.Team, Words.SpeciesIcon(agent.Species), name, u.Position.X, u.Position.Y, u.InField, Combat.IsPlayer(u),
-                Words.Of(Combat.StateOf(world, u)), Condition(body), u.Weapon is { } w ? Items.Def(w).Name : null);
+                Words.Of(Combat.StateOf(world, u)), Condition(body, agent.Species), u.Weapon is { } w ? Items.Def(w).Name : null);
         }).ToList();
         var facing = Combat.TargetOf(enc, me);
         double distance = facing != null ? me.Position.DistanceTo(facing.Position) : 0;
@@ -337,10 +340,10 @@ sealed class ViewBuilder(World world, int gen)
         return best;
     }
 
-    static string Condition(BodyState b)
+    static string Condition(BodyState b, Species species)
     {
         if (!Body.IsAlive(b)) return "dead";
-        double v = Body.Vitality(b);
+        double v = Body.Vitality(b, species);
         return v > 0.9 ? "unhurt" : v > 0.65 ? "wounded" : v > 0.35 ? "badly hurt" : "near death";
     }
 

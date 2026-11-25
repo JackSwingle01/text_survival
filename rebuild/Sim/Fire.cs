@@ -9,7 +9,7 @@ public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers
 /// the reader builds a struct row from its parameterless constructor and would take a missing field as 0.
 public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
 
-public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
+public sealed record PitProps(int Room, double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
 
 /// What flame does to an animal's nerve (Content/fire.json deterrence, read by Combat.FireDeterrence).
 public sealed record DeterrenceProps(double FireFear, double TorchIntensityPct, double FullIntensityHeatF, double FullWithinM);
@@ -53,6 +53,7 @@ public static class Fire
     const double CharcoalYieldPct = 0.04;
     public const double TorchBurnMinutes = 60;
 
+    public static int Room(PitType pit) => Pits[pit].Room;
     public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
     public static double WindProtectionLevel(PitType pit) => Pits[pit].WindProtectionLevel;
     static double FuelEfficiencyFactor(PitType pit) => Pits[pit].FuelEfficiencyFactor;
@@ -447,9 +448,9 @@ public static class Fire
         events.Add(new FireBurnedToEmbers(minute, id, f.Tile));
     }
 
-    /// Odds as terms: tool base, skill, tinder, -20% consciousness impaired, up to -50% clumsy hands; clamped 5-95%.
+    /// Odds as terms: tool base, skill, tinder, up to -50% clumsy hands (a foggy head among them); clamped 5-95%.
     /// handsWhy names what is costing dexterity, for the sheet.
-    public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0, string handsWhy = "")
+    public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, double dexterityPct = 1.0, string handsWhy = "")
     {
         double basePct = tool switch
         {
@@ -461,12 +462,11 @@ public static class Fire
         return new Odds(Names.Title(tool), basePct, Odds.Moving(
             OddsTerm.Add("Firecraft", Skills.FirecraftPct(skillLevel)),
             OddsTerm.Add(Names.Title(tinder), Props[tinder].IgnitionBonusPct),
-            OddsTerm.Add("Dazed", consciousnessImpaired ? -0.2 : 0),
             OddsTerm.Add(handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands", -(1.0 - dexterityPct) * 0.5)), MinPct: 0.05, MaxPct: 0.95);
     }
 
-    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0) =>
-        StartOdds(tool, tinder, skillLevel, consciousnessImpaired, dexterityPct).TotalPct;
+    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, double dexterityPct = 1.0) =>
+        StartOdds(tool, tinder, skillLevel, dexterityPct).TotalPct;
 
     /// Fires around the agent must be caught up (the light they work by).
     public static Odds StartOdds(World world, Agent agent, ToolType tool, Resource tinder)
@@ -474,7 +474,6 @@ public static class Fire
         var body = agent.Body;
         var context = AbilityContextFor(world, agent);
         return StartOdds(tool, tinder, Skills.Level(agent, Skill.Firecraft),
-            consciousnessImpaired: Body.GetCapacities(body).Consciousness < 0.5,
             dexterityPct: Body.Dexterity(body, context), handsWhy: string.Join(", ", Body.DexterityCosts(body, context)));
     }
 
@@ -504,8 +503,8 @@ public static class Fire
                 if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
                 if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9)
                     return new($"not enough {Names.Of(a.Tinder)}", new MissingResource(a.Tinder, a.TinderKg - Items.Have(pack, a.Tinder)));
-                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9)
-                    return new("not enough kindling", new MissingResource(Resource.Kindling, a.KindlingKg - Items.Have(pack, Resource.Kindling)));
+                if (Items.Have(pack, Resource.Stick) < a.KindlingKg - 1e-9)
+                    return new("not enough sticks", new MissingResource(Resource.Stick, a.KindlingKg - Items.Have(pack, Resource.Stick)));
                 return null;
             case AddFuel a:
                 if (!IsFuel(a.Fuel)) return new($"{Names.Cap(Names.Of(a.Fuel))} does not burn");
@@ -588,7 +587,7 @@ public static class Fire
         double tinderIn = AddFuel(f, a.Tinder, tinderKg);
         if (Items.IsDiscrete(a.Tinder)) f.UnburnedKg[a.Tinder] = f.UnburnedKg.GetValueOrDefault(a.Tinder) + tinderKg - tinderIn;
         else Items.Add(pack, a.Tinder, tinderKg - tinderIn);
-        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Kindling, a.KindlingKg);
+        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Stick, a.KindlingKg);
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         // A catching strike pays a miss's worth now, the rest when the fire takes wood (PayLighter), so tinder with no fuel to follow cannot farm levels.
@@ -724,8 +723,8 @@ public static class Fire
         var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
         AddFuel(lit, a.Tinder, a.TinderKg);
         // The sticks that would go on: whole ones, as many as fit (PutOn).
-        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Kindling, a.KindlingKg, RoomKg(lit)) : 0;
-        if (sticksKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, sticksKg);
+        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Stick, a.KindlingKg, RoomKg(lit)) : 0;
+        if (sticksKg > 0 && CanAddFuel(lit, Resource.Stick)) AddFuel(lit, Resource.Stick, sticksKg);
         IgniteAll(lit);
         return lit;
     }

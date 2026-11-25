@@ -296,11 +296,11 @@ public class CombatStateTests
     public void AWound_CostsMorale_ByVitalityAndLostBlood()
     {
         var body = BodyState.BaselineHuman();
-        Assert.Equal(0, Combat.HealthPenalty(body), 9);
+        Assert.Equal(0, Combat.HealthPenalty(body, Species.Human), 9);
         body.BloodPct = 0.8;
-        // 0.5 x the blood lost, and the circulation it costs: consciousness 0.6, so 1 - vitality is 0.4.
-        Assert.Equal(0.5 * 0.2 + (1 - Body.Vitality(body)), Combat.HealthPenalty(body), 9);
-        Assert.True(Combat.HealthPenalty(body) > 0.4);
+        // 0.5 x the blood lost, and what the circulation it costs (0.6) takes from the faculties: about 0.4 of vitality.
+        Assert.Equal(0.5 * 0.2 + (1 - Body.Vitality(body, Species.Human)), Combat.HealthPenalty(body, Species.Human), 9);
+        Assert.True(Combat.HealthPenalty(body, Species.Human) > 0.4);
     }
 
     [Fact]

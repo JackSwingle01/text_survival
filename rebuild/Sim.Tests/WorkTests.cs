@@ -16,14 +16,16 @@ public class WorkTests
     }
 
     static readonly ForagePool Forage = new("forage", 1.0, Pools.MixedForest);
-    static readonly TreePool Trees = new("Trees", Resource.Birch, 100);
+    static readonly TreePool Trees = new("Trees", Resource.BirchFirewood, 100);
     static StockPool Bush() => new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0);
 
     static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
     static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+    /// Room for a whole tree's trunk in one go (a pack alone takes it in loads).
+    static void RoomForATree(World w) { Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); }
     static void FastForwardTo(World w, int hour) { while (Weather.MinuteOfDay(w.Minute) / 60 != hour) w.Minute++; }
     static void LightAPit(World w) =>
-        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = 5 } };
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.BirchBranch] = 5 } };
 
     // ---- refusals cost nothing ----
 
@@ -63,16 +65,18 @@ public class WorkTests
         var quarters = WithPools(Trees);
         Items.Pack(one, P).Gear.Add(Items.Make("stone_axe", durability: 10)); // stone axes never wear; this one does
         Items.Pack(quarters, P).Gear.Add(Items.Make("stone_axe", durability: 10));
+        RoomForATree(one);
+        RoomForATree(quarters);
         var r = Sim.Step(one, new Gather(P, 0), 300);
         int chunked = 0;
         string? last = null;
-        while (last != "tree felled") { var q = Sim.Step(quarters, new Gather(P, 0), 15); chunked += q.MinutesElapsed; last = q.InterruptedReason; }
-        Assert.Equal(("tree felled", 100, 100), (r.InterruptedReason, r.MinutesElapsed, chunked));
+        while (last == null) { var q = Sim.Step(quarters, new Gather(P, 0), 15); chunked += q.MinutesElapsed; last = q.InterruptedReason; }
+        Assert.Equal(("tree cut up", 100, 100), (r.InterruptedReason, r.MinutesElapsed, chunked));
         var axe1 = Items.Tool(Items.Pack(one, P), ToolType.Axe)!;
         var axe2 = Items.Tool(Items.Pack(quarters, P), ToolType.Axe)!;
         Assert.Equal(axe1.Durability, axe2.Durability);
         Assert.Equal(axe1.MaxDurability - 1, axe1.Durability); // one use for 100 minutes: one per hour
-        Assert.Equal(Items.Have(Items.Pack(one, P), Resource.Birch), Items.Have(Items.Pack(quarters, P), Resource.Birch), 9);
+        Assert.Equal(Items.Have(Items.Pack(one, P), Resource.BirchFirewood), Items.Have(Items.Pack(quarters, P), Resource.BirchFirewood), 9);
     }
 
     /// An hour's search that turns up nothing says so: the session's line is never only what it taught.
@@ -93,9 +97,9 @@ public class WorkTests
     {
         var w = WithPools(Forage);
         var camp = Map.Of(w).Camp;
-        Sim.Step(w, new PutDown(P, Resource.Kindling, 99), 1);
+        Sim.Step(w, new PutDown(P, Resource.Stick, 99), 1);
         Assert.NotNull(w.Tiles[camp].Pile);
-        Sim.Step(w, new PickUp(P, Resource.Kindling, 99), 1);
+        Sim.Step(w, new PickUp(P, Resource.Stick, 99), 1);
         Assert.False(w.Tiles.ContainsKey(camp)); // nothing else differs here, so the tile goes too
     }
 
@@ -183,16 +187,21 @@ public class WorkTests
     }
 
     [Fact]
-    public void Chopping_NeedsAnAxe_PersistsAcrossSteps_AndStopsWhenTheTreeFalls()
+    public void Chopping_NeedsAnAxe_FellsTheTree_ThenCutsFirewoodUntilTheTrunkIsGone()
     {
         var w = WithPools(Forage, Trees);
         Assert.Equal("you need an axe to fell trees", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
         Axe(w);
-        Assert.Null(Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
+        RoomForATree(w);
+        var fall = Sim.Step(w, new Gather(P, 1), 60);
+        Assert.Null(fall.InterruptedReason);
+        Assert.Single(fall.Events.OfType<TreeFelled>()); // down at 40 minutes, and cutting on
+        Assert.True(Items.Have(Items.Pack(w, P), Resource.BirchFirewood) > 0);
         var r = Sim.Step(w, new Gather(P, 1), 60);
-        Assert.Equal(("tree felled", 40), (r.InterruptedReason, r.MinutesElapsed));
-        Assert.Single(r.Events.OfType<TreeFelled>());
-        Assert.True(Items.Have(Items.Pack(w, P), Resource.Birch) > 0);
+        Assert.Equal(("tree cut up", 40), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Empty(r.Events.OfType<TreeFelled>());
+        Assert.InRange(Items.Count(Items.Pack(w, P), Resource.BirchFirewood), 8, 10);
+        Assert.Equal(0, Items.Have(Items.Pack(w, P), Resource.BirchBranch)); // felling cuts firewood, never branches
     }
 
     /// old game: interrupted work lost everything it had done, and the impairment factor lengthened
@@ -203,9 +212,10 @@ public class WorkTests
         var healthy = WithPools(Forage, Trees);
         var lame = WithPools(Forage, Trees);
         Axe(healthy); Axe(lame);
+        RoomForATree(healthy); RoomForATree(lame);
         foreach (var leg in lame.Agent(P).Body.Regions.Where(r => r.Name.Contains("Leg"))) foreach (var t in leg.Layers) t.Condition = 0.3;
         Assert.True(Body.GetCapacities(lame.Agent(P).Body).Moving < 0.5);
-        Assert.Equal("tree felled", Sim.Step(healthy, new Gather(P, 1), 100).InterruptedReason);
+        Assert.Equal("tree cut up", Sim.Step(healthy, new Gather(P, 1), 100).InterruptedReason);
         Assert.Null(Sim.Step(lame, new Gather(P, 1), 100).InterruptedReason);
         Assert.Equal(100 / 1.2 / 100, Pools.ChopProgressPct(lame, new PoolId(Map.Of(lame).Camp, 1)), 9);
 
@@ -231,7 +241,7 @@ public class WorkTests
     [Fact]
     public void AHarvestThatNeedsATool_IsRefusedWithoutIt()
     {
-        var w = WithPools(Forage, Bush() with { RequiresTool = ToolType.Axe });
+        var w = WithPools(Forage, Bush() with { Items = [.. Bush().Items.Select(i => i with { RequiresTool = ToolType.Axe })] });
         Know(w, 1);
         Assert.Equal("you need an axe", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
         Axe(w);
@@ -241,7 +251,7 @@ public class WorkTests
     [Fact]
     public void Salvage_ComesAllAtOnce_GearIncluded()
     {
-        var camp = new StockPool("Camp", StockKind.Salvage, 45, [new StockItem(Resource.Kindling, 1, 0.6)], 0, Gear: [Items.Make("worn_knife")]);
+        var camp = new StockPool("Camp", StockKind.Salvage, 45, [new StockItem(Resource.Stick, 1, 0.6)], 0, Gear: [Items.Make("worn_knife")]);
         var w = WithPools(Forage, camp);
         Know(w, 1);
         var r = Sim.Step(w, new Gather(P, 1), 120);

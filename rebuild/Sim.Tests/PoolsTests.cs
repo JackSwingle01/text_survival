@@ -140,7 +140,7 @@ public class PoolsTests
                 {
                     if (m >= 60) { later += kg; continue; }
                     hour1 += kg;
-                    if (r is Resource.Pine or Resource.Birch or Resource.Oak) wood += kg;
+                    if (r is Resource.PineBranch or Resource.BirchBranch or Resource.OakBranch) wood += kg;
                     if (Items.Resources[r].Category == ResourceCategory.Food) food += kg;
                 }
         }
@@ -155,7 +155,7 @@ public class PoolsTests
     {
         // Abundant enough that every minute finds something: the old ground only thinned when a
         // search turned something up (kept quirk), so a sparse table thins far slower than 1/(1 + 2h).
-        var w = WithPools(new ForagePool("test", 1.0, [new ForageItem(Resource.Kindling, 600, 0.1, 0.1)]));
+        var w = WithPools(new ForagePool("test", 1.0, [new ForageItem(Resource.Stick, 600, 0.1, 0.1)]));
         var id = Camp(w);
         var rng = Rng.ForSystem(1, "test");
         for (int i = 0; i < 60; i++) Pools.Forage(w, id, 1.0 / 60, rng);
@@ -172,7 +172,7 @@ public class PoolsTests
     [Fact]
     public void ASearchAfterRegrowth_StartsFromTheRegrownGround()
     {
-        var w = WithPools(new ForagePool("test", 1.0, [new ForageItem(Resource.Kindling, 600, 0.1, 0.1)]));
+        var w = WithPools(new ForagePool("test", 1.0, [new ForageItem(Resource.Stick, 600, 0.1, 0.1)]));
         var id = Camp(w);
         var rng = Rng.ForSystem(1, "test");
         for (int i = 0; i < 180; i++) Pools.Forage(w, id, 1.0 / 60, rng);
@@ -238,17 +238,17 @@ public class PoolsTests
     // ---- stock (harvestables, salvage, details) ----
 
     static StockPool Bush(double respawnHours = 168, ToolType? tool = null) =>
-        new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, respawnHours)], RevealAtHours: 0, RequiresTool: tool);
+        new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, respawnHours, RequiresTool: tool)], RevealAtHours: 0);
 
     [Fact]
     public void Stock_GivesAUnitACycle_AndRegrowsAUnitPerRespawnTime()
     {
         var w = WithPools(Bush());
         var id = Camp(w);
-        var got = Pools.WorkStock(w, id, 12);
+        var got = Pools.WorkStock(w, id, 12, null);
         Assert.Equal(0.8, Items.Have(got, Resource.Berries), 9); // two whole cycles of five minutes
         Assert.Equal(3, Pools.UnitsNow(w, id)[0]);
-        Pools.WorkStock(w, id, 15);
+        Pools.WorkStock(w, id, 15, null);
         Assert.False(Pools.HasStock(w, id));
         w.Minute += 168 * 60 * 2;
         Assert.Equal(2, Pools.UnitsNow(w, id)[0]);
@@ -263,12 +263,12 @@ public class PoolsTests
     {
         var w = WithPools(Bush());
         var id = Camp(w);
-        Pools.WorkStock(w, id, 25);
+        Pools.WorkStock(w, id, 25, null);
         Assert.False(Pools.HasStock(w, id));
         w.Minute += 168 * 60;
         Assert.Equal(1, Pools.UnitsNow(w, id)[0]);
         var got = new Inventory();
-        for (int minute = 0; minute < 30; minute++) Items.AddAll(got, Pools.WorkStock(w, id, 1));
+        for (int minute = 0; minute < 30; minute++) Items.AddAll(got, Pools.WorkStock(w, id, 1, null));
         Assert.Equal(0.4, Items.Have(got, Resource.Berries), 9);
         Assert.False(Pools.HasStock(w, id));
         // And the clock still runs: two more weeks, two more units.
@@ -281,7 +281,7 @@ public class PoolsTests
     public void Stock_ThatNeverRegrows_StaysEmpty()
     {
         var w = WithPools(Bush(respawnHours: 0));
-        Pools.WorkStock(w, Camp(w), 30);
+        Pools.WorkStock(w, Camp(w), 30, null);
         w.Minute += 10_000;
         Assert.Equal(0, Pools.UnitsNow(w, Camp(w))[0]);
     }
@@ -289,21 +289,37 @@ public class PoolsTests
     // ---- trees (old WoodedAreaFeatureTests) ----
 
     [Fact]
-    public void Chopping_AccumulatesAndPersists_ThenFellsAndResets()
+    public void Chopping_AccumulatesAndPersists_FellsTheTree_ThenCutsItsTrunkPieceByPiece()
     {
-        var w = WithPools(new TreePool("Trees", Resource.Birch, 100));
+        var w = WithPools(new TreePool("Trees", Resource.BirchFirewood, 100));
         var id = Camp(w);
         var rng = Rng.ForSystem(1, "test");
-        Assert.Null(Pools.Chop(w, id, 40, rng));
-        Assert.Equal(0.4, Pools.ChopProgressPct(w, id), 9);
+        var start = Pools.Chop(w, id, 20, rng);
+        Assert.False(start.CameDown);
+        Assert.True(Items.IsEmpty(start.Got));
+        Assert.Equal(0.2, Pools.ChopProgressPct(w, id), 9);
+        var fall = Pools.Chop(w, id, 20, rng); // down at 40% of its minutes: sticks and tinder, the trunk left lying
+        Assert.True(fall.CameDown);
+        Assert.Equal(0, Items.Have(fall.Got, Resource.BirchFirewood));
+        Assert.True(Items.Have(fall.Got, Resource.Stick) > 0 && Items.Have(fall.Got, Resource.Tinder) > 0);
+        Assert.NotNull(Pools.NextPieceKg(w, id));
+        var trunk = ((TreeState)Pools.StateOf(w, id)!).TrunkPieces;
+        Assert.InRange(trunk, 8, 10);
+
+        // Leaving and coming back: the save keeps the trunk and the minutes toward its next piece.
+        Pools.Chop(w, id, 60.0 / trunk * 1.5, rng);
+        double progress = Pools.ChopProgressPct(w, id);
         var loaded = TestWorlds.Load(Save.ToJson(w));
         loaded.PoolCache = w.PoolCache;
-        Assert.Equal(0.4, Pools.ChopProgressPct(loaded, id), 9);
-        var tree = Pools.Chop(w, id, 60, rng)!;
-        Assert.Equal(0, Pools.ChopProgressPct(w, id));
-        Assert.InRange(Items.Have(tree, Resource.Birch), 8 * 2.0 * 0.9, 10 * 2.0 * 1.1); // 8-10 logs, all birch
-        Assert.True(Items.Have(tree, Resource.Kindling) > 0 && Items.Have(tree, Resource.Tinder) > 0);
-        Assert.True(Pools.HasTrees(w, id)); // unlimited
+        Assert.Equal(progress, Pools.ChopProgressPct(loaded, id), 9);
+        Assert.Equal(Pools.NextPieceKg(w, id), Pools.NextPieceKg(loaded, id));
+
+        var rest = Pools.Chop(loaded, id, 60 - 60.0 / trunk * 1.5, rng);
+        Assert.True(rest.CutUp);
+        Assert.Equal(trunk - 1, Items.Count(rest.Got, Resource.BirchFirewood)); // the first piece came off before the save
+        Assert.Equal(0, Pools.ChopProgressPct(loaded, id));
+        Assert.Null(Pools.NextPieceKg(loaded, id));
+        Assert.True(Pools.HasTrees(loaded, id)); // unlimited
     }
 
     /// Old WoodedAreaFeature: a limited stand counts down, and regrows only once cleared, a week a tree,
@@ -316,7 +332,9 @@ public class PoolsTests
         var rng = Rng.ForSystem(1, "test");
         Pools.Chop(w, id, 10, rng);
         Assert.True(Pools.HasTrees(w, id));
-        Pools.Chop(w, id, 10, rng);
+        Assert.True(Pools.Chop(w, id, 4, rng).CameDown);
+        Assert.True(Pools.HasTrees(w, id)); // the last tree is down, but its trunk still lies here to cut
+        Assert.True(Pools.Chop(w, id, 6, rng).CutUp);
         Assert.False(Pools.HasTrees(w, id));
         w.Minute += 167 * 60;
         Assert.False(Pools.HasTrees(w, id));
@@ -326,7 +344,7 @@ public class PoolsTests
         Assert.False(Pools.HasTrees(w, id));
     }
 
-    /// Statistical golden: old WoodedAreaFeature.FellTree over 20000 mixed trees: 8.9956 logs,
+    /// Statistical golden: old WoodedAreaFeature.FellTree over 20000 mixed trees: 8.9956 logs (firewood now),
     /// 24.307 kg of logs, 1.751 kg of sticks, 0.1376 kg of tinder; pine 39.7%, birch 35.1%, oak 25.2%.
     [Fact]
     public void FelledTrees_YieldLikeTheOld()
@@ -338,17 +356,19 @@ public class PoolsTests
         var types = new Dictionary<Resource, int>();
         for (int i = 0; i < n; i++)
         {
-            var y = Pools.Chop(w, Camp(w), 1, rng)!;
-            foreach (var r in new[] { Resource.Pine, Resource.Birch, Resource.Oak })
+            var chop = Pools.Chop(w, Camp(w), 1, rng);
+            Assert.True(chop.CutUp);
+            var y = chop.Got;
+            foreach (var r in new[] { Resource.PineFirewood, Resource.BirchFirewood, Resource.OakFirewood })
                 if (Items.Have(y, r) > 0) { logs += Items.Have(y, r); types[r] = types.GetValueOrDefault(r) + 1; }
-            sticks += Items.Have(y, Resource.Kindling);
+            sticks += Items.Have(y, Resource.Stick);
             tinder += Items.Have(y, Resource.Tinder);
         }
         Assert.InRange(logs / n, 24.307 * 0.97, 24.307 * 1.03);
         Assert.InRange(sticks / n, 1.751 * 0.97, 1.751 * 1.03);
         Assert.InRange(tinder / n, 0.1376 * 0.97, 0.1376 * 1.03);
-        Assert.InRange(types[Resource.Pine] / (double)n, 0.37, 0.43);
-        Assert.InRange(types[Resource.Oak] / (double)n, 0.22, 0.28);
+        Assert.InRange(types[Resource.PineFirewood] / (double)n, 0.37, 0.43);
+        Assert.InRange(types[Resource.OakFirewood] / (double)n, 0.22, 0.28);
     }
 
     // ---- discovery is the agent's memory ----
@@ -483,8 +503,8 @@ public class SitePoolsTests
         var f = Assert.IsType<ForagePool>(Pools.At(w, floor)[0]);
         Assert.Equal(0.52, f.Density);
         Assert.Contains(f.Items, i => i.Resource == Resource.Shale);
-        Assert.DoesNotContain(f.Items, i => i.Resource == Resource.Kindling);
-        Assert.Contains(((ForagePool)Pools.At(w, mouth)[0]).Items, i => i.Resource == Resource.Kindling);
+        Assert.DoesNotContain(f.Items, i => i.Resource == Resource.Stick);
+        Assert.Contains(((ForagePool)Pools.At(w, mouth)[0]).Items, i => i.Resource == Resource.Stick);
         Assert.DoesNotContain(Pools.At(w, floor), p => p is TreePool);
         Assert.True(Map.IsDark(m, floor));
         Assert.False(Map.IsDark(m, mouth));
