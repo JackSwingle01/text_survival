@@ -442,13 +442,13 @@ Injuries heal slowly on their own in the MVP (no treatment yet).
 | Hands | 0.05 Blunt | 0.8 m | — |
 | Staff (one stick, new) | 0.41 Blunt | 1.5 m | — |
 | Stone (new, also thrown) | 0.65 Blunt | 0.8 m | 15 m / 0.50 / 0.55 |
-| Crude spear (sharpened stick) | 0.91 Pierce | 2.5 m | 15 m / 0.55 / 1.40 |
 | Knife | 3.38 Sharp | 0.8 m | 10 m / 0.40 / 1.20 |
-| Wooden spear (fire-hardened) | 4.84 Pierce | 2.5 m | 20 m / 0.70 / 2.00 |
-| Heavy spear | 5.56 Pierce | 2.5 m | 15 m / 0.60 / 2.30 |
+| Stone club (#147, measured, not tuned) | 3.50 Blunt | 1.0 m | — |
+| Wooden spear (sharpened and fire-hardened in one) | 4.84 Pierce | 2.5 m | 20 m / 0.70 / 2.00 |
 | Axe | 6.00 Sharp | 1.2 m | 10 m / 0.45 / 1.50 |
-| Stone-tipped spear (crafting) | 6.29 Pierce | 2.5 m | 20 m / 0.70 / 2.60 |
-| Ivory-tipped spear (crafting, not built) | 0.45 Pierce on the old scale | 2.5 m | 20 m / 0.70 / 0.45 |
+| Flint-tipped spear | 6.29 Pierce | 2.5 m | 20 m / 0.70 / 2.60 |
+| Obsidian-tipped spear | 6.79 Pierce | 2.5 m | 20 m / 0.70 / 2.80 |
+| Ivory-tipped spear | 8.39 Pierce | 2.5 m | 20 m / 0.70 / 3.47 |
 
   Melee damage is the tuner's (2026-11-22); the outcome order spear > axe > knife > stone > staff > hands holds.
 - Glance moves onto the sight rays: one sight model for noticing and the explored map.

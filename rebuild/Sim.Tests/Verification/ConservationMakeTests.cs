@@ -30,7 +30,7 @@ public class ConservationMakeTests
     public sealed record Scene(double[] PackKg, bool[] Tools, bool Fire, Op[] Ops);
 
     static readonly Resource[] Inputs = [.. Recipes.All.SelectMany(r => r.Materials).SelectMany(m => m.AnyOf).Distinct().Order()];
-    static readonly string[] ToolKinds = ["crude_edge", "flint_knife", "stone", "bone_needle", "crude_spear", "wooden_spear", "hide_gloves", "obsidian_knife"];
+    static readonly string[] ToolKinds = ["crude_edge", "flint_knife", "stone", "bone_needle", "wooden_spear", "stone_club", "hide_gloves", "obsidian_knife"];
 
     static readonly Recipe[] AtAStation = [.. Recipes.All.Where(r => r.Station != null)];
 

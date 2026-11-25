@@ -846,7 +846,7 @@ public static partial class Combat
     }
 
     /// Luck takes a blow from half to one and a half of its average.
-    static (double Amount, DamageType Type) Luck((double Amount, DamageType Type) blow, Rng rng) => (blow.Amount * (0.5 + rng.NextDouble()), blow.Type);
+    internal static (double Amount, DamageType Type) Luck((double Amount, DamageType Type) blow, Rng rng) => (blow.Amount * (0.5 + rng.NextDouble()), blow.Type);
 
     /// The blow before luck: the weapon's damage, or the species' own unarmed, as an average fresh member of
     /// its kind strikes it, scaled by its strength against theirs (half weight) and its vitality 70-100%.
@@ -866,7 +866,7 @@ public static partial class Combat
         return (damage * (strengthPct / 2 + 0.5) * (0.7 + 0.3 * Body.Vitality(body, species)), type);
     }
 
-    static DamageType TypeOf(Weapon weapon) => weapon.Class switch
+    internal static DamageType TypeOf(Weapon weapon) => weapon.Class switch
     {
         WeaponClass.Blade => DamageType.Sharp,
         WeaponClass.Pierce => DamageType.Pierce,

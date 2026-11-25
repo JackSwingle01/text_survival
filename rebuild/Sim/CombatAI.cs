@@ -164,11 +164,9 @@ public static partial class Combat
         : u.State;
 
     /// Dead, or too far gone to know where it is.
-    static bool IsDown(World world, CombatUnit u)
-    {
-        var body = BodyOf(world, u);
-        return !Body.IsAlive(body) || Body.GetCapacities(body).Consciousness < 0.1;
-    }
+    static bool IsDown(World world, CombatUnit u) => IsDown(BodyOf(world, u));
+
+    internal static bool IsDown(BodyState body) => !Body.IsAlive(body) || Body.GetCapacities(body).Consciousness < 0.1;
 
     static bool IsAware(FighterState s) => s is FighterState.Pressing or FighterState.Standoff or FighterState.GivingGround or FighterState.Fleeing;
 
