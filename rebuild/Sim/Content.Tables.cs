@@ -89,7 +89,7 @@ public static partial class Content
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
-        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0);
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, double CapG = 0, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -438,20 +438,23 @@ public static partial class Content
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
+            bool fromNothing = row.Station != null && materials.Count == 0 && items.Count == 0; // Stations.FromNothing, before the Recipe exists
+            if (r.CapG != 0 && !fromNothing) problems.Add($"{at}: capG is for a station-worked recipe with no input");
             if (row.Station != null || row.Driver != null) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
-            if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
+            if (problems.Count == before && !fromNothing) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct,
+                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct, r.CapG / 1000,
                     r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
     }
 
-    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on.
+    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on, or
+    /// nothing goes on and grams of a continuous resource come off, until its cap waits (melting snow).
     static IEnumerable<string> StationProblems(string at, RecipeFileRow row, List<MaterialInput> materials, List<string> items,
         IReadOnlyList<Capability> faster, List<Outcome> outcomes, IReadOnlyDictionary<Resource, ResourceDef> resources)
     {
@@ -460,7 +463,13 @@ public static partial class Content
         if (row.Tools.Count > 0 || faster.Count > 0) yield return $"{at}: a station-worked recipe uses no tools";
         if (outcomes.Count > 0) yield return $"{at}: a station-worked recipe has no outcome table";
         if (row.Requires.Count > 0) yield return $"{at}: a station-worked recipe has no requirements: its station's exposure sets its rate";
-        if (items.Count > 0 || materials.Count != 1) yield return $"{at}: a station-worked recipe has one input";
+        if (items.Count > 0 || materials.Count > 1) yield return $"{at}: a station-worked recipe has one input";
+        else if (materials.Count == 0)
+        {
+            if (row.Result.Resource is not Resource result || resources[result].Discrete || row.Result.G <= 0 || row.Result.CapG < row.Result.G)
+                yield return $"{at}: a station-worked recipe with no input makes grams of a continuous resource, up to a capG of at least its g";
+            yield break;
+        }
         else if (materials[0] is not { AnyOf.Count: 1, Count: 1 } m || !resources[m.AnyOf[0]].Discrete)
             yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource";
         if (row.Result.Resource is not Resource made || !resources[made].Discrete || row.Result.Count != 1)
