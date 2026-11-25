@@ -54,3 +54,7 @@ the comment that parked the issue the first time, and the brief took the newest 
 in the text → it takes only runs on a "CI failed on main at ..." line, which is what `main_red.sh`
 writes. The fetch itself worked: no error, and `log_excerpt` on the real job's log shows the failing
 test and its message.
+
+Revised (third run on main, #250): triage marked it ready and the build selected #250 alone, then
+started nothing: weekly plan usage was at 80%, the build's limit. Jack raised the build's
+`MAX_PLAN_UTILIZATION` to 0.9. `resolve-conflicts.yml` keeps its own 0.8.
