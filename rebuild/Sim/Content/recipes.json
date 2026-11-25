@@ -16,7 +16,7 @@
 //   result: { "gear": kind } for one piece, weighing what items.json says, never more than its lightest possible
 //     inputs; { "resource": r, "count": n, "sharePct": s } for n pieces of a discrete r, together s of the actual
 //     weight that went in (less what an outcome wastes), each in r's range; { "resource": r, "g": n } for a
-//     continuous r; or, placed on the tile,
+//     continuous r, or { "resource": r, "sharePct": s } for s of the actual weight that went in; or, placed on the tile,
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
 //     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
@@ -110,7 +110,17 @@
   "result": { "resource": "ResinTinder", "g": 50 },
   "outcomes": [] },
 
- // ---- cordage and hides ----
+ // ---- fat, fibre, cordage and hides ----
+ // A hand recipe at a burning fire until the fire works it as a station (#189).
+ "render_fat": { "name": "Render fat", "category": "Processing",
+  "inputs": [ { "of": "RawFat", "count": 1 } ], "tools": [], "requires": ["Fire"], "minutes": 20,
+  "result": { "resource": "Tallow", "sharePct": 0.6 },
+  "outcomes": [] },
+ // Inner willow bark stripped and twisted by feel: no light needed.
+ "willow_fibre": { "name": "Willow fibre", "category": "Processing",
+  "inputs": [ { "of": "WillowBark", "g": 100 } ], "tools": [], "requires": [], "minutes": 10,
+  "result": { "resource": "PlantFiber", "sharePct": 0.8 },
+  "outcomes": [] },
  // Twisted by feel: no light needed.
  "cordage": { "name": "Cordage", "category": "Processing",
   "inputs": [ { "of": "PlantFiber", "g": 300 } ], "tools": [], "requires": [], "minutes": 15,
@@ -182,20 +192,38 @@
   "outcomes": ["fail=.05", "fail:waste_material:Flint:.5=.08", "succeed:save_material:Sinew:1=.10",
    "succeed:injury:LeftArm|RightArm:0.05=.04", "fail:break_tool:Cutting=.02"] },
 
- // ---- torches: all three make the one torch ----
- "simple_torch": { "name": "Simple torch", "category": "Lighting",
-  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "Tinder", "g": 100 } ], "tools": [], "requires": [], "minutes": 5,
+ // ---- torches: a torch, and a resin torch that burns twice as long ----
+ "torch": { "name": "Torch", "category": "Lighting",
+  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "BirchBark|Tinder", "g": 50 } ], "tools": [], "requires": [], "minutes": 5,
   "result": { "gear": "torch" },
   "outcomes": ["fail:waste_material:Tinder:1=.05"] },
- "birch_bark_torch": { "name": "Birch bark torch", "category": "Lighting",
-  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "BirchBark", "g": 50 } ], "tools": [], "requires": [], "minutes": 5,
-  "result": { "gear": "torch" },
-  "outcomes": [] },
  "resin_torch": { "name": "Resin torch", "category": "Lighting",
-  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "Tinder", "g": 50 }, { "of": "PineResin", "g": 50 } ],
+  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "PineResin", "g": 30 }, { "of": "Tinder", "g": 20 } ],
   "tools": [], "requires": [], "minutes": 10,
-  "result": { "gear": "torch" },
+  "result": { "gear": "resin_torch" },
   "outcomes": ["succeed:save_material:PineResin:1=.10"] },
+
+ // ---- carrying: each with the tool its work needs, none needing light ----
+ "small_pouch": { "name": "Birch-bark pouch", "category": "Carrying",
+  "inputs": [ { "of": "BirchBark", "g": 100 }, { "of": "PlantFiber", "g": 50 } ], "tools": ["Cutting"], "requires": [], "minutes": 15,
+  "result": { "gear": "small_pouch" },
+  "outcomes": ["fail:waste_material:BirchBark:0.5=.05"] },
+ "rope_belt": { "name": "Rope belt", "category": "Carrying",
+  "inputs": [ { "of": "Rope", "count": 2 } ], "tools": [], "requires": [], "minutes": 20,
+  "result": { "gear": "rope_belt" },
+  "outcomes": [] },
+ "hide_belt": { "name": "Hide belt", "category": "Carrying",
+  "inputs": [ { "of": "HideStrip", "count": 2 } ], "tools": ["Cutting"], "requires": [], "minutes": 30,
+  "result": { "gear": "hide_belt" },
+  "outcomes": ["fail:waste_material:HideStrip:0.5=.05"] },
+ "large_bag": { "name": "Large bag", "category": "Carrying",
+  "inputs": [ { "of": "CuredHide", "count": 3 }, { "of": "Sinew", "count": 2 }, { "of": "Rope", "count": 2 } ], "tools": ["Sewing"], "requires": [], "minutes": 60,
+  "result": { "gear": "large_bag" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.34=.05", "fail:break_tool:Sewing=.02"] },
+ "mammoth_hide_pack": { "name": "Mammoth hide pack", "category": "Carrying",
+  "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "Sinew", "count": 2 }, { "of": "Rope", "count": 1 } ], "tools": ["Sewing"], "requires": [], "minutes": 120,
+  "result": { "gear": "mammoth_hide_pack" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
 
  // ---- hide clothing: hide strips or cured hides and sinew, sewn with a needle ----
  "hide_gloves": { "name": "Hide gloves", "category": "Clothing",

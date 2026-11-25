@@ -261,7 +261,8 @@
   "Lighting": "lighting",
   "Processing": "processing",
   "Clothing": "clothing",
-  "Camp": "camp"
+  "Camp": "camp",
+  "Carrying": "carrying"
  },
  "Requirement": {
   "Light": "light",
