@@ -10,7 +10,7 @@ public class CampBuildsTests
     /// Noon on an ordinary open tile, an empty pack.
     static World Builder(out TileId tile, out Inventory pack)
     {
-        var w = TestWorlds.Bare(17);
+        var w = TestWorlds.FreshPlayer(TestWorlds.Bare(17));
         w.FixedWeather = Mild;
         var m = Map.Of(w);
         tile = (from x in Enumerable.Range(0, m.Width)

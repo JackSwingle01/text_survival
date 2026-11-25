@@ -133,11 +133,11 @@ public class CapacityReadTests
     static readonly string[] CapacityReadsToday =
     [
         // The sim.
+        "Combat.Boldness: Moving",
+        "Combat.IsDown: Consciousness",
         "Making.WorkPerMinute: Manipulation, Moving",
         "Senses.Now: Sight",
-        "Shelters.ImpairmentFactor: Manipulation, Moving",
         "Sight.ViewOf: Sight",
-        "Work.ImpairmentFactor: Manipulation, Moving",
         // The tests.
         "EffectsPropertyTests.Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Phase2GateTests.S: Capacities",
@@ -163,6 +163,5 @@ public class CapacityReadTests
         "Tests.SurvivalTests.Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors: Moving",
         "Tests.SurvivalTests.LowStats_RaiseHungryThirstyTired: Moving",
         "Tests.SurvivalTests.WellFed_WarmsAndHealsFivePercentMore_OnlyWhileItHolds: Capacities",
-        "Tests.WorkTests.ImpairedChopping_IsSlower_AndInterruptedChoppingKeepsItsProgress: Moving",
     ];
 }

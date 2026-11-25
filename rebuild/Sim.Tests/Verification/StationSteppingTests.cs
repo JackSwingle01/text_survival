@@ -47,6 +47,44 @@ public class StationSteppingTests
         return string.Join(", ", events.OfType<TransformationFinished>().Select(e => $"{e.Recipe} {e.Minute}"));
     }
 
+    /// A rack of berries beside the same fire: it reads the fire's heat, so the fire must be caught up to each minute
+    /// it dries in, whoever is there; the fire has no work of its own to catch it up.
+    static string RackFinishMinutes(Scene s, bool reference)
+    {
+        var w = ConservationWorlds.Bare(-5);
+        var camp = Map.Of(w).Camp;
+        var f = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
+        if (s.BirchKg > 0.01) f.BurningKg[Resource.BirchFirewood] = s.BirchKg;
+        if (s.PineKg > 0.01) f.UnburnedKg[Resource.PineFirewood] = s.PineKg;
+        w.Fires[new FireId(w.NextFireId++)] = f;
+        var rack = Stations.Build(w, camp);
+        Items.Add(Items.Pack(w, P), Resource.Berries, 0.5);
+        Assert.Equal(1, Sim.Step(w, new PutOn(P, "dry_berries", rack), 1).MinutesElapsed);
+        if (!reference && !s.Present) w.Agent(P).Tile = Map.Step(Map.Step(Map.Step(camp, Direction.West), Direction.West), Direction.West);
+
+        var events = new List<WorldEvent>();
+        int left = RackHorizon, i = 0;
+        while (left > 0)
+        {
+            int n = reference ? left : Math.Min(left, s.Chunks[i++ % s.Chunks.Length] * 15);
+            events.AddRange(Sim.Advance(w, n));
+            left -= n;
+        }
+        return string.Join(", ", events.OfType<TransformationFinished>().Select(e => $"{e.Recipe} {e.Minute}"));
+    }
+
+    /// Past the berries' 12 hours at full rate.
+    const int RackHorizon = 12 * 60 + 30;
+
+    [Fact]
+    public void ARacksFinishMinute_IsTheSame_HoweverTheWorldIsStepped_AndWhoeverIsThere() =>
+        Scenes.Check(s =>
+        {
+            var expected = RackFinishMinutes(s, reference: true);
+            Assert.NotEmpty(expected);
+            Assert.Equal(expected, RackFinishMinutes(s, reference: false));
+        }, iter: 6);
+
     static void Run(Scene s) => Assert.Equal(FinishMinutes(s, reference: true), FinishMinutes(s, reference: false));
 
     [Fact]

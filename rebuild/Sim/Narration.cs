@@ -133,6 +133,16 @@ public static class Narration
         Slowed.FireLow => "the fire is low",
         Slowed.Embers => "the fire is down to embers",
         Slowed.FireOut => "the fire is out",
+        Slowed.Snowing => "snow is falling on it",
+        Slowed.Raining => "rain is falling on it",
+    };
+
+    /// What speeds drying, as the rack's menu says it.
+    public static string Why(Sped why) => why switch
+    {
+        Sped.FireBeside => "the fire beside it speeds it",
+        Sped.WarmAir => "the warm air speeds it",
+        Sped.Wind => "the wind speeds it",
     };
 
     public static string Change(Change c) => c.Kind switch

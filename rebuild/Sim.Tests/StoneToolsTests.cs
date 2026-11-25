@@ -121,7 +121,7 @@ public class StoneToolsTests
 
     static World Grove(params string[] axes)
     {
-        var w = TestWorlds.Bare(17);
+        var w = TestWorlds.FreshPlayer(TestWorlds.Bare(17));
         w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         w.PoolCache = new() { [Map.Of(w).Camp] = [new TreePool("Trees", Resource.BirchFirewood, 120)] };
         var pack = Items.Pack(w, P);

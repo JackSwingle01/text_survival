@@ -356,7 +356,17 @@ internal static class Faculties
 /// surroundings (no dark, wet or load). One a fresh body lacks (a wolf's dexterity) is left out.
 internal static class Vitality
 {
-    readonly record struct FacultyRead(double Strength, double Speed, double Dexterity, double Perception);
+    readonly record struct FacultyRead(double Strength, double Speed, double Dexterity, double Perception)
+    {
+        public double Of(Faculty f) => f switch
+        {
+            Faculty.Strength => Strength,
+            Faculty.Speed => Speed,
+            Faculty.Dexterity => Dexterity,
+            Faculty.Perception => Perception,
+            _ => throw new ArgumentOutOfRangeException(nameof(f), f, null),
+        };
+    }
 
     static FacultyRead Read(BodyState body, in Capacities c) =>
         new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, wetSeverity: 0), Faculties.Perception(c, default));
@@ -372,6 +382,14 @@ internal static class Vitality
 
     static FacultyRead FreshOf(Species species, Sex sex) =>
         Fresh[(int)species * SexCount + (int)(species == Species.Human ? sex : Sex.Male)];
+
+    /// A faculty as its share of a fresh body of the species and sex, read with no surroundings and held at
+    /// one for a body better than fresh. Zero for a faculty a fresh body lacks (a wolf's dexterity).
+    internal static double Share(BodyState body, Species species, Faculty faculty)
+    {
+        double whole = FreshOf(species, body.Sex).Of(faculty);
+        return whole > 0 ? TissueReads.Clamp01(Read(body, Capacities.Of(body)).Of(faculty) / whole) : 0;
+    }
 
     internal static double Of(BodyState body, Species species)
     {

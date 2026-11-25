@@ -95,7 +95,7 @@ sealed class ViewBuilder(World world, int gen)
                 _ => null,
             },
             Durations: v.Durations,
-            Progress: v.Progress is { } p ? new ProgressDto(p.FinishMinute, p.Why is Slowed why ? Narration.Why(why) : null) : null);
+            Progress: v.Progress is { } p ? new ProgressDto(p.FinishMinute, p.Why is Slowed why ? Narration.Why(why) : p.Faster is Sped sped ? Narration.Why(sped) : null) : null);
     }
 
     /// The activity's family, for the page's icons and keys. Not a vocabulary: the page acts by id.

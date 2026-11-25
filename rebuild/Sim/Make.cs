@@ -222,8 +222,6 @@ public static class Making
     public const double SkillPctPerLevel = 0.04;
     public const double AbandonReclaimPct = 0.8;
     public const double FasterToolFactor = 1.5;
-    /// Below this dexterity the work slows, by up to half again at none.
-    const double DexterityThreshold = 0.7, MaxDexterityPenaltyPct = 0.5;
 
     public const string MadeIt = "made", Spoiled = "spoiled";
 
@@ -361,7 +359,7 @@ public static class Making
                 case Requirement.Frost when Exposure.Surface(world, tile, world.Minute).AirTemperatureF is var airF && airF > 32:
                     return new("too warm to build in snow", new MissingState(Lack.FrostF, 32, airF));
                 case Requirement.Shelter when Shelters.Peek(world, tile) == null: return new("you need shelter here", new MissingState(Lack.Shelter));
-                case Requirement.Dry when Falling(world, tile) && !(Shelters.Peek(world, tile)?.OverheadLevel >= DryRoofLevel):
+                case Requirement.Dry when Exposure.FallsOn(Exposure.Surface(world, tile, world.Minute), Shelters.Peek(world, tile)?.OverheadLevel ?? 0):
                     return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
                 case Requirement.NoShelter when BlockingShelter(world, tile, r) is { } s: return new($"there is already a shelter here ({s.Name})");
                 case Requirement.NoShelter when Shelters.Peek(world, tile) is { } replaced && Shelters.ReplacedBy(replaced, r.Result.Replaces)
@@ -375,16 +373,8 @@ public static class Making
         return null;
     }
 
-    const double DryRoofLevel = 0.5;
-
     static ShelterState? BlockingShelter(World world, TileId tile, Recipe r) =>
         Shelters.Peek(world, tile) is { } s && !Shelters.ReplacedBy(s, r.Result.Replaces) ? s : null;
-
-    static bool Falling(World world, TileId tile)
-    {
-        var s = Exposure.Surface(world, tile, world.Minute);
-        return s.SnowfallWeMPerMinute + s.RainfallMPerMinute > 0;
-    }
 
     static bool Gives(Gear g, Capability cap) => Items.Works(g) && Items.Def(g).Capabilities.Contains(cap);
 
@@ -571,18 +561,13 @@ public static class Making
         return Shelters.BuiltReason;
     }
 
-    /// Bad hands count twice, through manipulation and through the dexterity built on it. Read every
-    /// minute, so how the work is split into steps cannot change when it finishes. Camp work: legs and hands.
+    /// Something carried slows by dexterity, something placed by speed and dexterity (Work.TimeFactor). Read
+    /// every minute, so how the work is split into steps cannot change when it finishes.
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
-        var c = Body.GetCapacities(agent.Body);
-        if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
-        double slow = c.Manipulation < 0.5 ? 1.25 : 1.0;
-        double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
-        if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;
-        return work / slow;
+        return work / (r.Result.Placed ? Work.BuildTimeFactor(agent) : Work.TimeFactor(agent, Faculty.Dexterity));
     }
 
     static readonly Cause Slip = new(null, "a slip at work");

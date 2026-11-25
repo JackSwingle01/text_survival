@@ -28,6 +28,8 @@ public readonly record struct Cover(CoverKind Kind, ShelterCover Shelter = defau
 public readonly record struct SurfaceWeather(
     double AirTemperatureF, double WindLevel, double SunlightLevel, double SnowfallWeMPerMinute, double RainfallMPerMinute);
 
+public readonly record struct StandingExposure(double AirF, double FireHeatF, double WindLevel, Precipitation Falling);
+
 /// What the world is doing to a body or thing in one place right now (GLOSSARY: Exposure).
 /// SurfaceAirF: the sky's air with the tile's own cold, what snow and meat feel.
 /// AirBeforeFireF: the air a body feels before any fire (wind chill, sun, precipitation, shelter step).
@@ -102,6 +104,26 @@ public sealed record Exposure(
             SunlightLevel: s.SunlightLevel * exposure,
             SnowfallWeMPerMinute: s.SnowfallWeMPerMinute * exposure,
             RainfallMPerMinute: s.RainfallMPerMinute * exposure);
+    }
+
+    /// A rack's roof must be this good to keep rain and snow off; Make's Dry requirement asks the same.
+    public const double DryRoofLevel = 0.5;
+
+    /// Rain or snow reaching the tile (its overhead already counted) falls on what stands there, unless a roof keeps it off.
+    public static bool FallsOn(SurfaceWeather s, double roofLevel) => s.SnowfallWeMPerMinute + s.RainfallMPerMinute > 0 && roofLevel < DryRoofLevel;
+
+    /// A thing standing on a tile (a rack) at a minute: the site's air, a pit's air and radiant heat beside it (nothing
+    /// held in: a thing has no body heat to keep), the wind past its walls and the shelter's, and what falls on it.
+    public static StandingExposure Standing(World world, TileId tile, long minute, FireState? pit, ShelterCover shelter)
+    {
+        var m = Map.Of(world);
+        var sky = Weather.At(world, minute);
+        var fires = Fire.Beside(pit);
+        double airF = SiteAirF(sky, Map.TemperatureDeltaF(m, tile));
+        var warmth = Fire.WarmthAgainst(fires, airF, 0);
+        return new StandingExposure(airF, warmth.AirHeatF + warmth.PitHeatF,
+            WindAt(sky, Map.WindFactor(m, tile), fires.WallsLevel, shelter.WindLevel),
+            FallsOn(Surface(world, tile, minute), shelter.OverheadLevel) ? sky.Precipitation : Precipitation.None);
     }
 
     public static double SnowfallWeSince(World world, TileId tile, long minute) =>
