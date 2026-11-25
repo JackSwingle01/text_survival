@@ -547,6 +547,9 @@ public static class Scheduler
             if (agent.Mind is not HerdMind && !Sim.IsAlive(agent)) continue;
             // A fight holds its fighters' activities (the player's rounds move them), not their bodies:
             // they live the minute where they stand. A fled fighter is out of it and lives on its own mind.
+            // Dead to the last, off the field of a fight it has not left: Fauna.Tick keeps its dead for
+            // that fight's aftermath (the units name members by index), so until then it plans nothing.
+            if (agent.Mind is HerdMind && !Sim.IsAlive(agent) && Combat.EncounterOf(world, id) != null) continue;
             if (Sim.Held(world, id)) { Sim.LiveBodies(world, agent, new Fight(id, CombatAction.Wait), events); continue; }
             if (agent.Doing == null && !Plan(world, agent, events)) continue;
             var doing = agent.Doing!;

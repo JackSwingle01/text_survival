@@ -367,7 +367,8 @@ public static class Pools
             var resource = i.Resource ?? i.AnyOf![0]; // drawn below, after every count
             // Salvage and details: everything comes at once, after the minutes.
             items.Add((work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit!.Value)
-                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : [.. Enumerable.Repeat(i.KgPerUnit, units)])) with { RequiresTool = i.RequiresTool });
+                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : [.. Enumerable.Repeat(i.KgPerUnit, units)])) with
+            { RequiresTool = i.RequiresTool });
         }
         foreach (var i in d.Items ?? []) Take(i);
         int wood = choices.Count > 0 ? rng.NextInt(choices[0].AnyOf.Count) : 0;
