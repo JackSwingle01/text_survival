@@ -116,7 +116,7 @@ public class SaveFixtureTests
 
     /// A small world with a bit of most of what a save holds: a fire burning, a pile, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
-    /// streams, a journal, a made thing's parts and an unfinished one in the pack, meat half cooked at the fire, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
+    /// streams, a journal, a made thing's parts and an unfinished one in the pack, a worn piece being mended, meat half cooked at the fire, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
         var map = Map.Generate(17);
@@ -145,6 +145,14 @@ public class SaveFixtureTests
         // Snow melting at the fire: a litre waiting and half of the next done (Stations.Ongoing).
         Sim.Step(w, new PutOn(P, "melt_snow"), 1);
         Sim.Step(w, new Wait(P), 8);
+        // Worn gloves taken off to be mended, begun without a minute passing: a repair's project and its piece.
+        var gloves = Items.Make("hide_gloves");
+        gloves.Durability = 40;
+        w.Agent(P).Body.Worn.Add(gloves);
+        Items.Pack(w, P).Gear.Add(Items.Make("bone_needle"));
+        TestKit.GivePieces(Items.Pack(w, P), Resource.HideStrip, 1);
+        TestKit.GivePieces(Items.Pack(w, P), Resource.Sinew, 1);
+        Making.Begin(w, new Make(P, "mend", "hide_gloves"), []);
         // A piece of meat half cooked at the fire (Stations).
         Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
         Sim.Step(w, new PutOn(P, "cook_meat"), 1);

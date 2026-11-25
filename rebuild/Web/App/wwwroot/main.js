@@ -25,7 +25,7 @@ const S = {
   displayMinute: null,   // the clock as shown while time is being played out
   selected: null,
   openFeature: null,       // the location feature whose Interact menu is open
-  makeSel: null,         // the recipe selected in the make drawer
+  makeSel: null,         // the entry selected in the make drawer: a recipe, or a repair's recipe:target
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
 };
@@ -407,8 +407,10 @@ function renderPlace(d, v) {
 function renderMake(d, v) {
   head('ui/project', 'Make', '');
   const makes = v.make.filter(x => x.kind === 'make'), abandons = v.make.filter(x => x.kind === 'abandon'), builds = v.make.filter(x => x.kind === 'build');
-  if (!S.makeSel || !makes.some(x => x.make.recipe === S.makeSel)) S.makeSel = (makes.find(x => !x.refused) ?? makes[0])?.make.recipe;
-  const sel = makes.find(x => x.make.recipe === S.makeSel);
+  // A repair is one entry per piece it works on: the recipe and the target name it.
+  const key = x => x.make.target ? `${x.make.recipe}:${x.make.target}` : x.make.recipe;
+  if (!S.makeSel || !makes.some(x => key(x) === S.makeSel)) S.makeSel = key(makes.find(x => !x.refused) ?? makes[0] ?? { make: {} });
+  const sel = makes.find(x => key(x) === S.makeSel);
   let detail = '';
   if (sel) {
     const mk = sel.make;
@@ -428,7 +430,7 @@ function renderMake(d, v) {
   let lastCat = '';
   const list = makes.map(x => {
     const cat = x.make.category !== lastCat ? `<div class="cat">${esc(x.make.category)}</div>` : ''; lastCat = x.make.category;
-    return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: x.make.recipe === S.makeSel, open: `recipe:${x.make.recipe}` })
+    return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: key(x) === S.makeSel, open: `recipe:${key(x)}` })
       ;
   }).join('');
   $('sideBody').innerHTML = `${detail}
