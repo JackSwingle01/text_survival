@@ -77,7 +77,10 @@ public sealed class World
     internal HashSet<EdgeId>? TroddenEdges;
     internal (long Minute, Dictionary<(AgentId Who, TileId From, TileId To, Pace Pace), (int Minutes, double EncumbrancePct, double Speed)> Minutes)? StepMinutesCache;
 
-    public static World New(int seed)
+    public static World New(int seed) => New(seed, null);
+
+    /// beforeAnimals: run on the laid land before any animal is placed on it (the haul report's herds on old forage).
+    internal static World New(int seed, Action<World>? beforeAnimals)
     {
         var map = Map.Generate(seed);
         var world = new World { Seed = seed, GeneratedMap = map };
@@ -91,6 +94,7 @@ public sealed class World
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Items.LayStartingCamp(world, map.Camp);
         Map.PlaceSiteShelters(world);
+        beforeAnimals?.Invoke(world);
         Fauna.Populate(world);
         // The map opens on what is in view, not on nothing. A burning fire placed by generation would report events here, and this throws to say so.
         var events = new List<WorldEvent>();

@@ -134,7 +134,7 @@ public static class Outcomes
     static FormatException Bad(string line, string why) => new($"outcome '{line}': {why}");
 }
 
-public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing, Camp }
+public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing, Camp, Carrying }
 
 /// What the place must have for the work to start, and to go on: a closed list. Wet or cold hands
 /// and impairment never block; they slow the work and worsen the odds. Tent: one carried, to start.
@@ -148,8 +148,8 @@ public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int
     public IEnumerable<Resource> Continuous() => AnyOf.Where(r => !Items.IsDiscrete(r));
 }
 
-/// A gear kind; Kg of a continuous resource; Count pieces of a discrete one, together SharePct of the inputs' actual
-/// weight; or placed on the tile: a shelter (ShelterName, or the tent) or a bedding; or a repair of one held piece. CapKg: see Stations.FromNothing.
+/// A gear kind; Kg of a continuous resource, or SharePct of the inputs' actual weight; Count pieces of a discrete one,
+/// together SharePct of that weight; placed on the tile: a shelter (ShelterName, or the tent) or a bedding; or a repair of one held piece.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
     int Count = 0, double SharePct = 0, double CapKg = 0, RepairResult? Repair = null)
 {
@@ -635,23 +635,17 @@ public static class Making
         }
         else
         {
-            // A resource result: the inputs are worked into it, less in proportion to what was wasted; a discrete
-            // one is its share of the actual weight that went in, in whole pieces. Saved material is a bonus over a
-            // full result (the loader keeps it from making mass).
+            // A resource result: its share of the weight that went in (discrete: whole pieces), or a fixed amount less
+            // what was wasted. Saved material is a bonus over a full result.
             foreach (var (res, kg) in Items.Totals(materials)) spent[res] = spent.GetValueOrDefault(res) + kg;
             var made = r.Result.Resource!.Value;
-            double kgMade;
+            double kgMade = r.Result.SharePct > 0 ? r.Result.SharePct * Math.Max(0, inputKg - wastedKg) : r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);
             if (Items.IsDiscrete(made))
             {
-                kgMade = r.Result.SharePct * Math.Max(0, inputKg - wastedKg);
                 int pieces = r.Result.Count + ExtraPieces(effects, made);
                 for (int i = 0; i < pieces; i++) Items.AddPiece(gained, made, kgMade / pieces);
             }
-            else
-            {
-                kgMade = r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);
-                Items.Add(gained, made, kgMade);
-            }
+            else Items.Add(gained, made, kgMade);
             produced[made] = produced.GetValueOrDefault(made) + kgMade;
         }
 

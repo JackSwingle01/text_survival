@@ -1,0 +1,3101 @@
+// Named places: the old LocationFactory and CaveLocationFactory sites and the six stages of the
+// mountain crossing, ported by the tmp harness p4a/dump (old factories run and read back), with the
+// handful of creation-time dice (old Utils.DetermineSuccess / RandInt) written as "chance" and "stories".
+// Loaded once by Content; ContentTests checks every name in here resolves.
+//
+// placement: Named sites are dealt onto open land by MapGen (weight within the tile's terrain; elite
+// ones only far from camp); Cave sites onto cave floors; Pass stages along the eastern corridor in order.
+// hazard/wind/cover/visibility/temperatureDeltaF/traversal replace the terrain's own values on that tile.
+// features: forage, trees and stock become the tile's pools (forage always first: pool 0 is a tile's
+// forage). water, smallGame, shelter, cache and event are carried for systems that do not exist yet.
+// chance: the odds generation puts the feature there. revealAtHours: 0 is in plain sight.
+{
+ "locations": [
+  {
+   "id": "forest",
+   "name": "Deep Woods",
+   "placement": "Named",
+   "weight": 8,
+   "terrain": [ "Forest" ],
+   "tags": "[Shaded] [Resource-Dense]",
+   "hazard": 0.2,
+   "wind": 0.6,
+   "cover": 0.3,
+   "visibility": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 2,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.2,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Wild Berry Bush",
+     "description": "A frost-hardy shrub with clusters of dark berries.",
+     "minutes": 5,
+     "items": [
+      { "resource": "Berries", "units": 5, "kgPerUnit": 0.4, "respawnHoursPerUnit": 168 }
+     ],
+     "chance": 0.3
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Fallen Tree",
+     "description": "A wind-felled tree with dry, harvestable wood.",
+     "minutes": 10,
+     "chance": 0.2,
+     "items": [
+      { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 }
+     ]
+    },
+    { "kind": "trees", "name": "Standing Timber", "minutesToFell": 150 }
+   ]
+  },
+  {
+   "id": "deadwood_grove",
+   "name": "Deadwood Grove",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Forest" ],
+   "tags": "[Fuel] [Treacherous]",
+   "discoveryText": "A tangle of fallen trees, bleached and dry. Fuel everywhere - but one wrong step could snap an ankle.",
+   "hazard": 0.7,
+   "wind": 0.5,
+   "cover": 0.2,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 3,
+     "items": [
+      { "resource": "PineBranch", "abundance": 2.5, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "BirchBranch", "abundance": 0.5, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 4, "minKg": 0.2, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Amadou", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "BirchPolypore", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Massive Fallen Pine",
+     "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
+     "minutes": 20,
+     "items": [
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.7,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ancient_grove",
+   "name": "Ancient Grove",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Forest" ],
+   "elite": true,
+   "tags": "[Forest] [Fuel] [Quiet]",
+   "discoveryText": "Old growth. Massive trunks, cathedral spacing, deep silence. The canopy blocks snow and light alike.",
+   "firstVisitEvent": "FirstVisitAncientGrove",
+   "hazard": 0.1,
+   "wind": 0.3,
+   "cover": 0.9,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Ancient Hardwood",
+     "description": "Massive oak and ash. Dense, long-burning wood — if you can cut it.",
+     "minutes": 20,
+     "items": [
+      { "resource": "OakBranch", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+      { "resource": "OakFirewood", "units": 8, "kgPerUnit": 4, "respawnHoursPerUnit": 0, "requiresTool": "Axe" }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.5,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    },
+    { "kind": "stock", "work": "Salvage", "name": "Sacred Center", "description": "The grove's heart. Old offerings remain.", "minutes": 40, "loot": "MedicinalForage" },
+    { "kind": "stock", "work": "Salvage", "name": "Offering Stones", "description": "Stacked stones mark ritual sites.", "minutes": 20, "loot": "CraftingMaterials" },
+    { "kind": "event", "event": "need_an_axe", "revealAtHours": 2 }
+   ]
+  },
+  {
+   "id": "dense_thicket",
+   "name": "Dense Thicket",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Difficult] [Safe]",
+   "discoveryText": "Young growth so thick you can barely push through. Branches grab at you.",
+   "hazard": 0.25,
+   "wind": 0.2,
+   "cover": 0.7,
+   "visibility": 0.3,
+   "traversal": 1.5,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "PlantFiber", "abundance": 1.5, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Berries", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.6 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.2,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    },
+    { "kind": "shelter", "name": "Dense Thicket", "type": "DenseThicket", "insulation": 0.15, "overhead": 0.5, "wind": 0.6, "insulationCap": 0.4, "overheadCap": 0.6, "windCap": 0.7 }
+   ]
+  },
+  {
+   "id": "wolf_den",
+   "name": "Wolf Den",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Forest" ],
+   "tags": "[Wolves] [Dangerous] [Bones]",
+   "discoveryText": "A rocky hollow, dug back under a ledge. The earth at its mouth is worn bare. Old bones lie half-sunk in the dirt.",
+   "hazard": 0.3,
+   "wind": 0.4,
+   "cover": 0.6,
+   "visibility": 0.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "burnt_stand",
+   "name": "Burnt Stand",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Forest" ],
+   "tags": "[Fuel] [Exposed] [Charcoal]",
+   "discoveryText": "Fire came through here. Blackened trunks stand like pillars. Ash pads your footsteps.",
+   "hazard": 0.2,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 2,
+     "items": [
+      { "resource": "Charcoal", "abundance": 0.8, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 2.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "PineBranch", "abundance": 1.5, "minKg": 1, "maxKg": 2.5 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.3,
+     "animals": [
+      { "animal": "Hare", "weight": 1 }
+     ]
+    },
+    { "kind": "find", "find": "FireOrigin", "revealAtHours": 1.5 }
+   ]
+  },
+  {
+   "id": "fallen_giant",
+   "name": "Fallen Giant",
+   "placement": "Named",
+   "weight": 6,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Fuel] [Shelter]",
+   "discoveryText": "A massive tree, ancient and fallen. Its trunk creates a natural windbreak, branches reaching skyward like ribs.",
+   "hazard": 0.25,
+   "wind": 0.4,
+   "cover": 0.5,
+   "visibility": 0.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Massive Fallen Pine",
+     "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
+     "minutes": 20,
+     "items": [
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    { "kind": "shelter", "name": "Fallen Tree Shelter", "type": "FallenTree", "insulation": 0.1, "overhead": 0.4, "wind": 0.5, "insulationCap": 0.3, "overheadCap": 0.5, "windCap": 0.6 },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "hollow_oak",
+   "name": "Hollow Oak",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Shelter] [Dark]",
+   "discoveryText": "A gnarled oak, hollow at the base. The cavity is large enough to crouch in, protected from wind and snow.",
+   "hazard": 0.15,
+   "wind": 0.3,
+   "cover": 0.8,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    { "kind": "shelter", "name": "Tree Hollow", "type": "NaturalShelter", "insulation": 0.35, "overhead": 0.8, "wind": 0.7, "insulationCap": 0.5, "overheadCap": 0.9, "windCap": 0.8 },
+    {
+     "kind": "smallGame",
+     "density": 0.5,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    },
+    { "kind": "trees", "name": "Old Oak", "wood": "OakFirewood", "minutesToFell": 60 }
+   ]
+  },
+  {
+   "id": "fungal_grove",
+   "name": "Fungal Grove",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Medicine] [Damp]",
+   "discoveryText": "Rotting logs carpeted in shelf fungi and strange growths. The air smells of decay and earth. Medicinal, if you know what to look for.",
+   "hazard": 0.2,
+   "wind": 0.5,
+   "cover": 0.6,
+   "visibility": 0.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.52,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
+      { "resource": "Amadou", "abundance": 0.25, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Chaga", "abundance": 0.2, "minKg": 0.02, "maxKg": 0.06 },
+      { "resource": "BirchPolypore", "abundance": 0.2, "minKg": 0.02, "maxKg": 0.06 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Fallen Tree",
+     "description": "A wind-felled tree with dry, harvestable wood.",
+     "minutes": 10,
+     "items": [
+      { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.4,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "birch_stand",
+   "name": "Birch Stand",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Tinder] [Bright]",
+   "discoveryText": "White bark gleams through the forest. A stand of birch, their papery bark curling in sheets. Tinder everywhere.",
+   "hazard": 0.1,
+   "wind": 0.7,
+   "cover": 0.4,
+   "visibility": 0.9,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.4,
+     "items": [
+      { "resource": "BirchBark", "abundance": 0.8, "minKg": 0.08, "maxKg": 0.2 },
+      { "resource": "Stick", "abundance": 0.6, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.4, "minKg": 0.03, "maxKg": 0.08 }
+     ]
+    },
+    { "kind": "trees", "name": "Birch Stand", "wood": "BirchFirewood", "minutesToFell": 120 },
+    {
+     "kind": "smallGame",
+     "density": 0.7,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mossy_hollow",
+   "name": "Mossy Hollow",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Sheltered] [Damp]",
+   "discoveryText": "The ground dips into a natural hollow, carpeted in thick moss. Sheltered from wind, and slow to dry out.",
+   "hazard": 0.15,
+   "wind": 0.3,
+   "cover": 0.7,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1,
+     "items": [
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.12 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
+      { "resource": "Stick", "abundance": 0.4, "minKg": 0.08, "maxKg": 0.2 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    },
+    { "kind": "trees", "name": "Forest Trees", "minutesToFell": 80 }
+   ]
+  },
+  {
+   "id": "tangled_roots",
+   "name": "Tangled Roots",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Escape] [Difficult]",
+   "discoveryText": "A massive tree torn from the ground, roots reaching like grasping fingers. The tangled mass creates a maze only you can navigate.",
+   "hazard": 0.35,
+   "wind": 0.5,
+   "cover": 0.3,
+   "visibility": 0.3,
+   "traversal": 1.3,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.04, "maxKg": 0.1 },
+      { "resource": "Bone", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.8,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "clearing",
+   "name": "Sheltered Glade",
+   "placement": "Named",
+   "weight": 6,
+   "terrain": [ "Clearing" ],
+   "tags": "[Sheltered] [Clearing]",
+   "hazard": 0.1,
+   "wind": 0.6,
+   "cover": 0.2,
+   "visibility": 1.1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.4,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    },
+    { "kind": "trees", "name": "Forest Edge", "minutesToFell": 120 }
+   ]
+  },
+  {
+   "id": "plain",
+   "name": "Windswept Flats",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Exposed] [Open]",
+   "hazard": 0.1,
+   "wind": 1.4,
+   "cover": 0,
+   "visibility": 1.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.8,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "game_trail",
+   "name": "Game Trail",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Clearing", "Plain" ],
+   "tags": "[Forest] [Hunting] [Trail]",
+   "discoveryText": "A narrow path through the brush, trodden low and hard. It keeps to the easiest ground.",
+   "hazard": 0.05,
+   "wind": 0.6,
+   "cover": 0.5,
+   "visibility": 0.8,
+   "traversal": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Hare", "weight": 1 },
+      { "animal": "Fox", "weight": 0.3 }
+     ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 2.5
+    },
+    { "kind": "event", "event": "fresh_tracks", "revealAtHours": 1 }
+   ]
+  },
+  {
+   "id": "sheltered_valley",
+   "name": "Sheltered Valley",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Clearing", "Forest" ],
+   "tags": "[Sheltered] [Camp-worthy]",
+   "discoveryText": "A natural hollow, shielded from the worst winds. This would make a good camp.",
+   "hazard": 0.15,
+   "wind": 0.2,
+   "cover": 0.4,
+   "visibility": 0.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.6,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.3,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    },
+    { "kind": "cache", "name": "Rock Cleft", "capacityKg": 40, "protectsFromWeather": true },
+    { "kind": "trees", "name": "Hardwood Stand", "wood": "OakFirewood", "minutesToFell": 180 }
+   ]
+  },
+  {
+   "id": "snowfield_hollow",
+   "name": "Snowfield Hollow",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Trapping] [Open] [Snow]",
+   "discoveryText": "A shallow bowl in the plain, ringed by low rises. When snow comes, it drifts against the windward side and leaves the channels between bare. Low ways run between the rises, the easy path from one sheltered spot to the next.",
+   "firstVisitEvent": "FirstVisitSnowfieldHollow",
+   "hazard": 0.15,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.4, "minKg": 0.05, "maxKg": 0.12 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.4,
+     "animals": [
+      { "animal": "Hare", "weight": 2 },
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Fox", "weight": 0.6 }
+     ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 2
+    }
+   ]
+  },
+  {
+   "id": "abandoned_camp",
+   "name": "Old Campsite",
+   "placement": "Named",
+   "weight": 0.5,
+   "terrain": [ "Clearing", "Forest" ],
+   "tags": "[Salvage] [Shelter]",
+   "discoveryText": "Signs of an old camp. The fire pit is cold, shelter collapsed. Someone was here before you.",
+   "hazard": 0.2,
+   "wind": 0.5,
+   "cover": 0.3,
+   "visibility": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "stock", "work": "Salvage", "name": "Abandoned Camp", "description": "Signs of an old camp. The fire pit is cold, shelter collapsed.", "minutes": 45, "loot": "AbandonedCamp" },
+    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "BranchFrame", "insulation": 0.2, "overhead": 0.4, "wind": 0.3, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
+   ]
+  },
+  {
+   "id": "old_campsite",
+   "name": "Old Campsite",
+   "placement": "Named",
+   "weight": 0.6,
+   "terrain": [ "Clearing", "Forest" ],
+   "elite": true,
+   "tags": "[Salvage] [Shelter] [Story]",
+   "discoveryText": "A clearing, the ground trampled flat. Charcoal scattered. A collapsed lean-to. Someone was here. {story}",
+   "firstVisitEvent": "FirstVisitOldCampsite",
+   "hazard": 0.15,
+   "wind": 0.5,
+   "cover": 0.3,
+   "visibility": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "stock", "work": "Salvage", "name": "Main Camp Area", "description": "The camp's main living area.", "minutes": 45, "loot": "EliteShelter" },
+    { "kind": "stock", "work": "Salvage", "name": "Hidden Cache", "description": "A pile of rocks looks deliberate. A cache?", "minutes": 30, "loot": "AncientCache" },
+    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "BranchFrame", "insulation": 0.15, "overhead": 0.3, "wind": 0.25, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
+   ],
+   "stories": [ "Claw marks on the collapsed shelter. Blood, long dried. They didn't leave by choice.", "A trail of belongings leads away, as if they left in a hurry. Or were dragged.", "Everything is orderly. Fire properly banked. They meant to come back.", "Carved into a tree: a tally of days. The marks stop at thirty-seven.", "The shelter is intact but empty. Snow has filled it. Whoever was here, they're long gone." ]
+  },
+  {
+   "id": "salt_lick",
+   "name": "Salt Lick",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Plain] [Hunting] [Exposed]",
+   "discoveryText": "A bare patch of pale, salty earth, licked down below the ground around it. Nothing grows on it.",
+   "hazard": 0.1,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.6,
+     "animals": [
+      { "animal": "Hare", "weight": 0.8 }
+     ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 2
+    }
+   ]
+  },
+  {
+   "id": "tall_grass",
+   "name": "Tall Grass",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Plain] [Cover] [Hunting]",
+   "discoveryText": "Grass taller than your waist. Any wind sets it moving. Small things rustle unseen. Good cover for stalking — or being stalked.",
+   "hazard": 0.1,
+   "wind": 0.8,
+   "cover": 0.1,
+   "visibility": 0.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.92,
+     "items": [
+      { "resource": "PlantFiber", "abundance": 0.7, "minKg": 0.08, "maxKg": 0.18 },
+      { "resource": "Tinder", "abundance": 0.4, "minKg": 0.03, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.2,
+     "animals": [
+      { "animal": "Hare", "weight": 1.5 },
+      { "animal": "Ptarmigan", "weight": 1.2 },
+      { "animal": "Fox", "weight": 0.5 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "standing_stones",
+   "name": "Standing Stones",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Plain] [Shelter] [Ancient]",
+   "discoveryText": "Stones stand upright in a rough circle, placed by hands long gone. They break the wind. Someone worshipped here once.",
+   "hazard": 0.1,
+   "wind": 0.5,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    { "kind": "shelter", "name": "Stone Circle", "type": "NaturalShelter", "insulation": 0.15, "overhead": 0, "wind": 0.5, "insulationCap": 0.3, "overheadCap": 0, "windCap": 0.6 }
+   ]
+  },
+  {
+   "id": "herd_crossing",
+   "name": "Herd Crossing",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Plain] [Hunting] [Trail]",
+   "discoveryText": "An open saddle between low rises, the easy way across for anything that walks. Old ruts score the ground.",
+   "hazard": 0.15,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.3,
+   "traversal": 0.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.8,
+     "animals": [
+      { "animal": "Hare", "weight": 0.8 }
+     ],
+     "peakHours": [ 6, 10 ],
+     "peakFactor": 1.8
+    }
+   ]
+  },
+  {
+   "id": "stone_scatter",
+   "name": "Stone Scatter",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rocky] [Open]",
+   "discoveryText": "Loose stones litter the ground, tumbled from some ancient rockfall. Dry grass grows between the gaps.",
+   "hazard": 0.2,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stone", "abundance": 1.2, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
+      { "resource": "Flint", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.5,
+     "animals": [
+      { "animal": "Hare", "weight": 1 },
+      { "animal": "Ptarmigan", "weight": 0.6 }
+     ],
+     "chance": 0.25
+    },
+    { "kind": "water", "name": "Meltwater Puddle", "description": "A rock hollow where snowmelt collects.", "frozen": false, "fish": 0.7, "chance": 0.15 }
+   ]
+  },
+  {
+   "id": "hillside",
+   "name": "Hillside",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Hills" ],
+   "tags": "[Steep] [Rocky]",
+   "hazard": 0.5,
+   "wind": 1.3,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "overlook",
+   "name": "Overlook",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Hills", "Rock" ],
+   "tags": "[Scout] [Exposed] [Stone]",
+   "discoveryText": "The view stretches for miles. Ridges and valleys lie open below you.",
+   "hazard": 0.4,
+   "wind": 1.6,
+   "cover": 0,
+   "visibility": 1.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.4,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rock_overhang",
+   "name": "Rock Overhang",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Shelter] [Stone]",
+   "discoveryText": "A stone lip juts from a cliff face. The ground beneath stays dry. Wind goes over it; the space below stays calm.",
+   "hazard": 0.2,
+   "wind": 0.4,
+   "cover": 0.7,
+   "visibility": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "shelter", "name": "Rock Overhang", "type": "RockOverhang", "insulation": 0.1, "overhead": 0.7, "wind": 0.3, "insulationCap": 0.4, "overheadCap": 0.8, "windCap": 0.4 },
+    { "kind": "event", "event": "previous_use", "revealAtHours": 0.5 }
+   ]
+  },
+  {
+   "id": "granite_outcrop",
+   "name": "Granite Outcrop",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Rock" ],
+   "tags": "[Stone] [Exposed] [Vantage]",
+   "discoveryText": "Bare stone breaks through the landscape. Wind-scoured and exposed, the view is commanding. Stone flakes litter the base.",
+   "hazard": 0.35,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    { "kind": "event", "event": "spot_movement", "revealAtHours": 1.5 }
+   ]
+  },
+  {
+   "id": "flint_seam",
+   "name": "Flint Seam",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Rock" ],
+   "tags": "[Stone] [Exposed] [Remote]",
+   "discoveryText": "Dark stripe cutting across exposed rock. Nodules of flint embedded in limestone. Sharp flakes litter the ground.",
+   "hazard": 0.3,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.52,
+     "items": [
+      { "resource": "Flint", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stone", "abundance": 0.5, "minKg": 0.2, "maxKg": 0.4 }
+     ]
+    },
+    { "kind": "event", "event": "sharp_edges", "revealAtHours": 0.5 }
+   ]
+  },
+  {
+   "id": "boulder_field",
+   "name": "Boulder Field",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Stone] [Difficult] [Safe]",
+   "discoveryText": "Massive boulders tumbled across the slope. Gaps and crevices between them. Hard going, but wolves can't follow into the gaps.",
+   "hazard": 0.45,
+   "wind": 0.7,
+   "cover": 0,
+   "visibility": 0.9,
+   "traversal": 1.4,
+   "escape": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rocky_ridge",
+   "name": "Rocky Ridge",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Hills", "Rock" ],
+   "tags": "[Stone] [Exposed] [Vantage]",
+   "discoveryText": "Spine of broken stone above the treeline. The wind seldom lets up. You can see for miles — both valley sides visible.",
+   "firstVisitEvent": "FirstVisitRockyRidge",
+   "hazard": 0.35,
+   "wind": 1.2,
+   "cover": 0,
+   "visibility": 2,
+   "vantage": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    { "kind": "event", "event": "see_for_miles", "revealAtHours": 1.5 }
+   ]
+  },
+  {
+   "id": "bear_cave",
+   "name": "Bear Cave",
+   "placement": "Named",
+   "weight": 0.5,
+   "terrain": [ "Rock" ],
+   "elite": true,
+   "tags": "[Sheltered] [Dark] [Dangerous] [Bones]",
+   "discoveryText": "A deep cave mouth. Dry floor, wind-sheltered depths. Gnawed bones lie in the dark. Something has denned here.",
+   "firstVisitEvent": "FirstVisitBearCave",
+   "hazard": 0.15,
+   "wind": 0.1,
+   "cover": 1,
+   "visibility": 0.2,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Bone", "abundance": 2, "minKg": 0.15, "maxKg": 0.5 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.03 }
+     ]
+    },
+    { "kind": "stock", "work": "Salvage", "name": "Den Floor", "description": "Bones litter the cave floor. Years of kills.", "minutes": 45, "loot": "MegafaunaGraveyard" },
+    { "kind": "stock", "work": "Salvage", "name": "Deep Cave Cache", "description": "The cave narrows. Cached bones in the back.", "minutes": 25, "loot": "BoneHarvest" },
+    { "kind": "find", "find": "BearCache", "revealAtHours": 2 }
+   ]
+  },
+  {
+   "id": "the_lookout",
+   "name": "The Lookout",
+   "placement": "Named",
+   "weight": 0.8,
+   "terrain": [ "Hills", "Rock" ],
+   "elite": true,
+   "tags": "[Vantage] [Climb] [Landmark]",
+   "discoveryText": "A massive lone pine stands on a rise. Its branches form a natural ladder. From up there, you could see everything — including the mountain pass.",
+   "firstVisitEvent": "FirstVisitLookout",
+   "hazard": 0.3,
+   "wind": 0.8,
+   "cover": 0.4,
+   "visibility": 1,
+   "vantage": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Tinder", "abundance": 0.5, "minKg": 0.02, "maxKg": 0.06 },
+      { "resource": "PineNeedles", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.4,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    },
+    { "kind": "stock", "work": "Salvage", "name": "Abandoned Supplies", "description": "At the tree's base: a weathered pack.", "minutes": 35, "loot": "AncientCache" }
+   ]
+  },
+  {
+   "id": "ice_crevasse",
+   "name": "Ice Crevasse",
+   "placement": "Named",
+   "weight": 0.5,
+   "terrain": [ "Rock" ],
+   "tags": "[Ice] [Cache] [Dangerous]",
+   "discoveryText": "A deep crack in ancient ice. The cold holds here even in a thaw. Good for storing meat.",
+   "hazard": 0.8,
+   "wind": 0.2,
+   "cover": 0.8,
+   "visibility": 0.2,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.12,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "cache", "name": "Ice Crevasse", "capacityKg": 50, "protectsFromPredators": true, "protectsFromWeather": true, "preservesFood": true }
+   ]
+  },
+  {
+   "id": "bone_hollow",
+   "name": "Bone Hollow",
+   "placement": "Named",
+   "weight": 3.5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Bones] [Sheltered] [Ancient]",
+   "discoveryText": "The ravine narrows, then opens into a hollow. Bones everywhere — tusks, ribs, skulls larger than your torso. Mammoths. A dozen of them, maybe more. They came here to die.",
+   "firstVisitEvent": "FirstVisitBoneHollow",
+   "hazard": 0.25,
+   "wind": 0.3,
+   "cover": 0.2,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Ancient Bones",
+     "description": "Mammoth remains. Large bones for tools, ivory for crafting. The ground is thick with them.",
+     "minutes": 15,
+     "items": [
+      { "resource": "Bone", "units": 20, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Ivory", "units": 8, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    { "kind": "shelter", "name": "Rib Arch", "type": "NaturalShelter", "insulation": 0.35, "overhead": 0.4, "wind": 0.5, "insulationCap": 0.5, "overheadCap": 0.55, "windCap": 0.65 }
+   ]
+  },
+  {
+   "id": "wind_gap",
+   "name": "Wind Gap",
+   "placement": "Named",
+   "weight": 3.5,
+   "terrain": [ "Hills" ],
+   "tags": "[Mountain] [Exposed] [Shortcut]",
+   "discoveryText": "A notch in the ridge the wind funnels through, hard enough to knock you down. Snow never lies long on the bare rock. But beyond — a whole section of the valley you couldn't reach otherwise.",
+   "firstVisitEvent": "FirstVisitWindGap",
+   "hazard": 0.7,
+   "wind": 2.5,
+   "cover": 0,
+   "visibility": 0.3,
+   "temperatureDeltaF": -8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.2,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sun_warmed_cliff",
+   "name": "Sun-Warmed Cliff",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Stone] [Warm] [Exposed]",
+   "discoveryText": "South-facing stone, dark and bare. The rock drinks sunlight and holds it. On a clear day, by midday, you can feel its warmth from ten paces.",
+   "firstVisitEvent": "FirstVisitSunWarmedCliff",
+   "hazard": 0.3,
+   "wind": 0.5,
+   "cover": 0,
+   "visibility": 1.3,
+   "temperatureDeltaF": 5,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stone", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "Bone", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.7,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 1 },
+      { "animal": "Fox", "weight": 0.4 }
+     ],
+     "peakHours": [ 6, 9 ],
+     "peakFactor": 1.8
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Cliff Face Stone",
+     "description": "Flat slabs of quality stone, fractured by freeze-thaw. Good for tools.",
+     "minutes": 15,
+     "items": [
+      { "resource": "Stone", "units": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "talus_slope",
+   "name": "Talus Slope",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Stone] [Treacherous]",
+   "discoveryText": "Loose rock cascades down the slope. Every step threatens to start a slide. But the stone here is good — fractured and ready.",
+   "hazard": 0.55,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1,
+   "traversal": 1.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "Stone", "abundance": 1.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "split_rock",
+   "name": "Split Rock",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Shelter] [Landmark]",
+   "discoveryText": "A massive boulder, cleaved in two by ancient forces. The gap between is just wide enough to shelter in, dry and out of the wind.",
+   "hazard": 0.2,
+   "wind": 0.4,
+   "cover": 0.6,
+   "visibility": 0.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    { "kind": "shelter", "name": "Rock Cleft", "type": "NaturalShelter", "insulation": 0.3, "overhead": 0.6, "wind": 0.7, "insulationCap": 0.45, "overheadCap": 0.75, "windCap": 0.8 }
+   ]
+  },
+  {
+   "id": "fossil_bed",
+   "name": "Fossil Bed",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Bones] [Ancient]",
+   "discoveryText": "Ancient bones jut from the eroded hillside. Not mammoth — older. Strange shapes, but the bone is still good.",
+   "hazard": 0.25,
+   "wind": 0.8,
+   "cover": 0,
+   "visibility": 1.1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.92,
+     "items": [
+      { "resource": "Bone", "abundance": 1.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Fossil Bones",
+     "description": "Ancient bones eroding from stone. Dense and well-preserved.",
+     "minutes": 15,
+     "items": [
+      { "resource": "Bone", "units": 10, "kgPerUnit": 1.2, "respawnHoursPerUnit": 0 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "shale_outcrop",
+   "name": "Shale Outcrop",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Rock" ],
+   "tags": "[Rock] [Stone] [Exposed]",
+   "discoveryText": "Layered stone, splitting into thin sheets. The edges are sharp where frost has cleaved them. Good for scraping tools.",
+   "hazard": 0.3,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "Shale", "abundance": 1.2, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "chimney_rock",
+   "name": "Chimney Rock",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Vantage] [Landmark]",
+   "discoveryText": "A lone spire of stone rises from the landscape. Visible for miles in every direction. From the top, you could see anything approaching.",
+   "hazard": 0.4,
+   "wind": 1.3,
+   "cover": 0,
+   "visibility": 1.8,
+   "vantage": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
+      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "riverbank",
+   "name": "Riverbank",
+   "placement": "Named",
+   "weight": 7,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Open]",
+   "hazard": 0.3,
+   "wind": 1,
+   "cover": 0.1,
+   "visibility": 1.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Ice-Fed River",
+     "description": "A swift-flowing river fed by glacial meltwater. Cold but clear.",
+     "minutes": 1,
+     "items": [
+      { "resource": "Water", "units": 100, "kgPerUnit": 1, "respawnHoursPerUnit": 0.1 }
+     ]
+    },
+    { "kind": "water", "name": "River", "description": "Fast-flowing sections stay open, but ice forms at the edges.", "frozen": true, "ice": 0.5, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "frozen_creek",
+   "name": "Frozen Creek",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Water" ],
+   "tags": "[Ice] [Water] [Slippery]",
+   "discoveryText": "A creek that freezes hard in winter, its banks low and stony.",
+   "hazard": 0.35,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Creek Ice",
+     "description": "The creek ices thick in deep cold. Break it and melt it for water.",
+     "minutes": 5,
+     "items": [
+      { "resource": "Water", "units": 20, "kgPerUnit": 1, "respawnHoursPerUnit": 48 }
+     ]
+    },
+    { "kind": "water", "name": "Frozen Creek", "description": "The creek freezes hard in winter. Safe to cross then, if you're careful.", "frozen": true, "ice": 0.7, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "meltwater_pool",
+   "name": "Meltwater Pool",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Exposed] [Remote]",
+   "discoveryText": "A depression where glacial meltwater collects. Crystal clear and painfully cold. Ice forms first at the edges.",
+   "hazard": 0.25,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "water", "name": "Meltwater Pool", "description": "Glacial meltwater. Pure but frigid.", "frozen": true, "ice": 0.2, "fish": 0.7 },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Glacial Pool",
+     "description": "Crystal-clear meltwater. Pure but painfully cold.",
+     "minutes": 3,
+     "items": [
+      { "resource": "Water", "units": 20, "kgPerUnit": 1, "respawnHoursPerUnit": 24 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "beaver_dam",
+   "name": "Beaver Dam",
+   "placement": "Named",
+   "weight": 1,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Fuel] [Wildlife]",
+   "discoveryText": "A beaver dam spans the stream. The pond behind it is still and deep. Gnawed stumps litter the banks.",
+   "hazard": 0.25,
+   "wind": 0.6,
+   "cover": 0,
+   "visibility": 0.9,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 2.52,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Beaver Pond",
+     "description": "Still water backed up behind the dam. Deep and clear.",
+     "minutes": 2,
+     "items": [
+      { "resource": "Water", "units": 50, "kgPerUnit": 1, "respawnHoursPerUnit": 0.5 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Beaver Dam",
+     "description": "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
+     "minutes": 15,
+     "items": [
+      { "resource": "BirchBranch", "units": 12, "kgPerUnit": 2, "respawnHoursPerUnit": 0 },
+      { "resource": "BirchFirewood", "units": 4, "kgPerUnit": 2, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 20, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.7,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 0.5 }
+     ]
+    },
+    { "kind": "water", "name": "Beaver Pond", "description": "Deep water. Ice forms at the edges first and stays thin in places.", "frozen": true, "ice": 0.4, "fish": 0.7 },
+    { "kind": "event", "event": "beaver_activity", "revealAtHours": 1 }
+   ]
+  },
+  {
+   "id": "ice_shelf",
+   "name": "Ice Shelf",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Water" ],
+   "tags": "[Ice] [Vantage] [Exposed]",
+   "discoveryText": "A massive tongue of ice projects from the hillside — a waterfall the cold builds up, layer on layer. The top is flat, wind-scoured. Nothing can approach unseen from below.",
+   "firstVisitEvent": "FirstVisitIceShelf",
+   "hazard": 0.4,
+   "wind": 1.4,
+   "cover": 0,
+   "visibility": 1.8,
+   "escape": true,
+   "vantage": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.2,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "water", "name": "Ice Face", "description": "Solid ice. Harvestable for water if you have tools.", "frozen": true, "ice": 0.7, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "hot_spring",
+   "name": "Hot Spring",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Water", "Rock" ],
+   "tags": "[Warm] [Water]",
+   "discoveryText": "A pool of warm water that steams in cold air. The air near it is warmer.",
+   "firstVisitEvent": "FirstVisitHotSpring",
+   "hazard": 0.3,
+   "wind": 0.4,
+   "cover": 0.1,
+   "visibility": 0.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Thermal Pool",
+     "description": "Warm water bubbles up from deep below. Safe to drink once cooled.",
+     "minutes": 2,
+     "items": [
+      { "resource": "Water", "units": 50, "kgPerUnit": 1, "respawnHoursPerUnit": 0.1 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 },
+      { "animal": "Fox", "weight": 0.3 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spring_seep",
+   "name": "Spring Seep",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Warm] [Sheltered]",
+   "discoveryText": "Water bubbles from the ground, too warm to freeze. A small pool collects before it soaks away.",
+   "hazard": 0.2,
+   "wind": 0.6,
+   "cover": 0.1,
+   "visibility": 0.9,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    { "kind": "water", "name": "Spring", "description": "Clear water seeping from underground. Slightly warm, never freezes.", "frozen": false, "fish": 0.7 },
+    {
+     "kind": "smallGame",
+     "density": 1,
+     "animals": [
+      { "animal": "Hare", "weight": 0.8 }
+     ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 1.5
+    }
+   ]
+  },
+  {
+   "id": "fish_run",
+   "name": "Fish Run",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Fishing] [Open]",
+   "discoveryText": "The stream narrows over rocks. Any fish coming up must pass through the gap. You could spear them here.",
+   "hazard": 0.25,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Ice-Fed River",
+     "description": "A swift-flowing river fed by glacial meltwater. Cold but clear.",
+     "minutes": 1,
+     "items": [
+      { "resource": "Water", "units": 100, "kgPerUnit": 1, "respawnHoursPerUnit": 0.1 }
+     ]
+    },
+    { "kind": "water", "name": "Rapids", "description": "Fast-moving water over rocks. Too turbulent to freeze solid.", "frozen": true, "ice": 0.1, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "marsh",
+   "name": "Frozen Muskeg",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Marsh" ],
+   "tags": "[Water] [Treacherous] [Plants]",
+   "discoveryText": "The ground gives way to marsh. Cattails stand in water that ices over in a frost. Rich foraging if you're careful.",
+   "hazard": 0.4,
+   "wind": 0.7,
+   "cover": 0,
+   "visibility": 0.6,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.8,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Cattail Stand",
+     "description": "Dense cattails at the marsh edge. Edible roots, fluffy seed heads for tinder.",
+     "minutes": 10,
+     "items": [
+      { "resource": "PlantFiber", "units": 10, "kgPerUnit": 0.1, "respawnHoursPerUnit": 168 },
+      { "resource": "Tinder", "units": 6, "kgPerUnit": 0.03, "respawnHoursPerUnit": 168 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Open Water",
+     "description": "Dark water among the tussocks. Needs to be boiled.",
+     "minutes": 3,
+     "items": [
+      { "resource": "Water", "units": 30, "kgPerUnit": 1, "respawnHoursPerUnit": 6 }
+     ]
+    },
+    { "kind": "water", "name": "Marsh Ice", "description": "The ice between the tussocks never gets thick. One wrong step and you're through.", "frozen": true, "ice": 0.3, "fish": 0.7 },
+    {
+     "kind": "smallGame",
+     "density": 0.9,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 0.5 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "peat_bog",
+   "name": "Peat Bog",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Marsh" ],
+   "tags": "[Marsh] [Fuel] [Treacherous]",
+   "discoveryText": "Dark water glints between mounds of spongy earth. The smell is old — ancient rot preserved in cold. Beneath the surface, centuries of compressed plant matter.",
+   "firstVisitEvent": "FirstVisitPeatBog",
+   "hazard": 0.55,
+   "wind": 0.5,
+   "cover": 0.1,
+   "visibility": 0.7,
+   "traversal": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 0.5 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Peat Bed",
+     "description": "Dark compressed plant matter. Burns slow and hot — if you can dig it out.",
+     "minutes": 20,
+     "items": [
+      { "resource": "Peat", "units": 15, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    { "kind": "water", "name": "Bog Pools", "description": "Dark water between the mounds. The ice never gets thick, and the depth is hard to judge.", "frozen": true, "ice": 0.15, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "reed_bed",
+   "name": "Reed Bed",
+   "placement": "Named",
+   "weight": 4,
+   "terrain": [ "Marsh" ],
+   "tags": "[Marsh] [Fiber] [Hunting]",
+   "discoveryText": "Dense reeds crowd the shallows, the kind that rattle in any wind. Good fiber, if you can reach it.",
+   "hazard": 0.3,
+   "wind": 0.5,
+   "cover": 0.2,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.4,
+     "items": [
+      { "resource": "PlantFiber", "abundance": 1.2, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Cattail Stand",
+     "description": "Dense cattails at the marsh edge. Edible roots, fluffy seed heads for tinder.",
+     "minutes": 10,
+     "items": [
+      { "resource": "PlantFiber", "units": 10, "kgPerUnit": 0.1, "respawnHoursPerUnit": 168 },
+      { "resource": "Tinder", "units": 6, "kgPerUnit": 0.03, "respawnHoursPerUnit": 168 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.3,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 0.5 }
+     ]
+    },
+    { "kind": "water", "name": "Reed Shallows", "description": "Shallow water between the reed stalks. The ice here stays thin.", "frozen": true, "ice": 0.2, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "cranberry_bog",
+   "name": "Cranberry Bog",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Marsh" ],
+   "tags": "[Marsh] [Food] [Treacherous]",
+   "discoveryText": "Red berries dot the spongy ground. They keep through a frost. The footing is treacherous — one wrong step and you're through.",
+   "hazard": 0.45,
+   "wind": 0.6,
+   "cover": 0.1,
+   "visibility": 0.7,
+   "traversal": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Wild Berry Bush",
+     "description": "A frost-hardy shrub with clusters of dark berries.",
+     "minutes": 5,
+     "items": [
+      { "resource": "Berries", "units": 5, "kgPerUnit": 0.4, "respawnHoursPerUnit": 168 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.6,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 1.5 },
+      { "animal": "Hare", "weight": 0.5 }
+     ]
+    },
+    { "kind": "water", "name": "Bog Pools", "description": "Dark water hidden under moss, and under thin ice in a frost.", "frozen": true, "ice": 0.3, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "ravens_perch",
+   "name": "Raven's Perch",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Forest", "Clearing" ],
+   "tags": "[Forest] [Scavenger] [Vantage]",
+   "discoveryText": "A lone dead tree, its high limbs bare and white with old droppings. A good perch, with a long view.",
+   "hazard": 0.15,
+   "wind": 0.7,
+   "cover": 0.4,
+   "visibility": 1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.92,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Bone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    { "kind": "trees", "name": "Perch Trees", "minutesToFell": 60 }
+   ]
+  },
+  {
+   "id": "fox_earth",
+   "name": "Fox Earth",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Hunting] [Den]",
+   "discoveryText": "A bank of dry, sandy earth, dug through with burrows. Old spoil heaps sit at each mouth, flecked with small bones.",
+   "hazard": 0.15,
+   "wind": 0.5,
+   "cover": 0.5,
+   "visibility": 0.6,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.72,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.9,
+     "animals": [
+      { "animal": "Fox", "weight": 2 },
+      { "animal": "Hare", "weight": 0.6 }
+     ],
+     "peakHours": [ 4, 7 ],
+     "peakFactor": 1.8
+    }
+   ]
+  },
+  {
+   "id": "owl_hollow",
+   "name": "Owl Hollow",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Dark] [Bones]",
+   "discoveryText": "A hollow in a dead tree, streaked white. Pellets of compressed bone and fur litter the ground below. An owl's roost.",
+   "hazard": 0.1,
+   "wind": 0.4,
+   "cover": 0.7,
+   "visibility": 0.4,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "forage",
+     "density": 0.72,
+     "items": [
+      { "resource": "Bone", "abundance": 0.6, "minKg": 0.08, "maxKg": 0.2 }
+     ]
+    },
+    { "kind": "trees", "name": "Dead Snag", "minutesToFell": 40 },
+    {
+     "kind": "smallGame",
+     "density": 0.5,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "eagles_crag",
+   "name": "Eagle's Crag",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Vantage] [Exposed]",
+   "discoveryText": "A massive nest crowns the cliff, built of sticks and bone. The eagle is gone, but feathers and remains litter the rock. The view is commanding.",
+   "hazard": 0.45,
+   "wind": 1.4,
+   "cover": 0,
+   "visibility": 2,
+   "vantage": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Bone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.08, "maxKg": 0.2 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "creek_falls",
+   "name": "Creek Falls",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Fishing] [Loud]",
+   "discoveryText": "Water roars over a rocky drop. In a frost, the spray ices the stones. A deep pool churns below, and the noise covers your approach.",
+   "hazard": 0.45,
+   "wind": 0.7,
+   "cover": 0.1,
+   "visibility": 0.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.72,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Ice-Fed River",
+     "description": "A swift-flowing river fed by glacial meltwater. Cold but clear.",
+     "minutes": 1,
+     "items": [
+      { "resource": "Water", "units": 100, "kgPerUnit": 1, "respawnHoursPerUnit": 0.1 }
+     ]
+    },
+    { "kind": "water", "name": "Falls Pool", "description": "A churning pool at the base of the falls. Open water even in deep cold.", "frozen": false, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "open_pines",
+   "name": "Open Pines",
+   "placement": "Named",
+   "weight": 5,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Open] [Fast]",
+   "discoveryText": "Tall pines, widely spaced. The ground is clear of brush — you can move fast here, and see far. So can they.",
+   "hazard": 0.1,
+   "wind": 0.8,
+   "cover": 0.5,
+   "visibility": 1.2,
+   "traversal": 0.7,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.92,
+     "items": [
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "PineNeedles", "abundance": 0.4, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.06 }
+     ]
+    },
+    { "kind": "trees", "name": "Pine Stand", "wood": "PineFirewood", "minutesToFell": 140 },
+    {
+     "kind": "smallGame",
+     "density": 1.1,
+     "animals": [
+      { "animal": "Hare", "weight": 0.8 },
+      { "animal": "Ptarmigan", "weight": 0.4 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "young_growth",
+   "name": "Young Growth",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Dense] [Escape]",
+   "discoveryText": "Dense saplings crowd together, competing for light. You can barely push through — but nothing large can follow.",
+   "hazard": 0.2,
+   "wind": 0.3,
+   "cover": 0.6,
+   "visibility": 0.2,
+   "traversal": 1.4,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.03, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.9,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "cliff_face",
+   "name": "Cliff Face",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Vantage] [Climb]",
+   "discoveryText": "Sheer stone rises before you. Bird nests dot the ledges above. Climbable, if you're careful — and the view would be worth it.",
+   "hazard": 0.6,
+   "wind": 1.2,
+   "cover": 0,
+   "visibility": 1.6,
+   "vantage": true,
+   "edges": "Climb",
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stone", "abundance": 0.5, "minKg": 0.15, "maxKg": 0.35 },
+      { "resource": "Bone", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "root_hollow",
+   "name": "Root Hollow",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Shelter] [Hidden]",
+   "discoveryText": "A massive root ball, torn from the earth. The hollow beneath is dry and sheltered — barely room for one, but enough.",
+   "hazard": 0.15,
+   "wind": 0.2,
+   "cover": 0.8,
+   "visibility": 0.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    { "kind": "shelter", "name": "Root Hollow", "type": "NaturalShelter", "insulation": 0.4, "overhead": 0.8, "wind": 0.7, "insulationCap": 0.55, "overheadCap": 0.9, "windCap": 0.8 },
+    {
+     "kind": "smallGame",
+     "density": 0.5,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "deer_meadow",
+   "name": "Deer Meadow",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Plain] [Hunting] [Exposed]",
+   "discoveryText": "A broad meadow, the grass tall enough to show through light snow. Good grazing. But anything out here is seen from a long way off.",
+   "hazard": 0.1,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.5,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.12 },
+      { "resource": "Bone", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.5,
+     "animals": [
+      { "animal": "Hare", "weight": 0.6 }
+     ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 2.2
+    }
+   ]
+  },
+  {
+   "id": "rabbit_warren",
+   "name": "Rabbit Warren",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Forest", "Clearing" ],
+   "tags": "[Forest] [Hunting] [Small Game]",
+   "discoveryText": "Burrow holes dot the slope, the earth at their mouths worn smooth. A warren, dug over many years.",
+   "hazard": 0.2,
+   "wind": 0.6,
+   "cover": 0.5,
+   "visibility": 0.6,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.72,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.3,
+     "animals": [
+      { "animal": "Hare", "weight": 2.5 },
+      { "animal": "Fox", "weight": 0.6 }
+     ],
+     "peakHours": [ 5, 7 ],
+     "peakFactor": 1.8
+    }
+   ]
+  },
+  {
+   "id": "ice_shove_ridge",
+   "name": "Ice Shove Ridge",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Water" ],
+   "tags": "[Ice] [Shelter] [Escape]",
+   "discoveryText": "Each winter, wind and current drive the ice up into jagged ridges. Treacherous going, but there are sheltered pockets between the slabs.",
+   "hazard": 0.6,
+   "wind": 0.3,
+   "cover": 0.4,
+   "visibility": 0.6,
+   "traversal": 1.5,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.2,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "water", "name": "Pressure Ice", "description": "Ice that heaps into jumbled plates. Open water is hard to reach, but there is ice to cut.", "frozen": true, "ice": 0.7, "fish": 0.7 },
+    { "kind": "shelter", "name": "Ice Pocket", "type": "NaturalShelter", "insulation": 0.25, "overhead": 0.4, "wind": 0.6, "insulationCap": 0.35, "overheadCap": 0.55, "windCap": 0.7 }
+   ]
+  },
+  {
+   "id": "overflow_ice",
+   "name": "Overflow Ice",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Water" ],
+   "tags": "[Ice] [Fast] [Wet]",
+   "discoveryText": "Water wells up through cracks in the ice here and spreads in mirror-smooth sheets. Fast going — but it soaks your feet before you know it.",
+   "hazard": 0.7,
+   "wind": 1.1,
+   "cover": 0,
+   "visibility": 1.5,
+   "traversal": 0.6,
+   "features": [
+    { "kind": "water", "name": "Overflow", "description": "Water wells up through cracks in the ice and stands on top of it.", "frozen": false, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "mineral_spring",
+   "name": "Mineral Spring",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Water", "Rock" ],
+   "tags": "[Water] [Medicine] [Hunting]",
+   "discoveryText": "Water stained rust-red, smelling of iron. Warm from underground. The red mud at its edge is licked bare.",
+   "hazard": 0.2,
+   "wind": 0.6,
+   "cover": 0.1,
+   "visibility": 0.9,
+   "temperatureDeltaF": 3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    },
+    { "kind": "water", "name": "Mineral Spring", "description": "Iron-rich water. Medicinal, if you can stomach the taste.", "frozen": false, "fish": 0.7 },
+    // old game: this SmallGameFeature listed no animals, so nothing could ever be hunted here
+    // (bug, fixed): the common hare and ptarmigan.
+    {
+     "kind": "smallGame",
+     "density": 1.3,
+     "animals": [ { "animal": "Hare", "weight": 1.2 }, { "animal": "Ptarmigan", "weight": 1 } ],
+     "peakHours": [ 5, 8 ],
+     "peakFactor": 1.8
+    }
+   ]
+  },
+  {
+   "id": "sinkhole_pool",
+   "name": "Sinkhole Pool",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Water" ],
+   "tags": "[Water] [Dark] [Dangerous]",
+   "discoveryText": "A perfect circle of dark water where the ground collapsed. Underground warmth keeps it open. Fish move in the depths — if you can reach them safely.",
+   "hazard": 0.55,
+   "wind": 0.4,
+   "cover": 0.2,
+   "visibility": 0.5,
+   "edges": "Climb",
+   "features": [
+    { "kind": "water", "name": "Sinkhole", "description": "Deep, dark water. Never freezes. Rumored to have fish.", "frozen": false, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "snowfield_basin",
+   "name": "Snowfield Basin",
+   "placement": "Named",
+   "weight": 3,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Snow] [Exposed] [Tracking]",
+   "discoveryText": "A high bowl where snow lies deep and late. Post-holing through it exhausts you — but it holds every track. Nothing moves through here unseen.",
+   "hazard": 0.15,
+   "wind": 0.7,
+   "cover": 0,
+   "visibility": 1.4,
+   "traversal": 2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.12,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "moraine_field",
+   "name": "Moraine Field",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Stone] [Treacherous]",
+   "discoveryText": "Where the glacier dumped its load — boulders, gravel, sand jumbled together. The stone variety is excellent. The footing is murderous.",
+   "hazard": 0.6,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.2,
+   "traversal": 1.4,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.52,
+     "items": [
+      { "resource": "Stone", "abundance": 2, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Flint", "abundance": 0.3, "minKg": 0.08, "maxKg": 0.2 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "scree_chute",
+   "name": "Scree Chute",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Slope] [Loud]",
+   "discoveryText": "Loose rock in a steep channel. Going down is fast — going up is exhausting. Every step sends stones clattering.",
+   "hazard": 0.45,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.1,
+   "traversal": 1.2,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Shale", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "krummholz_zone",
+   "name": "Krummholz Zone",
+   "placement": "Named",
+   "weight": 2.5,
+   "terrain": [ "Forest", "Hills" ],
+   "tags": "[Forest] [Fuel] [Slow]",
+   "discoveryText": "Stunted, wind-twisted trees barely knee-high. You're crawling through them — but there's firewood everywhere.",
+   "hazard": 0.25,
+   "wind": 0.4,
+   "cover": 0.3,
+   "visibility": 0.4,
+   "traversal": 1.8,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 2,
+     "items": [
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Tinder", "abundance": 0.5, "minKg": 0.03, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1,
+     "animals": [
+      { "animal": "Ptarmigan", "weight": 2 },
+      { "animal": "Hare", "weight": 0.8 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flint_knapping_site",
+   "name": "Flint Knapping Site",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Flint] [Ancient]",
+   "discoveryText": "The ground glitters with flakes and failed attempts. Someone stood here making tools, long ago. The flint is premium quality.",
+   "hazard": 0.2,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 2,
+     "items": [
+      { "resource": "Flint", "abundance": 2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "kill_site",
+   "name": "Kill Site",
+   "placement": "Named",
+   "weight": 1,
+   "terrain": [ "Plain", "Clearing" ],
+   "tags": "[Bones] [Hunting] [Scavengers]",
+   "discoveryText": "Bones piled where many animals died. A stampede? A hunt? The bones are old but still good.",
+   "hazard": 0.2,
+   "wind": 0.8,
+   "cover": 0,
+   "visibility": 1.1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.52,
+     "items": [
+      { "resource": "Bone", "abundance": 2.5, "minKg": 0.3, "maxKg": 0.8 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Bone Heap",
+     "description": "Jumbled bones from an ancient kill. Dense, quality material.",
+     "minutes": 20,
+     "items": [
+      { "resource": "Bone", "units": 15, "kgPerUnit": 1, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 0.8,
+     "animals": [
+      { "animal": "Fox", "weight": 1.5 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rock_shelter",
+   "name": "Rock Shelter",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock" ],
+   "elite": true,
+   "tags": "[Shelter] [Ancient] [Fire]",
+   "discoveryText": "Painted walls in the firelight. Someone lived here, seasons beyond counting. Their handprints are still on the stone. A fire pit is already dug.",
+   "hazard": 0.1,
+   "wind": 0.2,
+   "cover": 0.9,
+   "visibility": 0.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.32,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    },
+    { "kind": "shelter", "name": "Rock Shelter", "type": "NaturalShelter", "insulation": 0.5, "overhead": 0.9, "wind": 0.8, "insulationCap": 0.65, "overheadCap": 0.95, "windCap": 0.9 },
+    { "kind": "stock", "work": "Salvage", "name": "Abandoned Camp", "description": "Signs of an old camp. The fire pit is cold, shelter collapsed.", "minutes": 45, "loot": "AbandonedCamp" },
+    { "kind": "stock", "work": "Salvage", "name": "Shelter Floor", "description": "The rock overhang shows signs of long habitation.", "minutes": 40, "loot": "EliteShelter" },
+    { "kind": "stock", "work": "Salvage", "name": "Hidden Tool Cache", "description": "Flat stones hide a small cache underneath.", "minutes": 20, "loot": "ScrapTool" }
+   ]
+  },
+  {
+   "id": "cairn_marker",
+   "name": "Cairn Marker",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Hills", "Rock" ],
+   "tags": "[Landmark] [Exposed] [Ancient]",
+   "discoveryText": "Stacked stones on a rise, placed by hands long gone. A message you can't read — but it marks something. The view from here reveals the land.",
+   "hazard": 0.1,
+   "wind": 1.2,
+   "cover": 0,
+   "visibility": 1.6,
+   "vantage": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.4,
+     "items": [
+      { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mammoth_wallow",
+   "name": "Mammoth Wallow",
+   "placement": "Named",
+   "weight": 1.5,
+   "terrain": [ "Plain", "Marsh" ],
+   "tags": "[Plain] [Megafauna] [Messy]",
+   "discoveryText": "A wide hollow of churned earth, rolled flat by something huge. The banks are rubbed smooth high above your head.",
+   "hazard": 0.4,
+   "wind": 0.9,
+   "cover": 0,
+   "visibility": 1.2,
+   "traversal": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1,
+     "items": [
+      { "resource": "Tinder", "abundance": 0.8, "minKg": 0.1, "maxKg": 0.3 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "pyrite_outcrop",
+   "name": "Pyrite Outcrop",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Rock] [Fire] [Exposed]",
+   "discoveryText": "Fool's gold glitters in the rock face. Worthless for trade — but strike it against flint and you get sparks.",
+   "hazard": 0.25,
+   "wind": 1.1,
+   "cover": 0,
+   "visibility": 1.3,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 1.2,
+     "items": [
+      { "resource": "Pyrite", "abundance": 1.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "glacial_tongue",
+   "name": "Glacial Tongue",
+   "placement": "Named",
+   "weight": 1,
+   "terrain": [ "Rock" ],
+   "tags": "[Ice] [Ancient] [Cold]",
+   "discoveryText": "Ancient ice pushing into the valley, moving inches per year. Old things emerge from its face — bone, ivory, frozen flesh from creatures long dead.",
+   "hazard": 0.5,
+   "wind": 1,
+   "cover": 0,
+   "visibility": 1,
+   "temperatureDeltaF": -8,
+   "features": [
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Glacial Melt Zone",
+     "description": "The edge where ice meets air. Ancient materials emerge as the glacier melts.",
+     "minutes": 25,
+     "items": [
+      { "resource": "Bone", "units": 8, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+      { "resource": "Ivory", "units": 4, "kgPerUnit": 2, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    { "kind": "water", "name": "Glacier Ice", "description": "Pure, ancient ice. Dense and cold.", "frozen": true, "ice": 0.7, "fish": 0.7 }
+   ]
+  },
+  {
+   "id": "deadfall_maze",
+   "name": "Deadfall Maze",
+   "placement": "Named",
+   "weight": 2,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Fuel] [Escape]",
+   "discoveryText": "Forest flattened by some ancient storm. Logs stacked chaotically in every direction. Fuel everywhere — but nothing large can follow you through.",
+   "hazard": 0.55,
+   "wind": 0.5,
+   "cover": 0.4,
+   "visibility": 0.3,
+   "traversal": 1.6,
+   "escape": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 3,
+     "items": [
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 4 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Massive Fallen Pine",
+     "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
+     "minutes": 20,
+     "items": [
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
+     ]
+    },
+    {
+     "kind": "smallGame",
+     "density": 1.2,
+     "animals": [
+      { "animal": "Hare", "weight": 1.2 },
+      { "animal": "Ptarmigan", "weight": 1 }
+     ]
+    },
+    { "kind": "event", "event": "deadfall_den", "revealAtHours": 1 }
+   ]
+  },
+  {
+   "id": "smoke_tree",
+   "name": "Smoke Tree",
+   "placement": "Named",
+   "weight": 0.8,
+   "terrain": [ "Forest" ],
+   "tags": "[Forest] [Fire] [Landmark]",
+   "discoveryText": "A massive tree, split and charred by lightning. Its burned heart is thick with charcoal.",
+   "hazard": 0.2,
+   "wind": 0.7,
+   "cover": 0.3,
+   "visibility": 1,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
+      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Burned Tree",
+     "description": "Lightning-struck and burned hollow. Charcoal lines the heart of it.",
+     "minutes": 15,
+     "items": [
+      { "resource": "Charcoal", "units": 10, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thermal_vent",
+   "name": "Thermal Vent",
+   "placement": "Named",
+   "weight": 1,
+   "terrain": [ "Rock", "Hills" ],
+   "tags": "[Warm] [Barren] [Landmark]",
+   "discoveryText": "Warm air rises from a crack in the earth. The snow never sticks here. Nothing grows — the sulfur kills everything — but the warmth is real.",
+   "hazard": 0.3,
+   "wind": 0.5,
+   "cover": 0,
+   "visibility": 1.2,
+   "temperatureDeltaF": 12,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.12,
+     "items": [
+      { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "pass_approach",
+   "name": "Pass Approach",
+   "placement": "Pass",
+   "tags": "[Mountain] [Exposed] [Rocky]",
+   "discoveryText": "The treeline ends. Above, the pass cuts through bare rock and ice.",
+   "hazard": 0.6,
+   "wind": 1.3,
+   "cover": 0.05,
+   "visibility": 1.2,
+   "temperatureDeltaF": -5
+  },
+  {
+   "id": "lower_pass",
+   "name": "Lower Pass",
+   "placement": "Pass",
+   "tags": "[Mountain] [Exposed] [Ice]",
+   "discoveryText": "Exposed scree and ice. Nothing here stops the wind.",
+   "hazard": 0.8,
+   "wind": 1.6,
+   "cover": 0,
+   "visibility": 1.3,
+   "temperatureDeltaF": -10
+  },
+  {
+   "id": "pass_proper",
+   "name": "The Pass Proper",
+   "placement": "Pass",
+   "tags": "[Mountain] [Exposed] [Extreme]",
+   "discoveryText": "The highest point. Snow blows sideways here, and on a bad day you can barely see.",
+   "hazard": 1,
+   "wind": 2,
+   "cover": 0,
+   "visibility": 0.3,
+   "temperatureDeltaF": -15
+  },
+  {
+   "id": "upper_descent",
+   "name": "Upper Descent",
+   "placement": "Pass",
+   "tags": "[Mountain] [Exposed] [Rocky]",
+   "discoveryText": "Downhill but still exposed. The far valley glimmers below.",
+   "hazard": 0.7,
+   "wind": 1.5,
+   "cover": 0,
+   "visibility": 1.4,
+   "temperatureDeltaF": -10
+  },
+  {
+   "id": "lower_descent",
+   "name": "Lower Descent",
+   "placement": "Pass",
+   "tags": "[Mountain] [Forest Edge]",
+   "discoveryText": "The worst is behind you. Trees appear below.",
+   "hazard": 0.5,
+   "wind": 1,
+   "cover": 0.1,
+   "visibility": 1,
+   "temperatureDeltaF": -5
+  },
+  {
+   "id": "far_side",
+   "name": "Far Side",
+   "placement": "Pass",
+   "tags": "[Valley] [Sheltered] [Victory]",
+   "discoveryText": "You made it. The valley stretches before you, sheltered, the first green ground past the pass.",
+   "hazard": 0.3,
+   "wind": 0.6,
+   "cover": 0.3,
+   "visibility": 1.2,
+   "isCrossingExit": true
+  },
+  {
+   "id": "dry_chamber",
+   "name": "Dry Cave Chamber",
+   "placement": "Cave",
+   "tags": "[Cave] [Sheltered] [Dark]",
+   "discoveryText": "The passage opens into a quiet chamber. A raised, dry ledge offers room to rest above the cold stone floor.",
+   "hazard": 0.1,
+   "wind": 0,
+   "cover": 1,
+   "visibility": 0.7,
+   "traversal": 0.9,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
+      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    { "kind": "shelter", "name": "Dry Sleeping Recess", "type": "Cave", "insulation": 0.25, "overhead": 0.9, "wind": 0.2, "insulationCap": 0.6, "overheadCap": 0.95, "windCap": 0.4 }
+   ]
+  },
+  {
+   "id": "damp_passage",
+   "name": "Damp Cave Passage",
+   "placement": "Cave",
+   "tags": "[Cave] [Sheltered] [Dark]",
+   "discoveryText": "Water beads on the walls. A steady drip feeds a shallow pool beside the slippery path.",
+   "hazard": 0.4,
+   "wind": 0,
+   "cover": 1,
+   "visibility": 0.7,
+   "traversal": 1.15,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.52,
+     "items": [
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
+      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    { "kind": "water", "name": "Cave Seep", "description": "A trickle from deep in the rock collects in a shallow, fishless pool.", "frozen": false, "fish": 0 }
+   ]
+  },
+  {
+   "id": "rubble_passage",
+   "name": "Rubble Cave Passage",
+   "placement": "Cave",
+   "tags": "[Cave] [Sheltered] [Dark]",
+   "discoveryText": "Fallen slabs choke the passage. Loose shale shifts underfoot; each step needs care.",
+   "hazard": 0.55,
+   "wind": 0,
+   "cover": 1,
+   "visibility": 0.7,
+   "traversal": 1.4,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.6,
+     "items": [
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
+      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Loose Shale",
+     "description": "Thin plates of shale have split from the cave wall. Usable pieces lie beneath the dust.",
+     "minutes": 5,
+     "items": [
+      { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mineral_pocket",
+   "name": "Cave Mineral Pocket",
+   "placement": "Cave",
+   "tags": "[Cave] [Sheltered] [Dark]",
+   "discoveryText": "Pale bands cut across the exposed rock. Flint nodules protrude from the wall, with darker seams between them.",
+   "hazard": 0.3,
+   "wind": 0,
+   "cover": 1,
+   "visibility": 0.7,
+   "traversal": 1.1,
+   "dark": true,
+   "features": [
+    {
+     "kind": "forage",
+     "density": 0.8,
+     "items": [
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
+      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
+      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+     ]
+    },
+    {
+     "kind": "stock",
+     "work": "Harvest",
+     "name": "Flint Outcrop",
+     "description": "Sharp flint nodules erode from the rock face here. Good for tools.",
+     "minutes": 5,
+     "items": [
+      { "resource": "Flint", "units": 3, "kgPerUnit": 0.15, "unitsMax": 7, "respawnHoursPerUnit": 0 }
+     ]
+    }
+   ]
+  }
+ ]
+}

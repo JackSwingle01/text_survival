@@ -26,7 +26,7 @@
   { "gear": ["flint_knife", "stone_axe", "wooden_spear"], "durabilityPct": [0.7, 1.0] },
   { "resource": "DriedMeat", "kg": [0.8, 1.5] },
   { "chance": 0.25, "gear": ["bear_hide_chest", "mammoth_hide_chest"], "durabilityPct": [0.7, 0.95] },
-  { "chance": 0.3, "gear": ["large_bag", "proper_belt"], "durabilityPct": [0.6, 0.9] },
+  { "chance": 0.3, "gear": ["large_bag", "hide_belt"], "durabilityPct": [0.6, 0.9] },
   { "resource": "CuredHide", "kg": [0.5, 1.0] },
   { "chance": 0.5, "resource": "Sinew", "kg": [0.2, 0.4] }
  ],
