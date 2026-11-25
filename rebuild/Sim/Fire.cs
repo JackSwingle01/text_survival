@@ -491,6 +491,7 @@ public static class Fire
             case StartFire a:
                 if (!IsFuel(a.Tinder) || Props[a.Tinder].MinFireTempF != 0) throw new ArgumentException($"{a.Tinder} cannot light from cold", nameof(activity));
                 if (a.TinderKg <= 0 || a.KindlingKg < 0) throw new ArgumentOutOfRangeException(nameof(activity), "Tinder must be positive and kindling not negative");
+                if (Crippled.Refusal(world, world.Agent(a.Who), Faculty.Dexterity) is { } crippled) return crippled;
                 if (pit != null)
                 {
                     if (Reach() is { } barred) return barred;

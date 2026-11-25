@@ -188,12 +188,25 @@ public static class Work
 
     // ---- refusal: before any time passes ----
 
+    /// The faculties each verb needs above zero. A forage is a search too: at zero perception it would find nothing.
+    static Refusal? BodyRefusal(World world, Agent agent, Activity activity) => activity switch
+    {
+        Gather g when Pools.At(world, agent.Tile) is var pools && g.Pool >= 0 && g.Pool < pools.Count && pools[g.Pool] is ForagePool =>
+            Crippled.Refusal(world, agent, Faculty.Speed, Faculty.Dexterity, Faculty.Perception),
+        Gather => Crippled.Refusal(world, agent, Faculty.Speed, Faculty.Dexterity),
+        Butcher => Crippled.Refusal(world, agent, Faculty.Dexterity),
+        WalkAbout => Crippled.Refusal(world, agent, Faculty.Speed, Faculty.Perception),
+        Eat or Drink => Crippled.Refusal(world, agent, Crippled.ToEat(agent.Species)),
+        _ => null,
+    };
+
     /// Why this work cannot start, or null. Fires around the agent must be caught up.
     public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
         var pack = Items.PackOf(agent);
         if (pack == null) return new("carries nothing to work with");
+        if (BodyRefusal(world, agent, activity) is { } crippled) return crippled;
         switch (activity)
         {
             case Gather g:

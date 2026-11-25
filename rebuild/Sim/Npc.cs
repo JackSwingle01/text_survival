@@ -293,7 +293,9 @@ public static class Npc
         /// The all of a fire: lit if out by the time it is back (tinder for the odds, kindling, what the refusal names), then fuel.
         Tree FirePlan(TileId site, double hoursWanted)
         {
-            double backMinutes = ToSite(site).MinutesTo(Here, 0);
+            // A site it cannot walk to has no fire for it: a lame body makes its fire where it lies.
+            if (!ToSite(site).Reaches(Here)) return Impossible("a way to the site");
+            double backMinutes = ToSite(site).Minutes[Here];
             var reqs = new List<Req>();
             if (FireLeftHoursAt(site) * 60 < backMinutes + 1)
             {
@@ -468,7 +470,7 @@ public static class Npc
             if (EatToHand() is { } eat) return eat;
             if (FoodSource(FoodReq(MealKcal()), priority) is not var (tile, leaf)) return priority >= Priority.Need ? Explore() : null;
             var step = tile == Here ? Do(leaf) : WalkTo(tile);
-            double trip = FromHere().MinutesTo(tile, 0) + ToSite(Camp).MinutesTo(tile, 0) + leaf.WorkMinutes + CookMinutes(leaf);
+            double trip = FromHere().Minutes[tile] + (ToSite(Camp).Reaches(tile) ? ToSite(Camp).Minutes[tile] : 0) + leaf.WorkMinutes + CookMinutes(leaf);
             return step is { } s ? s with { ForecastMinutes = trip, At = tile } : null;
         }
 
@@ -483,7 +485,7 @@ public static class Npc
                 if (leaves.TryGetValue(t, out var known)) return known;
                 Leaf? found = null;
                 if (here.Reaches(t))
-                    foreach (var leaf in Offers(t, req, req.Amount, (int)here.MinutesTo(t, 0), site: null))
+                    foreach (var leaf in Offers(t, req, req.Amount, here.Minutes[t], site: null))
                         if (found == null || Rate(leaf) > Rate(found)) found = leaf;
                 return leaves[t] = found;
             }
@@ -661,7 +663,8 @@ public static class Npc
         {
             var here = FromHere();
             var back = ToSite(site);
-            double legHome = back.MinutesTo(Here, 0), best = double.PositiveInfinity;
+            if (!back.Reaches(Here)) return null;
+            double legHome = back.Minutes[Here], best = double.PositiveInfinity;
             var offers = new List<(Leaf Leaf, double Travel, double PerUnit)>();
             foreach (var (t, outMinutes) in here.Minutes.OrderBy(x => x.Value).ThenBy(x => x.Key))
             {
@@ -681,6 +684,11 @@ public static class Npc
             return null;
         }
 
+        // What the body refuses here it refuses on any tile: no leaf it would walk to and be refused.
+        bool? gathers, butchers;
+        bool Gathers => gathers ??= Crippled.Refusal(world, world.Agent(Id), Faculty.Speed, Faculty.Dexterity) == null;
+        bool Butchers => butchers ??= Crippled.Refusal(world, world.Agent(Id), Faculty.Dexterity) == null;
+
         IEnumerable<Leaf> Offers(TileId t, Req req, double want, int startIn, TileId? site)
         {
             var seen = memory.Places.GetValueOrDefault(t);
@@ -693,7 +701,7 @@ public static class Npc
                     yield return new Leaf(Via.PickUp, t, (int)r, req, kg * req.PerKg(r), kg, 1);
                 }
             var pools = Pools.At(world, t);
-            for (int i = 0; i < pools.Count; i++)
+            for (int i = 0; i < pools.Count && Gathers; i++)
             {
                 var id = new PoolId(t, i);
                 if (!Pools.Knows(world, Id, id)) continue;
@@ -716,7 +724,7 @@ public static class Npc
                 }
                 yield return new Leaf(Via.Gather, t, i, req, units, all, minutes);
             }
-            if (req.AnyOf.Contains(Resource.RawMeat))
+            if (req.AnyOf.Contains(Resource.RawMeat) && Butchers)
                 foreach (var seenCarcass in seen?.Carcasses ?? [])
                     if (Carcasses.Find(world, t, seenCarcass.Id) is { } c && !Carcasses.IsButchered(c) && Carcasses.MeatKg(c) > 0)
                         yield return new Leaf(Via.Butcher, t, c.Id, req, Math.Min(want, Carcasses.MeatKg(c) * req.PerKg(Resource.RawMeat)),

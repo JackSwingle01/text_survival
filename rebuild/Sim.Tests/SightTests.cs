@@ -97,7 +97,7 @@ public class SightTests
         var w = Plain();
         Assert.True(Sees(w, Centre, 6, 0, sight: 0.5));   // round(5.5) = 6
         Assert.False(Sees(w, Centre, 7, 0, sight: 0.5));
-        Assert.Equal([Centre], Sight.Visible(w, Centre, sightCapacity: 0));
+        Assert.Equal([Centre], Sight.Visible(w, Centre, sensesPct: 0));
     }
 
     /// From outside, a cave's floor is hidden; inside, sight has six tiles of budget along its own floor.

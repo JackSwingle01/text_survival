@@ -67,7 +67,8 @@ public static partial class Content
         double StrikeBackResolve, double ChaseLimitSeconds, double SleepHoursPerDay, ActivityPattern Activity,
         double SmellFactor, double ScentLevel,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null, double PerceptionFactor = 1,
-        double StealthFactor = 1);
+        double StealthFactor = 1,
+        bool Hands = false);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
@@ -355,7 +356,7 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor);
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor, r.Hands);
 
     // ---- checks, one family at a time ----
 

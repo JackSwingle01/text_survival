@@ -309,6 +309,8 @@ public static class Shelters
     public static Refusal? Refusal(World world, Activity activity)
     {
         var agent = world.Agent(activity.Who);
+        // Building something placed, as Make's placed recipes: on the legs and with the hands.
+        if (Crippled.Refusal(world, agent, Faculty.Speed, Faculty.Dexterity) is { } crippled) return crippled;
         var pack = Items.Pack(world, agent.Id);
         var tile = agent.Tile;
         switch (activity)

@@ -172,7 +172,7 @@ public class SpeciesBodyTests
     {
         var man = BodyState.BaselineHuman();
         var free = SpeciesTable.Running(Species.Human, man);
-        var laden = SpeciesTable.Running(Species.Human, man, new AbilityContext(EncumbrancePct: 2.0));
+        var laden = SpeciesTable.Running(Species.Human, man, new AbilityContext(EncumbrancePct: 1.5));
         Assert.True(Body.TopSpeedMps(man, laden) < Body.TopSpeedMps(man, free));
         Assert.True(Body.EnduranceSpeedMps(laden) < Body.EnduranceSpeedMps(free));
         Body.Burst(man, laden);

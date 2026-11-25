@@ -224,6 +224,14 @@ public static partial class Body
     public static double Speed(BodyState body, AbilityContext context = default) => Faculties.Speed(body, context);
     public static double Dexterity(BodyState body, AbilityContext context = default) => Faculties.Dexterity(body, context);
     public static IReadOnlyList<CrippledBy> SpeedCrippledBy(BodyState body, AbilityContext context = default) => Faculties.SpeedCrippledBy(body, context);
+    /// Why this faculty is at zero; empty when it is above. Strength never reaches zero on a living body.
+    public static IReadOnlyList<CrippledBy> CrippledBy(BodyState body, Faculty faculty, AbilityContext context = default) => faculty switch
+    {
+        Faculty.Speed => Faculties.SpeedCrippledBy(body, context),
+        Faculty.Dexterity => Faculties.DexterityCrippledBy(body),
+        Faculty.Perception => Faculties.PerceptionCrippledBy(body, context),
+        _ => throw new ArgumentOutOfRangeException(nameof(faculty), faculty, "no verb needs strength above zero"),
+    };
     public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default) => Faculties.DexterityCosts(body, context);
     public static double Perception(BodyState body, AbilityContext context = default) => Faculties.Perception(body, context);
     public static double Vitality(BodyState body, Species species) => Survival.Vitality.Of(body, species);

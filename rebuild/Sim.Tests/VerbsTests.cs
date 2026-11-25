@@ -29,7 +29,7 @@ public class VerbsTests
     /// to check the minutes it lists; every other verb runs one minute. That is all the check reads:
     /// a refusal comes before any minute passes, and Step does not read the minutes it is given
     /// until a job has lived its first.
-    static void AssertEveryVerbIsTrue(World w, AgentId who)
+    internal static void AssertEveryVerbIsTrue(World w, AgentId who)
     {
         string before = Save.ToJson(w);
         var verbs = All(Verbs.At(w, who)).ToList();

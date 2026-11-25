@@ -164,15 +164,44 @@ public class CombatStateTests
         Assert.Equal(FighterState.Gone, Combat.StateOf(w, Me(e)));
     }
 
+    /// Down is read off the faculties: with neither speed nor dexterity it can neither move nor strike.
     [Fact]
     public void AnUnconsciousFighter_IsDown_AndCanOnlyLieThere()
     {
         var (w, e) = PlayerVs(Species.Wolf, 5);
-        var brain = Combat.BodyOf(w, Me(e)).Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Brain");
-        brain.Condition = 0.05;
+        CrippledVerbsTests.KnockedOut(Combat.BodyOf(w, Me(e)));
         Assert.Equal(FighterState.Down, Combat.StateOf(w, Me(e)));
         Assert.Null(Combat.Refusal(w, e, Me(e), CombatAction.Wait));
         Assert.NotNull(Combat.Refusal(w, e, Me(e), CombatAction.Attack));
+    }
+
+    /// Legs gone and arms whole: still in the fight, but it cannot run, give chase or step, and says why.
+    [Fact]
+    public void ALeglessFighter_WithItsArms_IsNotDown_AndIsRefusedRunningAndStepping_NamingTheLegs()
+    {
+        var (w, e) = PlayerVs(Species.Wolf, 5);
+        CrippledVerbsTests.Legless(Combat.BodyOf(w, Me(e)));
+        Assert.NotEqual(FighterState.Down, Combat.StateOf(w, Me(e)));
+        Assert.Null(Combat.RunningOf(w, Me(e)));
+        Assert.Equal(0, Combat.Allowance(w, Me(e)));
+        foreach (var action in new[] { CombatAction.Flee, CombatAction.Advance, CombatAction.Retreat })
+        {
+            var refused = Combat.Refusal(w, e, Me(e), action);
+            Assert.True(refused?.Missing is MissingFaculty { Faculty: Faculty.Speed }, $"{action}: {refused}");
+            Assert.Contains("leg", refused!.Reason);
+        }
+        Assert.Equal(1, Combat.CatchOdds(w, B(e), Me(e)).Pct);
+        Assert.Equal(0, Combat.CatchOdds(w, Me(e), B(e)).Pct);
+    }
+
+    /// A wolf has no hands: with its legs gone it has neither speed nor dexterity, and is out of the fight.
+    [Fact]
+    public void ALeglessWolf_IsDown()
+    {
+        var (w, e) = PlayerVs(Species.Wolf, 5);
+        foreach (var leg in Combat.BodyOf(w, B(e)).Regions.Where(r => r.Name.Contains("Leg")))
+            foreach (var layer in leg.Layers) layer.Condition = 0;
+        Assert.Equal(FighterState.Down, Combat.StateOf(w, B(e)));
     }
 
     // ---- the AI's priority lists ----

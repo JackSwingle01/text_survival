@@ -131,11 +131,14 @@ public static class Sight
     /// Whether the tile is in view of this person now.
     public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
 
+    /// How far a body makes things out, against sound senses: its perception, read with no dark (the budget reads the sky).
+    internal static double SensesPct(BodyState body) => Body.Perception(body);
+
     /// What this person has in view now, cast from their tile with their eyes and today's sky; kept on
     /// their memory while tile and budget hold.
     internal static SightView ViewOf(World world, Agent agent)
     {
-        double sight = Body.GetCapacities(agent.Body).Sight;
+        double sight = SensesPct(agent.Body);
         double budget = BudgetTiles(world, agent.Tile, sight);
         var memory = (agent.Mind as PersonMind)?.Memory;
         bool ice = Map.IsIceSeason(world.Minute);
@@ -148,29 +151,29 @@ public static class Sight
     /// The sight budget from a tile on a clear day with sound eyes: 6 in a cave, otherwise open
     /// ground plus the tile's vantage (its own visibility, or the hills' if it stands on hills).
     // Regional weather elevation is not a heightmap, so it gives no local vantage.
-    public static int RangeTiles(GeneratedMap m, TileId from, double sightCapacity = 1)
+    public static int RangeTiles(GeneratedMap m, TileId from, double sensesPct = 1)
     {
-        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sightCapacity, 0, 1));
+        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sensesPct, 0, 1));
         double hills = m.TerrainAt(from) == Terrain.Hills ? Terrain.Hills.Row().Visibility : 0;
-        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), sightCapacity);
+        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), sensesPct);
     }
 
     /// Open ground's budget, plus (vantage - 1.3) x 20 tiles for a high place, at most 8 more.
-    public static int VantageRangeTiles(double vantageVisibility, double sightCapacity = 1)
+    public static int VantageRangeTiles(double vantageVisibility, double sensesPct = 1)
     {
         double bonus = Math.Clamp((vantageVisibility - 1.3) * 20, 0, MaxVantageBonusTiles);
-        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(sightCapacity, 0, 1));
+        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(sensesPct, 0, 1));
     }
 
     /// The budget now: the range, cut by the weather's visibility.
-    public static double BudgetTiles(World world, TileId from, double sightCapacity = 1) =>
-        RangeTiles(Map.Of(world), from, sightCapacity) * Weather.At(world, world.Minute).VisibilityFactor;
+    public static double BudgetTiles(World world, TileId from, double sensesPct = 1) =>
+        RangeTiles(Map.Of(world), from, sensesPct) * Weather.At(world, world.Minute).VisibilityFactor;
 
-    /// Every tile in view from here now, by column then row. sightCapacity is the eyes' (Capacity.Sight).
-    public static IReadOnlyList<TileId> Visible(World world, TileId from, double sightCapacity = 1)
+    /// Every tile in view from here now, by column then row. sensesPct is the body's (SensesPct).
+    public static IReadOnlyList<TileId> Visible(World world, TileId from, double sensesPct = 1)
     {
         var m = Map.Of(world);
-        double budget = BudgetTiles(world, from, sightCapacity);
+        double budget = BudgetTiles(world, from, sensesPct);
         int range = (int)Math.Ceiling(budget);
         var seen = new List<TileId>();
         for (int x = Math.Max(0, from.X - range); x <= Math.Min(m.Width - 1, from.X + range); x++)

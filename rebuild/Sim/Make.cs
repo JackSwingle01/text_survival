@@ -269,6 +269,9 @@ public static class Making
                 {
                     var r = Recipes.Get(m.Recipe);
                     if (r.Station is StationKind station) return new($"{Names.Lower(r.Name)} is not done by hand: put it on at a {Stations.Word(station)}");
+                    // Something placed is built on the legs as well as with the hands.
+                    var crippled = r.Result.Placed ? Crippled.Refusal(world, agent, Faculty.Speed, Faculty.Dexterity) : Crippled.Refusal(world, agent, Faculty.Dexterity);
+                    if (crippled != null) return crippled;
                     if (r.Result.Placed) return PlacedRefusal(world, agent, pack, r);
                     bool begun = ProjectFor(pack, r.Id, m.Target) != null;
                     if (!begun && TargetRefusal(agent, pack, r, m.Target) is { } target) return target;

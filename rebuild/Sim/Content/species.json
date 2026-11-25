@@ -33,6 +33,8 @@
 //     watches less and is warier (Fauna.ActiveNow); the spec's list, with the hare crepuscular (D).
 //   perceptionFactor (optional, 1): its sight budget against a person's, for sensing what moves (Fauna.Sense).
 //   stealthFactor (optional, 1): how hard a hunter of its kind is to notice coming (Fauna.PreyNotices; the old herd stealth).
+//   hands (optional, false): it has the hands ability, so it eats and drinks with its hands and needs dexterity
+//     for it; without, it eats with its mouth and needs speed (Crippled.ToEat). People only.
 //   smellFactor: its sense of smell, scaling how far it smells a scent (Scent; a nose of 1 smells a full scent
 //     Scent.FullReachTiles in calm air). scentLevel: the scent its body gives off, 0-1, low for people (spec).
 //     Both D: bears out-smell dogs, wolves and hyenas close behind, ravens find food by sight (R); see the
@@ -56,7 +58,7 @@
   "Human": { "body": "Human", "weightKg": 68, "fatPct": 0.12, "musclePct": 0.38, "role": "Human", "isSmall": false,
    "attackDamage": 0.05, "attackType": "Blunt", "threat": 1.0, "boldness": 1.0, "aggression": 1.0, "cohesion": 0.5, "group": "Open", "moveAllowanceM": 3, "reachM": 0.8,
    "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
-   "topSpeedMps": 8.5, "enduranceSpeedMps": 3.3, "sprintSeconds": 15, "runCostJPerKgM": 4.0, "burstPct": 0.12, "grazeKcalPerMinute": 0, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 8, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.1,
+   "topSpeedMps": 8.5, "enduranceSpeedMps": 3.3, "sprintSeconds": 15, "runCostJPerKgM": 4.0, "burstPct": 0.12, "grazeKcalPerMinute": 0, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 8, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.1, "hands": true,
    "autumnFatPct": { "min": 0.15, "max": 0.18 },
    "female": { "weightKg": 55, "fatPct": 0.22, "musclePct": 0.31, "topSpeedMps": 7.3, "enduranceSpeedMps": 2.9,
     "autumnFatPct": { "min": 0.25, "max": 0.28 } } },
