@@ -23,6 +23,7 @@ public sealed record SpeciesStats(
     Temperament Temperament,
     HerdBehavior Behavior,
     Diet Diet,
+    IReadOnlyList<Resource> Grazes,
     Motion Motion,
     double GrazeKcalPerMinute,
     /// Giving ground with the enemy in reach, it strikes instead of backing off at this resolve or above.

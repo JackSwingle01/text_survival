@@ -70,7 +70,7 @@ public static partial class Content
         double SmellFactor, double ScentLevel,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null, double PerceptionFactor = 1,
         double StealthFactor = 1,
-        bool Hands = false);
+        bool Hands = false, IReadOnlyList<Resource>? Grazes = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
@@ -173,6 +173,7 @@ public static partial class Content
         problems.AddRange(ItemProblems(items, resources, slots, packKg, campKg));
         problems.AddRange(FireProblems(fuels, pits, fire.Deterrence));
         problems.AddRange(SpeciesProblems(species, speciesRows));
+        problems.AddRange(DietProblems(diets, resources));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
         problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, beddings));
         problems.AddRange(ButcherProblems(butcherRows, yields));
@@ -356,9 +357,11 @@ public static partial class Content
                 foreach (var p in NullsIn(value, $"{path}.{char.ToLowerInvariant(prop.Name[0])}{prop.Name[1..]}")) yield return p;
     }
 
+    static readonly IReadOnlyList<Resource> NoGrazing = Array.AsReadOnly(Array.Empty<Resource>());
+
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
-            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet,
+            r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet, r.Grazes ?? NoGrazing,
             new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor, r.Hands);
 
     // ---- checks, one family at a time ----
@@ -687,6 +690,18 @@ public static partial class Content
         foreach (var (predator, quarry) in injured.Except(killed)) yield return $"species.json injuryChances: {predator} {quarry}, which killChances has not";
     }
 
+    static IEnumerable<string> DietProblems(Dictionary<Diet, IReadOnlyList<Resource>> diets, Dictionary<Resource, ResourceDef> resources)
+    {
+        foreach (var (diet, foods) in diets)
+        {
+            string at = $"species.json diets {diet}";
+            if (diet == Diet.Herbivore && foods.Count > 0) yield return $"{at}: a herbivore eats from no pile, cache or carcass";
+            if (diet != Diet.Herbivore && foods.Count == 0) yield return $"{at}: needs its foods";
+            foreach (var r in foods)
+                if (resources[r].Category != ResourceCategory.Food) yield return $"{at}: {r} is not a food";
+        }
+    }
+
     static IEnumerable<string> SpeciesProblems(SpeciesFile f, Dictionary<Species, SpeciesRow> rows)
     {
         foreach (var (s, r) in rows)
@@ -705,6 +720,9 @@ public static partial class Content
             if (r.SmellFactor <= 0 || r.ScentLevel is < 0 or > 1) yield return $"{at}: smellFactor above 0, scentLevel in 0-1";
             if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
                 yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";
+            bool grazes = r.Grazes is { Count: > 0 };
+            if (r.Diet == Diet.Herbivore && !grazes) yield return $"{at}: a herbivore needs a grazing list";
+            if (grazes && r.GrazeKcalPerMinute <= 0) yield return $"{at}: a grazing list needs grazeKcalPerMinute above 0";
             bool person = s == Survival.Species.Human;
             if (person != (r.AutumnFatPct != null) || person != (r.Female != null))
                 yield return $"{at}: autumnFatPct and female are a person's, and a person has both";

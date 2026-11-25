@@ -309,4 +309,20 @@ public class RenewalTests
         Sim.Advance(w, 61);
         Assert.False(w.Fires.ContainsKey(second));
     }
+
+    /// A tile's forage scores for a species by its own grazing list: lichen for caribou and hare, grass for bison, berries
+    /// for a bear, nothing for a wolf (#122).
+    [Theory]
+    [InlineData(Species.Caribou, 1)]
+    [InlineData(Species.Hare, 1)]
+    [InlineData(Species.Bison, 2)]
+    [InlineData(Species.Bear, 3)]
+    [InlineData(Species.Wolf, 0)]
+    public void ATilesForage_ScoresForASpecies_ByItsGrazingList(Species species, double score)
+    {
+        var w = PlannerTests.Strip();
+        var tile = new TileId(20, 1);
+        w.PoolCache![tile] = [new ForagePool("pasture", 1.0, [new(Resource.Usnea, 1, 0.1, 0.2), new(Resource.Tinder, 2, 0.1, 0.2), new(Resource.Berries, 3, 0.1, 0.2)])];
+        Assert.Equal(score, Fauna.ForageScore(w, tile, species));
+    }
 }
