@@ -33,9 +33,9 @@ public class ShelterTests
     {
         var f = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Open };
         Fire.AddFuel(f, Resource.BirchBark, 0.05);
-        Fire.AddFuel(f, Resource.Kindling, 1.0);
+        Fire.AddFuel(f, Resource.Stick, 1.0);
         Fire.IgniteAll(f);
-        Fire.AddFuel(f, Resource.Birch, 3.0);
+        Fire.AddFuel(f, Resource.BirchBranch, 3.0);
         var events = new List<WorldEvent>();
         for (int i = 1; i <= 30; i++) Fire.Tick(f, new FireId(0), i, events);
         w.Fires[new FireId(w.NextFireId++)] = f;
@@ -285,13 +285,13 @@ public class ShelterTests
     {
         var w = Builder(out var tile);
         var pack = Items.Pack(w, P);
-        TestKit.Give(pack, Resource.Kindling, 1.5);
-        int sticks = Items.Count(pack, Resource.Kindling);
+        TestKit.Give(pack, Resource.Stick, 1.5);
+        int sticks = Items.Count(pack, Resource.Stick);
         var r = Sim.Step(w, new Make(P, "branch_frame"), 120);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(30, r.MinutesElapsed);
         Assert.Contains(r.Events, e => e is Built { Recipe: "branch_frame" });
-        Assert.Equal(sticks - 4, Items.Count(pack, Resource.Kindling)); // four sticks, whatever they weigh
+        Assert.Equal(sticks - 4, Items.Count(pack, Resource.Stick)); // four sticks, whatever they weigh
         var s = Shelters.At(w, tile, [])!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
         Assert.Contains("already a shelter", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
@@ -348,11 +348,11 @@ public class ShelterTests
     public void Project_PersistsAcrossSteps_AndBlocksAnotherBuild()
     {
         var w = Builder(out var tile);
-        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1.2);
-        TestKit.Give(Items.Pack(w, P), Resource.Pine, 6);
+        TestKit.Give(Items.Pack(w, P), Resource.Stick, 1.2);
+        TestKit.Give(Items.Pack(w, P), Resource.PineBranch, 6);
         Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
         Assert.Contains("half-built", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
-        Assert.Equal(6, Items.Have(Items.Pack(w, P), Resource.Pine));
+        Assert.Equal(6, Items.Have(Items.Pack(w, P), Resource.PineBranch));
         var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.Equal(("built", 20), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Empty(w.Projects);
@@ -361,7 +361,7 @@ public class ShelterTests
     static string BuildAndImprove(int chunk, bool reload = false)
     {
         var w = Builder(out _);
-        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1.2);
+        TestKit.Give(Items.Pack(w, P), Resource.Stick, 1.2);
         TestKit.Give(Items.Pack(w, P), Resource.Hide, 3);
         foreach (var (a, total) in new (Activity, int)[] { (new Make(P, "branch_frame"), 30), (new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 50) })
             for (int done = 0; done < total; done += chunk)
@@ -561,7 +561,7 @@ public class ShelterTests
     public void Find_UnderAHalfBuiltFrame_Waits_AndTheFrameIsFinished()
     {
         var (w, tile, pool) = FindTile(Mild);
-        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 2);
+        TestKit.Give(Items.Pack(w, P), Resource.Stick, 2);
         Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
         var events = new List<WorldEvent>();
         Pools.Search(w, w.Agent(P), 1000, events);
@@ -712,7 +712,7 @@ public class ShelterTests
             var s = Shelters.Place(w, tile, def);
             Shelters.Repair(s, 0);
             Assert.Equal((def.Insulation!.Value, def.Wind!.Value), (s.InsulationLevel, s.WindLevel));
-            Assert.True(Shelters.Improve(s, ShelterStat.Wind, Resource.Pine, 1) >= 0);
+            Assert.True(Shelters.Improve(s, ShelterStat.Wind, Resource.PineBranch, 1) >= 0);
         }
     }
 

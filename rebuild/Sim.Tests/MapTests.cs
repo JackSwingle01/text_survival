@@ -341,7 +341,10 @@ public class MapTests
         // The player's first look is in it (World.New): what they have explored and the places noted, about 13 kB.
         Assert.True(Save.ToJson(bare).Length < 20_000, $"Save is {Save.ToJson(bare).Length} bytes without its herds: generated terrain leaked into it?");
         Assert.DoesNotContain("Mountain", json);
-        Assert.Contains("\"Tiles\":{}", json);
+        // The one tile that differs from its generation is the camp, with the starting firewood on its pile.
+        var tiles = TestWorlds.Load(json).Tiles;
+        Assert.Equal([Map.Of(world).Camp], tiles.Keys);
+        Assert.True(tiles[Map.Of(world).Camp] is { Pile: not null, Pools: null, Tracks: null, Carcasses: null });
 
         var loaded = Save.FromJson(json);
         Assert.Null(loaded.GeneratedMap); // rebuilt lazily, not read from the file

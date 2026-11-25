@@ -134,7 +134,7 @@ static class ActionGen
                     // The best tool and tinder held, mostly, so fires get lit and what needs one gets reached.
                     var tools = pack.Gear.Where(g => Items.Def(g).Tool is ToolType.FireStriker or ToolType.HandDrill or ToolType.BowDrill)
                         .Select(g => Items.Def(g).Tool!.Value).Distinct().OrderBy(t => t == ToolType.FireStriker ? 0 : 1).ToList();
-                    var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Kindling && r != Resource.Charcoal)
+                    var tinders = Held(r => Fire.IsFuel(r) && Fire.Props[r].MinFireTempF == 0 && r != Resource.Stick && r != Resource.Charcoal)
                         .OrderByDescending(r => Fire.Props[r].IgnitionBonusPct).ToList();
                     if (pick % 3 != 0) (tools, tinders) = (tools.Take(1).ToList(), tinders.Take(1).ToList());
                     var pit = Fire.PitAt(w, tile) is FireId id ? w.Fires[id].Pit : (PitType)(pick % 3 == 2 ? 1 : 0);
@@ -142,7 +142,7 @@ static class ActionGen
                         0.03 + pick % 4 * 0.02, pick % 5 * 0.1, pit);
                 }
             case Act.AddFuel:
-                return new AddFuel(P, PickOf(Held(Fire.IsFuel), pick, Resource.Kindling), 0.2 + pick % 8 * 0.4);
+                return new AddFuel(P, PickOf(Held(Fire.IsFuel), pick, Resource.Stick), 0.2 + pick % 8 * 0.4);
             case Act.LightTorch: return new LightTorch(P);
             case Act.Eat:
                 return new Eat(P, PickOf(Held(r => Items.Resources[r].Category == ResourceCategory.Food), pick, Resource.Berries), 0.1 + pick % 5 * 0.1);
@@ -153,12 +153,12 @@ static class ActionGen
             case Act.Cook:
                 return new Cook(P, PickOf(Held(r => r is Resource.RawMeat or Resource.RawFish), pick, Resource.RawMeat), 0.2 + pick % 5 * 0.2);
             case Act.PutDown:
-                return new PutDown(P, PickOf(Held(_ => true), pick, Resource.Kindling), 0.1 + pick % 5 * 0.2);
+                return new PutDown(P, PickOf(Held(_ => true), pick, Resource.Stick), 0.1 + pick % 5 * 0.2);
             case Act.PickUp:
                 {
                     var pile = w.Tiles.GetValueOrDefault(tile)?.Pile;
                     List<Resource> there = pile == null ? [] : Items.KgByResource(pile).Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
-                    return new PickUp(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
+                    return new PickUp(P, PickOf(there, pick, Resource.Stick), 0.1 + pick % 5 * 0.3);
                 }
             case Act.Butcher:
                 {

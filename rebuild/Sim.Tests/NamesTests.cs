@@ -32,7 +32,7 @@ public class NamesTests
     [Theory]
     [InlineData(Resource.Stone, 0.9, 3, "3 stones")]
     [InlineData(Resource.Stone, 0.3, 1, "1 stone")]
-    [InlineData(Resource.Pine, 2.5, 1, "1 pine log")]
+    [InlineData(Resource.PineBranch, 2.5, 1, "1 pine branch")]
     [InlineData(Resource.PlantFiber, 0.12, 0, "120 g plant fibre")]
     [InlineData(Resource.PlantFiber, 1.2, 0, "1.2 kg plant fibre")]
     [InlineData(Resource.PlantFiber, 0.4996, 0, "0.5 kg plant fibre")]

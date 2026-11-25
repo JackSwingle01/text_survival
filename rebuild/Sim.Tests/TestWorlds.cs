@@ -35,7 +35,8 @@ static class TestWorlds
     // The same once-per-seed rule for the bare world's save.
     static readonly ConcurrentDictionary<int, Lazy<string>> BareJson = new();
 
-    /// The seed's world with nobody in it but the player: World.New(seed) with every other agent removed.
+    /// The seed's world with nobody in it but the player: World.New(seed) with every other agent removed,
+    /// and the camp's starting firewood taken away, so the camp is an empty tile to set a scene on.
     /// For a test whose subject is not the animals. They are nearly all of a world's save (about 500 KB
     /// of 520 on seed 17), so this loads in a fiftieth of the time, saves as fast, and no minute the test
     /// lives pays for a herd. Herds still arrive in an empty valley, at midnight, as they would in the game.
@@ -43,8 +44,20 @@ static class TestWorlds
     {
         var w = New(s);
         foreach (var id in w.Agents.Keys.Where(id => id != AgentId.Player).ToList()) Agents.Remove(w, id);
+        EmptyCamp(w);
         return Save.ToJson(w);
     })).Value);
+
+    /// Takes the starting firewood off the camp's pile (World.New lays it), leaving the camp tile as bare as the valley's.
+    public static void EmptyCamp(World w)
+    {
+        var camp = Survival.Map.Of(w).Camp;
+        if (!w.Tiles.TryGetValue(camp, out var t)) return;
+        t.Pile = null;
+        t.PileCause = null;
+        t.PileId = null;
+        if (t.IsEmpty) w.Tiles.Remove(camp);
+    }
 
     /// Save.FromJson with the shared map of the save's seed attached: the map Map.Of would generate again.
     public static World Load(string json)

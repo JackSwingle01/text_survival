@@ -18,14 +18,16 @@ public sealed record TreePool(string Name, Resource? Wood, double MinutesToFell,
 /// still there; salvage and details are one cycle holding everything.
 public sealed record StockPool(
     string Name, StockKind Kind, int MinutesPerUnit, IReadOnlyList<StockItem> Items, double RevealAtHours,
-    double PlacementHeightM = 0.6, IReadOnlyList<Gear>? Gear = null, ToolType? RequiresTool = null, IReadOnlyList<string>? Found = null) : PoolDef(Name);
+    double PlacementHeightM = 0.6, IReadOnlyList<Gear>? Gear = null, IReadOnlyList<string>? Found = null) : PoolDef(Name);
 /// PieceKgs: a salvage's or a pile's pieces as rolled, one unit of them all; null for a harvest (a unit is a piece).
-public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, IReadOnlyList<double>? PieceKgs = null)
+/// RequiresTool: only someone carrying it works this item (a wood find's firewood needs an axe); the rest come by hand.
+public sealed record StockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit = 0, IReadOnlyList<double>? PieceKgs = null,
+    ToolType? RequiresTool = null)
 {
     public bool Equals(StockItem? other) => other is not null && Resource == other.Resource && Units == other.Units && KgPerUnit == other.KgPerUnit
-        && RespawnHoursPerUnit == other.RespawnHoursPerUnit && (PieceKgs ?? []).SequenceEqual(other.PieceKgs ?? []);
+        && RespawnHoursPerUnit == other.RespawnHoursPerUnit && (PieceKgs ?? []).SequenceEqual(other.PieceKgs ?? []) && RequiresTool == other.RequiresTool;
 
-    public override int GetHashCode() => HashCode.Combine(Resource, Units, KgPerUnit, RespawnHoursPerUnit);
+    public override int GetHashCode() => HashCode.Combine(Resource, Units, KgPerUnit, RespawnHoursPerUnit, RequiresTool);
 }
 
 /// A natural shelter, nothing to gather: finding it puts the shelter on the tile (Pools.Search).
@@ -59,10 +61,11 @@ public sealed record CarcassRow(IReadOnlyList<AnimalWeight> Animals, IReadOnlyLi
 public sealed record AnimalWeight(Species Animal, double Weight);
 
 /// One item of a find, rolled in order. Only a harvest's items state RespawnHoursPerUnit (0 never regrows).
-/// Exactly one of Resource, AnyOf (drawn after every count), Gear or Shuffle (Take to TakeMax, shuffled first).
+/// Exactly one of Resource, AnyOf (one draw for every AnyOf of the find, after every count), Gear or Shuffle (Take to TakeMax, shuffled first).
 public sealed record FindItem(Resource? Resource = null, IReadOnlyList<Resource>? AnyOf = null, string? Gear = null,
     IReadOnlyList<FindItem>? Shuffle = null, int Take = 0, int? TakeMax = null, double Chance = 1,
-    int Units = 1, int? UnitsMax = null, double KgPerUnit = 0, double? KgPerUnitMax = null, double? RespawnHoursPerUnit = null);
+    int Units = 1, int? UnitsMax = null, double KgPerUnit = 0, double? KgPerUnitMax = null, double? RespawnHoursPerUnit = null,
+    ToolType? RequiresTool = null);
 
 /// One entry of a discovery draw: a find, or a place held for a system not built yet (WaitsFor).
 public sealed record DiscoveryDraw(double SpawnChance, double ExpectedHours, string? Find = null, string? WaitsFor = null);
@@ -90,12 +93,17 @@ public sealed class ForageState : PoolState
 }
 public readonly record struct Grazing(double Level, long Minute);
 
+/// A stand's chopping, and the tree that lies felled on it: its trunk is the firewood still to cut, worked over as many trips as it takes.
 public sealed class TreeState : PoolState
 {
     public double MinutesWorked { get; set; }
     public int Felled { get; set; }
     /// When the stand was last cut to nothing (limited stands only).
     public long ClearedMinute { get; set; }
+    /// The felled tree's firewood still to cut, piece by piece, and how many pieces it held (which times each cut).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<double>? Trunk { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Resource? TrunkWood { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public int TrunkPieces { get; set; }
 }
 
 /// A carcass or pile find whose contents are on the tile: whoever finds it next finds what is left of them.
@@ -189,8 +197,9 @@ public static class Pools
                     break;
                 case SiteStock s:
                     yield return new StockPool(s.Name, s.Work, s.Minutes,
-                        [.. s.Items!.Select(i => new StockItem(i.Resource, i.UnitsMax is int max ? Between(rng, i.Units, max + 1) : i.Units, i.KgPerUnit, i.RespawnHoursPerUnit))],
-                        f.RevealAtHours, RequiresTool: s.RequiresTool);
+                        [.. s.Items!.Select(i => new StockItem(i.Resource, i.UnitsMax is int max ? Between(rng, i.Units, max + 1) : i.Units, i.KgPerUnit, i.RespawnHoursPerUnit,
+                            RequiresTool: i.RequiresTool))],
+                        f.RevealAtHours);
                     break;
                 case SiteFind find:
                     yield return Make(Finds.Finds[find.Find], rng, f.RevealAtHours);
@@ -357,11 +366,12 @@ public static class Pools
             if (i.AnyOf != null) choices.Add((items.Count, i.AnyOf));
             var resource = i.Resource ?? i.AnyOf![0]; // drawn below, after every count
             // Salvage and details: everything comes at once, after the minutes.
-            items.Add(work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit!.Value)
-                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : [.. Enumerable.Repeat(i.KgPerUnit, units)]));
+            items.Add((work == StockKind.Harvest ? new StockItem(resource, units, i.KgPerUnit, i.RespawnHoursPerUnit!.Value)
+                : All(resource, i.KgPerUnitMax is double hi ? Pieces(rng, units, i.KgPerUnit, hi) : [.. Enumerable.Repeat(i.KgPerUnit, units)])) with { RequiresTool = i.RequiresTool });
         }
         foreach (var i in d.Items ?? []) Take(i);
-        foreach (var (index, anyOf) in choices) items[index] = items[index] with { Resource = anyOf[rng.NextInt(anyOf.Count)] };
+        int wood = choices.Count > 0 ? rng.NextInt(choices[0].AnyOf.Count) : 0;
+        foreach (var (index, anyOf) in choices) items[index] = items[index] with { Resource = anyOf[wood] };
         return new StockPool(d.Name, work, d.Minutes, items, revealAtHours, PlacementHeightM(work), gear.Count > 0 ? gear : null, Found: d.Found);
     }
 
@@ -561,14 +571,31 @@ public static class Pools
     }
 
     /// A forecast: one felled tree's expected yield, the mixed wood shared out as Chop draws it.
-    public static IReadOnlyDictionary<Resource, double> ExpectedTree(TreePool def)
+    public static IReadOnlyDictionary<Resource, double> ExpectedTree(TreePool def) => ExpectedChop(def, null, double.MaxValue);
+
+    /// A forecast: what chopping here for workMinutes gives from where the work stands: sticks and tinder if the tree comes down, and each piece cut.
+    public static IReadOnlyDictionary<Resource, double> ExpectedChop(World world, PoolId id, double workMinutes) =>
+        ExpectedChop((TreePool)Def(world, id), StateOf(world, id) as TreeState, workMinutes);
+
+    static SortedDictionary<Resource, double> ExpectedChop(TreePool def, TreeState? s, double workMinutes)
     {
         var f = Felled;
         var kg = new SortedDictionary<Resource, double>();
+        double minutes = (s?.MinutesWorked ?? 0) + workMinutes;
+        if (s?.Trunk is { Count: > 0 } trunk)
+        {
+            double cut = Math.Min(trunk.Count, Math.Floor(minutes / MinutesPerPiece(def, s.TrunkPieces) + 1e-9));
+            kg[s.TrunkWood!.Value] = cut * trunk.Average();
+            return kg;
+        }
+        double fell = def.MinutesToFell * FellPct;
+        if (minutes < fell - 1e-9) return kg;
+        double pieces = f.Firewood.MiddleCount();
+        double cutPieces = Math.Min(pieces, Math.Floor((minutes - fell) / MinutesPerPiece(def, pieces) + 1e-9));
         IReadOnlyList<(Resource Wood, double Share)> woods = def.Wood is Resource w ? [(w, 1.0)] : f.MixedWood;
         foreach (var (wood, share) in woods)
-            kg[wood] = f.Logs.MiddleCount() * share * f.LogKg[wood];
-        kg[Resource.Kindling] = f.Kindling.MiddleCount() * f.Kindling.MiddleKg();
+            if (cutPieces > 0) kg[wood] = cutPieces * share * f.FirewoodKg[wood];
+        kg[Resource.Stick] = f.Sticks.MiddleCount() * f.Sticks.MiddleKg();
         kg[Resource.Tinder] = f.Tinder.MiddleCount() * f.Tinder.MiddleKg();
         return kg;
     }
@@ -609,7 +636,7 @@ public static class Pools
         var def = (TreePool)Def(world, id);
         if (def.Trees is not int max) return true;
         var s = StateOf(world, id) as TreeState;
-        return Standing(world, def, s, max) > 0;
+        return s?.Trunk is { Count: > 0 } || Standing(world, def, s, max) > 0;
     }
 
     /// A cleared stand regrows one tree, a week later, and stops as soon as one tree stands.
@@ -620,44 +647,86 @@ public static class Pools
         return world.Minute - s.ClearedMinute >= def.RespawnHoursPerTree * 60 ? 1 : 0;
     }
 
-    public static double ChopProgressPct(World world, PoolId id) =>
-        (StateOf(world, id) as TreeState)?.MinutesWorked / ((TreePool)Def(world, id)).MinutesToFell ?? 0;
+    public static double ChopProgressPct(World world, PoolId id)
+    {
+        var def = (TreePool)Def(world, id);
+        if (StateOf(world, id) is not TreeState s) return 0;
+        if (s.Trunk == null) return s.MinutesWorked / def.MinutesToFell;
+        double perPiece = MinutesPerPiece(def, s.TrunkPieces);
+        return (def.MinutesToFell * FellPct + (s.TrunkPieces - s.Trunk.Count) * perPiece + s.MinutesWorked) / def.MinutesToFell;
+    }
 
     public static readonly Felling Felled = Content.Tables.Felling;
 
-    /// Returns the tree's yield if it came down.
-    public static Inventory? Chop(World world, PoolId id, double minutes, Rng rng)
+    public const double FellPct = 0.4;
+
+    static double MinutesPerPiece(TreePool def, double trunkPieces) => def.MinutesToFell * (1 - FellPct) / trunkPieces;
+
+    /// The lying trunk's next piece, so a cutter whose pack can't take it stops first.
+    public static double? NextPieceKg(World world, PoolId id) =>
+        StateOf(world, id) is TreeState { Trunk: [.., var last] } ? last : null;
+
+    public sealed record ChopResult(Inventory Got, bool CameDown, bool CutUp);
+
+    /// Down at FellPct of its minutes with its sticks and tinder, the tree lies here as a trunk, cut a piece at a time over as many trips as it takes.
+    public static ChopResult Chop(World world, PoolId id, double minutes, Rng rng)
     {
         var def = (TreePool)Def(world, id);
         var s = StateFor(world, id, () => new TreeState());
+        var got = new Inventory();
+        bool cameDown = false;
         s.MinutesWorked += minutes;
-        if (s.MinutesWorked < def.MinutesToFell - 1e-9) return null;
+        if (s.Trunk == null)
+        {
+            double fell = def.MinutesToFell * FellPct;
+            if (s.MinutesWorked < fell - 1e-9) return new(got, false, false);
+            s.MinutesWorked -= fell;
+            Fall(world, id, def, s, rng, got);
+            cameDown = true;
+        }
+        var trunk = s.Trunk!;
+        double perPiece = MinutesPerPiece(def, s.TrunkPieces);
+        while (trunk.Count > 0 && s.MinutesWorked >= perPiece - 1e-9)
+        {
+            s.MinutesWorked -= perPiece;
+            Items.AddPiece(got, s.TrunkWood!.Value, trunk[^1]);
+            trunk.RemoveAt(trunk.Count - 1);
+        }
+        if (trunk.Count > 0) return new(got, cameDown, false);
+        s.Trunk = null;
+        s.TrunkWood = null;
+        s.TrunkPieces = 0;
+        s.MinutesWorked = 0;
+        return new(got, cameDown, true);
+    }
 
+    static void Fall(World world, PoolId id, TreePool def, TreeState s, Rng rng, Inventory got)
+    {
+        if (def.Trees is int max && Standing(world, def, s, max) <= 0) throw new InvalidOperationException($"Pool {id} has no tree to fell");
         var f = Felled;
-        var log = def.Wood ?? f.MixedWoodAt(rng.NextDouble());
-        double logKg = f.LogKg[log], spread = f.LogKgSpreadPct;
-        var y = new Inventory();
-        int logs = Between(rng, f.Logs.Count[0], f.Logs.Count[1] + 1);
-        for (int i = 0; i < logs; i++) Items.AddPiece(y, log, logKg * ((1 - spread) + rng.NextDouble() * (2 * spread)));
-        foreach (var (resource, pieces) in new[] { (Resource.Kindling, f.Kindling), (Resource.Tinder, f.Tinder) })
+        var wood = def.Wood ?? f.MixedWoodAt(rng.NextDouble());
+        double pieceKg = f.FirewoodKg[wood], spread = f.FirewoodKgSpreadPct;
+        int count = Between(rng, f.Firewood.Count[0], f.Firewood.Count[1] + 1);
+        var trunk = new List<double>(count);
+        for (int i = 0; i < count; i++) trunk.Add(pieceKg * ((1 - spread) + rng.NextDouble() * (2 * spread)));
+        foreach (var (resource, pieces) in new[] { (Resource.Stick, f.Sticks), (Resource.Tinder, f.Tinder) })
         {
             int n = Between(rng, pieces.Count[0], pieces.Count[1] + 1);
             for (int i = 0; i < n; i++)
             {
                 double kg = pieces.Kg![0] + rng.NextDouble() * (pieces.Kg[1] - pieces.Kg[0]);
-                if (Items.IsDiscrete(resource)) Items.AddPiece(y, resource, kg);
-                else Items.Add(y, resource, kg);
+                if (Items.IsDiscrete(resource)) Items.AddPiece(got, resource, kg);
+                else Items.Add(got, resource, kg);
             }
         }
-
-        s.MinutesWorked = 0;
-        if (def.Trees is int max)
+        s.Trunk = trunk;
+        s.TrunkWood = wood;
+        s.TrunkPieces = count;
+        if (def.Trees is int stand)
         {
-            if (Standing(world, def, s, max) <= 0) throw new InvalidOperationException($"Pool {id} has no tree to fell");
-            if (s.Felled >= max) s.ClearedMinute = world.Minute; // the regrown one, felled: the clock starts again
-            else if (++s.Felled >= max) s.ClearedMinute = world.Minute;
+            if (s.Felled >= stand) s.ClearedMinute = world.Minute; // the regrown one, felled: the clock starts again
+            else if (++s.Felled >= stand) s.ClearedMinute = world.Minute;
         }
-        return y;
     }
 
     /// Units of each item now, regrowth included (derived).
@@ -677,8 +746,37 @@ public static class Pools
 
     public static bool HasStock(World world, PoolId id) => UnitsNow(world, id).Any(u => u > 0);
 
-    /// Gear in a salvage comes with the first cycle.
-    public static Inventory WorkStock(World world, PoolId id, double minutes)
+    /// Units left that this worker can take: an item needing no tool, or one whose tool is in the pack.
+    public static bool HasStock(World world, PoolId id, Inventory pack)
+    {
+        var def = (StockPool)Def(world, id);
+        var units = UnitsNow(world, id);
+        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && CanWork(def.Items[i], pack)) return true;
+        return false;
+    }
+
+    public static bool CanWork(StockItem item, Inventory? pack) => item.RequiresTool is not ToolType t || pack != null && Items.Tool(pack, t) != null;
+
+    /// The tool this worker lacks, when only items needing it are left.
+    public static ToolType? MissingTool(World world, PoolId id, Inventory pack)
+    {
+        if (HasStock(world, id, pack)) return null;
+        var def = (StockPool)Def(world, id);
+        var units = UnitsNow(world, id);
+        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && def.Items[i].RequiresTool is ToolType t) return t;
+        return null;
+    }
+
+    public static bool WorksWith(World world, PoolId id, Inventory pack, ToolType tool)
+    {
+        var def = (StockPool)Def(world, id);
+        var units = UnitsNow(world, id);
+        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && def.Items[i].RequiresTool == tool && CanWork(def.Items[i], pack)) return true;
+        return false;
+    }
+
+    /// Gear in a salvage comes with the first cycle. Each cycle gives a unit of every item the worker can take.
+    public static Inventory WorkStock(World world, PoolId id, double minutes, Inventory? pack)
     {
         var def = (StockPool)Def(world, id);
         var now = UnitsNow(world, id);
@@ -693,12 +791,13 @@ public static class Pools
         }
         var got = new Inventory();
         s.MinutesWorked += minutes;
-        while (s.MinutesWorked >= def.MinutesPerUnit - 1e-9 && now.Any(u => u > 0))
+        bool Workable(int i) => now[i] > 0 && CanWork(def.Items[i], pack);
+        while (s.MinutesWorked >= def.MinutesPerUnit - 1e-9 && Enumerable.Range(0, now.Length).Any(Workable))
         {
             s.MinutesWorked -= def.MinutesPerUnit;
             for (int i = 0; i < now.Length; i++)
             {
-                if (now[i] <= 0) continue;
+                if (!Workable(i)) continue;
                 AddUnit(got, def.Items[i]);
                 now[i]--;
                 s.LastTakenMinute[i] = world.Minute;
@@ -710,7 +809,7 @@ public static class Pools
             }
         }
         for (int i = 0; i < now.Length; i++) s.Units[i] = now[i];
-        if (!now.Any(u => u > 0)) s.MinutesWorked = 0;
+        if (!Enumerable.Range(0, now.Length).Any(Workable)) s.MinutesWorked = 0;
         return got;
     }
 

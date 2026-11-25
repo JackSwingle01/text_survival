@@ -58,7 +58,7 @@ public static class Work
 
     public const string WalkedAbout = "walked about";
 
-    public const string Ate = "ate", Drank = "drank", WashedReason = "washed", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
+    public const string Ate = "ate", Drank = "drank", WashedReason = "washed", CookedReason = "cooked", Melted = "melted", TreeCutUp = "tree cut up", ButcheredReason = "butchered";
 
     public static bool TooDarkToWork(World world, Agent agent)
     {
@@ -116,14 +116,16 @@ public static class Work
                 foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity))
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
-            case TreePool tree when Pools.ChopProgressPct(world, id) * tree.MinutesToFell + workMinutes >= tree.MinutesToFell - 1e-9:
-                foreach (var (r, logs) in Pools.ExpectedTree(tree)) kg[r] = logs;
+            case TreePool:
+                foreach (var (r, got) in Pools.ExpectedChop(world, id, workMinutes)) kg[r] = got;
                 break;
             case StockPool stock:
                 int cycles = (int)Math.Floor(((Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0) / stock.MinutesPerUnit + workMinutes / stock.MinutesPerUnit + 1e-9);
                 var units = Pools.UnitsNow(world, id);
+                var pack = Items.PackOf(agent);
                 for (int i = 0; i < units.Length; i++)
-                    kg[stock.Items[i].Resource] = kg.GetValueOrDefault(stock.Items[i].Resource) + Math.Min(units[i], cycles) * stock.Items[i].KgPerUnit;
+                    if (Pools.CanWork(stock.Items[i], pack))
+                        kg[stock.Items[i].Resource] = kg.GetValueOrDefault(stock.Items[i].Resource) + Math.Min(units[i], cycles) * stock.Items[i].KgPerUnit;
                 break;
         }
         return kg;
@@ -212,6 +214,10 @@ public static class Work
                         ShelterFind f => new($"the {f.Name} is shelter, not something to gather"),
                         CarcassFind or PileFind => new("nothing like that here"), // found, it lies on the tile as itself
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
+                        StockPool when Pools.MissingTool(world, id, pack) is ToolType t => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
+                        TreePool when ToolRefusal(def, pack) is { } noAxe => noAxe,
+                        TreePool when Pools.NextPieceKg(world, id) is double kg && kg > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9 =>
+                            new(PackFull, new MissingState(Lack.PackRoomKg, kg, Items.CapacityKg(pack) - Items.CarriedKg(agent))),
                         _ => ToolRefusal(def, pack),
                     };
                 }
@@ -279,11 +285,10 @@ public static class Work
 
     public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
 
-    /// The tool a pool's work needs, checked for everyone: an axe for trees, a harvestable's own tool.
+    /// The tool a pool's work needs whatever is there: an axe for trees. A stock's items each say their own (Pools.CanWork).
     static Refusal? ToolRefusal(PoolDef def, Inventory pack) => def switch
     {
         TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,
-        StockPool { RequiresTool: ToolType t } when Items.Tool(pack, t) == null => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
         _ => null,
     };
 
@@ -504,15 +509,20 @@ public static class Work
                                 return null;
                             }
                         case TreePool:
-                            if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
-                            Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                            if (Pools.Chop(world, id, effective, world.Rng("work", agent.Id)) is not { } tree) return null;
-                            Keep(world, agent, s, tree, events);
-                            events.Add(new TreeFelled(world.Minute, agent.Id, id));
-                            return TreeFelled;
+                            {
+                                if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
+                                // A piece the pack can't take stays on the trunk for the next trip.
+                                if (Pools.NextPieceKg(world, id) is double next && next > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9) return PackFull;
+                                Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
+                                var chop = Pools.Chop(world, id, effective, world.Rng("work", agent.Id));
+                                Keep(world, agent, s, chop.Got, events);
+                                if (chop.CameDown) events.Add(new TreeFelled(world.Minute, agent.Id, id));
+                                return chop.CutUp ? TreeCutUp : null;
+                            }
                         case StockPool stock:
-                            Keep(world, agent, s, Pools.WorkStock(world, id, effective), events);
-                            return Pools.HasStock(world, id) ? null : $"the {stock.Name} is picked clean";
+                            if (Pools.WorksWith(world, id, pack, ToolType.Axe)) Items.UseFor(Items.Tool(pack, ToolType.Axe)!, 1, ChopMinutesPerAxeUse);
+                            Keep(world, agent, s, Pools.WorkStock(world, id, effective, pack), events);
+                            return Pools.HasStock(world, id, pack) ? null : $"the {stock.Name} is picked clean";
                         default:
                             throw new NotSupportedException("Unknown pool kind");
                     }

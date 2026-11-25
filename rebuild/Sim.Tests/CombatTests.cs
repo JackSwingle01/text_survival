@@ -793,7 +793,7 @@ public class CombatTests
         var fled = enc.Units.Single(u => u.Agent == npc);
         fled.InField = false; // it fled; the player fights on
         var bison = Agents.SpawnGroup(w, Species.Bison, tile, 3)[0];
-        TestKit.Give(Items.PileAt(w, tile), Resource.Birch, 60);
+        TestKit.Give(Items.PileAt(w, tile), Resource.BirchBranch, 60);
 
         var events = Sim.Step(w, new Hunt(npc, bison), Verbs.UntilDoneMinutes).Events; // the hunt a mind would choose
         Assert.Contains(events, e => e is EncounterEnded f && f.Agent == bison); // the NPC's hunt was fought out

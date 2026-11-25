@@ -19,7 +19,7 @@ public class NarrationTests
         var w = Camp(out var camp);
         Assert.Equal("You light a fire.", Narration.ForPlayer(w, new FireLit(0, new FireId(0), camp, P))!.Text);
         // A discrete resource by its count, a continuous one by its amount (#142).
-        Assert.Equal("You add 2 birch logs to the fire.", Narration.ForPlayer(w, new FuelAdded(0, new FireId(0), camp, P, Resource.Birch, 4, 2))!.Text);
+        Assert.Equal("You add 2 birch branches to the fire.", Narration.ForPlayer(w, new FuelAdded(0, new FireId(0), camp, P, Resource.BirchBranch, 4, 2))!.Text);
         Assert.Equal("You eat 0.5 kg berries.", Narration.ForPlayer(w, new Ate(0, P, camp, Resource.Berries, 0.5, 250))!.Text);
         Assert.Equal("You eat 120 g berries.", Narration.ForPlayer(w, new Ate(0, P, camp, Resource.Berries, 0.12, 60))!.Text);
         Assert.Equal("You are shivering.", Narration.ForPlayer(w, new EffectStarted(0, P, camp, EffectKind.Shivering))!.Text);
@@ -53,7 +53,7 @@ public class NarrationTests
         var events = new List<WorldEvent>();
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) events.AddRange(Sim.Step(w, light.Activity, 1).Events);
-        events.AddRange(Sim.Step(w, new AddFuel(P, Resource.Birch, 1), 1).Events);
+        events.AddRange(Sim.Step(w, new AddFuel(P, Resource.BirchBranch, 1), 1).Events);
         events.AddRange(Sim.Step(w, new Eat(P, Resource.Berries, 0.5), 10).Events);
         // A search's luck is one roll: a lean one at camp can come up empty, so search until something turns up.
         for (int i = 0; i < 6 && !events.OfType<Gathered>().Any(g => g.What.Length > 0); i++) events.AddRange(Sim.Step(w, new Gather(P, 0), 60).Events);

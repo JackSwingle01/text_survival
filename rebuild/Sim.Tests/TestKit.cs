@@ -46,10 +46,13 @@ static class TestKit
         [Resource.Flint] = 0.3,
         [Resource.Pyrite] = 0.1,
         [Resource.Bone] = 0.3,
-        [Resource.Kindling] = 0.3,
-        [Resource.Pine] = 2.0,
-        [Resource.Birch] = 2.0,
-        [Resource.Oak] = 2.0,
+        [Resource.Stick] = 0.3,
+        [Resource.PineBranch] = 2.0,
+        [Resource.BirchBranch] = 2.0,
+        [Resource.OakBranch] = 2.0,
+        [Resource.PineFirewood] = 2.0,
+        [Resource.BirchFirewood] = 2.0,
+        [Resource.OakFirewood] = 2.0,
         [Resource.Sinew] = 0.1,
         [Resource.Rope] = 0.2,
         [Resource.Hide] = 1.0,
@@ -117,7 +120,7 @@ static class TestKit
         var pack = Items.Pack(world, who ?? AgentId.Player);
         pack.Gear.Add(Items.Make("fire_striker"));
         for (int i = 0; i < 3; i++) pack.Gear.Add(Items.Make("torch"));
-        foreach (var (r, kg) in new[] { (Resource.BirchBark, 1.0), (Resource.Kindling, 10.0), (Resource.Birch, 10.0), (Resource.Pine, 5.0), (Resource.Bone, 2.0) })
+        foreach (var (r, kg) in new[] { (Resource.BirchBark, 1.0), (Resource.Stick, 10.0), (Resource.BirchBranch, 10.0), (Resource.PineBranch, 5.0), (Resource.Bone, 2.0) })
             Give(pack, r, kg);
         return world;
     }

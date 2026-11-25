@@ -19,10 +19,14 @@
   "Amadou": { "peakTempF": 490, "burnRateKgPerHour": 2.6, "minFireTempF": 0, "ignitionBonusPct": 0.20 },
   "Usnea": { "peakTempF": 480, "burnRateKgPerHour": 2.8, "minFireTempF": 0, "ignitionBonusPct": 0.18 },
   "Chaga": { "peakTempF": 470, "burnRateKgPerHour": 2.2, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
-  "Kindling": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
-  "Pine": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
-  "Birch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
-  "Oak": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
+  "Stick": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
+  "PineBranch": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
+  "BirchBranch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
+  "OakBranch": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
+  // Firewood burns as the branch of its wood does, kilo for kilo (FireTests holds them equal).
+  "PineFirewood": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
+  "BirchFirewood": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
+  "OakFirewood": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
   "Bone": { "peakTempF": 650, "burnRateKgPerHour": 0.5, "minFireTempF": 600, "ignitionBonusPct": 0 },
   "Peat": { "peakTempF": 700, "burnRateKgPerHour": 0.8, "minFireTempF": 400, "ignitionBonusPct": 0 },
   // Old FireHandler fed charcoal to the fire as kindling.

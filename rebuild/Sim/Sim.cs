@@ -170,7 +170,7 @@ public static class Sim
     static readonly HashSet<string> Finishing =
     [
         Traversal.Arrived, Traversal.CrossedThePassReason,
-        Work.Ate, Work.Drank, Work.WashedReason, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason, Work.WalkedAbout,
+        Work.Ate, Work.Drank, Work.WashedReason, Work.CookedReason, Work.Melted, Work.TreeCutUp, Work.ButcheredReason, Work.WalkedAbout,
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over

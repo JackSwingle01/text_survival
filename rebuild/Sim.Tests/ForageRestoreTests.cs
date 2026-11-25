@@ -73,7 +73,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
         Assert.Null(Work.Mood(Session(1.0)));
         var good = Session(1.5);
         Assert.Null(Work.Mood(good));
-        TestKit.Give(good.Got, Resource.Kindling, 0.3);
+        TestKit.Give(good.Got, Resource.Stick, 0.3);
         Assert.Equal(Clues.Table.Luck[LuckTier.Good], Work.Mood(good));
     }
 
@@ -127,9 +127,9 @@ public class ForageRestoreTests(ITestOutputHelper output)
     {
         int deadfall = ClueIndex(c => c.Text == "Fresh deadfall from the wind");
         var clue = Clues.Table.Clues[deadfall];
-        Assert.Equal(clue.Yield, Clues.YieldFactor([deadfall], ForageFocus.Fuel, Resource.Kindling));
-        Assert.Equal(1, Clues.YieldFactor([deadfall], ForageFocus.General, Resource.Kindling));
-        Assert.Equal(1, Clues.YieldFactor([deadfall], ForageFocus.Food, Resource.Kindling));
+        Assert.Equal(clue.Yield, Clues.YieldFactor([deadfall], ForageFocus.Fuel, Resource.Stick));
+        Assert.Equal(1, Clues.YieldFactor([deadfall], ForageFocus.General, Resource.Stick));
+        Assert.Equal(1, Clues.YieldFactor([deadfall], ForageFocus.Food, Resource.Stick));
         Assert.Equal(1, Clues.YieldFactor([deadfall], ForageFocus.Fuel, Resource.Tinder)); // fuel, but not what it promised
         Assert.Equal(ForageFocus.Fuel, Clues.Suggests(clue));
     }
@@ -138,7 +138,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
     public void ANegativeClue_CutsTheWholeSearch()
     {
         int frozen = ClueIndex(c => c.Kind == ClueKind.Negative);
-        foreach (var r in new[] { Resource.Kindling, Resource.Berries, Resource.Stone })
+        foreach (var r in new[] { Resource.Stick, Resource.Berries, Resource.Stone })
             foreach (var focus in Enum.GetValues<ForageFocus>())
                 Assert.True(Clues.YieldFactor([frozen], focus, r) < 1);
     }
@@ -209,10 +209,10 @@ public class ForageRestoreTests(ITestOutputHelper output)
     [Fact]
     public void FindingAPileFind_PutsWhatItHoldsOnTheTile()
     {
-        var w = WithPools(Forage, new PileFind("Hidden Cache", [new StockItem(Resource.Pine, 1, 2.5)], [Items.Make("fire_striker")], 0.01));
+        var w = WithPools(Forage, new PileFind("Hidden Cache", [new StockItem(Resource.PineBranch, 1, 2.5)], [Items.Make("fire_striker")], 0.01));
         Sim.Step(w, new Gather(P, 0), 30);
         var pile = w.Tiles[Camp(w)].Pile!;
-        Assert.Equal(2.5, Items.Have(pile, Resource.Pine), 6);
+        Assert.Equal(2.5, Items.Have(pile, Resource.PineBranch), 6);
         Assert.Single(pile.Gear);
     }
 

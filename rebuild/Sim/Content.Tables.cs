@@ -12,6 +12,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, GearDef> Gear,
     IReadOnlyDictionary<EquipSlot, double> SlotCoverage,
     StartingPackDef StartingPack,
+    IReadOnlyDictionary<Resource, IReadOnlyList<double>> StartingCamp,
     IReadOnlyList<KitGear> StartingClothes,
     IReadOnlyDictionary<Resource, FuelProps> Fuels,
     IReadOnlyDictionary<PitType, PitProps> Pits,
@@ -53,7 +54,7 @@ public static partial class Content
     // ---- the files as written: dictionaries keyed by name, checked and turned into tables below ----
 
     sealed record ItemsFile(Dictionary<string, ResourceDef> Resources, Dictionary<string, GearDef> Gear,
-        Dictionary<string, double> SlotCoverage, PackFile StartingPack, IReadOnlyList<KitGear> StartingClothes);
+        Dictionary<string, double> SlotCoverage, PackFile StartingPack, Dictionary<string, IReadOnlyList<double>> StartingCamp, IReadOnlyList<KitGear> StartingClothes);
     sealed record PackFile(Dictionary<string, IReadOnlyList<double>> Kg, IReadOnlyList<KitGear> Gear);
     sealed record FireFile(Dictionary<string, FuelProps> Fuels, Dictionary<string, PitProps> Pits, DeterrenceProps Deterrence);
     sealed record SpeciesFile(Dictionary<string, SpeciesRow> Species, Dictionary<string, Temperament> Temperaments,
@@ -75,8 +76,8 @@ public static partial class Content
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
         Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling, Footing Footing, WaterIce WaterIce);
-    sealed record FellingFile(Pieces Logs, Dictionary<string, double> LogKg, double LogKgSpreadPct, Dictionary<string, double> MixedWood,
-        Pieces Kindling, Pieces Tinder);
+    sealed record FellingFile(Pieces Firewood, Dictionary<string, double> FirewoodKg, double FirewoodKgSpreadPct, Dictionary<string, double> MixedWood,
+        Pieces Sticks, Pieces Tinder);
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
         Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
@@ -129,6 +130,7 @@ public static partial class Content
         var resources = Keyed<Resource, ResourceDef>(items.Resources, "items.json resources", problems, complete: true);
         var slots = Keyed<EquipSlot, double>(items.SlotCoverage, "items.json slotCoverage", problems, complete: true);
         var packKg = Keyed<Resource, IReadOnlyList<double>>(items.StartingPack.Kg, "items.json startingPack", problems);
+        var campKg = Keyed<Resource, IReadOnlyList<double>>(items.StartingCamp, "items.json startingCamp", problems);
         var fuels = Keyed<Resource, FuelProps>(fire.Fuels, "fire.json fuels", problems);
         var pits = Keyed<PitType, PitProps>(fire.Pits, "fire.json pits", problems, complete: true);
         var speciesRows = Keyed<Species, SpeciesRow>(species.Species, "species.json species", problems, complete: true);
@@ -149,7 +151,7 @@ public static partial class Content
         var terrains = Keyed<Terrain, TerrainRow>(terrain.Terrains, "terrain.json terrains", problems, complete: true);
         var caves = Keyed<Cave, CaveRow>(terrain.Caves, "terrain.json caves", problems);
         var edges = Keyed<EdgeType, EdgeRow>(terrain.Edges, "terrain.json edges", problems, complete: true);
-        var logKg = Keyed<Resource, double>(terrain.Felling.LogKg, "terrain.json felling logKg", problems);
+        var firewoodKg = Keyed<Resource, double>(terrain.Felling.FirewoodKg, "terrain.json felling firewoodKg", problems);
         var mixedWood = Keyed<Resource, double>(terrain.Felling.MixedWood, "terrain.json felling mixedWood", problems);
         var draws = Keyed<Terrain, IReadOnlyList<DiscoveryDraw>>(discoveries.Terrains, "discoveries.json terrains", problems);
         var detailDraws = Keyed<Terrain, IReadOnlyList<string>>(discoveries.DetailDraws, "discoveries.json detailDraws", problems);
@@ -162,20 +164,21 @@ public static partial class Content
 
         // Then references, shapes and ranges.
         problems.AddRange(LocationProblems(locations, loot, items.Gear, kinds, terrains));
-        problems.AddRange(ItemProblems(items, resources, slots, packKg));
+        problems.AddRange(ItemProblems(items, resources, slots, packKg, campKg));
         problems.AddRange(FireProblems(fuels, pits, fire.Deterrence));
         problems.AddRange(SpeciesProblems(species, speciesRows));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
         problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, beddings));
         problems.AddRange(ButcherProblems(butcherRows, yields));
         problems.AddRange(TerrainProblems(terrain, terrains, caves, forage));
-        problems.AddRange(FellingProblems(terrain.Felling, logKg, mixedWood, fuels, locations));
+        problems.AddRange(FellingProblems(terrain.Felling, firewoodKg, mixedWood, fuels, locations));
         problems.AddRange(ForageProblems(forage));
         problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear, loot, locations));
         problems.AddRange(AccidentProblems(accidents));
         problems.AddRange(ForagingProblems(foraging, luck));
         var makeRecipes = MakeRecipes(recipeRows, items.Gear, resources, problems);
-        problems.AddRange(PieceProblems(resources, forage, locations, discoveries, loot, terrain.Felling, logKg, packKg));
+        problems.AddRange(PieceProblems(resources, forage, locations, discoveries, loot, terrain.Felling, firewoodKg, packKg, campKg));
+        problems.AddRange(FirewoodProblems(firewoodKg.Keys.ToHashSet(), forage, locations, discoveries, loot, packKg, makeRecipes, materials));
         problems.AddRange(DeadRows(locations, loot, terrain, forage, discoveries, accidents));
         foreach (var kind in CodeGear) if (!items.Gear.ContainsKey(kind)) problems.Add($"items.json: no gear kind '{kind}', which the code names");
         foreach (var id in CodeLocations) if (!locations.Any(l => l.Id == id)) problems.Add($"locations.json: no location '{id}', which the code names");
@@ -184,7 +187,7 @@ public static partial class Content
         return new ContentTables(
             locations, new ReadOnlyDictionary<string, IReadOnlyList<LootRoll>>(loot),
             ReadOnly(resources), new ReadOnlyDictionary<string, GearDef>(items.Gear), ReadOnly(slots),
-            new StartingPackDef(ReadOnly(packKg), items.StartingPack.Gear), items.StartingClothes,
+            new StartingPackDef(ReadOnly(packKg), items.StartingPack.Gear), ReadOnly(campKg), items.StartingClothes,
             ReadOnly(fuels), ReadOnly(pits), fire.Deterrence,
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
             ReadOnly(diets), species.Sightings, ReadOnly(killChances),
@@ -195,8 +198,8 @@ public static partial class Content
             ReadOnly(beddings),
             ReadOnly(butcherRows.ToDictionary(b => b.Key, b => new ButcherModeProps(b.Value.TimeFactor, ReadOnly(yields[b.Key]), b.Value.ScentIncrease, b.Value.BloodySeverity))),
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
-            new Felling(terrain.Felling.Logs, ReadOnly(logKg), terrain.Felling.LogKgSpreadPct,
-                mixedWood.Select(m => (m.Key, m.Value)).ToList().AsReadOnly(), terrain.Felling.Kindling, terrain.Felling.Tinder),
+            new Felling(terrain.Felling.Firewood, ReadOnly(firewoodKg), terrain.Felling.FirewoodKgSpreadPct,
+                mixedWood.Select(m => (m.Key, m.Value)).ToList().AsReadOnly(), terrain.Felling.Sticks, terrain.Felling.Tinder),
             terrain.Footing,
             terrain.WaterIce,
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
@@ -503,8 +506,10 @@ public static partial class Content
     internal const double MaxOutcomePct = 0.5;
 
     static IEnumerable<string> ItemProblems(ItemsFile f, Dictionary<Resource, ResourceDef> resources, Dictionary<EquipSlot, double> slots,
-        Dictionary<Resource, IReadOnlyList<double>> packKg)
+        Dictionary<Resource, IReadOnlyList<double>> packKg, Dictionary<Resource, IReadOnlyList<double>> campKg)
     {
+        foreach (var (r, pieces) in campKg)
+            if (pieces.Count == 0 || pieces.Any(kg => kg <= 0) || !resources[r].Discrete) yield return $"items.json startingCamp: {r} needs pieces of more than 0 kg";
         foreach (var (r, def) in resources)
         {
             if (def.Category == ResourceCategory.Food && def.KcalPerKg <= 0) yield return $"items.json: food {r} gives no kcal";
@@ -748,28 +753,28 @@ public static partial class Content
     }
 
     /// A named place may be windier than any terrain (the Wind Gap funnels it).
-    /// Every wood a tree can be has a log weight and burns; a mixed stand's shares are fractions that make
+    /// Every wood a tree can be has a firewood weight and burns; a mixed stand's shares are fractions that make
     /// a whole; every count is [min, max] and every weight above 0.
     static IEnumerable<string> FellingProblems(FellingFile f, Dictionary<Resource, double> logKg, Dictionary<Resource, double> mixedWood,
         Dictionary<Resource, FuelProps> fuels, IReadOnlyList<LocationDef> locations)
     {
         const string at = "terrain.json felling";
-        foreach (var (name, p, weighs) in new[] { ("logs", f.Logs, false), ("kindling", f.Kindling, true), ("tinder", f.Tinder, true) })
+        foreach (var (name, p, weighs) in new[] { ("firewood", f.Firewood, false), ("sticks", f.Sticks, true), ("tinder", f.Tinder, true) })
         {
             if (p.Count is not [>= 0 and var lo, var hi] || hi < lo || hi == 0) yield return $"{at} {name}: count is [min, max]";
             if (weighs != (p.Kg != null)) yield return $"{at} {name}: {(weighs ? "needs" : "has no")} kg";
             if (p.Kg != null && (p.Kg is not [> 0 and var klo, var khi] || khi < klo)) yield return $"{at} {name}: kg is [min, max] above 0";
         }
-        if (f.LogKgSpreadPct is < 0 or >= 1) yield return $"{at}: logKgSpreadPct {f.LogKgSpreadPct} is not in 0-1";
+        if (f.FirewoodKgSpreadPct is < 0 or >= 1) yield return $"{at}: firewoodKgSpreadPct {f.FirewoodKgSpreadPct} is not in 0-1";
         foreach (var (r, kg) in logKg)
         {
-            if (kg <= 0) yield return $"{at} logKg {r}: {kg}";
-            if (!fuels.ContainsKey(r)) yield return $"{at} logKg {r}: does not burn (fire.json fuels)";
+            if (kg <= 0) yield return $"{at} firewoodKg {r}: {kg}";
+            if (!fuels.ContainsKey(r)) yield return $"{at} firewoodKg {r}: does not burn (fire.json fuels)";
         }
         if (mixedWood.Count == 0 || mixedWood.Values.Any(s => s <= 0) || Math.Abs(mixedWood.Values.Sum() - 1) > 1e-9)
             yield return $"{at}: mixedWood shares above 0 that sum to 1";
         var woods = mixedWood.Keys.Concat(locations.SelectMany(l => l.All.OfType<SiteTrees>()).Select(t => t.Wood).OfType<Resource>());
-        foreach (var r in woods.Distinct()) if (!logKg.ContainsKey(r)) yield return $"{at}: no logKg for {r}, which trees can be";
+        foreach (var r in woods.Distinct()) if (!logKg.ContainsKey(r)) yield return $"{at}: no firewoodKg for {r}, which trees can be";
     }
 
     static string? Ground(double hazard, double wind, double cover, double visibility, double maxWind = 2) =>
@@ -788,7 +793,7 @@ public static partial class Content
     /// Every table that yields a discrete resource yields whole pieces inside its kind's range.
     static IEnumerable<string> PieceProblems(IReadOnlyDictionary<Resource, ResourceDef> resources, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage,
         IReadOnlyList<LocationDef> locations, DiscoveriesFile discoveries, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, FellingFile felling,
-        Dictionary<Resource, double> logKg, Dictionary<Resource, IReadOnlyList<double>> packKg)
+        Dictionary<Resource, double> logKg, Dictionary<Resource, IReadOnlyList<double>> packKg, Dictionary<Resource, IReadOnlyList<double>> campKg)
     {
         IEnumerable<string> Range(string at, Resource r, double lo, double hi) =>
             resources[r] is { Discrete: true } d && (lo < d.MinPieceKg - 1e-9 || hi > d.MaxPieceKg + 1e-9)
@@ -811,15 +816,54 @@ public static partial class Content
         foreach (var (name, rolls) in loot)
             foreach (var x in Rolls(rolls))
                 if (x.Resource is Resource r && x.Kg is [var lo, var hi]) foreach (var p in Range($"loot.json {name}", r, lo, hi)) yield return p;
-        foreach (var (wood, kg) in logKg) foreach (var p in Range("terrain.json felling logKg", wood, kg * (1 - felling.LogKgSpreadPct), kg * (1 + felling.LogKgSpreadPct))) yield return p;
-        foreach (var (r, pieces) in new[] { (Resource.Kindling, felling.Kindling), (Resource.Tinder, felling.Tinder) })
+        foreach (var (wood, kg) in logKg) foreach (var p in Range("terrain.json felling firewoodKg", wood, kg * (1 - felling.FirewoodKgSpreadPct), kg * (1 + felling.FirewoodKgSpreadPct))) yield return p;
+        foreach (var (r, pieces) in new[] { (Resource.Stick, felling.Sticks), (Resource.Tinder, felling.Tinder) })
             if (pieces.Kg is [var lo, var hi]) foreach (var p in Range($"terrain.json felling {r}", r, lo, hi)) yield return p;
         foreach (var (r, pieces) in packKg)
             foreach (var kg in pieces) foreach (var p in Range("items.json startingPack", r, kg, kg)) yield return p;
+        foreach (var (r, pieces) in campKg)
+            foreach (var kg in pieces) foreach (var p in Range("items.json startingCamp", r, kg, kg)) yield return p;
         // A carcass gives its last pieces evenly (Carcasses.TakeReady): that needs a range at least two-fold.
         foreach (var r in CarcassYields)
             if (resources[r] is { Discrete: true } d && d.MinPieceKg > d.MaxPieceKg / 2)
                 yield return $"items.json: {r} comes off a carcass, and its pieces need to run from at most half the largest";
+    }
+
+    /// Firewood (what felling cuts) comes only from axe work: no forage, loot or starting pack yields it, a find or a site
+    /// stock gives it only to an axe, and nothing is made or built of it.
+    static IEnumerable<string> FirewoodProblems(HashSet<Resource> firewood, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage,
+        IReadOnlyList<LocationDef> locations, DiscoveriesFile discoveries, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot,
+        Dictionary<Resource, IReadOnlyList<double>> packKg, IReadOnlyList<Recipe> recipes, Dictionary<Resource, ShelterMaterial> materials)
+    {
+        const string axe = "firewood comes only from axe work";
+        foreach (var (table, rows) in forage)
+            foreach (var i in rows) if (firewood.Contains(i.Resource)) yield return $"forage.json {table}: {i.Resource}: {axe}";
+        foreach (var l in locations)
+            foreach (var f in l.All)
+                switch (f)
+                {
+                    case SiteForage fo: foreach (var i in fo.Items) if (firewood.Contains(i.Resource)) yield return $"locations.json {l.Id} forage: {i.Resource}: {axe}"; break;
+                    case SiteStock { Items: { } stock }:
+                        foreach (var i in stock) if (firewood.Contains(i.Resource) && i.RequiresTool != ToolType.Axe) yield return $"locations.json {l.Id} {((SiteStock)f).Name}: {i.Resource}: {axe}";
+                        break;
+                }
+        IEnumerable<FindItem> Flat(IEnumerable<FindItem> items) => items.SelectMany(i => i.Shuffle is { } s ? Flat(s) : [i]);
+        foreach (var (name, d) in discoveries.Finds.Concat(discoveries.Details))
+        {
+            var items = Flat(d.Items ?? []).ToList();
+            foreach (var i in items)
+                if ((i.AnyOf ?? (i.Resource is Resource one ? [one] : [])).Any(firewood.Contains) && i.RequiresTool != ToolType.Axe)
+                    yield return $"discoveries.json {name}: {axe}";
+            if (items.Where(i => i.AnyOf != null).Select(i => i.AnyOf!.Count).Distinct().Count() > 1)
+                yield return $"discoveries.json {name}: its anyOf lists are one draw, so they name as many each";
+        }
+        IEnumerable<LootRoll> Rolls(IEnumerable<LootRoll> rolls) => rolls.SelectMany(x => x.Of is { } of ? Rolls(of).Prepend(x) : [x]);
+        foreach (var (name, rolls) in loot)
+            foreach (var x in Rolls(rolls)) if (x.Resource is Resource r && firewood.Contains(r)) yield return $"loot.json {name}: {r}: {axe}";
+        foreach (var r in packKg.Keys) if (firewood.Contains(r)) yield return $"items.json startingPack: {r}: {axe}";
+        foreach (var recipe in recipes)
+            foreach (var r in recipe.Materials.SelectMany(m => m.AnyOf)) if (firewood.Contains(r)) yield return $"recipes.json {recipe.Name}: {r} is only ever fuel";
+        foreach (var r in materials.Keys) if (firewood.Contains(r)) yield return $"shelters.json materials: {r} is only ever fuel";
     }
 
     static IEnumerable<string> ForageProblems(IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage)

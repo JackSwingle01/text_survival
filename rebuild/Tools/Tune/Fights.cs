@@ -167,14 +167,14 @@ public sealed class Fights
             return g;
         }
 
-        /// A strong fire on the fight's tile: kindling and pine, burned for half an hour so the pine has caught.
+        /// A strong fire on the fight's tile: sticks and pine firewood, burned for half an hour so the pine has caught.
         void Campfire()
         {
             const int LitMinutesBefore = 30;
             var f = new FireState { Tile = tile, LastUpdatedMinute = w.Minute - LitMinutesBefore, Pit = PitType.Open };
-            if (Fire.AddFuel(f, Resource.Kindling, 1.0) < 1.0) throw new InvalidOperationException("the campfire's kindling was refused");
+            if (Fire.AddFuel(f, Resource.Stick, 1.0) < 1.0) throw new InvalidOperationException("the campfire's sticks were refused");
             Fire.IgniteAll(f);
-            if (Fire.AddFuel(f, Resource.Pine, 5.0) < 5.0) throw new InvalidOperationException("the campfire's pine was refused");
+            if (Fire.AddFuel(f, Resource.PineFirewood, 5.0) < 5.0) throw new InvalidOperationException("the campfire's pine firewood was refused");
             var id = new FireId(w.NextFireId++);
             while (f.LastUpdatedMinute < w.Minute) Fire.Tick(f, id, ++f.LastUpdatedMinute, []);
             w.Fires[id] = f;

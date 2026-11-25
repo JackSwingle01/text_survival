@@ -41,7 +41,7 @@ public class MemoryTests
     static FireId PlacePit(World w, TileId tile, double birchKg)
     {
         var id = new FireId(w.NextFireId++);
-        w.Fires[id] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = birchKg } };
+        w.Fires[id] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.BirchBranch] = birchKg } };
         return id;
     }
 
@@ -379,8 +379,8 @@ public class MemoryTests
 
         // Anu comes by while the player is out, feeds the fire, and goes off to her own camp.
         var npc = Npc.Spawn(w, camp, camp: Away(w, camp, 25));
-        TestKit.Give(Items.Pack(w, npc), Resource.Kindling, 1);
-        var fed = Sim.Step(w, new AddFuel(npc, Resource.Kindling, 0.5), 1).Events.OfType<FuelAdded>().Single();
+        TestKit.Give(Items.Pack(w, npc), Resource.Stick, 1);
+        var fed = Sim.Step(w, new AddFuel(npc, Resource.Stick, 0.5), 1).Events.OfType<FuelAdded>().Single();
         Put(w, npc, ((NpcMind)w.Agent(npc).Mind).Camp);
         long died = DiesAt(w, pit);
 
@@ -659,7 +659,7 @@ public class MemoryTests
         {
             new FireDied(100, new FireId(0), camp),
             new Injured(101, P, camp, "Left Leg", DamageType.Pierce, 1),
-            new PickedUp(102, stranger, camp, Resource.Birch, 3, Taken: true), // someone else's camp is not theirs to take from
+            new PickedUp(102, stranger, camp, Resource.BirchBranch, 3, Taken: true), // someone else's camp is not theirs to take from
             new Killed(103, new AgentId(99), Species.Caribou, 100, camp, P),
         };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
@@ -668,7 +668,7 @@ public class MemoryTests
                 0 => new FireStartFailed(200 + i, P, camp, 0.1),
                 1 => new Ate(200 + i, P, camp, Resource.Berries, 0.1, 50),
                 2 => new FireLit(200 + i, new FireId(1), camp, P),
-                _ => new PickedUp(200 + i, P, camp, Resource.Birch, 1, Taken: false), // their own camp: a chore
+                _ => new PickedUp(200 + i, P, camp, Resource.BirchBranch, 1, Taken: false), // their own camp: a chore
             });
         int filed = 0;
         Journal.File(w, events, ref filed);
@@ -690,7 +690,7 @@ public class MemoryTests
         var camp = Map.Of(w).Camp;
         var events = new List<WorldEvent> { new FireDied(100, new FireId(0), camp) };
         for (int i = 0; i < 3 * Journal.MaxEntriesPerTile; i++)
-            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.Pine, 1) : new PutOnPile(200 + i, P, camp, Resource.Pine, 1));
+            events.Add(i % 2 == 0 ? new FuelAdded(200 + i, new FireId(1), camp, P, Resource.PineBranch, 1) : new PutOnPile(200 + i, P, camp, Resource.PineBranch, 1));
         int filed = 0;
         Journal.File(w, events, ref filed);
         var kept = w.Journal[camp];
