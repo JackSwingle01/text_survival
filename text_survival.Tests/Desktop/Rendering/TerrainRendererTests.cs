@@ -15,17 +15,17 @@ public class TerrainRendererTests
     [Fact]
     public void OneSourceSpansFourCellsIncludingNegativeCoordinates()
     {
-        var colors = Enumerable.Range(0, 96*96).Select(i => new Color((byte)(i%96), (byte)(i/96), (byte)0, (byte)255)).ToArray();
+        var colors = Enumerable.Range(0, 96 * 96).Select(i => new Color((byte)(i % 96), (byte)(i / 96), (byte)0, (byte)255)).ToArray();
         var art = new Dictionary<TerrainType, TerrainRenderer.Art[]> { [TerrainType.Forest] = [new(96, 96, colors)] };
         var neighborhood = TerrainRenderer.Neighborhood.Create(TerrainType.Forest);
         foreach (int y in new[] { -2, -1, 0, 1, 2 })
-        foreach (int x in new[] { -2, -1, 0, 1, 2 })
-        {
-            var tile = TerrainRenderer.Rasterize(x, y, neighborhood, art);
-            Assert.Equal((byte)(((x%2+2)%2)*48), tile[0].R);
-            Assert.Equal((byte)(((y%2+2)%2)*48), tile[0].G);
-            Assert.Equal((byte)(tile[0].R+47), tile[^1].R);
-        }
+            foreach (int x in new[] { -2, -1, 0, 1, 2 })
+            {
+                var tile = TerrainRenderer.Rasterize(x, y, neighborhood, art);
+                Assert.Equal((byte)(((x % 2 + 2) % 2) * 48), tile[0].R);
+                Assert.Equal((byte)(((y % 2 + 2) % 2) * 48), tile[0].G);
+                Assert.Equal((byte)(tile[0].R + 47), tile[^1].R);
+            }
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class TerrainRendererTests
         var pixels = TerrainRenderer.Rasterize(3, 5, mixed, art);
         var plainColor = art[TerrainType.Plain][0].Pixels[0];
         var waterColor = art[TerrainType.DeepWater][0].Pixels[0];
-        Assert.Equal(plainColor, pixels[24*48+24]);
+        Assert.Equal(plainColor, pixels[24 * 48 + 24]);
         Assert.Contains(pixels.Take(48), p => p.Equals(waterColor));
         Assert.All(pixels, p => Assert.True(p.Equals(plainColor) || p.Equals(waterColor)));
         Assert.Equal(pixels, TerrainRenderer.Rasterize(3, 5, mixed, art));
@@ -59,11 +59,11 @@ public class TerrainRendererTests
         var b = TerrainRenderer.Rasterize(0, 0, right, art);
         // The pixels either side of the boundary are a similar mix of both terrains,
         // so the edge is a scatter, not a step.
-        double aWater = Enumerable.Range(0, 48).Count(y => a[y*48+47].Equals(water))/48.0;
-        double bWater = Enumerable.Range(0, 48).Count(y => b[y*48].Equals(water))/48.0;
+        double aWater = Enumerable.Range(0, 48).Count(y => a[y * 48 + 47].Equals(water)) / 48.0;
+        double bWater = Enumerable.Range(0, 48).Count(y => b[y * 48].Equals(water)) / 48.0;
         Assert.InRange(aWater, 0.2, 0.8);
         Assert.InRange(bWater, 0.2, 0.8);
-        Assert.InRange(Math.Abs(aWater-bWater), 0, 0.3);
+        Assert.InRange(Math.Abs(aWater - bWater), 0, 0.3);
 
         var corner = TerrainRenderer.Neighborhood.Create(TerrainType.Forest,
             (dx, dy) => dx == 1 && dy == 1 ? TerrainType.DeepWater : TerrainType.Forest);
@@ -71,7 +71,7 @@ public class TerrainRendererTests
         // where the edge wobble falls, so look across a run of tiles.
         var tiles = Enumerable.Range(0, 8).Select(x => TerrainRenderer.Rasterize(x, 0, corner, art)).ToArray();
         Assert.Contains(tiles, t => Enumerable.Range(36, 12)
-            .Any(y => Enumerable.Range(36, 12).Any(x => t[y*48+x].Equals(water))));
-        Assert.All(tiles, t => Assert.Equal(forest, t[24*48+24]));
+            .Any(y => Enumerable.Range(36, 12).Any(x => t[y * 48 + x].Equals(water))));
+        Assert.All(tiles, t => Assert.Equal(forest, t[24 * 48 + 24]));
     }
 }

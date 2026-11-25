@@ -54,9 +54,12 @@ public sealed class CliSession : IDisposable
         var view = Ui.Render();
         var progress = Ui.Progress.Select(p => new { p.Kind, p.Status, p.Progress, p.SimulatedMinutes, p.TotalMinutes, p.Sections }).ToArray();
         int fresh = (int)Math.Min(Context.Log.Revision - _logMark, 12);
-        return new {
-            screen = _game.IsCompleted ? "ended" : Ui.Screen, status = Observations.Summary(Context),
-            lines = view.Lines, controls = view.Controls.Select(Compact).ToArray(),
+        return new
+        {
+            screen = _game.IsCompleted ? "ended" : Ui.Screen,
+            status = Observations.Summary(Context),
+            lines = view.Lines,
+            controls = view.Controls.Select(Compact).ToArray(),
             progress = progress.Length == 0 ? null : progress,
             completed = Ui.CompletedProgress.Count == 0 ? null : Ui.CompletedProgress.ToArray(),
             log = fresh > 0 ? LogEntries(fresh) : null
@@ -96,8 +99,15 @@ public sealed class CliSession : IDisposable
                 return parts.Skip(1).Select(ParsePosition).Select(p => Observations.Inspect(Context, p)).ToArray();
             case "combat": return Observations.Combat(Context);
             case "unit": return parts.Skip(1).Select(s => Observations.Unit(Context, Integer(s, 0, int.MaxValue))).ToArray();
-            case "actions": return HudActions.Build(Context).Select(a => new { a.Id, a.Label, a.Enabled, a.DisabledReason,
-                availableNow = Ui.Screen == "map" && a.Enabled }).ToArray();
+            case "actions":
+                return HudActions.Build(Context).Select(a => new
+                {
+                    a.Id,
+                    a.Label,
+                    a.Enabled,
+                    a.DisabledReason,
+                    availableNow = Ui.Screen == "map" && a.Enabled
+                }).ToArray();
             case "save":
                 if (Ui.Screen != "map") throw new ArgumentException("Save at a map decision so no pending action or choice is lost.");
                 var (success, error) = SaveManager.Save(Context);
@@ -108,7 +118,8 @@ public sealed class CliSession : IDisposable
         if (parts[0] != "step") { Ui.CompletedProgress.Clear(); _logMark = Context.Log.Revision; }
         switch (parts[0].ToLowerInvariant())
         {
-            case "click": case "choose":
+            case "click":
+            case "choose":
                 var control = Find(rest);
                 if (!control.Enabled) throw new ArgumentException("That control is disabled.");
                 Ui.Render(control.Id, input); break;
@@ -151,7 +162,8 @@ public sealed class CliSession : IDisposable
         if (xy.Length != 2 || !int.TryParse(xy[0], out int x) || !int.TryParse(xy[1], out int y)) throw new ArgumentException("Coordinates must be x,y.");
         return new(x, y);
     }
-    public static object Help => new {
+    public static object Help => new
+    {
         agentMode = "start [--seed N] [--session cli_NAME] [--load cli_NAME]; send SESSION \"command\" [--value TEXT] [--request ID] [--revision N]; poll SESSION REQUEST_ID [RUN]; peek SESSION; stop SESSION. Each agent command exits without waiting for gameplay. interactive [options] opts into blocking stdin/stdout mode. start/send/stop return receipts; poll returns results; peek returns the last snapshot and lifecycle state.",
         commands = new[] { "look", "status", "weather", "log [count]", "map [radius|all]", "inspect x,y [x,y ...]", "actions", "act ACTION_ID",
             "travel x,y [quick|careful]", "click CONTROL_ID_OR_EXACT_LABEL", "choose CONTROL_ID_OR_EXACT_LABEL", "set CONTROL_ID (JSON value required)",

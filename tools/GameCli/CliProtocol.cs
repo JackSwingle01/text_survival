@@ -6,7 +6,8 @@ namespace text_survival.GameCli;
 
 public static class CliProtocol
 {
-    public static readonly JsonSerializerOptions Json = new() {
+    public static readonly JsonSerializerOptions Json = new()
+    {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

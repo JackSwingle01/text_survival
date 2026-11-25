@@ -22,25 +22,44 @@ public static class Observations
     public static object Summary(GameContext ctx)
     {
         var warnings = SurvivorWarnings.Build(ctx);
-        return new {
-            time = $"Day {ctx.DayNumber} {ctx.GameTime:HH:mm}", at = Position(ctx.Map!.CurrentPosition), location = ctx.CurrentLocation.Name,
-            dead = ctx.player.IsAlive ? (bool?)null : true, vitality = Pct(ctx.player.Vitality),
-            energy = Pct(ctx.player.Body.EnergyPct), food = Pct(ctx.player.Body.FullPct), water = Pct(ctx.player.Body.HydratedPct),
-            tempF = Math.Round(ctx.player.Body.BodyTemperature, 1), load = $"{ctx.Inventory.CurrentWeightKg:F1}/{ctx.Inventory.MaxWeightKg:F0}kg",
+        return new
+        {
+            time = $"Day {ctx.DayNumber} {ctx.GameTime:HH:mm}",
+            at = Position(ctx.Map!.CurrentPosition),
+            location = ctx.CurrentLocation.Name,
+            dead = ctx.player.IsAlive ? (bool?)null : true,
+            vitality = Pct(ctx.player.Vitality),
+            energy = Pct(ctx.player.Body.EnergyPct),
+            food = Pct(ctx.player.Body.FullPct),
+            water = Pct(ctx.player.Body.HydratedPct),
+            tempF = Math.Round(ctx.player.Body.BodyTemperature, 1),
+            load = $"{ctx.Inventory.CurrentWeightKg:F1}/{ctx.Inventory.MaxWeightKg:F0}kg",
             warnings = warnings.Count == 0 ? null : warnings
         };
     }
     public static int[] Position(GridPosition position) => [position.X, position.Y];
     public static object Status(GameContext ctx) => Capture(() => SurvivorPanel.Render(ctx, CliUi.Rect, HudActions.Build(ctx), false));
-    public static object Weather(GameContext ctx) => new {
-        season = ctx.Weather.GetSeasonLabel(), condition = ctx.CurrentLocation.Weather.GetConditionLabel(),
-        windMph = ctx.CurrentLocation.Weather.WindSpeedMPH, windDirection = ctx.CurrentLocation.Weather.CurrentWindDirection,
-        precipitation = ctx.CurrentLocation.Weather.PrecipitationPct, front = ctx.CurrentLocation.Weather.GetFrontLabel(),
+    public static object Weather(GameContext ctx) => new
+    {
+        season = ctx.Weather.GetSeasonLabel(),
+        condition = ctx.CurrentLocation.Weather.GetConditionLabel(),
+        windMph = ctx.CurrentLocation.Weather.WindSpeedMPH,
+        windDirection = ctx.CurrentLocation.Weather.CurrentWindDirection,
+        precipitation = ctx.CurrentLocation.Weather.PrecipitationPct,
+        front = ctx.CurrentLocation.Weather.GetFrontLabel(),
         temperature = ctx.CurrentLocation.GetTemperatureBreakdown(ctx.CurrentActivity)
     };
-    private static char Glyph(TerrainType t) => t switch {
-        TerrainType.Forest => 'T', TerrainType.Clearing => ',', TerrainType.Plain => '.', TerrainType.Hills => 'n',
-        TerrainType.Water => '~', TerrainType.Marsh => '%', TerrainType.Rock => 'o', TerrainType.Mountain => '^', _ => '='
+    private static char Glyph(TerrainType t) => t switch
+    {
+        TerrainType.Forest => 'T',
+        TerrainType.Clearing => ',',
+        TerrainType.Plain => '.',
+        TerrainType.Hills => 'n',
+        TerrainType.Water => '~',
+        TerrainType.Marsh => '%',
+        TerrainType.Rock => 'o',
+        TerrainType.Mountain => '^',
+        _ => '='
     };
     public const string Legend = "@ you, C camp, T forest, , clearing, . plain, n hills, ~ ice, % marsh, o rock, ^ mountain, = deep water, blank unexplored. Rows are y, columns start at x0; north is y-1.";
     /// <summary>ASCII grid plus the tiles worth naming: camp, unique names, icons, people, animals.</summary>
@@ -68,7 +87,8 @@ public static class Observations
             grid.Add($"{y,3} {text}");
         }
         var nameCounts = tiles.Where(t => !map.IsCaveConcealed(t.tile)).GroupBy(t => t.tile.Name).ToDictionary(g => g.Key, g => g.Count());
-        var places = tiles.Select(t => {
+        var places = tiles.Select(t =>
+        {
             var icons = t.visible ? t.tile.Features.Where(f => f.MapIcon != null).Take(4).Select(f => f.MapIcon!) : [];
             var people = t.visible ? ctx.NPCs.Where(n => n.CurrentLocation == t.tile).Select(n => n.Name) : [];
             var animals = t.visible ? ctx.Herds.At(new GridPosition(t.x, t.y)).Take(3).Select(Describe) : [];
@@ -92,24 +112,44 @@ public static class Observations
         var tile = map.GetLocationAt(position.X, position.Y)!;
         var edges = Directions.Select(d => new GridPosition(position.X + d.x, position.Y + d.y))
             .Where(p => map.IsValidPosition(p.X, p.Y) && map.GetVisibility(p.X, p.Y) != TileVisibility.Unexplored)
-            .Select(p => new { to = Position(p), types = map.GetEdgesBetween(position, p).Select(e => e.Type).ToArray(),
-                trail = map.GetTrailTier(position, p), blocked = map.IsEdgeBlocked(position, p, ctx.Weather.CurrentSeason) }).ToArray();
-        return new { position = Position(position), visibility, detail.Lines,
-            travel = new { travel.Reason, actions = travel.Actions.Select(a => new { a.Id, a.Label }) }, edges,
+            .Select(p => new
+            {
+                to = Position(p),
+                types = map.GetEdgesBetween(position, p).Select(e => e.Type).ToArray(),
+                trail = map.GetTrailTier(position, p),
+                blocked = map.IsEdgeBlocked(position, p, ctx.Weather.CurrentSeason)
+            }).ToArray();
+        return new
+        {
+            position = Position(position),
+            visibility,
+            detail.Lines,
+            travel = new { travel.Reason, actions = travel.Actions.Select(a => new { a.Id, a.Label }) },
+            edges,
             structure = map.IsCaveConcealed(tile) ? null : tile.Structure.ToString(),
-            people = visible ? ctx.NPCs.Where(n => n.CurrentLocation == tile).Select(n => new { n.Name,
-                action = n.CurrentAction?.Name, minutesSpent = n.CurrentAction?.MinutesSpent, durationMinutes = n.CurrentAction?.DurationMinutes }).ToArray() : [],
-            animals = visible ? ctx.Herds.At(position).Select(Describe).ToArray() : [] };
+            people = visible ? ctx.NPCs.Where(n => n.CurrentLocation == tile).Select(n => new
+            {
+                n.Name,
+                action = n.CurrentAction?.Name,
+                minutesSpent = n.CurrentAction?.MinutesSpent,
+                durationMinutes = n.CurrentAction?.DurationMinutes
+            }).ToArray() : [],
+            animals = visible ? ctx.Herds.At(position).Select(Describe).ToArray() : []
+        };
     }
     private static string Describe(Herd herd) => herd.Count > 1 ? $"{herd.AnimalType} x{herd.Count}" : herd.AnimalType.ToString();
     public static object Combat(GameContext ctx)
     {
         var combat = ctx.ActiveCombat ?? throw new ArgumentException("No active combat.");
-        return new { size = CombatScenario.MAP_SIZE, columns = new[] { "id", "name", "x", "y", "team", "awareness", "vitality" },
+        return new
+        {
+            size = CombatScenario.MAP_SIZE,
+            columns = new[] { "id", "name", "x", "y", "team", "awareness", "vitality" },
             rows = combat.Units.Select((u, i) => new object[] { i, u.actor.Name, u.Position.X, u.Position.Y,
                 u == combat.Player ? "player" : combat.Player?.allies.Contains(u) == true ? "ally" : "enemy", u.Awareness.ToString(), u.actor.Vitality }),
             movementMetersPerAction = combat.Player == null ? 0 : CombatMovement.Allowance(combat.Player),
-            thrownWeapons = combat.ThrownWeapons.Select(g => g.Name).ToArray() };
+            thrownWeapons = combat.ThrownWeapons.Select(g => g.Name).ToArray()
+        };
     }
     public static object Unit(GameContext ctx, int index)
     {
