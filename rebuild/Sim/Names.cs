@@ -72,5 +72,5 @@ public static class Names
     static string Extra(Resource r, double amount) =>
         !Items.IsDiscrete(r) ? $"{Kg(amount)} more {Of(r)}" : amount == 1 ? $"an extra {PieceWord(r)}" : $"{Pieces(r, (int)amount)} more";
 
-    static string Pct(double share) => (share * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+    public static string Pct(double share) => (share * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 }

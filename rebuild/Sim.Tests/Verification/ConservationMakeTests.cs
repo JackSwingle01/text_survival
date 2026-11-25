@@ -25,7 +25,7 @@ public class ConservationMakeTests
     public sealed record Scene(double[] PackKg, bool[] Tools, bool Fire, Op[] Ops);
 
     static readonly Resource[] Inputs = [.. Recipes.All.SelectMany(r => r.Materials).SelectMany(m => m.AnyOf).Distinct().Order()];
-    static readonly string[] ToolKinds = ["sharp_rock", "flint_knife", "hammerstone", "bone_needle", "crude_spear", "wooden_spear"];
+    static readonly string[] ToolKinds = ["sharp_rock", "flint_knife", "hammerstone", "bone_needle", "crude_spear", "wooden_spear", "hide_gloves", "stone_knife"];
 
     static readonly Gen<Op> OpGen = Gen.Select(Gen.Frequency((6, Gen.Const(OpKind.Make)), (1, Gen.Const(OpKind.Abandon)), (1, Gen.Const(OpKind.Wait))),
         Gen.Int[0, Recipes.All.Count - 1], Gen.Int[1, 90], (k, r, m) => new Op(k, r, m));
@@ -47,6 +47,7 @@ public class ConservationMakeTests
             if (s.Tools[i])
             {
                 var g = Items.Make(ToolKinds[i]);
+                if (Recipes.All.Any(r => r.Result.Repair?.Kinds.Contains(g.Kind) == true)) g.Durability = (g.Durability + 1) / 2; // half worn: a whole one has nothing to repair
                 g.MadeOf = new(); TestKit.Give(g.MadeOf, Resource.Pine, 1.5); // parts recorded: they must travel into what it is made into
                 pack.Gear.Add(g);
             }
@@ -103,10 +104,15 @@ public class ConservationMakeTests
         {
             if (!Sim.IsAlive(w.Agent(P))) break;
             var recipe = Recipes.All[op.Recipe];
+            // A repair works on a piece it takes: one under the work, else one held.
+            var pack = Items.Pack(w, P);
+            string? target = recipe.Result.Repair is { } repair
+                ? pack.Projects?.FirstOrDefault(p => p.Recipe == recipe.Id)?.Target ?? pack.Gear.Select(g => g.Kind).FirstOrDefault(repair.Kinds.Contains)
+                : null;
             Activity a = op.Kind switch
             {
-                OpKind.Make => new Make(P, recipe.Id),
-                OpKind.Abandon => new Abandon(P, recipe.Id),
+                OpKind.Make => new Make(P, recipe.Id, target),
+                OpKind.Abandon => new Abandon(P, recipe.Id, target),
                 _ => new Wait(P),
             };
             var held = Held(w);

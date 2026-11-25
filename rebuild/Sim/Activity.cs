@@ -69,6 +69,6 @@ public sealed record Travel(AgentId Who, Direction Dir, Pace Pace = Pace.Quick) 
 public sealed record ImproveShelter(AgentId Who, ShelterStat Stat, Resource Material) : Activity(Who);
 public sealed record PackTent(AgentId Who) : Activity(Who);
 
-/// A new project takes its materials at the start; one in the pack takes none when picked up again.
-public sealed record Make(AgentId Who, string Recipe) : Activity(Who);
-public sealed record Abandon(AgentId Who, string Recipe) : Activity(Who);
+/// A new project takes its materials at the start; one in the pack takes none when picked up again. Target: a repair's gear kind.
+public sealed record Make(AgentId Who, string Recipe, string? Target = null) : Activity(Who);
+public sealed record Abandon(AgentId Who, string Recipe, string? Target = null) : Activity(Who);

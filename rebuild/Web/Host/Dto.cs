@@ -89,10 +89,11 @@ public sealed record OddsTermDto(string Factor, string Op, double Value, double 
 public sealed record TripDto(int TotalMinutes, IReadOnlyList<TripTermDto> Terms, bool Hazardous, string To, bool ToKnown, OddsDto? Risk = null);
 public sealed record TripTermDto(string Factor, int Minutes);
 
-/// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result.
+/// A recipe and its odds table (Making.Odds): every outcome's odds; what is left is the plain result. Target: the gear kind a
+/// repair works on, which with Recipe names the entry.
 public sealed record MakeDto(string Recipe, string Name, string Category, int WorkMinutes, IReadOnlyList<string> Materials,
     IReadOnlyList<string> Tools, IReadOnlyList<string> Requires, string Result, double PlainPct, IReadOnlyList<MakeOutcomeDto> Outcomes,
-    double? ProgressPct);
+    double? ProgressPct, string? Target = null);
 public sealed record MakeOutcomeDto(string Text, bool Succeeds, bool FailureLike, OddsDto Odds);
 
 public sealed record PackDto(double CarriedKg, double CapacityKg, IReadOnlyList<StackDto> Stacks, IReadOnlyList<GearDto> Gear,

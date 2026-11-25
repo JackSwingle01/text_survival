@@ -180,12 +180,22 @@ static class ActionGen
             case Act.Fight: return new Fight(P, CombatAction.Wait); // not in a fight: refused
             case Act.Make:
                 {
-                    // A project in the pack is the one to go on with; otherwise any recipe.
-                    var projects = Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [];
-                    return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.All[pick % Recipes.All.Count].Id);
+                    // A project in the pack is the one to go on with; otherwise any recipe, a repair on a held piece it takes.
+                    var projects = Items.Pack(w, P).Projects ?? [];
+                    if (projects.Count > 0 && pick % 3 != 0) { var p = projects[pick % projects.Count]; return new Make(P, p.Recipe, p.Target); }
+                    var r = Recipes.All[pick % Recipes.All.Count];
+                    var agent = w.Agent(P);
+                    string? target = r.Result.Repair is { } repair
+                        ? Items.Pack(w, P).Gear.Concat(agent.Body.Worn).Select(g => g.Kind).FirstOrDefault(repair.Kinds.Contains) : null;
+                    return new Make(P, r.Id, target);
                 }
             case Act.Abandon:
-                return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.All[pick % Recipes.All.Count].Id));
+                {
+                    var projects = Items.Pack(w, P).Projects ?? [];
+                    if (projects.Count == 0) return new Abandon(P, Recipes.All[pick % Recipes.All.Count].Id);
+                    var p = projects[pick % projects.Count];
+                    return new Abandon(P, p.Recipe, p.Target);
+                }
             default: throw new NotSupportedException(i.Act.ToString());
         }
     }

@@ -168,6 +168,12 @@ _Avoid_: blueprint, formula, craft option
 What a recipe makes when nothing goes differently: the thing the menu shows.
 _Avoid_: output, product
 
+**Repair**:
+A recipe whose result is not a new thing but a share of one held piece of gear's missing condition
+made good: mending a garment, sharpening a blade. The piece keeps its identity, and what went in
+joins its parts record. Its target is the gear kind it works on.
+_Avoid_: fix, restore
+
 **Outcome**:
 One way a finished piece of work can turn out besides the plain result, with its base odds: a
 success or failure, plus any effects (wasted or saved material, an extra product, an injury, a broken

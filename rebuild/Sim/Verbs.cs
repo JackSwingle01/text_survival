@@ -127,8 +127,20 @@ public static class Verbs
         if (pack != null)
         {
             foreach (var r in Recipes.All)
-                make.Add((MakeLabel(r, Making.MinutesDone(world, agent, r) != null), new Make(who, r.Id), UntilDoneMinutes));
-            foreach (var p in pack.Projects ?? []) make.Add(($"Abandon the unfinished {Names.Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe), 1));
+                if (r.Result.Repair is { } repair)
+                {
+                    // One per held kind it takes with condition to restore, and per piece already under the work.
+                    var begun = (pack.Projects ?? []).Where(p => p.Recipe == r.Id).Select(p => p.Target!).ToList();
+                    foreach (var kind in begun)
+                        make.Add(($"Go on {Making.Doing(r)} {Names.GearWords(kind)}", new Make(who, r.Id, kind), UntilDoneMinutes));
+                    foreach (var kind in pack.Gear.Concat(agent.Body.Worn).Select(g => g.Kind).Distinct()
+                        .Where(k => repair.Kinds.Contains(k) && !begun.Contains(k) && Making.RepairTarget(agent, pack, k) != null))
+                        make.Add(($"{r.Name} {Names.GearWords(kind)}", new Make(who, r.Id, kind), UntilDoneMinutes));
+                }
+                else make.Add((MakeLabel(r, Making.MinutesDone(world, agent, r) != null), new Make(who, r.Id), UntilDoneMinutes));
+            foreach (var p in pack.Projects ?? [])
+                make.Add((p.Target is { } kind ? $"Abandon {Making.Doing(Recipes.Get(p.Recipe))} {Names.GearWords(kind)}"
+                    : $"Abandon the unfinished {Names.Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe, p.Target), 1));
         }
         return new Here(who, agent.Tile, features, walk, [.. tile.Select(Ready)], [.. carried.Select(Ready)], [.. make.Select(Ready)]);
 

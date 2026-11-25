@@ -71,6 +71,12 @@ public sealed class Gear
 public sealed class MakeProject
 {
     public required string Recipe { get; init; }
+    /// A repair's gear kind; the piece itself is in Materials until the work ends.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Target { get; init; }
+    /// The repaired piece was worn, and goes back on when the work ends.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Worn { get; init; }
     /// As a whole, warm, dry person would count them (Recipe.Minutes is the total).
     public double MinutesDone { get; set; }
     public Inventory Materials { get; init; } = new();
@@ -84,7 +90,7 @@ public sealed class Inventory
     /// Discrete: each piece's kilos, lightest first, never an empty list. Both are changed only through Items.
     public SortedDictionary<Resource, List<double>> Pieces { get; init; } = [];
     public List<Gear> Gear { get; init; } = [];
-    /// One per recipe; null when there are none.
+    /// One per recipe, and per target of a repair; null when there are none.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<MakeProject>? Projects { get; set; }
 }
