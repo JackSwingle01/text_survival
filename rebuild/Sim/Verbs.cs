@@ -179,7 +179,7 @@ public static class Verbs
     {
         var tool = Fire.Starters.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
         var tinder = Fire.TinderToStrike(pack, TinderKg);
-        return new StartFire(who, tool, tinder, TinderKg, Items.WouldMoveKg(pack, Resource.Stick, KindlingKg), pit);
+        return new StartFire(who, tool, tinder, TinderKg, Items.WouldMoveKg(pack, Fire.Kindling, KindlingKg), pit);
     }
 
     /// A list read off stale fires would be wrong about light, heat and the pit: fail, never guess.

@@ -124,6 +124,8 @@ Cheap tests worth adding, each a source scan, reflection or one short run:
   assigned or mutated only in X's file (the test this doc once claimed existed).
 - **NpcUsesOnlyThePublicInterface:** `Npc.cs` calls no `internal` Sim member, no `Sim.Start`,
   and no `Fauna.BeginHunt` or `Combat.ResolveHeadless`.
+- **NpcNamesNoFuel:** `Npc.cs` names no fuel resource and reads no `Fire.Props`, `Fire.Tinders` or
+  `Fire.FuelHours`: what a fire needs and what goes on next is `Fire.Forecast`'s to say (no exceptions).
 - **RefusalsAreData:** `Sim.Refusal`, each system's `Refusal` and every refusal a verb carries are a
   `Refusal`, not a string.
 - **BannedGlossaryWords_Ratchet:** counts of identifiers using words the glossary avoids
