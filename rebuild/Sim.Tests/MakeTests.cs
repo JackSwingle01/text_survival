@@ -477,7 +477,7 @@ public class MakeTests
         TestKit.Give(pack, Resource.Stone, 0.3);
         TestKit.Give(pack, Resource.Kindling, 1.0);
         var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then abandoning
-        Assert.Equal(Recipes.All.Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe));
+        Assert.Equal(Recipes.ByHand.Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe));
         var rock = make.Single(v => v.Activity == new Make(P, "sharp_rock"));
         Assert.Equal("Make sharp rock", rock.Label);
         Assert.Null(rock.Refused);
@@ -524,7 +524,7 @@ public class MakeTests
         w.Agent(P).Body.Effects.Clear();
 
         var made = new HashSet<string>();
-        var producers = Recipes.All.Where(r => r.Result.Resource != null).ToDictionary(r => r.Result.Resource!.Value);
+        var producers = Recipes.ByHand.Where(r => r.Result.Resource != null).ToDictionary(r => r.Result.Resource!.Value);
 
         // Makes the recipe once, fetching raw materials from the land and making the rest first.
         // False if it cannot be started with what the land, the kill and earlier recipes give.
@@ -579,7 +579,7 @@ public class MakeTests
     }
 
     /// Camp work needs a shovel and a tent no recipe makes yet; ShelterTests builds each.
-    static readonly IReadOnlyList<Recipe> Carried = [.. Recipes.All.Where(r => !r.Result.Placed)];
+    static readonly IReadOnlyList<Recipe> Carried = [.. Recipes.ByHand.Where(r => !r.Result.Placed)];
 
     static void KeepTheFireUp(World w, Inventory pack)
     {

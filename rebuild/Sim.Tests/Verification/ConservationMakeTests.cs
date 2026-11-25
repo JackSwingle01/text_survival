@@ -14,10 +14,13 @@ namespace Survival.Tests.Verification;
 ///
 /// so inputs in = result + waste + reclaimed. Pieces of gear, counted with those inside projects,
 /// change only as finished work says: the result and any extra pieces made, the items consumed gone.
-/// And no recipe makes more kilos than it spends.
+/// And no recipe makes more kilos than it spends. A station-worked recipe (Stations) turns the very piece put
+/// on into its result, at the recipe's share of its weight:
+///
+///   Δ held[input] = -TransformationFinished.Kg / share, Δ held[made] = +TransformationFinished.Kg
 public class ConservationMakeTests
 {
-    public enum OpKind { Make, Abandon, Wait }
+    public enum OpKind { Make, Abandon, Wait, PutOn, TakeFinished, TakeBack }
 
     public sealed record Op(OpKind Kind, int Recipe, int Minutes);
 
@@ -27,8 +30,11 @@ public class ConservationMakeTests
     static readonly Resource[] Inputs = [.. Recipes.All.SelectMany(r => r.Materials).SelectMany(m => m.AnyOf).Distinct().Order()];
     static readonly string[] ToolKinds = ["sharp_rock", "flint_knife", "hammerstone", "bone_needle", "crude_spear", "wooden_spear"];
 
-    static readonly Gen<Op> OpGen = Gen.Select(Gen.Frequency((6, Gen.Const(OpKind.Make)), (1, Gen.Const(OpKind.Abandon)), (1, Gen.Const(OpKind.Wait))),
-        Gen.Int[0, Recipes.All.Count - 1], Gen.Int[1, 90], (k, r, m) => new Op(k, r, m));
+    static readonly Recipe[] AtTheFire = [.. Stations.FireRecipes];
+
+    static readonly Gen<Op> OpGen = Gen.Select(Gen.Frequency((6, Gen.Const(OpKind.Make)), (1, Gen.Const(OpKind.Abandon)), (1, Gen.Const(OpKind.Wait)),
+            (2, Gen.Const(OpKind.PutOn)), (1, Gen.Const(OpKind.TakeFinished)), (1, Gen.Const(OpKind.TakeBack))),
+        Gen.Int[0, Recipes.ByHand.Count - 1], Gen.Int[1, 90], (k, r, m) => new Op(k, r, m));
 
     static readonly Gen<Scene> Scenes = Gen.Select(
         Gen.Frequency((1, Gen.Const(0.0)), (2, Gen.Double[0, 3])).Array[Inputs.Length],
@@ -102,16 +108,19 @@ public class ConservationMakeTests
         foreach (var op in s.Ops)
         {
             if (!Sim.IsAlive(w.Agent(P))) break;
-            var recipe = Recipes.All[op.Recipe];
+            var recipe = Recipes.ByHand[op.Recipe];
             Activity a = op.Kind switch
             {
                 OpKind.Make => new Make(P, recipe.Id),
                 OpKind.Abandon => new Abandon(P, recipe.Id),
+                OpKind.PutOn => new PutOn(P, AtTheFire[op.Recipe % AtTheFire.Length].Id),
+                OpKind.TakeFinished => new TakeFinished(P),
+                OpKind.TakeBack => new TakeBack(P, op.Minutes % 3),
                 _ => new Wait(P),
             };
             var held = Held(w);
             var pieces = Pieces(w);
-            var step = Sim.Step(w, a, op.Minutes);
+            var step = Sim.Step(w, a, a is PutOn or TakeFinished or TakeBack ? Stations.HandlingMinutes : op.Minutes);
 
             var declared = new SortedDictionary<Resource, double>(held);
             void Move(IEnumerable<KeyValuePair<Resource, double>> kgs, int sign) { foreach (var (r, kg) in kgs) declared[r] = declared.GetValueOrDefault(r) + sign * kg; }
@@ -133,6 +142,13 @@ public class ConservationMakeTests
                             break;
                         }
                     case Built b: Move(b.Spent, -1); break;
+                    case TransformationFinished t:
+                        {
+                            var r = Recipes.Get(t.Recipe);
+                            Move([new(r.Materials[0].AnyOf[0], t.Kg / r.Result.SharePct)], -1);
+                            Move([new(t.Made, t.Kg)], +1);
+                            break;
+                        }
                     case ProjectAbandoned gone: Move(gone.Lost, -1); break;
                 }
 

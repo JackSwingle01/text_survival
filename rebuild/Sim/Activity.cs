@@ -35,6 +35,9 @@ namespace Survival;
 [JsonDerivedType(typeof(PackTent), "packtent")]
 [JsonDerivedType(typeof(Make), "make")]
 [JsonDerivedType(typeof(Abandon), "abandon")]
+[JsonDerivedType(typeof(PutOn), "puton")]
+[JsonDerivedType(typeof(TakeFinished), "takefinished")]
+[JsonDerivedType(typeof(TakeBack), "takeback")]
 public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);
@@ -72,3 +75,8 @@ public sealed record PackTent(AgentId Who) : Activity(Who);
 /// A new project takes its materials at the start; one in the pack takes none when picked up again.
 public sealed record Make(AgentId Who, string Recipe) : Activity(Who);
 public sealed record Abandon(AgentId Who, string Recipe) : Activity(Who);
+
+/// At the fire here (Stations). TakeBack's Slot indexes StationState.Working.
+public sealed record PutOn(AgentId Who, string Recipe) : Activity(Who);
+public sealed record TakeFinished(AgentId Who) : Activity(Who);
+public sealed record TakeBack(AgentId Who, int Slot) : Activity(Who);
