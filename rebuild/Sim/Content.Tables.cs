@@ -473,8 +473,9 @@ public static partial class Content
         }
         else if (materials[0] is not { AnyOf.Count: 1, Count: 1 } m || !resources[m.AnyOf[0]].Discrete)
             yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource";
-        if (row.Result.Resource is not Resource made
-            || (resources[made].Discrete ? row.Result.Count != 1 : row.Result.G > 0 || row.Result.SharePct <= 0))
+        bool onePiece = row.Result.Resource is Resource made && resources[made].Discrete && row.Result.Count == 1;
+        bool aShare = row.Result.Resource is Resource share && !resources[share].Discrete && row.Result.G <= 0 && row.Result.SharePct > 0;
+        if (!onePiece && !aShare)
             yield return $"{at}: a station-worked recipe that takes a piece makes one piece of a discrete resource, or a share of its weight in a continuous one";
     }
 

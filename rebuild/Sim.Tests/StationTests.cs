@@ -526,7 +526,7 @@ public class StationTests
 
     // ---- rendering fat (#189) ----
 
-    static double TallowAt(World w, FireId id) => Items.Have(Stations.At(w, id).Ready, Resource.Tallow);
+    static double TallowKgAt(World w, FireId id) => Items.Have(Stations.At(w, id).Ready, Resource.Tallow);
 
     static void PutOnFat(World w, double kg)
     {
@@ -548,7 +548,7 @@ public class StationTests
         Assert.Equal(setAt + 20, done.Minute);
         Assert.Equal(Resource.Tallow, done.Made);
         Assert.Equal(0.3, done.Kg, 9);
-        Assert.Equal(0.3, TallowAt(w, id), 9);
+        Assert.Equal(0.3, TallowKgAt(w, id), 9);
         Assert.False(Stations.At(w, id).Ready.Pieces.ContainsKey(Resource.Tallow));
 
         Sim.Step(w, Offer(w, a => a is TakeFinished).Activity, 1);
@@ -593,7 +593,7 @@ public class StationTests
         Sim.Advance(w, 1);
         Assert.False(Fire.IsActive(f) || f.HasEmbers);
         Assert.DoesNotContain(Sim.Advance(w, 120), e => e is TransformationFinished);
-        Assert.Equal(0, TallowAt(w, id));
+        Assert.Equal(0, TallowKgAt(w, id));
         var piece = Assert.Single(Stations.At(w, id).Working);
         Assert.Equal(0.5, piece.InputKg);
         Assert.Equal(0.5, piece.DonePct, 9);
@@ -601,6 +601,6 @@ public class StationTests
         f.BurningKg[Resource.BirchFirewood] = 5;
         long relit = w.Minute;
         Assert.Equal(relit + 10, FinishOf(w, 30).Minute);
-        Assert.Equal(0.3, TallowAt(w, id), 9);
+        Assert.Equal(0.3, TallowKgAt(w, id), 9);
     }
 }
