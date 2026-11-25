@@ -362,7 +362,8 @@ public static class Making
                     return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
                 case Requirement.NoShelter when BlockingShelter(world, tile, r) is { } s: return new($"there is already a shelter here ({s.Name})");
                 case Requirement.NoShelter when Shelters.Peek(world, tile) is { } replaced && Shelters.ReplacedBy(replaced, r.Result.Replaces)
-                    && Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is { } barred: return barred;
+                    && Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is { } barred:
+                    return barred;
                 case Requirement.MoundPit when !(Fire.PitAt(world, tile) is FireId pit && world.Fires[pit].Pit == PitType.Mound):
                     return new("you need a mound fire pit here", new MissingState(Lack.MoundPit));
                 case Requirement.Tent when TileProjectFor(world, agent, r) == null && !(Items.PackOf(agent) is { } pack && Shelters.CarriedTent(pack) != null):
