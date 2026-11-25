@@ -335,7 +335,7 @@ public class FacultiesTests
     public void ABlowToTheHead_SlowsMakingAndMakesItRiskier_ThroughDexterityAlone()
     {
         var w = TestWorlds.Bare(1);
-        var r = Recipes.Get("stone_tipped_spear");
+        var r = Recipes.Get("flint_tipped_spear");
         var pack = Items.Pack(w, AgentId.Player);
         Me(w).Members[0] = Whole();
         var whole = Making.Odds(w, Me(w), r);

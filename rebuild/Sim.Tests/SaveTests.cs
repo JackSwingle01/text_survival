@@ -142,10 +142,12 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 30);
         Sim.Step(w, new Travel(P, Direction.West), 60);
         Sim.Step(w, new Rest(P), 60);
-        // A spear made, with what it is made of, and a second one half done in the pack.
+        // A club made, with what it is made of, and a second one half done in the pack.
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
-        Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
-        Sim.Step(w, new Make(P, "crude_spear"), 8);
+        Items.AddPieces(Items.Pack(w, P), Resource.Stone, [0.4, 0.5]);
+        Items.Add(Items.Pack(w, P), Resource.PlantFiber, 0.1);
+        Sim.Step(w, new Make(P, "stone_club"), Verbs.UntilDoneMinutes);
+        Sim.Step(w, new Make(P, "stone_club"), 8);
         // Snow melting at the fire: a litre waiting and half of the next done (Stations.Ongoing).
         Sim.Step(w, new PutOn(P, "melt_snow"), 1);
         Sim.Step(w, new Wait(P), 8);

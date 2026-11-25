@@ -23,7 +23,8 @@ public class CombatReachTests
 
     [Theory]
     [InlineData("wooden_spear", 2.5)]
-    [InlineData("crude_spear", 2.5)]
+    [InlineData("flint_tipped_spear", 2.5)]
+    [InlineData("stone_club", Combat.TouchingM)] // its 1.0 m is inside contact
     [InlineData("ground_stone_axe", Combat.TouchingM)]
     [InlineData("flint_knife", Combat.TouchingM)]
     [InlineData(null, Combat.TouchingM)] // bare hands, 0.8 m: a neighbouring cell is as near as two fighters stand
@@ -147,7 +148,10 @@ public class CombatReachTests
         Assert.True(Worth("ground_stone_axe") > Worth("flint_knife"));
         Assert.True(Worth("flint_knife") > Worth("stone"));
         Assert.True(Worth("stone") > Worth("staff"));
-        Assert.True(Worth("wooden_spear") > Worth("crude_spear"));
+        // The club between the axe and the knife; a point above the plain spear.
+        Assert.True(Worth("ground_stone_axe") > Worth("stone_club"));
+        Assert.True(Worth("stone_club") > Worth("flint_knife"));
+        Assert.True(Worth("flint_tipped_spear") > Worth("wooden_spear"));
     }
 
     /// Standing off with its nerve going, an animal backs away in proportion, never through anyone.

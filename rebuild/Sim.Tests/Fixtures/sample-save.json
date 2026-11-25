@@ -133,14 +133,19 @@
         },
         "Gear": [
           {
-            "Kind": "crude_spear",
-            "Durability": 8,
-            "MaxDurability": 8,
+            "Kind": "stone_club",
+            "Durability": 100,
+            "MaxDurability": 100,
             "MadeOf": {
-              "Amounts": {},
+              "Amounts": {
+                "PlantFiber": 0.05
+              },
               "Pieces": {
                 "PineBranch": [
                   1.6666666666666667
+                ],
+                "Stone": [
+                  0.4
                 ]
               },
               "Gear": []
@@ -698,13 +703,18 @@
           ],
           "Projects": [
             {
-              "Recipe": "crude_spear",
+              "Recipe": "stone_club",
               "MinutesDone": 8,
               "Materials": {
-                "Amounts": {},
+                "Amounts": {
+                  "PlantFiber": 0.05
+                },
                 "Pieces": {
                   "PineBranch": [
                     1.6666666666666667
+                  ],
+                  "Stone": [
+                    0.5
                   ]
                 },
                 "Gear": []
@@ -3002,7 +3012,7 @@
       {
         "kind": "made",
         "Who": 0,
-        "Recipe": "crude_spear",
+        "Recipe": "stone_club",
         "Outcome": null,
         "Succeeded": true,
         "Spent": {},
