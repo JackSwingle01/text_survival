@@ -32,7 +32,7 @@ public class TestWorldSourceTests
         ["PlanBenchReport.cs"] = (1, "a benchmark of the real world over its own seeds"),
         ["SpeciesBodyTests.cs"] = (2, "two World.New of one seed draw the same fat: determinism is the subject"),
         ["MemoryTests.cs"] = (1, "a seed's World.New looks the same: determinism is the subject"),
-        ["MapTests.cs"] = (16, "the generator against the old one and against itself, and a save's bytes and loading, are the subject"),
+        ["MapTests.cs"] = (18, "the generator against the old one and against itself, and a save's bytes and loading, are the subject"),
     };
 
     /// Files still to move onto TestWorlds. Only shrinks.

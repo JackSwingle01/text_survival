@@ -53,7 +53,7 @@ public static class Access
         return null;
     }
 
-    const Capability FreesIce = Capability.Striking | Capability.Cutting;
+    public const Capability FreesIce = Capability.Striking | Capability.Cutting;
 
     static string OccupiedReason(World world, LocationFeature t, AgentId who) =>
         $"{Cause.Describe(world, Tags.Occupants(world, t, who).Min())} guards it";

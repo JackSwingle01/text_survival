@@ -256,8 +256,9 @@ public class SubstrateTests
     {
         var pack = new Inventory();
         Assert.Equal(Capability.None, Capabilities.Of(pack));
-        pack.Gear.Add(Items.Make("stone_axe"));
+        pack.Gear.Add(Items.Make("flint_axe"));
         pack.Gear.Add(Items.Make("bone_shovel"));
+        pack.Gear.Add(Items.Make("stone"));
         Assert.Equal(Capability.Cutting | Capability.Striking | Capability.Digging, Capabilities.Of(pack));
         pack.Gear[1].Durability = 0; // broken: it does nothing
         Assert.Equal(Capability.Cutting | Capability.Striking, Capabilities.Of(pack));
@@ -349,11 +350,11 @@ public class SubstrateTests
 
     /// Every gear row states what it can do, through the strict loader.
     [Theory]
-    [InlineData("\"capabilities\": [\"Cutting\", \"Striking\"], ", "", "capabilities")]
-    [InlineData("\"capabilities\": [\"Cutting\", \"Striking\"]", "\"capabilities\": [\"Cutting\", \"Cutting\"]", "listed twice")]
-    [InlineData("\"capabilities\": [\"Cutting\", \"Striking\"]", "\"capabilities\": [\"None\"]", "names None")]
-    [InlineData("\"capabilities\": [\"Cutting\", \"Striking\"]", "\"capabilities\": [\"Cutting, Striking\"]", "no Capability 'Cutting, Striking'")]
-    [InlineData("\"capabilities\": [\"Cutting\", \"Striking\"]", "\"capabilities\": [\"cutting\"]", "no Capability 'cutting'")]
+    [InlineData("\"capabilities\": [\"Binding\", \"Sewing\"], ", "", "capabilities")]
+    [InlineData("\"capabilities\": [\"Binding\", \"Sewing\"]", "\"capabilities\": [\"Sewing\", \"Sewing\"]", "listed twice")]
+    [InlineData("\"capabilities\": [\"Binding\", \"Sewing\"]", "\"capabilities\": [\"None\"]", "names None")]
+    [InlineData("\"capabilities\": [\"Binding\", \"Sewing\"]", "\"capabilities\": [\"Binding, Sewing\"]", "no Capability 'Binding, Sewing'")]
+    [InlineData("\"capabilities\": [\"Binding\", \"Sewing\"]", "\"capabilities\": [\"cutting\"]", "no Capability 'cutting'")]
     public void Loader_RefusesAGearRow_WithBadCapabilities(string from, string to, string named)
     {
         var files = Content.EmbeddedFiles();

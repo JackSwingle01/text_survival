@@ -46,7 +46,33 @@ static class MapGen
         var sites = new Dictionary<TileId, LocationDef>();
         PlaceNamedLocations(rng, land, terrain, camp, width, sites);
         PlaceCaveSites(rng, layout.Structures, layout.CaveIds, width, height, sites);
+        PlaceShortLocations(seed, land, terrain, camp, width, sites);
         return new GeneratedMap(width, height, terrain, layout.Structures, layout.CaveIds, barriers, river, camp, stages, sites, layout.Pass);
+    }
+
+    /// A place with atLeast is added where the weighted deal left the map short of it. On a stream of its own,
+    /// after the legacy deal, so every other site stays where it was. It keeps the deal's spacing while a tile
+    /// of its terrain allows, then halves it; with none of its terrain free it takes any open tile.
+    static void PlaceShortLocations(int seed, List<TileId> land, Terrain[,] terrain, TileId camp, int width, Dictionary<TileId, LocationDef> sites)
+    {
+        foreach (var l in Content.Locations.Where(l => l.Placement == Placement.Named && l.AtLeast > 0))
+        {
+            var rng = Rng.ForSystem(seed, $"per map {l.Id}");
+            for (int have = sites.Values.Count(s => s == l); have < l.AtLeast; have++)
+            {
+                bool Free(TileId p) => p != camp && !sites.ContainsKey(p) && (!l.Elite || Distance(p, camp) >= width * 0.65);
+                var own = land.Where(p => Free(p) && l.Terrain!.Contains(terrain[p.X, p.Y])).ToList();
+                var open = own.Count > 0 ? own : land.Where(Free).ToList();
+                var apart = open;
+                for (int spacing = MinLocationSpacing; spacing >= 1; spacing /= 2)
+                {
+                    apart = [.. open.Where(p => Manhattan(p, camp) >= spacing && sites.Keys.All(q => Manhattan(q, p) >= spacing))];
+                    if (apart.Count > 0) break;
+                }
+                if (apart.Count == 0) break;
+                sites[apart[rng.NextInt(apart.Count)]] = l;
+            }
+        }
     }
 
     const int TargetNamedLocations = 300, MinLocationSpacing = 10;

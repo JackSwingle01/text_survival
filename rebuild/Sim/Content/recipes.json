@@ -40,26 +40,47 @@
 // a stone or flint 0.3, pyrite 0.2, bone 0.3, sinew 0.1, rope 0.2, a hide 1.0, scraped 0.8, cured 0.7 (rounded,
 // at least one). Wood is PineBranch|BirchBranch|OakBranch, gathered by hand; firewood is only ever fuel.
 {
- // ---- cutting tools: a sharp rock needs nothing, a hammerstone knaps the rest ----
- "sharp_rock": { "name": "Sharp rock", "category": "CuttingTool",
+ // ---- cutting tools: a crude edge needs nothing; the stone (a weapon below) knaps the rest. A binding is
+ // 1 sinew or 50 g of plant fibre. A proper blade needs flint or obsidian; there is no obsidian axe ----
+ "crude_edge": { "name": "Crude edge", "category": "CuttingTool",
   "inputs": [ { "of": "Stone", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 5,
-  "result": { "gear": "sharp_rock" },
+  "result": { "gear": "crude_edge" },
   "outcomes": ["fail:waste_material:Stone:1=.20", "succeed:injury:LeftArm|RightArm:0.03=.05"] },
- "hammerstone": { "name": "Hammerstone", "category": "CuttingTool",
-  "inputs": [ { "of": "Stone", "count": 2 } ], "tools": [], "requires": ["Light"], "minutes": 10,
-  "result": { "gear": "hammerstone" },
-  "outcomes": ["fail=.05"] },
- "stone_knife": { "name": "Stone knife", "category": "CuttingTool",
-  "inputs": [ { "of": "Stone", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
-  "tools": ["Striking"], "requires": ["Light"], "minutes": 20,
-  "result": { "gear": "stone_knife" },
-  "outcomes": ["fail:waste_material:Stone:1=.10", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
  "flint_knife": { "name": "Flint knife", "category": "CuttingTool",
-  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
+  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
   "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 25,
   "result": { "gear": "flint_knife" },
   "outcomes": ["fail:waste_material:Flint:1=.10", "succeed:injury:LeftArm|RightArm:0.05=.05", "fail:break_tool:Striking=.02",
-   "succeed:extra_product:sharp_rock:1=.05"] },
+   "succeed:extra_product:crude_edge:1=.05"] },
+ // Glass knaps to a finer edge than flint, and cuts the hand that works it more often.
+ "obsidian_knife": { "name": "Obsidian knife", "category": "CuttingTool",
+  "inputs": [ { "of": "Obsidian", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "obsidian_knife" },
+  "outcomes": ["fail:waste_material:Obsidian:1=.12", "succeed:injury:LeftArm|RightArm:0.05=.08", "fail:break_tool:Striking=.02"] },
+ // A split bone ground to an edge: a hafted blade before any flint is found.
+ "bone_knife": { "name": "Bone knife", "category": "CuttingTool",
+  "inputs": [ { "of": "Bone", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 15,
+  "result": { "gear": "bone_knife" },
+  "outcomes": ["fail:waste_material:Bone:1=.10"] },
+ // Pecked and ground from plain stone over about four hours, in as many sittings as it takes (a project).
+ "ground_stone_axe": { "name": "Ground stone axe", "category": "CuttingTool",
+  "inputs": [ { "of": "Stone", "count": 1 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Striking"], "requires": ["Light"], "minutes": 240,
+  "result": { "gear": "ground_stone_axe" },
+  "outcomes": ["fail:waste_material:Stone:1=.05"] },
+ "flint_axe": { "name": "Flint axe", "category": "CuttingTool",
+  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 30,
+  "result": { "gear": "flint_axe" },
+  "outcomes": ["fail:waste_material:Flint:1=.10", "succeed:injury:LeftArm|RightArm:0.05=.05", "fail:break_tool:Striking=.02"] },
+ // A shoulder blade lashed to a branch.
+ "bone_shovel": { "name": "Bone shovel", "category": "CuttingTool",
+  "inputs": [ { "of": "Bone", "count": 1 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Striking"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "bone_shovel" },
+  "outcomes": ["fail:waste_material:Bone:1=.10"] },
  "bone_needle": { "name": "Bone needle", "category": "CuttingTool",
   "inputs": [ { "of": "Bone", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
   "result": { "gear": "bone_needle" },
@@ -67,7 +88,7 @@
  // Sharpen: any blade that wears, worked on one held piece with a stone, restoring half its missing condition (#148).
  "sharpen": { "name": "Sharpen", "category": "CuttingTool",
   "inputs": [], "tools": ["Striking"], "requires": [], "minutes": 10,
-  "result": { "repairs": ["sharp_rock", "worn_knife", "bone_knife", "stone_knife"], "restoresPct": 0.5 },
+  "result": { "repairs": ["crude_edge", "worn_knife", "bone_knife", "obsidian_knife"], "restoresPct": 0.5 },
   "outcomes": [] },
 
  // ---- fire-starting ----

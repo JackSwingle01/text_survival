@@ -337,7 +337,7 @@ public class KillChainTests
         var bones = w.Tiles[camp].Carcasses!.Single(c => c.Animal == "Human");
         Assert.Equal(cause, bones.Cause);
         Assert.Equal(RemainsStage.Bones, Remains.StageOf(w, camp, bones));
-        Assert.Contains(w.Tiles[camp].Pile!.Gear, g => g.Kind == "stone_axe"); // what they carried lies beside them
+        Assert.Contains(w.Tiles[camp].Pile!.Gear, g => g.Kind == "ground_stone_axe"); // what they carried lies beside them
         Assert.Equal(npc, w.Tiles[camp].PileCause!.Value.Who);
     }
 

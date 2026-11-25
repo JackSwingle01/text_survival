@@ -43,7 +43,7 @@
  "hints": {
   "BirchPolypore": "fungi", "Chaga": "fungi", "Amadou": "fungi", "WillowBark": "bark", "RoseHip": "berries", "JuniperBerry": "berries",
   "PineResin": "tree resin", "Usnea": "lichen", "SphagnumMoss": "moss", "PineNeedles": "needles",
-  "Stone": "stone", "Shale": "stone", "Flint": "stone", "Pyrite": "stone", "PlantFiber": "fiber", "Rope": "fiber",
+  "Stone": "stone", "Obsidian": "stone", "Flint": "stone", "Pyrite": "stone", "PlantFiber": "fiber", "Rope": "fiber",
   "Bone": "animal parts", "Hide": "animal parts", "ScrapedHide": "animal parts", "CuredHide": "animal parts", "Sinew": "animal parts",
   "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "ScrapedMammothHide": "animal parts", "CuredMammothHide": "animal parts", "HideStrip": "animal parts", "Feather": "animal parts",
   "Charcoal": "charcoal", "RawMeat": "meat", "CookedMeat": "meat", "DriedMeat": "meat", "Berries": "berries", "DriedBerries": "berries",
@@ -58,7 +58,7 @@
   { "text": "Lichen hanging from branches", "kind": "Resource", "when": "Forest", "resources": ["Usnea"], "yield": 1.3, "weight": 1.5 },
   { "text": "Nuts scattered beneath the trees", "kind": "Resource", "when": "Forest", "resources": ["Nuts"], "yield": 1.2, "weight": 1.5 },
   { "text": "Dry leaves gathered in hollows", "kind": "Resource", "when": "Forest", "resources": ["Tinder", "PlantFiber"], "yield": 1.2, "weight": 1.5 },
-  { "text": "Shale fragments along the cliff base", "kind": "Resource", "when": "Rocky", "resources": ["Shale", "Flint", "Stone"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Frost-split rock along the cliff base", "kind": "Resource", "when": "Rocky", "resources": ["Flint", "Stone"], "yield": 1.3, "weight": 1.5 },
   { "text": "Pyrite glinting in exposed rock", "kind": "Resource", "when": "Rocky", "resources": ["Pyrite", "Flint"], "yield": 1.5, "weight": 1.5 },
   { "text": "Exposed roots in eroded soil", "kind": "Resource", "when": "Rocky", "resources": ["Roots"], "yield": 1.3, "weight": 1.5 },
   { "text": "Wind-scoured scrub growth", "kind": "Resource", "when": "Rocky", "resources": ["PlantFiber"], "yield": 1.2, "weight": 1.5 },

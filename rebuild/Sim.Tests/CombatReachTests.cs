@@ -24,7 +24,7 @@ public class CombatReachTests
     [Theory]
     [InlineData("wooden_spear", 2.5)]
     [InlineData("crude_spear", 2.5)]
-    [InlineData("stone_axe", Combat.TouchingM)]
+    [InlineData("ground_stone_axe", Combat.TouchingM)]
     [InlineData("flint_knife", Combat.TouchingM)]
     [InlineData(null, Combat.TouchingM)] // bare hands, 0.8 m: a neighbouring cell is as near as two fighters stand
     public void EachWeaponStrikesFromItsOwnReach(string? weapon, double rangeM)
@@ -143,8 +143,8 @@ public class CombatReachTests
     public void ThePackPick_RanksTheSpearFirst()
     {
         double Worth(string kind) => Combat.WeaponWorth(Items.GearKinds[kind].Weapon!);
-        Assert.True(Worth("wooden_spear") > Worth("stone_axe"));
-        Assert.True(Worth("stone_axe") > Worth("flint_knife"));
+        Assert.True(Worth("wooden_spear") > Worth("ground_stone_axe"));
+        Assert.True(Worth("ground_stone_axe") > Worth("flint_knife"));
         Assert.True(Worth("flint_knife") > Worth("stone"));
         Assert.True(Worth("stone") > Worth("staff"));
         Assert.True(Worth("wooden_spear") > Worth("crude_spear"));
