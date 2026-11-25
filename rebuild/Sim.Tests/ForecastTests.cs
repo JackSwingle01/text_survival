@@ -162,6 +162,36 @@ public class ForecastTests
         Assert.Equal(0, Fire.UsableHours(embersOnly, PitType.Open, oak, canStrike: false));
     }
 
+    /// A piece of tinder goes into the pit whole, so a strike is held to the pit's room as a top-up is (#142 review).
+    [Fact]
+    public void AStrike_NeverPutsMoreTinderInThePit_ThanItHasRoomFor()
+    {
+        var w = WithStriker();
+        double max = Fire.MaxFuelKg(PitType.Open);
+        var id = new FireId(w.NextFireId++);
+        var pit = w.Fires[id] = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Birch] = max - 0.2 } };
+        for (int i = 0; i < 20; i++) Items.AddPiece(Items.Pack(w, P), Resource.Chaga, 0.15);
+        // Two pieces are asked for and only one fits: the strike spends one.
+        var strike = new StartFire(P, ToolType.FireStriker, Resource.Chaga, 0.3, 0);
+        Assert.Null(Sim.Refusal(w, strike));
+        string? missed = Fire.DidNotCatch;
+        for (int i = 0; i < 10 && missed != null; i++)
+        {
+            int had = Items.Count(Items.Pack(w, P), Resource.Chaga);
+            missed = Fire.Act(w, strike, []);
+            Assert.Equal(had - 1, Items.Count(Items.Pack(w, P), Resource.Chaga));
+        }
+        Assert.Null(missed);
+        Assert.True(Fire.TotalKg(pit) <= max + 1e-9, $"the pit holds {Fire.TotalKg(pit)} kg of {max}");
+        // With room for less than the lightest piece, the strike is refused before any tinder is spent.
+        var full = w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = new TileId(Camp(w).X + 1, Camp(w).Y), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Birch] = max - 0.05 } };
+        Me(w).Tile = full.Tile;
+        var refused = Sim.Refusal(w, strike);
+        Assert.StartsWith("the fire has no room for a whole ", refused?.Reason);
+        var room = Assert.IsType<MissingState>(refused!.Missing);
+        Assert.Equal((Lack.FireRoomKg, 0.15), (room.Lack, room.Need));
+    }
+
     // ---- Fire: a sliver is not a top-up ----
 
     [Fact]

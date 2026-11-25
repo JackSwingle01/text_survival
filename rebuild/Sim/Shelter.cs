@@ -45,6 +45,9 @@ public sealed class ShelterState
     public Resource? WorkingPiece { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public double WorkingPieceLeftPct { get; set; }
+    /// The stat that piece is being worked into: its rest goes there if the work turns elsewhere.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ShelterStat? WorkingPieceStat { get; set; }
 }
 
 /// For someone keeping still in it this minute; default (nothing) is also what it does for someone walking about.
@@ -297,7 +300,7 @@ public static class Shelters
                     if (Peek(world, tile) is not { } s || IsDestroyed(s)) return new("there's no shelter here to improve", new MissingState(Lack.Shelter));
                     if (Access.Refusal(world, agent.Id, LocationFeatures.ShelterAt(world, tile)!.Value) is { } barred) return barred;
                     if (!ShelterMaterials.Contains(i.Material)) return new($"{Names.Cap(Names.Of(i.Material))} is no use on a shelter");
-                    if (Items.Have(pack, i.Material) <= 0 && !(s.WorkingPiece == i.Material && s.WorkingPieceLeftPct > 1e-9))
+                    if (Items.Have(pack, i.Material) <= 0 && !IsWorking(s, i))
                         return new($"you have no {Names.Of(i.Material)}", new MissingResource(i.Material, Materials[i.Material].PieceKg));
                     if (Cap(s, i.Stat) - Level(s, i.Stat) < 1e-9) return new($"this {s.Name.ToLowerInvariant()}'s {Names.Of(i.Stat)} can't be improved further");
                     return null;
@@ -308,6 +311,10 @@ public static class Shelters
             default: throw new NotSupportedException(activity.GetType().Name);
         }
     }
+
+    /// The piece this improvement is part-way through: its material, going into its stat.
+    static bool IsWorking(ShelterState s, ImproveShelter i) =>
+        s.WorkingPiece == i.Material && s.WorkingPieceStat == i.Stat && s.WorkingPieceLeftPct > 1e-9;
 
     public static Gear? CarriedTent(Inventory pack) => pack.Gear.FirstOrDefault(g => Tents.ContainsKey(g.Kind));
 
@@ -346,17 +353,18 @@ public static class Shelters
                     else
                     {
                         // A whole piece comes out of the pack when its work begins, and is worked in over the minutes after.
-                        if (s.WorkingPiece != i.Material || s.WorkingPieceLeftPct <= 1e-9)
+                        if (!IsWorking(s, i))
                         {
-                            // A piece of another material left part-worked is already in the shelter: it counts in full.
-                            if (s.WorkingPiece is Resource other && s.WorkingPieceLeftPct > 1e-9) Improve(s, i.Stat, other, s.WorkingPieceLeftPct);
+                            // A piece left part-worked for another stat or of another material is already in the shelter:
+                            // its rest counts in full, for the stat it was going into.
+                            if (s.WorkingPiece is Resource other && s.WorkingPieceStat is ShelterStat was && s.WorkingPieceLeftPct > 1e-9)
+                                Improve(s, was, other, s.WorkingPieceLeftPct);
                             Items.TakePieces(pack, i.Material, 1);
-                            s.WorkingPiece = i.Material;
-                            s.WorkingPieceLeftPct = 1;
+                            (s.WorkingPiece, s.WorkingPieceStat, s.WorkingPieceLeftPct) = (i.Material, i.Stat, 1);
                         }
                         pieces = Math.Min(pieces, s.WorkingPieceLeftPct);
                         s.WorkingPieceLeftPct -= pieces;
-                        if (s.WorkingPieceLeftPct <= 1e-9) s.WorkingPiece = null;
+                        if (s.WorkingPieceLeftPct <= 1e-9) (s.WorkingPiece, s.WorkingPieceStat) = (null, null);
                     }
                     Improve(s, i.Stat, i.Material, pieces);
                     if (Items.Have(pack, i.Material) <= 0 && s.WorkingPiece == null) return $"out of {Names.Of(i.Material)}";

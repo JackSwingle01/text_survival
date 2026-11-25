@@ -497,6 +497,8 @@ public static class Fire
                     if (Reach() is { } barred) return barred;
                     if (pit.Pit != a.Pit) return new($"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}");
                     if (!CanAddFuel(pit, a.Tinder)) return Full(pit, a.TinderKg);
+                    if (Items.LightestKg(pack, a.Tinder) is double tinderPieceKg && tinderPieceKg > RoomKg(pit) + 1e-9)
+                        return new($"the fire has no room for a whole {Names.PieceWord(a.Tinder)}", new MissingState(Lack.FireRoomKg, tinderPieceKg, RoomKg(pit)));
                     if (IsActive(pit)) return new("the fire is already burning");
                 }
                 if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
@@ -563,8 +565,9 @@ public static class Fire
         var tile = agent.Tile;
         var pack = Items.Pack(world, a.Who);
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
-        // A discrete tinder (chaga) is spent a whole piece at a time.
-        double tinderKg = Items.Move(pack, new Inventory(), a.Tinder, a.TinderKg);
+        // A discrete tinder (chaga) is spent in whole pieces, no more than the pit has room for.
+        double roomKg = PitAt(world, tile) is FireId there ? RoomKg(world.Fires[there]) : MaxFuelKg(a.Pit);
+        double tinderKg = Items.Move(pack, new Inventory(), a.Tinder, a.TinderKg, Items.IsDiscrete(a.Tinder) ? roomKg : double.PositiveInfinity);
         var tool = Items.Tool(pack, a.Tool)!;
         Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)

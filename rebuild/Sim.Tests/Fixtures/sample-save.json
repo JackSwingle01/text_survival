@@ -2604,7 +2604,10 @@
       "WindCap": 0.55,
       "Cause": {
         "What": "natural"
-      }
+      },
+      "WorkingPiece": 24,
+      "WorkingPieceLeftPct": 0.5,
+      "WorkingPieceStat": 0
     }
   },
   "Beddings": {

@@ -123,7 +123,8 @@ public class SaveFixtureTests
         var camp = map.Camp;
         var w = new World { Seed = 17, GeneratedMap = map };
         w.Agents[P] = new Agent { Id = P, Tile = camp };
-        Shelters.Place(w, camp, Shelters.CampOverhang);
+        var shelter = Shelters.Place(w, camp, Shelters.CampOverhang);
+        (shelter.WorkingPiece, shelter.WorkingPieceStat, shelter.WorkingPieceLeftPct) = (Resource.Hide, ShelterStat.Insulation, 0.5); // a hide half worked in
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);

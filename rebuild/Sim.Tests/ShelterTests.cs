@@ -396,6 +396,27 @@ public class ShelterTests
         Assert.Contains("no use", Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Berries), 10).InterruptedReason);
     }
 
+    /// A piece left part-worked goes into the stat it was being worked into, whatever is improved next (#142 review).
+    [Fact]
+    public void APartWorkedPiece_GoesIntoTheStatItWasFor_WhenTheWorkTurnsElsewhere()
+    {
+        var w = Builder(out var tile);
+        var s = Shelters.Place(w, tile, new ShelterDef("Frame", ShelterKind.BranchFrame));
+        TestKit.Give(Items.Pack(w, P), Resource.Hide, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Stone, 0.3);
+        Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 5);
+        Assert.Equal((Resource.Hide, ShelterStat.Insulation), (s.WorkingPiece, s.WorkingPieceStat));
+        double halfWay = s.InsulationLevel, overhead = s.OverheadLevel;
+        w = TestWorlds.Load(Save.ToJson(w)); // the piece and its stat are saved
+        s = Shelters.At(w, tile, [])!;
+        // The same hide turned to another stat: its rest goes where it was going, and with no second hide the work is refused.
+        Assert.Contains("no hide", Sim.Step(w, new ImproveShelter(P, ShelterStat.Overhead, Resource.Hide), 1).InterruptedReason);
+        Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Stone), 1);
+        Assert.True(s.InsulationLevel > halfWay, "the rest of the hide did not reach insulation");
+        Assert.Equal(overhead, s.OverheadLevel);
+        Assert.Equal((Resource.Stone, ShelterStat.Wind), (s.WorkingPiece, s.WorkingPieceStat));
+    }
+
     /// old game: the pitched tent's item was [JsonIgnore], so after a load it could never be packed (bug, fixed).
     [Fact]
     public void Tent_PitchesAndPacks_ThroughASave()
