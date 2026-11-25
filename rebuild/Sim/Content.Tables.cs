@@ -95,7 +95,7 @@ public static partial class Content
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
         CodeForage = ["MixedForest"],
         CodeAccidents = ["TripStumble", "SharpHazards", "IceSlip", "RockyTerrain", "FallImpact", "Sprains"],
-        CodeGear = ["stone_axe", "flint_knife"], CodeLocations = ["wolf_den", "bear_cave", "bone_hollow"];
+        CodeGear = ["ground_stone_axe", "flint_knife"], CodeLocations = ["wolf_den", "bear_cave", "bone_hollow"];
 
     /// Reads and checks every table; any problem throws InvalidDataException naming it. The game
     /// loads the embedded files through here; tests hand it broken ones.
@@ -559,6 +559,8 @@ public static partial class Content
                 yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
             if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))
                 yield return $"{at}: thrown rangeM {t.RangeM}, accuracy {t.Accuracy} and damage {t.Damage} (above 0)";
+            if ((g.Tool == ToolType.Axe) != (g.ChopRate != null)) yield return $"{at}: axes, and only axes, state their chopRate";
+            if (g.ChopRate is <= 0) yield return $"{at}: chopRate {g.ChopRate} (above 0)";
             if (g.Capabilities.Contains(Capability.None)) yield return $"{at}: capabilities names None (an empty list is nothing)";
             if (g.Capabilities.Distinct().Count() != g.Capabilities.Count) yield return $"{at}: a capability listed twice";
         }

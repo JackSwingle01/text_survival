@@ -117,7 +117,9 @@ public static class Work
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
             case TreePool:
-                foreach (var (r, got) in Pools.ExpectedChop(world, id, workMinutes)) kg[r] = got;
+                // The axe felling would pick up (Items.Axe), at its rate.
+                double chopRate = Items.PackOf(agent) is { } axePack ? Items.ChopRate(Items.Axe(axePack)) : 1;
+                foreach (var (r, got) in Pools.ExpectedChop(world, id, workMinutes * chopRate)) kg[r] = got;
                 break;
             case StockPool stock:
                 int cycles = (int)Math.Floor(((Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0) / stock.MinutesPerUnit + workMinutes / stock.MinutesPerUnit + 1e-9);
@@ -512,17 +514,17 @@ public static class Work
                             }
                         case TreePool:
                             {
-                                if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
+                                if (Items.Axe(pack) is not { } axe) return "your axe is broken";
                                 // A piece the pack can't take stays on the trunk for the next trip.
                                 if (Pools.NextPieceKg(world, id) is double next && next > RoomKg(agent, pack) + 1e-9) return PackFull;
                                 Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                                var chop = Pools.Chop(world, id, effective, world.Rng("work", agent.Id), RoomKg(agent, pack));
+                                var chop = Pools.Chop(world, id, effective * Items.ChopRate(axe), world.Rng("work", agent.Id), RoomKg(agent, pack));
                                 Keep(world, agent, s, chop.Got, events);
                                 if (chop.CameDown) events.Add(new TreeFelled(world.Minute, agent.Id, id));
                                 return chop.CutUp ? TreeCutUp : null;
                             }
                         case StockPool stock:
-                            if (Pools.WorksWith(world, id, pack, ToolType.Axe)) Items.UseFor(Items.Tool(pack, ToolType.Axe)!, 1, ChopMinutesPerAxeUse);
+                            if (Pools.WorksWith(world, id, pack, ToolType.Axe)) Items.UseFor(Items.Axe(pack)!, 1, ChopMinutesPerAxeUse);
                             Keep(world, agent, s, Pools.WorkStock(world, id, effective, pack), events);
                             return Pools.HasStock(world, id, pack) ? null : $"the {stock.Name} is picked clean";
                         default:

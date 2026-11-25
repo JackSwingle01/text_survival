@@ -84,7 +84,7 @@ public class MapTests
     {
         { 1, 99, "1700e032cfe3c77b" },
         { 17, 108, "c7f17a7897f594e1" },
-        { 2048, 102, "aed3846be36fb241" },
+        { 2048, 102, "77a610aa69ddb41" }, // the Shale Outcrop renamed the Obsidian Outcrop (#145), on the same tile
         { 91237, 93, "81d4b0066110062c" },
         { 42, 110, "b04bbb6ef5c90d08" },
     };

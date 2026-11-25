@@ -502,7 +502,7 @@ public class SitePoolsTests
         var mouth = tiles.First(t => m.CaveAt(t) == Cave.Entrance);
         var f = Assert.IsType<ForagePool>(Pools.At(w, floor)[0]);
         Assert.Equal(0.52, f.Density);
-        Assert.Contains(f.Items, i => i.Resource == Resource.Shale);
+        Assert.Contains(f.Items, i => i.Resource == Resource.Flint);
         Assert.DoesNotContain(f.Items, i => i.Resource == Resource.Stick);
         Assert.Contains(((ForagePool)Pools.At(w, mouth)[0]).Items, i => i.Resource == Resource.Stick);
         Assert.DoesNotContain(Pools.At(w, floor), p => p is TreePool);

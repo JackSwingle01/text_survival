@@ -50,8 +50,8 @@ public class ContentStrictTests
     [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\" }", "discrete Stone needs pieceKg")]
     [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.5, 0.2] }", "discrete Stone needs pieceKg")]
     [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\", \"pieceKg\": [1, 2] }", "continuous Water has no pieces")]
-    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"g\": 600 }", "Stone is discrete: a count of pieces, never a weight")]
-    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"count\": 2, \"kg\": 0.6 }", "Stone names kg")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 1 }", "{ \"of\": \"Stone\", \"g\": 300 }", "Stone is discrete: a count of pieces, never a weight")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 1 }", "{ \"of\": \"Stone\", \"count\": 1, \"kg\": 0.3 }", "Stone names kg")]
     [InlineData("recipes.json", "{ \"of\": \"PlantFiber\", \"g\": 300 }", "{ \"of\": \"PlantFiber\", \"count\": 3 }", "a discrete input, and only one, is a count")]
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:Sinew:1=.5\"", "extra_product Sinew is discrete")]
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:HideStrip:1.5=.5\"", "extra_product HideStrip is whole pieces")]
@@ -102,6 +102,10 @@ public class ContentStrictTests
     [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "", "treatmentAboveSeverity")]
     [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"form\": \"Continuous\" }", "water Water needs its hydrationMlPerKg")]
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
+    // An axe that left its speed out would chop at some unstated rate (#145).
+    [InlineData("items.json", "\"tool\": \"Axe\", \"chopRate\": 1.5, ", "\"tool\": \"Axe\", ", "flint_axe: axes, and only axes, state their chopRate")]
+    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.65", "\"tool\": \"Knife\", \"chopRate\": 1, \"weapon\": { \"damage\": 3.65", "obsidian_knife: axes, and only axes, state their chopRate")]
+    [InlineData("items.json", "\"chopRate\": 1.5", "\"chopRate\": 0", "flint_axe: chopRate 0 (above 0)")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
     [InlineData("terrain.json", ", \"trees\": { \"name\": \"Forest Trees\", \"minutesToFell\": 100 }", "", "trees")]
@@ -147,7 +151,7 @@ public class ContentStrictTests
 
     /// NPCs are handed a stone axe and a flint knife by name: a rename fails at load, not at the first spawn.
     [Theory]
-    [InlineData("stone_axe", "stone_hatchet")]
+    [InlineData("ground_stone_axe", "stone_hatchet")]
     [InlineData("flint_knife", "flint_blade")]
     public void Loader_RefusesARename_OfGearTheCodeNames(string kind, string renamed)
     {

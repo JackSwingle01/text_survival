@@ -254,7 +254,7 @@ public class ContentTests
     }
 
     [Theory]
-    [InlineData("items.json", "\"name\": \"Stone Axe\",", "\"name\": \"Stone Axe\", \"colour\": \"grey\",", "colour")]
+    [InlineData("items.json", "\"name\": \"Ground Stone Axe\",", "\"name\": \"Ground Stone Axe\", \"colour\": \"grey\",", "colour")]
     [InlineData("fire.json", "\"maxFuelKg\": 12,", "\"maxFuelKg\": 12, \"smoke\": 1,", "smoke")]
     [InlineData("species.json", "\"weightKg\": 45,", "\"weightKg\": 45, \"legs\": 4,", "legs")]
     [InlineData("effects.json", "\"Wet\": { \"severityPerHour\": 0,", "\"Wet\": { \"severityPerHour\": 0, \"itch\": 1,", "itch")]

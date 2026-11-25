@@ -20,7 +20,7 @@
 //   from the wielder it strikes (reachM), and, if it is made to be thrown, how far, how true and how hard
 //   (thrown). Melee damage is the combat tuner's (Tools/Tune), which holds fights to the outcome order spear >
 //   axe > knife > stone > staff > hands (reach counts as well as damage); the heavy and stone-tipped spears it
-//   does not tune keep their ratio to the wooden spear, the sharp rock to the knife.
+//   does not tune keep their ratio to the wooden spear, the crude edge to the knife, the obsidian knife to the flint one.
 // slotCoverage: the fraction of body surface each slot covers (old Inventory.SlotCoverage). Sums to 1.
 // startingCamp: the pieces on the camp's pile at the start, by resource.
 // startingPack, startingClothes: the old starting kit (GameContext.CreateNewGame). Pack kilos are
@@ -55,7 +55,7 @@
   "Hide": { "category": "Material", "form": "Discrete", "pieceKg": [0.1, 60] },
   "PlantFiber": { "category": "Material", "form": "Continuous" },
   "Sinew": { "category": "Material", "form": "Discrete", "pieceKg": [0.05, 0.4] },
-  "Shale": { "category": "Material", "form": "Discrete", "pieceKg": [0.1, 0.4] },
+  "Obsidian": { "category": "Material", "form": "Discrete", "pieceKg": [0.05, 0.4] },
   "Flint": { "category": "Material", "form": "Discrete", "pieceKg": [0.05, 0.4] },
   "Pyrite": { "category": "Material", "form": "Discrete", "pieceKg": [0.02, 0.15] },
   "ScrapedHide": { "category": "Material", "form": "Discrete", "pieceKg": [0.08, 48] },
@@ -84,10 +84,16 @@
  },
 
  "gear": {
-  "stone_axe": { "name": "Stone Axe", "category": "Tool", "baseWeightKg": 1.5, "maxDurability": -1, "capabilities": ["Cutting", "Striking"], "tool": "Axe", "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
+  // Axes (#145): chopRate is how fast each fells and cuts up a tree, the ground stone axe's 1 the old stone axe's. The
+  // ground stone axe is blunt and never wears; the flint axe chops half again as fast, cuts, and wears out. Both
+  // fight alike (the tuner's axe.damage), at one weight: a lighter axe fights better. Each weighs no more than its lightest inputs: a stone or flint, a branch, a binding.
+  "ground_stone_axe": { "name": "Ground Stone Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": -1, "capabilities": [], "tool": "Axe", "chopRate": 1.0, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
+  "flint_axe": { "name": "Flint Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 20, "capabilities": ["Cutting"], "tool": "Axe", "chopRate": 1.5, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
   "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.15, "maxDurability": -1, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
   "worn_knife": { "name": "Worn Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
-  "bone_knife": { "name": "Bone Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 5, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
+  // Obsidian: sharper than flint (it hits 1.08 times as hard, a ratio the tuner leaves alone: more puts it level with an axe) and fragile, where flint never wears.
+  "obsidian_knife": { "name": "Obsidian Knife", "category": "Tool", "baseWeightKg": 0.15, "maxDurability": 10, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.65, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.30 } } },
+  "bone_knife": { "name": "Bone Knife", "category": "Tool", "baseWeightKg": 0.15, "maxDurability": 5, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
   "wooden_spear": { "name": "Wooden Spear", "category": "Tool", "baseWeightKg": 1, "maxDurability": -1, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 4.84, "class": "Pierce", "blockChance": 0.12, "reachM": 2.5, "thrown": { "rangeM": 20, "accuracy": 0.70, "damage": 2.00 } } },
   "fire_striker": { "name": "Fire Striker", "category": "Tool", "baseWeightKg": 0.07, "maxDurability": -1, "capabilities": ["Spark"], "tool": "FireStriker" },
   "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.1, "maxDurability": -1, "capabilities": ["Spark"], "tool": "HandDrill" },
@@ -107,15 +113,14 @@
   "small_pouch": { "name": "Small Pouch", "category": "Accessory", "baseWeightKg": 0.1, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 0.5 },
   "rope_belt": { "name": "Rope Belt", "category": "Accessory", "baseWeightKg": 0.4, "maxDurability": 100, "capabilities": ["Carrying", "Binding"], "capacityBonusKg": 3.0 },
   "proper_belt": { "name": "Proper Belt", "category": "Accessory", "baseWeightKg": 0.3, "maxDurability": 150, "capabilities": ["Carrying"], "capacityBonusKg": 4.0 },
-  "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.2, "maxDurability": 15, "capabilities": ["Digging"], "tool": "Shovel" },
+  "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 15, "capabilities": ["Digging"], "tool": "Shovel" },
   "hide_tent": { "name": "Hide Tent", "category": "Tool", "baseWeightKg": 3.0, "maxDurability": 50, "capabilities": [], "tool": "Tent" },
   "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "category": "Tool", "baseWeightKg": 5.0, "maxDurability": 80, "capabilities": [], "tool": "Tent" },
   // Made (Content/recipes.json).
-  "sharp_rock": { "name": "Sharp Rock", "category": "Tool", "baseWeightKg": 0.08, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 2.03, "class": "Blade", "blockChance": 0.01, "reachM": 0.8 } },
-  "hammerstone": { "name": "Hammerstone", "category": "Tool", "baseWeightKg": 0.16, "maxDurability": 30, "capabilities": ["Striking"], "tool": "Hammerstone" },
-  "stone_knife": { "name": "Stone Knife", "category": "Tool", "baseWeightKg": 0.18, "maxDurability": 10, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
-  // A fist-sized stone, wielded or thrown; the stones ThrowStone takes from a pack fly as this one does.
-  "stone": { "name": "Stone", "category": "Tool", "baseWeightKg": 0.08, "maxDurability": -1, "capabilities": [], "weapon": { "damage": 0.65, "class": "Blunt", "blockChance": 0.0, "reachM": 0.8, "thrown": { "rangeM": 15, "accuracy": 0.50, "damage": 0.55 } } },
+  // A stone smashed for its edge: cuts in an emergency, and soon dulls.
+  "crude_edge": { "name": "Crude Edge", "category": "Tool", "baseWeightKg": 0.08, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 2.03, "class": "Blade", "blockChance": 0.01, "reachM": 0.8 } },
+  // A fist-sized stone: the hammer that knaps and breaks ice, wielded or thrown; the stones ThrowStone takes from a pack fly as this one does.
+  "stone": { "name": "Stone", "category": "Tool", "baseWeightKg": 0.08, "maxDurability": -1, "capabilities": ["Striking"], "weapon": { "damage": 0.65, "class": "Blunt", "blockChance": 0.0, "reachM": 0.8, "thrown": { "rangeM": 15, "accuracy": 0.50, "damage": 0.55 } } },
   "staff": { "name": "Staff", "category": "Tool", "baseWeightKg": 1, "maxDurability": 20, "capabilities": ["Reaching"], "tool": "Club", "weapon": { "damage": 0.41, "class": "Blunt", "blockChance": 0.10, "reachM": 1.5 } },
   "crude_spear": { "name": "Crude Spear", "category": "Tool", "baseWeightKg": 1, "maxDurability": 8, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 0.91, "class": "Pierce", "blockChance": 0.10, "reachM": 2.5, "thrown": { "rangeM": 15, "accuracy": 0.55, "damage": 1.40 } } },
   "heavy_spear": { "name": "Heavy Spear", "category": "Tool", "baseWeightKg": 1, "maxDurability": 15, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 5.56, "class": "Pierce", "blockChance": 0.12, "reachM": 2.5, "thrown": { "rangeM": 15, "accuracy": 0.60, "damage": 2.30 } } },

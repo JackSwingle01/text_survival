@@ -88,7 +88,7 @@ static class ActionGen
         {
             TestKit.Supply(w);
             var pack = Items.Pack(w, P);
-            foreach (var kind in new[] { "flint_knife", "stone_axe", "large_bag", "hide_tent", "wooden_spear" }) pack.Gear.Add(Items.Make(kind));
+            foreach (var kind in new[] { "flint_knife", "ground_stone_axe", "large_bag", "hide_tent", "wooden_spear" }) pack.Gear.Add(Items.Make(kind));
             foreach (var (r, kg) in new[] { (Resource.RawMeat, 1.5), (Resource.Berries, 0.5), (Resource.Water, 1.0), (Resource.Hide, 2.0), (Resource.Stone, 1.0) })
                 TestKit.Give(pack, r, kg);
         }

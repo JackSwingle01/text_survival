@@ -55,8 +55,9 @@
   // Old CaveLocationFactory.CreateSeep: open water, fishless, from deep in the rock.
   "CaveSeep": { "name": "Cave Seep", "found": ["You discover something interesting: Cave Seep."], "work": "Harvest", "minutes": 1, "items": [
    { "resource": "Water", "units": 100, "kgPerUnit": 1.0, "respawnHoursPerUnit": 0.1 } ] },
-  "LooseShale": { "name": "Loose Shale", "found": ["You find loose shale. Thin plates of shale have split from the cave wall. Usable pieces lie beneath the dust."], "work": "Harvest", "minutes": 5, "items": [
-   { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 } ] },
+  // The one cave find of obsidian (#145): black glass, found nowhere else but the rare outcrop.
+  "ObsidianSeam": { "name": "Obsidian Seam", "found": ["You find an obsidian seam. A vein of black glass runs through the cave wall. Broken pieces lie at its foot."], "work": "Harvest", "minutes": 5, "items": [
+   { "resource": "Obsidian", "units": 2, "unitsMax": 3, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
   "FlintOutcrop": { "name": "Flint Outcrop", "found": ["Sharp flint nodules catch the light. A knapping site.", "Flint! The rock here breaks clean and sharp.", "Quality stone for tools. This spot is worth remembering."], "work": "Harvest", "minutes": 5, "items": [
    { "resource": "Flint", "units": 3, "unitsMax": 7, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
   "PyriteSeam": { "name": "Iron Pyrite Seam", "found": ["Golden glints in the rock - iron pyrite. Sparks well against flint.", "Fire-stone. A seam of pyrite runs through the rock here.", "You find pyrite - 'fool's gold' that strikes true sparks."], "work": "Harvest", "minutes": 8, "items": [
@@ -81,8 +82,7 @@
    { "chance": 0.7, "resource": "Sinew", "units": 1, "unitsMax": 2, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 },
    { "chance": 0.4, "resource": "Hide", "units": 1, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
   "KnappingScatter": { "name": "Knapping Scatter", "found": ["You find knapping scatter. Flint flakes and cores scattered around a flat rock. Someone made tools here."], "work": "Harvest", "minutes": 4, "items": [
-   { "resource": "Flint", "units": 2, "unitsMax": 5, "kgPerUnit": 0.12, "respawnHoursPerUnit": 0 },
-   { "chance": 0.3, "resource": "Shale", "units": 1, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
+   { "resource": "Flint", "units": 2, "unitsMax": 5, "kgPerUnit": 0.12, "respawnHoursPerUnit": 0 } ] },
   "DryWoodStack": { "name": "Dry Wood Stack", "found": ["You find dry wood stack. A stack of dry wood under a rock ledge. Ready to burn."], "work": "Harvest", "minutes": 4, "items": [
    { "anyOf": ["PineBranch", "BirchBranch", "OakBranch"], "units": 3, "unitsMax": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
    { "anyOf": ["PineFirewood", "BirchFirewood", "OakFirewood"], "units": 2, "unitsMax": 4, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
@@ -318,7 +318,7 @@
   { "find": "KnappingScatter", "spawnChance": 0.05, "expectedHours": 0.8 },
   { "find": "CaveSeep", "spawnChance": 0.06, "expectedHours": 0.7 },
   { "find": "SleepingRecess", "spawnChance": 0.05, "expectedHours": 1.0 },
-  { "find": "LooseShale", "spawnChance": 0.12, "expectedHours": 0.4 }
+  { "find": "ObsidianSeam", "spawnChance": 0.04, "expectedHours": 0.6 }
  ],
 
  "detailDraws": {
