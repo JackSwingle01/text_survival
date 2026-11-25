@@ -32,11 +32,12 @@ WORKING = "agent-working"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 # Issues this repo's workflows file with its GITHUB_TOKEN: the daily ratchet run's batches
-# (.github/workflows/ratchet.yml) and the one issue open while main's CI is red (ci.yml's main-red job).
+# (.github/workflows/ratchet.yml), the one issue open while main's CI is red (ci.yml's main-red job),
+# and a failing nightly run's one issue (.github/workflows/nightly.yml).
 # Only this repo's workflows act as that bot here, and no workflow runs untrusted code with write
 # access, so its issues carrying one of these labels are as trusted as the main they came from.
 WORKFLOW_BOT, MAIN_RED = "github-actions[bot]", "main-red"
-WORKFLOW_LABELS = {"ratchet", MAIN_RED}
+WORKFLOW_LABELS = {"ratchet", MAIN_RED, "nightly"}
 
 
 def api(path):

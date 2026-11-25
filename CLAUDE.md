@@ -109,7 +109,8 @@ get the outcome you want from an issue you write:
 - **A red main is a ticket.** CI opens one `main-red` issue while a check fails on `main`
   (`.github/scripts/main_red.sh`), and the build queue builds nothing else until it closes. Triage
   marks it ready only when the failed jobs' log shows a small, obvious fix; otherwise it gets
-  `needs-user`, and the queue waits for you.
+  `needs-user`, and the queue waits for you. A failing nightly run's `nightly` issue is triaged by
+  the same rule, but holds nothing back.
 - To pause the agent, disable either workflow in the Actions tab: triage stops labelling, or the
   build stops building and the labelled issues wait.
 
