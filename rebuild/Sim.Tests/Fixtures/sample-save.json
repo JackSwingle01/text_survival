@@ -133,14 +133,19 @@
         },
         "Gear": [
           {
-            "Kind": "crude_spear",
-            "Durability": 8,
-            "MaxDurability": 8,
+            "Kind": "stone_club",
+            "Durability": 100,
+            "MaxDurability": 100,
             "MadeOf": {
-              "Amounts": {},
+              "Amounts": {
+                "PlantFiber": 0.05
+              },
               "Pieces": {
                 "PineBranch": [
                   1.6666666666666667
+                ],
+                "Stone": [
+                  0.4
                 ]
               },
               "Gear": []
@@ -698,13 +703,18 @@
           ],
           "Projects": [
             {
-              "Recipe": "crude_spear",
+              "Recipe": "stone_club",
               "MinutesDone": 8,
               "Materials": {
-                "Amounts": {},
+                "Amounts": {
+                  "PlantFiber": 0.05
+                },
                 "Pieces": {
                   "PineBranch": [
                     1.6666666666666667
+                  ],
+                  "Stone": [
+                    0.5
                   ]
                 },
                 "Gear": []
@@ -819,7 +829,8 @@
             },
             "7,44": {
               "SeenMinute": 187,
-              "Trees": true
+              "Trees": true,
+              "Shelter": "Lean-to"
             },
             "7,45": {
               "SeenMinute": 187,
@@ -1537,7 +1548,8 @@
             },
             "7,44": {
               "SeenMinute": 180,
-              "Trees": true
+              "Trees": true,
+              "Shelter": "Lean-to"
             },
             "7,45": {
               "SeenMinute": 180,
@@ -2738,7 +2750,7 @@
   "TracksSweptHour": 3,
   "NextCarcassId": 0,
   "NextPileId": 2,
-  "NextShelterId": 1,
+  "NextShelterId": 2,
   "Shelters": {
     "7,42": {
       "Id": 0,
@@ -2756,6 +2768,35 @@
       "WorkingPiece": 27,
       "WorkingPieceLeftPct": 0.5,
       "WorkingPieceStat": 0
+    },
+    "7,44": {
+      "Id": 1,
+      "Name": "Lean-to",
+      "Kind": 0,
+      "InsulationLevel": 0.15,
+      "OverheadLevel": 0.25,
+      "WindLevel": 0.2,
+      "InsulationCap": 0.5,
+      "OverheadCap": 0.5,
+      "WindCap": 0.5,
+      "Materials": {
+        "Amounts": {},
+        "Pieces": {
+          "PineBranch": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        "Gear": []
+      },
+      "Cause": {
+        "Who": 0,
+        "What": "built by the player"
+      }
     }
   },
   "Beddings": {
@@ -2971,7 +3012,7 @@
       {
         "kind": "made",
         "Who": 0,
-        "Recipe": "crude_spear",
+        "Recipe": "stone_club",
         "Outcome": null,
         "Succeeded": true,
         "Spent": {},

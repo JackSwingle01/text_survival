@@ -11,14 +11,16 @@
 //   tools: capabilities the pack must give (each used once per finished piece); faster: capabilities
 //     that speed the work when carried (optional), each by fasterFactor (optional, 1.5 if not given);
 //   requires: what the place must have to start and to go on (Light, Fire, Frost, Shelter, Dry,
-//     NoShelter); Tent is a tent carried, checked to start, and the tent goes into the work;
+//     NoShelter, MoundPit: a mound fire pit here); Tent is a tent carried, checked to start, and the tent goes into the work;
 //   minutes: the work for someone whole, warm and dry;
 //   result: { "gear": kind } for one piece, weighing what items.json says, never more than its lightest possible
 //     inputs; { "resource": r, "count": n, "sharePct": s } for n pieces of a discrete r, together s of the actual
 //     weight that went in (less what an outcome wastes), each in r's range; { "resource": r, "g": n } for a
 //     continuous r, or { "resource": r, "sharePct": s } for s of the actual weight that went in; or, placed on the tile,
-//     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
-//     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile). A placed result's project stays on the tile for anyone there to
+//     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one), with "replaces": a ShelterKind
+//     whose built shelter it takes down when it goes up, its pieces given back whole, or
+//     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile) or { "pit": PitType } (the fire
+//     pit here raised to Mound or Stone, or dug cold; refused where one is as good, burns, or is someone else's). A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
 //     { "repairs": [gear kinds], "restoresPct": s }: worked on one held piece of those kinds (taken off, if worn, and
 //     put back on), restoring s of its missing condition, the materials joining its parts record; its name is the
@@ -114,11 +116,6 @@
   "outcomes": [] },
 
  // ---- fat, fibre, cordage and hides ----
- // A hand recipe at a burning fire until the fire works it as a station (#189).
- "render_fat": { "name": "Render fat", "category": "Processing",
-  "inputs": [ { "of": "RawFat", "count": 1 } ], "tools": [], "requires": ["Fire"], "minutes": 20,
-  "result": { "resource": "Tallow", "sharePct": 0.6 },
-  "outcomes": [] },
  // Inner willow bark stripped and twisted by feel: no light needed.
  "willow_fibre": { "name": "Willow fibre", "category": "Processing",
   "inputs": [ { "of": "WillowBark", "g": 100 } ], "tools": [], "requires": [], "minutes": 10,
@@ -176,6 +173,11 @@
   "inputs": [ { "of": "Berries", "g": 500 } ], "tools": [], "requires": [], "minutes": 720,
   "result": { "resource": "DriedBerries", "sharePct": 0.3 },
   "outcomes": [] },
+ // Time is per piece, whatever it weighs; the tallow waits at the fire as an amount.
+ "render_fat": { "name": "Render fat", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawFat", "count": 1 } ], "tools": [], "requires": [], "minutes": 20,
+  "result": { "resource": "Tallow", "sharePct": 0.6 },
+  "outcomes": [] },
  // Snow is assumed to be there (an existing gap) and needs no vessel: a litre at a time, until 4 L waits.
  "melt_snow": { "name": "Melt snow", "category": "Processing", "station": "Fire", "driver": "Heat",
   "inputs": [], "tools": [], "requires": [], "minutes": 10,
@@ -188,29 +190,38 @@
   "result": { "gear": "stone" },
   "outcomes": [] },
  "staff": { "name": "Staff", "category": "HuntingWeapon",
-  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": [], "faster": ["Cutting"], "requires": [], "minutes": 10,
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": [], "requires": [], "minutes": 2,
   "result": { "gear": "staff" },
   "outcomes": ["fail=.03"] },
- "crude_spear": { "name": "Crude spear", "category": "HuntingWeapon",
-  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
-  "result": { "gear": "crude_spear" },
-  "outcomes": ["fail:waste_material:PineBranch:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
- // The crude spear's point hardened in the fire.
- "wooden_spear": { "name": "Fire-hardened spear", "category": "HuntingWeapon",
-  "inputs": [ { "item": "crude_spear" } ], "tools": [], "requires": ["Fire"], "minutes": 30,
+ // A branch whittled to a point and its point hardened in the fire, in one sitting.
+ "wooden_spear": { "name": "Wooden spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Fire", "Light"], "minutes": 50,
   "result": { "gear": "wooden_spear" },
-  "outcomes": ["fail=.10"] },
- "heavy_spear": { "name": "Heavy spear", "category": "HuntingWeapon",
-  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 35,
-  "result": { "gear": "heavy_spear" },
-  "outcomes": ["fail:waste_material:PineBranch:1=.04", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
- // §3.7's own example; the injury is a cut, not the 0.2 written there.
- "stone_tipped_spear": { "name": "Stone-tipped spear", "category": "HuntingWeapon",
-  "inputs": [ { "item": "wooden_spear" }, { "of": "Flint", "count": 1 }, { "of": "Sinew|Rope", "count": 1 } ],
-  "tools": ["Cutting"], "faster": ["Striking"], "requires": ["Light"], "minutes": 40,
-  "result": { "gear": "stone_tipped_spear" },
-  "outcomes": ["fail=.05", "fail:waste_material:Flint:.5=.08", "succeed:save_material:Sinew:1=.10",
-   "succeed:injury:LeftArm|RightArm:0.05=.04", "fail:break_tool:Cutting=.02"] },
+  "outcomes": ["fail=.05", "fail:waste_material:PineBranch:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+ // A knapped point hafted to a branch and bound; the striker knaps it, the blade notches the haft.
+ "flint_tipped_spear": { "name": "Flint-tipped spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "Flint", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Cutting", "Striking"], "requires": ["Light"], "minutes": 40,
+  "result": { "gear": "flint_tipped_spear" },
+  "outcomes": ["fail=.05", "fail:waste_material:Flint:1=.08", "succeed:injury:LeftArm|RightArm:0.05=.04", "fail:break_tool:Striking=.02"] },
+ // Glass knaps to a finer point than flint, and cuts the hand that works it more often.
+ "obsidian_tipped_spear": { "name": "Obsidian-tipped spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "Obsidian", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Cutting", "Striking"], "requires": ["Light"], "minutes": 40,
+  "result": { "gear": "obsidian_tipped_spear" },
+  "outcomes": ["fail=.05", "fail:waste_material:Obsidian:1=.10", "succeed:injury:LeftArm|RightArm:0.05=.08", "fail:break_tool:Striking=.02"] },
+ // A point split and ground from a mammoth's tusk, lashed on with two sinews.
+ "ivory_tipped_spear": { "name": "Ivory-tipped spear", "category": "HuntingWeapon",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "Ivory", "count": 1 }, { "of": "Sinew", "count": 2 } ],
+  "tools": ["Cutting", "Striking"], "requires": ["Light"], "minutes": 60,
+  "result": { "gear": "ivory_tipped_spear" },
+  "outcomes": ["fail=.05", "succeed:save_material:Sinew:.5=.10", "succeed:injury:LeftArm|RightArm:0.05=.04"] },
+ // A stone lashed into a split branch end.
+ "stone_club": { "name": "Stone club", "category": "HuntingWeapon",
+  "inputs": [ { "of": "Stone", "count": 1 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 50 } ],
+  "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
+  "result": { "gear": "stone_club" },
+  "outcomes": ["fail=.03", "succeed:injury:LeftArm|RightArm:0.03=.04"] },
 
  // ---- torches: a torch, and a resin torch that burns twice as long ----
  "torch": { "name": "Torch", "category": "Lighting",
@@ -244,6 +255,19 @@
   "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "Sinew", "count": 2 }, { "of": "Rope", "count": 1 } ], "tools": ["Sewing"], "requires": [], "minutes": 120,
   "result": { "gear": "mammoth_hide_pack" },
   "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+
+ // ---- tents: sewn hides on branch poles, carried as gear and pitched as a shelter. The heavy poles are listed last,
+ // so the made inputs are fetched before the pack is loaded with them (MakeTests' run where you prepare). ----
+ "hide_tent": { "name": "Hide tent", "category": "Camp",
+  "inputs": [ { "of": "CuredHide", "count": 4 }, { "of": "Rope", "count": 2 }, { "of": "Sinew", "count": 4 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 } ],
+  "tools": ["Sewing"], "requires": [], "minutes": 180,
+  "result": { "gear": "hide_tent" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+ "mammoth_hide_tent": { "name": "Mammoth hide tent", "category": "Camp",
+  "inputs": [ { "of": "CuredMammothHide", "count": 2 }, { "of": "Sinew", "count": 4 }, { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 } ],
+  "tools": ["Sewing"], "requires": [], "minutes": 240,
+  "result": { "gear": "mammoth_hide_tent" },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.5=.05", "fail:break_tool:Sewing=.02"] },
 
  // ---- hide clothing: hide strips or cured hides and sinew, sewn with a needle ----
  "hide_gloves": { "name": "Hide gloves", "category": "Clothing",
@@ -293,25 +317,34 @@
   "inputs": [], "tools": [], "faster": ["Digging"], "fasterFactor": 2, "requires": [], "minutes": 45,
   "result": { "bedding": "Makeshift" }, "outcomes": [] },
  "padded_bedding": { "name": "Padded bed", "category": "Camp",
-  "inputs": [ { "of": "PlantFiber", "g": 1000 }, { "of": "Hide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 45,
+  "inputs": [ { "of": "PlantFiber", "g": 1000 }, { "of": "CuredHide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 45,
   "result": { "bedding": "Padded" }, "outcomes": [] },
  "moss_bedding": { "name": "Moss bed", "category": "Camp",
-  "inputs": [ { "of": "SphagnumMoss", "g": 1200 }, { "of": "PineNeedles", "g": 240 }, { "of": "Hide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 50,
+  "inputs": [ { "of": "SphagnumMoss", "g": 1200 }, { "of": "PineNeedles", "g": 240 }, { "of": "CuredHide", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 50,
   "result": { "bedding": "MossPadded" }, "outcomes": [] },
  // 15 minutes' setup and three hours' sewing.
  "sleeping_bag": { "name": "Sleeping bag", "category": "Camp",
-  "inputs": [ { "of": "CuredHide", "count": 6 }, { "of": "Sinew", "count": 6 } ], "tools": [], "requires": ["Light"], "minutes": 195,
+  "inputs": [ { "of": "CuredHide", "count": 4 }, { "of": "Sinew", "count": 6 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 195,
   "result": { "bedding": "SleepingBag" }, "outcomes": [] },
- "branch_frame": { "name": "Branch frame shelter", "category": "Camp",
-  "inputs": [ { "of": "Stick", "count": 4 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
-  "result": { "shelter": "BranchFrame", "shelterName": "Branch Frame Shelter" }, "outcomes": [] },
- "log_frame": { "name": "Log frame shelter", "category": "Camp",
-  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 3 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
-  "result": { "shelter": "LogFrame", "shelterName": "Log Frame Shelter" }, "outcomes": [] },
+ "lean_to": { "name": "Lean-to", "category": "Camp",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 6 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
+  "result": { "shelter": "LeanTo", "shelterName": "Lean-to" }, "outcomes": [] },
+ // Built where a lean-to stands, it takes the lean-to down when it goes up, and the lean-to's branches come back whole.
+ "branch_hut": { "name": "Branch hut", "category": "Camp",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 12 }, { "of": "Rope", "count": 2 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
+  "result": { "shelter": "BranchHut", "shelterName": "Branch hut", "replaces": "LeanTo" }, "outcomes": [] },
  // 15 minutes' setup and two hours' digging.
  "snow_shelter": { "name": "Snow shelter", "category": "Camp",
   "inputs": [], "tools": ["Digging"], "faster": ["Digging"], "fasterFactor": 2, "requires": ["Light", "NoShelter", "Frost"], "minutes": 135,
   "result": { "shelter": "SnowShelter", "shelterName": "Snow shelter" }, "outcomes": [] },
+ // Earth banked round the hearth: the fire pit here, or a new one, becomes a mound pit.
+ "mound_fire_pit": { "name": "Mound fire pit", "category": "Camp",
+  "inputs": [], "tools": ["Digging"], "requires": [], "minutes": 180,
+  "result": { "pit": "Mound" }, "outcomes": [] },
+ // The old 300 minutes for 30 stones, scaled to 10.
+ "stone_ring": { "name": "Stone ring", "category": "Camp",
+  "inputs": [ { "of": "Stone", "count": 10 } ], "tools": [], "faster": ["Digging"], "requires": ["MoundPit"], "minutes": 100,
+  "result": { "pit": "Stone" }, "outcomes": [] },
  // Four branches for the frame, four sticks across it, a rope to lash it. Room for four things (Stations.RackRoom).
  "curing_rack": { "name": "Curing rack", "category": "Camp",
   "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 }, { "of": "Stick", "count": 4 }, { "of": "Rope", "count": 1 } ],

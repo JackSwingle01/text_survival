@@ -33,7 +33,7 @@ public class ContentTests
         Assert.All(Enum.GetValues<ShelterKind>(), k => Assert.True(t.ShelterKinds.ContainsKey(k), $"{k} has no shelter kind row"));
         // Every shelter and bedding the old Build path made has a camp recipe placing it.
         var camp = t.MakeRecipes.Where(r => r.Result.Placed).ToList();
-        Assert.Equal([ShelterKind.BranchFrame, ShelterKind.LogFrame, ShelterKind.SnowShelter, ShelterKind.HideTent], camp.Select(r => r.Result.Shelter).OfType<ShelterKind>().Order());
+        Assert.Equal([ShelterKind.LeanTo, ShelterKind.BranchHut, ShelterKind.SnowShelter, ShelterKind.HideTent], camp.Select(r => r.Result.Shelter).OfType<ShelterKind>().Order());
         Assert.Equal([BeddingKind.Makeshift, BeddingKind.Padded, BeddingKind.MossPadded, BeddingKind.SleepingBag], camp.Select(r => r.Result.Bedding).OfType<BeddingKind>().Order());
         Assert.All(Enum.GetValues<BeddingKind>(), b => Assert.True(t.Beddings.ContainsKey(b), $"{b} has no bedding row"));
         Assert.All(Enum.GetValues<ButcherMode>(), m => Assert.True(t.Butchering.ContainsKey(m), $"{m} has no butchering row"));
@@ -274,7 +274,7 @@ public class ContentTests
     [InlineData("effects.json", "\"Wet\":", "\"Soggy\":", "no EffectKind 'Soggy'")]
     // A kind the code has with no row.
     [InlineData("fire.json", "  \"Mound\": { \"room\": 3, \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
-    [InlineData("recipes.json", "\"shelter\": \"BranchFrame\"", "\"shelter\": \"BranchFrames\"", "no ShelterKind 'BranchFrames'")]
+    [InlineData("recipes.json", "\"shelter\": \"LeanTo\"", "\"shelter\": \"LeanTos\"", "no ShelterKind 'LeanTos'")]
     [InlineData("effects.json", "\"Bloody\":", "\"Bloodied\":", "effects.json: no row for Bloody")]
     // A value that is no kind at all.
     [InlineData("accidents.json", "\"effect\": \"Dazed\", \"severity\": 0.2", "\"effect\": \"Concussed\", \"severity\": 0.2", "accidents.json")]

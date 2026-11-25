@@ -59,6 +59,7 @@ public class ContentStrictTests
     [InlineData("recipes.json", "\"result\": { \"resource\": \"ScrapedHide\", \"count\": 1, \"sharePct\": 0.8 }", "\"result\": { \"resource\": \"ScrapedHide\", \"g\": 800 }", "a discrete result ScrapedHide is a count of pieces")]
     [InlineData("recipes.json", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 0.6 }", "\"result\": { \"resource\": \"Tallow\", \"g\": 300, \"sharePct\": 0.6 }", "a continuous result Tallow is grams (g) or a sharePct")]
     [InlineData("recipes.json", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 0.6 }", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 1.5 }", "a continuous result Tallow is grams (g) or a sharePct")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 0.6 }", "\"result\": { \"resource\": \"Tallow\", \"g\": 300 }", "or a share of its weight in a continuous one")]
     [InlineData("items.json", "\"tool\": \"Torch\", \"burnMinutes\": 60", "\"tool\": \"Torch\"", "a torch, and only a torch, burns (burnMinutes)")]
     [InlineData("items.json", "\"capacityBonusKg\": 0.5", "\"capacityBonusKg\": 0.5, \"burnMinutes\": 60", "a torch, and only a torch, burns (burnMinutes)")]
     [InlineData("items.json", "\"baseWeightKg\": 0.1, \"maxDurability\": 1, \"capabilities\": []", "\"baseWeightKg\": 0.5, \"maxDurability\": 1, \"capabilities\": []", "torch weighs 0.5 kg, above its lightest possible inputs")]
@@ -243,7 +244,7 @@ public class ContentStrictTests
         Assert.False(Content.Tables.StartingClothes is List<KitGear>);
         Assert.False(Content.Tables.Sightings.Alert is List<double>);
         Assert.False(Content.Loot["AbandonedCamp"] is List<LootRoll>);
-        var materials = Recipes.Get("log_frame").Materials;
+        var materials = Recipes.Get("branch_hut").Materials;
         Assert.Throws<NotSupportedException>(() => ((IList)materials)[0] = materials[0]);
         Assert.Throws<NotSupportedException>(() => ((IDictionary<Resource, double>)Carcasses.ModeProps(ButcherMode.QuickStrip).YieldFactor).Clear());
     }

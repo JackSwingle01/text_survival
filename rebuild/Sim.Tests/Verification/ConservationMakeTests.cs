@@ -10,7 +10,7 @@ namespace Survival.Tests.Verification;
 /// of gear - change by
 /// exactly what the events say:
 ///
-///   Δ held[r] = Made.Produced[r] - Made.Spent[r] - Built.Spent[r] - ProjectAbandoned.Lost[r]
+///   Δ held[r] = Made.Produced[r] - Made.Spent[r] - Built.Spent[r] + ShelterTakenDown.Returned[r] - ProjectAbandoned.Lost[r]
 ///
 /// so inputs in = result + waste + reclaimed. Pieces of gear, counted with those inside projects,
 /// change only as finished work says: the result and any extra pieces made, the items consumed gone.
@@ -26,11 +26,12 @@ public class ConservationMakeTests
 
     public sealed record Op(OpKind Kind, int Recipe, int Minutes);
 
-    /// The pack's materials (kilos of each resource any recipe takes), the tools carried, a fire or not.
-    public sealed record Scene(double[] PackKg, bool[] Tools, bool Fire, Op[] Ops);
+    /// The pack's materials (kilos of each resource any recipe takes), the tools carried, a fire or not; NoShelter, the
+    /// camp's overhang gone, so a shelter can be built there.
+    public sealed record Scene(double[] PackKg, bool[] Tools, bool Fire, Op[] Ops, bool NoShelter = false);
 
     static readonly Resource[] Inputs = [.. Recipes.All.SelectMany(r => r.Materials).SelectMany(m => m.AnyOf).Distinct().Order()];
-    static readonly string[] ToolKinds = ["crude_edge", "flint_knife", "stone", "bone_needle", "crude_spear", "wooden_spear", "hide_gloves", "obsidian_knife"];
+    static readonly string[] ToolKinds = ["crude_edge", "flint_knife", "stone", "bone_needle", "wooden_spear", "stone_club", "hide_gloves", "obsidian_knife"];
 
     static readonly Recipe[] AtAStation = [.. Recipes.All.Where(r => r.Station != null)];
 
@@ -50,6 +51,7 @@ public class ConservationMakeTests
         var pack = Items.Pack(w, P);
         TestKit.ClearResources(pack);
         pack.Gear.Clear();
+        if (s.NoShelter) w.Shelters.Remove(Camp(w));
         for (int i = 0; i < Inputs.Length; i++) if (s.PackKg[i] > 0) TestKit.Give(pack, Inputs[i], s.PackKg[i]);
         for (int i = 0; i < ToolKinds.Length; i++)
             if (s.Tools[i])
@@ -105,7 +107,9 @@ public class ConservationMakeTests
         return t;
     }
 
-    static void Run(Scene s)
+    static void Run(Scene s) => Ran(s);
+
+    static World Ran(Scene s)
     {
         var w = Build(s);
         foreach (var op in s.Ops)
@@ -157,6 +161,7 @@ public class ConservationMakeTests
                             break;
                         }
                     case Built b: Move(b.Spent, -1); break;
+                    case ShelterTakenDown down: Move(down.Returned, +1); break; // a lean-to's branches, back from under a hut
                     case TransformationFinished t:
                         {
                             var r = Recipes.Get(t.Recipe);
@@ -174,10 +179,23 @@ public class ConservationMakeTests
             Assert.Equal(pieces.Where(kv => kv.Value != 0), Pieces(w));
             Assert.Null(BrokenPiece(w)); // a make, a failure or an abandon never splits a piece (#142)
         }
+        return w;
     }
 
     [Fact]
     public void Materials_AreNeitherMadeNorLost_ExceptAsDeclared() => Scenes.Check(Run, iter: 25);
+
+    /// The one case a random search seldom reaches: a hut built over a lean-to gives the lean-to's branches back (#151).
+    [Fact]
+    public void AHutOverALeanTo_GivesBackOnlyWhatTheLeanToTook()
+    {
+        var kg = new double[Inputs.Length];
+        kg[Array.IndexOf(Inputs, Resource.PineBranch)] = 40;
+        kg[Array.IndexOf(Inputs, Resource.Rope)] = 0.4;
+        int Id(string recipe) => Recipes.ByHand.ToList().FindIndex(r => r.Id == recipe);
+        var w = Ran(new Scene(kg, new bool[ToolKinds.Length], false, [new(OpKind.Make, Id("lean_to"), 60), new(OpKind.Make, Id("branch_hut"), 60)], NoShelter: true));
+        Assert.Equal(ShelterKind.BranchHut, w.Shelters[Camp(w)].Kind);
+    }
 
     [Fact]
     [Trait("Category", TestCategories.Slow)]

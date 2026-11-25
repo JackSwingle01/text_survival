@@ -154,8 +154,8 @@ public class SubstrateTests
 
         var east = new TileId(camp.X + 1, camp.Y);
         w.Agent(P).Tile = east;
-        TestKit.Give(Items.Pack(w, P), Resource.Stick, 10);
-        var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
+        TestKit.GivePieces(Items.Pack(w, P), Resource.PineBranch, 6);
+        var r = Sim.Step(w, new Make(P, "lean_to"), 60);
         Assert.True(w.Shelters.ContainsKey(east), $"{r.InterruptedReason} at {w.Minute}");
         Assert.Equal(new Cause(P, "built by the player"), w.Shelters[east].Cause);
     }

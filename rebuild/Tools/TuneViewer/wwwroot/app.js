@@ -33,7 +33,8 @@ const state = {
 // ---- the two sides of a scenario, named from its spec ----
 
 const WEAPON = { none: 'bare hands', flint_knife: 'knife', wooden_spear: 'spear', ground_stone_axe: 'axe',
-  flint_axe: 'flint axe', obsidian_knife: 'obsidian knife', bone_knife: 'bone knife' };
+  flint_axe: 'flint axe', obsidian_knife: 'obsidian knife', bone_knife: 'bone knife', stone_club: 'club',
+  flint_tipped_spear: 'flint spear', obsidian_tipped_spear: 'obsidian spear', ivory_tipped_spear: 'ivory spear' };
 const POLICY = {
   ai: 'fought by the AI', aggressive: 'attacks', cautious: 'cautious', stand_intimidate: 'stands and intimidates', run: 'runs',
   careful_melee: 'careful approach, melee', careful_throw: 'careful approach, throws', quick_melee: 'quick approach, melee', quick_throw: 'quick approach, throws',
