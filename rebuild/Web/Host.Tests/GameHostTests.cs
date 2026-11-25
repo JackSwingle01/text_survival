@@ -85,6 +85,35 @@ public class GameHostTests
         Assert.Null(Mark(v));
     }
 
+    /// The page offers the rack's build in the Make drawer and the rack's menu among the location features (#187).
+    [Fact]
+    public void The_page_builds_a_curing_rack_and_puts_meat_on_it()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var pack = Items.Pack(w, AgentId.Player);
+        for (int i = 0; i < 4; i++)
+        {
+            Items.AddPiece(pack, Resource.BirchBranch, 2);
+            Items.AddPiece(pack, Resource.Stick, 0.3);
+        }
+        Items.AddPiece(pack, Resource.Rope, 0.2);
+        Items.AddPiece(pack, Resource.RawMeat, 0.5);
+        var me = w.Agent(AgentId.Player);
+        string? Mark(ViewDto v) => v.Map.Places.SingleOrDefault(p => (p.X, p.Y) == (me.Tile.X, me.Tile.Y))?.Station;
+
+        var build = Parse(h.View()).Make.Single(x => x.Label == "Build a curing rack");
+        Assert.Equal("build", build.Kind);
+        Assert.Null(build.Refused);
+        var v = Run(h, build);
+        var rack = Assert.Single(v.LocationFeatures, t => t.Kind == "rack");
+        Assert.Equal("curing rack", rack.Name);
+        v = Run(h, rack.Menu.Single(x => x.Kind == "puton"));
+        Assert.Equal(w.Minute + 24 * 60 - 1, v.LocationFeatures.Single(t => t.Kind == "rack").Menu.Single(x => x.Kind == "takeback").Progress!.FinishMinute);
+        Assert.Equal("working", Mark(v));
+    }
+
     [Fact]
     public void A_new_game_lists_the_tiles_verbs_with_ids_and_the_four_walks()
     {

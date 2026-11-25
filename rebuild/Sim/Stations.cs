@@ -63,7 +63,6 @@ public static class Stations
     const double DoneSlack = 1e-9;
 
     public const string NoFire = "no fire here", NoRack = "no such rack here";
-    public const string NothingReady = "nothing at the fire is done";
 
     public static bool Handles(Activity a) => a is PutOn or TakeFinished or TakeBack;
 
@@ -104,6 +103,7 @@ public static class Stations
     sealed record Site(LocationFeature Feature, StationState State, int Room)
     {
         public StationKind Kind => KindOf(Feature);
+        public FireId? Pit => Kind == StationKind.Fire ? new FireId(Feature.Index) : null;
     }
 
     static RackId? RackOf(Activity a) => a switch { PutOn p => p.Rack, TakeFinished t => t.Rack, TakeBack b => b.Rack, _ => null };
@@ -135,15 +135,15 @@ public static class Stations
     }
 
     /// GLOSSARY: Forecast. On a rack, at the drying rate, which stays as it is.
-    public static long RackFinishMinute(World world, Recipe r, double donePct)
+    static long RackFinishMinute(World world, Recipe r, double donePct)
     {
         if (r.Station != StationKind.Rack) throw new ArgumentException($"{r.Id} is not worked on a rack", nameof(r));
         for (long minute = world.Minute + 1; ; minute++)
             if (Advance(ref donePct, DryingRatePct, r)) return minute;
     }
 
-    static long? Forecast(World world, Site site, Transformation t) => site.Kind == StationKind.Fire
-        ? FinishMinute(world, new FireId(site.Feature.Index), Recipes.Get(t.Recipe), t.DonePct)
+    static long? Forecast(World world, Site site, Transformation t) => site.Pit is FireId pit
+        ? FinishMinute(world, pit, Recipes.Get(t.Recipe), t.DonePct)
         : RackFinishMinute(world, Recipes.Get(t.Recipe), t.DonePct);
 
     public static Slowed? SlowedBy(FireState fire) =>
@@ -151,7 +151,7 @@ public static class Stations
 
     public static StationProgress? Progress(World world, AgentId who, TakeBack a) =>
         SiteOf(world, world.Agent(who).Tile, a.Rack) is { } site && Piece(site.State, a) is { } t
-            ? new(Forecast(world, site, t), site.Kind == StationKind.Fire ? SlowedBy(world.Fires[new FireId(site.Feature.Index)]) : null) : null;
+            ? new(Forecast(world, site, t), site.Pit is FireId pit ? SlowedBy(world.Fires[pit]) : null) : null;
 
     public static StationMark? MarkAt(World world, FireId pit) => Mark(world.Stations.GetValueOrDefault(pit));
 
@@ -215,8 +215,7 @@ public static class Stations
         var pack = Items.Pack(world, activity.Who);
         var site = SiteOf(world, agent.Tile, RackOf(activity))!;
         var s = site.State;
-        FireId? pit = site.Kind == StationKind.Fire ? new FireId(site.Feature.Index) : null;
-        if (pit is FireId id && !world.Stations.ContainsKey(id)) world.Stations[id] = s;
+        if (site.Pit is FireId id && !world.Stations.ContainsKey(id)) world.Stations[id] = s;
         switch (activity)
         {
             case PutOn a:
@@ -241,14 +240,19 @@ public static class Stations
                     var t = Piece(s, a)!;
                     s.Working.Remove(t);
                     var back = new Inventory();
-                    if (Items.IsDiscrete(t.Input)) Items.AddPiece(back, t.Input, t.InputKg);
-                    else Items.Add(back, t.Input, t.InputKg);
+                    AddByForm(back, t.Input, t.InputKg);
                     Items.Receive(world, agent, back, events);
                     break;
                 }
         }
-        if (pit is FireId emptied && Used(s) == 0) world.Stations.Remove(emptied);
+        if (site.Pit is FireId emptied && Used(s) == 0) world.Stations.Remove(emptied);
         return null;
+    }
+
+    static void AddByForm(Inventory inv, Resource r, double kg)
+    {
+        if (Items.IsDiscrete(r)) Items.AddPiece(inv, r, kg);
+        else Items.Add(inv, r, kg);
     }
 
     static Transformation? Piece(StationState s, TakeBack a) => s.Working.FirstOrDefault(t => t.Input == a.Input && t.InputKg == a.Kg);
@@ -287,12 +291,8 @@ public static class Stations
             s.Working.Remove(t);
             var made = r.Result.Resource!.Value;
             double kg = t.InputKg * r.Result.SharePct;
-            if (Items.IsDiscrete(made)) Items.AddPiece(s.Ready, made, kg);
-            else
-            {
-                Items.Add(s.Ready, made, kg);
-                s.ReadyAmounts++;
-            }
+            AddByForm(s.Ready, made, kg);
+            if (!Items.IsDiscrete(made)) s.ReadyAmounts++;
             events.Add(new TransformationFinished(world.Minute, at.Tile, at, t.SetBy, t.Recipe, made, kg));
             bool cooked = r.Driver == StationDriver.Heat && Items.Resources[made].Category == ResourceCategory.Food;
             if (cooked && world.Agents.TryGetValue(t.SetBy, out var setter) && Sim.IsAlive(setter))

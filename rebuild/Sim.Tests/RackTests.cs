@@ -8,10 +8,10 @@ public class RackTests
     static readonly AgentId P = AgentId.Player;
     static readonly WeatherSample Mild = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
 
-    static World Camp()
+    static World Camp(WeatherSample? sky = null)
     {
         var w = TestWorlds.Bare(17);
-        w.FixedWeather = Mild;
+        w.FixedWeather = sky ?? Mild;
         TestKit.ClearResources(Items.Pack(w, P));
         return w;
     }
@@ -35,9 +35,9 @@ public class RackTests
     static Verb Offer(World w, Func<Activity, bool> which) => RackMenu(w).Single(v => which(v.Activity));
 
     /// A world with one rack built on the camp tile, and nothing in the pack.
-    static World WithRack()
+    static World WithRack(WeatherSample? sky = null)
     {
-        var w = Camp();
+        var w = Camp(sky);
         RackMaterials(w);
         Assert.Equal(Shelters.BuiltReason, Build(w).InterruptedReason);
         TestKit.ClearResources(Pack(w));
@@ -108,6 +108,17 @@ public class RackTests
         var take = Offer(w, a => a is TakeFinished);
         Assert.Equal(1, Sim.Step(w, take.Activity, take.Minutes).MinutesElapsed);
         Assert.Equal(0.4, Assert.Single(Pack(w).Pieces[Resource.DriedMeat]), 9);
+    }
+
+    /// Until #190, the weather does not touch drying.
+    [Fact]
+    public void Meat_DriesAtFullRate_InFallingSnow()
+    {
+        var w = WithRack(new(0, WeatherCondition.Blizzard, -25, 0.9, 0.9, 1, WindDirection.North));
+        Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
+        long setAt = w.Minute;
+        PutOn(w, _ => true);
+        Assert.Equal(setAt + 24 * 60, FinishOf(w, 24 * 60 + 5).Minute);
     }
 
     [Fact]

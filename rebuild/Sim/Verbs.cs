@@ -226,7 +226,7 @@ public static class Verbs
             LocationFeatureKind.Pile => [.. Items.Totals(world.Tiles[t.Tile].Pile!).Select(x => ($"Take {Names.Of(x.Resource)}", (Activity)new PickUp(who, x.Resource, x.Kg), 1))],
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
-            LocationFeatureKind.Rack => StationVerbs(world, who, StationKind.Rack, world.Racks[new RackId(t.Index)].Work, new RackId(t.Index), pack),
+            LocationFeatureKind.Rack => StationVerbs(world, who, StationKind.Rack, world.Racks[new(t.Index)].Work, new(t.Index), pack),
             LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
         });
     }

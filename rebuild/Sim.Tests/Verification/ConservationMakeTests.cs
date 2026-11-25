@@ -116,7 +116,7 @@ public class ConservationMakeTests
                 ? pack.Projects?.FirstOrDefault(p => p.Recipe == recipe.Id)?.Target ?? pack.Gear.Select(g => g.Kind).FirstOrDefault(repair.Kinds.Contains)
                 : null;
             var atStation = AtAStation[op.Recipe % AtAStation.Length];
-            // A rack recipe goes on the tile's first rack, if one is built (curing_rack is a hand recipe); the fire's at the fire.
+            // The tile's first rack, once one is built: always for a rack recipe, and for half of the Takes, so racks are taken from too.
             RackId? rack = atStation.Station == StationKind.Rack || op.Minutes % 2 == 0 ? Stations.RacksAt(w, w.Agent(P).Tile).Cast<RackId?>().FirstOrDefault() : null;
             var at = rack is RackId rid ? w.Racks[rid].Work : Stations.At(w, new FireId(0));
             Activity a = op.Kind switch
