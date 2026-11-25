@@ -52,6 +52,7 @@ static class Words
         ProjectAbandoned => "ui/cancel",
         TransformationFinished { Made: Resource.Water } => "ui/water",
         TransformationFinished => "ui/meat",
+        TransformationStopped => "embers",
         _ => throw new ArgumentOutOfRangeException(nameof(e), e.GetType().Name, "Narration tells of it, but it has no icon"),
     };
 }

@@ -77,6 +77,35 @@ public class GameHostTests
         Assert.True(Items.Have(Items.Pack(w, AgentId.Player), Resource.Water) >= before + 1 - 1e-9);
     }
 
+    /// How it is going, as the page shows it (#185): the finish on the menu, the line in the log, the mark on the tile.
+    [Fact]
+    public void Meat_on_the_fire_shows_its_finish_then_the_log_says_it_is_done_and_the_tile_is_marked_working_then_ready()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var me = w.Agent(AgentId.Player);
+        if (Fire.PitAt(w, me.Tile) == null)
+            w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
+        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.BirchFirewood] = 5;
+        Items.AddPiece(Items.Pack(w, AgentId.Player), Resource.RawMeat, 0.4);
+        static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
+        string? Mark(ViewDto v) => v.Map.Places.SingleOrDefault(p => (p.X, p.Y) == (me.Tile.X, me.Tile.Y))?.Station;
+
+        var v = Run(h, FireMenu(Parse(h.View())).Single(x => x.Kind == "puton"));
+        long setAt = v.Minute - 1;
+        Assert.Equal(setAt + 15, FireMenu(v).Single(x => x.Kind == "takeback").Progress!.FinishMinute);
+        Assert.Equal("working", Mark(v));
+
+        v = Run(h, Find(v, x => x.Kind == "wait", "wait"));
+        var done = Assert.Single(v.Log, l => l.Text == "1 cut of cooked meat is done at the fire.");
+        Assert.Equal(setAt + 15, done.Minute);
+        Assert.Equal("ready", Mark(v));
+
+        v = Run(h, FireMenu(v).Single(x => x.Kind == "take"));
+        Assert.Null(Mark(v));
+    }
+
     [Fact]
     public void A_new_game_lists_the_tiles_verbs_with_ids_and_the_four_walks()
     {

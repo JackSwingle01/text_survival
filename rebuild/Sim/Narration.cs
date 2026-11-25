@@ -51,7 +51,7 @@ public static class Narration
             SkillLeveledUp x => x.Who == me,
             Made x => x.Who == me,
             ProjectAbandoned x => x.Who == me,
-            FireBurnedToEmbers or FireDied or ShelterCollapsed or TransformationFinished => e.Tile == here,
+            FireBurnedToEmbers or FireDied or ShelterCollapsed or TransformationFinished or TransformationStopped => e.Tile == here,
             _ => false,
         };
         return mine ? Of(world, e) : null;
@@ -81,6 +81,10 @@ public static class Narration
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
             TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} {(Stations.FromNothing(x.Recipe) ? "waits" : "is done")} at the fire.", Tone.Good),
+            TransformationStopped x => (x.Why switch
+            {
+                StopReason.FireOut => $"The fire goes out with {string.Join(" and ", x.Left.Distinct().Select(r => Names.Of(r)))} on it.",
+            }, Tone.Bad),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
             Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
                 : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd
@@ -122,6 +126,14 @@ public static class Narration
         var lines = Clues.Table.Failures.First(b => b.Words.Contains(word)).Lines;
         return lines[(int)((ulong)minute * 2654435761UL % (ulong)lines.Count)];
     }
+
+    /// Why a transformation is slow or stopped, as the station's menu says it.
+    public static string Why(Slowed why) => why switch
+    {
+        Slowed.FireLow => "the fire is low",
+        Slowed.Embers => "the fire is down to embers",
+        Slowed.FireOut => "the fire is out",
+    };
 
     public static string Change(Change c) => c.Kind switch
     {

@@ -168,7 +168,7 @@ public static class Work
         {
             Gather g => Pools.Def(world, new PoolId(tile, g.Pool)) switch
             {
-                ForagePool => ImpairmentFactor(body, moving: true, breathing: true),
+                ForagePool => ImpairmentFactor(body, moving: true),
                 TreePool => ImpairmentFactor(body, moving: true, manipulation: true),
                 StockPool { Kind: StockKind.Salvage } => ImpairmentFactor(body, moving: true),
                 _ => 1.0,
@@ -179,12 +179,11 @@ public static class Work
         };
     }
 
-    static double ImpairmentFactor(BodyState body, bool moving = false, bool breathing = false, bool manipulation = false)
+    static double ImpairmentFactor(BodyState body, bool moving = false, bool manipulation = false)
     {
         var c = Body.GetCapacities(body);
         double f = 1.0;
         if (moving && c.Moving < 0.5) f *= 1.20;
-        if (breathing && c.Breathing < 0.75) f *= 1.15;
         if (manipulation && c.Manipulation < 0.5) f *= 1.25;
         return f;
     }

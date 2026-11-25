@@ -805,6 +805,7 @@
               "VisitedMinute": 188,
               "ForageDensity": 0.38,
               "Fire": 6,
+              "Station": "Ready",
               "Pile": {
                 "PineBranch": 1.7000000000000002
               },

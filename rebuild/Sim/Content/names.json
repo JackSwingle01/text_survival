@@ -191,8 +191,8 @@
  "Capacity": {
   "Moving": "moving",
   "Manipulation": "manipulation",
-  "Breathing": "breathing",
-  "BloodPumping": "blood pumping",
+  "Breath": "breath",
+  "Blood": "blood",
   "Consciousness": "consciousness",
   "Sight": "sight",
   "Hearing": "hearing",
