@@ -113,7 +113,11 @@ public static class Npc
 
     static readonly Resource[] FuelResources = [.. Fire.Props.Keys.Where(r => !Fire.Tinders.Contains(r)).Order()];
     static readonly Resource[] FoodResources = [.. Items.Resources.Where(x => x.Value.Category == ResourceCategory.Food).Select(x => x.Key).Order()];
-    static readonly Resource[] Raw = [Resource.RawMeat, Resource.RawFish];
+
+    /// The fire's recipes as its verbs offer them: those that cook food from a piece put on, and the one that melts snow.
+    static IEnumerable<Recipe> CookRecipes => Stations.FireRecipes.Where(r => !Stations.FromNothing(r) && Items.Resources[r.Result.Resource!.Value].Category == ResourceCategory.Food);
+    static Recipe MeltRecipe => Stations.FireRecipes.Single(r => Stations.FromNothing(r) && r.Result.Resource == Resource.Water);
+    static bool Cookable(Resource r) => CookRecipes.Any(c => Stations.InputOf(c) == r);
 
     static Req FuelReq(double hours, double usedPerHour) => new("fuel", FuelResources, r => Fire.FuelHours(r, 1), hours, ForageFocus.Fuel, Counted: true, usedPerHour);
     static Req TinderReq(double kg) => new("tinder", Fire.Tinders, _ => 1, kg, ForageFocus.Fuel);
@@ -191,7 +195,7 @@ public static class Npc
             Stat.Warmth => AtCamp && Cold ? Light(Tree.None, now: true) ?? (BurningHere ? Stoke(HoursToSunrise()) : null) : null,
             Stat.Water => Sim.Refusal(world, new Drink(Id)) == null ? new(new Drink(Id), Work.DrinkMinutes, Work.DrinkMinutes)
                 : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water), [])
-                : BurningHere && Sim.Refusal(world, new MeltSnow(Id)) == null ? new(new MeltSnow(Id), Work.MeltSnowMinutes, Work.MeltSnowMinutes) : null,
+                : MeltHere(),
             Stat.Food => EatToHand(),
             _ => null,
         };
@@ -210,7 +214,7 @@ public static class Npc
         {
             bool seeing(Stat s) => mind.Plan?.Stat == s;
             double waterToHandL = Work.CanDrinkHere(world, Here) ? double.PositiveInfinity
-                : Items.Have(pack, Resource.Water) + (PileHere is { } s ? Items.Have(s, Resource.Water) : 0);
+                : Items.Have(pack, Resource.Water) + (PileHere is { } s ? Items.Have(s, Resource.Water) : 0) + (StationHere is { } st ? Items.Have(st.Ready, Resource.Water) : 0);
             return new()
             {
                 [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), UsableHoursAt(Camp), TonightHours() - NightSlackHours),
@@ -394,7 +398,7 @@ public static class Npc
             // One of: snow melted on a fire at camp, or, to drink now, a walk to water it remembers (the planner's choice).
             var here = FromHere();
             var fire = FirePlan(Camp, MeltFireHours);
-            double meltMinutes = fire.Missing.Count > 0 ? double.PositiveInfinity : here.MinutesTo(Camp, double.PositiveInfinity) + fire.ForecastMinutes + Work.MeltSnowMinutes;
+            double meltMinutes = fire.Missing.Count > 0 ? double.PositiveInfinity : here.MinutesTo(Camp, double.PositiveInfinity) + fire.ForecastMinutes + MeltMinutes();
             var water = priority == Priority.Want ? null : WaterSource(priority);
             // Both trips end at camp, so each step toward one makes the other dearer: no turning back and forth.
             double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]);
@@ -464,7 +468,7 @@ public static class Npc
             if (EatToHand() is { } eat) return eat;
             if (FoodSource(FoodReq(MealKcal()), priority) is not var (tile, leaf)) return priority >= Priority.Need ? Explore() : null;
             var step = tile == Here ? Do(leaf) : WalkTo(tile);
-            double trip = FromHere().MinutesTo(tile, 0) + ToSite(Camp).MinutesTo(tile, 0) + leaf.WorkMinutes;
+            double trip = FromHere().MinutesTo(tile, 0) + ToSite(Camp).MinutesTo(tile, 0) + leaf.WorkMinutes + CookMinutes(leaf);
             return step is { } s ? s with { ForecastMinutes = trip, At = tile } : null;
         }
 
@@ -494,22 +498,101 @@ public static class Npc
         double MealKcal() => Math.Max(Verbs.MealKcal, Survival.Body.CaloriesCapacityKcal(Body) - Body.CaloriesKcal
             + Math.Clamp((mind.TargetFatKg - Body.FatKg) * Survival.Body.KcalPerKgFat, 0, Survival.Body.MaxCaloriesKcal));
 
-        /// The stomach's room and the fat it is short of. Raw meat is cooked first on a fire here.
+        /// Raw food goes on a fire here that will finish it; while it cooks it eats what else it has, then waits. Raw is eaten only with nothing cooking.
         Next? EatToHand()
         {
-            if (BurningHere && Raw.Where(r => Items.Have(pack, r) > DustKg).Cast<Resource?>().FirstOrDefault() is Resource raw)
+            if (FireIdHere is FireId id && StationHere is { } st)
             {
-                var cook = new Cook(Id, raw, Items.Have(pack, raw));
-                if (Sim.Refusal(world, cook) == null) return new(cook, Verbs.UntilDoneMinutes, StintMinutes);
+                if (Items.KgByResource(st.Ready).Any(x => FoodResources.Contains(x.Key)) && IfAllowed(new TakeFinished(Id)) is { } take) return take;
+                if (BurningHere)
+                    foreach (var r in CookRecipes.Where(r => Items.Count(pack, Stations.InputOf(r)) > 0 && Stations.FinishMinute(world, id, r, 0) != null))
+                    {
+                        var put = new PutOn(Id, r.Id);
+                        var refused = Sim.Refusal(world, put);
+                        if (refused == null) return AtTheFire(put);
+                        if (IsFull(refused) && PrioritiesNow[Stat.Water] < Priority.Need && MeltSet(st) && IfAllowed(new StopWork(Id, MeltRecipe.Id)) is { } stop) return stop;
+                    }
             }
-            if (ReadyFood(pack) is Resource food)
-                return new(new Eat(Id, food, Math.Min(Items.Have(pack, food), MealKcal() / Items.Resources[food].KcalPerKg)), Work.EatMinutes, Work.EatMinutes);
-            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled), []);
-            return null;
+            if (ReadyFood(pack, cookable: false) is Resource food) return Eat(food);
+            if (PileHere is { } s && ReadyFood(s, cookable: BurningHere) is Resource piled) return Take(piled, Items.Have(s, piled), []);
+            if (FireIdHere is FireId pit && StationHere is { } here && here.Working.Where(t => CookRecipes.Any(r => r.Id == t.Recipe)).ToList() is { Count: > 0 } cooking)
+            {
+                if (WaitFor(EarliestFinish(pit, cooking)) is { } wait) return wait;
+                if (BurningHere && Stoke(MeltFireHours) is { } stoke) return stoke;
+                if (IfAllowed(new TakeBack(Id, cooking[0].Input, cooking[0].InputKg)) is { } back) return back;
+            }
+            return ReadyFood(pack, cookable: true) is Resource rawFood ? Eat(rawFood) : null;
         }
 
-        Resource? ReadyFood(Inventory inv) => Items.KgByResource(inv).Where(x => x.Value > DustKg && FoodResources.Contains(x.Key) && (!Raw.Contains(x.Key) || !BurningHere))
+        Next Eat(Resource food) =>
+            new(new Eat(Id, food, Math.Min(Items.Have(pack, food), MealKcal() / Items.Resources[food].KcalPerKg)), Work.EatMinutes, Work.EatMinutes);
+
+        Resource? ReadyFood(Inventory inv, bool cookable) => Items.KgByResource(inv).Where(x => x.Value > DustKg && FoodResources.Contains(x.Key) && (cookable || !Cookable(x.Key)))
             .Select(x => x.Key).OrderByDescending(r => Items.Resources[r].KcalPerKg).ThenBy(r => r).Cast<Resource?>().FirstOrDefault();
+
+        // ---- the fire's work ----
+
+        FireId? FireIdHere => Fire.PitAt(world, Here);
+        StationState? StationHere => FireIdHere is FireId id ? Stations.At(world, id) : null;
+        static bool MeltSet(StationState st) => st.Ongoing.Any(o => o.Recipe == MeltRecipe.Id);
+        static bool IsFull(Refusal refused) => refused.Missing is MissingState { Lack: Lack.StationRoom };
+        long? EarliestFinish(FireId id, IEnumerable<Transformation> pieces) => pieces.Select(t => Stations.Forecast(world, id, t)).Min();
+
+        Next AtTheFire(Activity act) => new(act, Stations.HandlingMinutes, Stations.HandlingMinutes);
+        Next? IfAllowed(Activity act) => Sim.Refusal(world, act) == null ? AtTheFire(act) : null;
+        Next? TakeWater(StationState st) => Items.Have(st.Ready, Resource.Water) > DustKg ? IfAllowed(new TakeFinished(Id)) : null;
+
+        Next? WaitFor(long? finish)
+        {
+            if (finish is not long f) return null;
+            int minutes = (int)Math.Clamp(f - world.Minute, 1, StintMinutes);
+            return new(new Wait(Id), minutes, minutes);
+        }
+
+        /// Water waiting is taken, a melt under way waited for (or its fire fed), a fire with room set melting, a full one emptied or waited on.
+        Next? MeltHere()
+        {
+            if (FireIdHere is not FireId id || StationHere is not { } st) return null;
+            if (TakeWater(st) is { } take) return take;
+            var melt = MeltRecipe;
+            if (st.Ongoing.FirstOrDefault(o => o.Recipe == melt.Id) is { } under)
+                return WaitFor(Stations.Forecast(world, id, under)) ?? (BurningHere ? Stoke(MeltFireHours) : null);
+            if (!BurningHere) return null;
+            if (Stations.FinishMinute(world, id, melt, 0) == null) return Stoke(MeltFireHours);
+            var put = new PutOn(Id, melt.Id);
+            var refused = Sim.Refusal(world, put);
+            if (refused == null) return AtTheFire(put);
+            return IsFull(refused) ? IfAllowed(new TakeFinished(Id)) ?? WaitFor(EarliestFinish(id, st.Working)) : null;
+        }
+
+        /// Minutes to the next litre: what waits or is under way at the fire here, else as a fresh melt would (StationMinutes).
+        double MeltMinutes()
+        {
+            if (AtCamp && FireIdHere is FireId id && StationHere is { } st)
+            {
+                if (Items.Have(st.Ready, Resource.Water) > DustKg) return 0;
+                if (st.Ongoing.FirstOrDefault(o => o.Recipe == MeltRecipe.Id) is { } under && (BurningHere || PitHere!.HasEmbers) && Stations.Forecast(world, id, under) is long f)
+                    return f - world.Minute;
+            }
+            return StationMinutes(MeltRecipe);
+        }
+
+        /// The station's forecast at the camp fire here; elsewhere, or a fire that dies first, the recipe's time at full rate.
+        double StationMinutes(Recipe r) =>
+            AtCamp && FireIdHere is FireId id && (BurningHere || PitHere!.HasEmbers) && Stations.FinishMinute(world, id, r, 0) is long f ? f - world.Minute : r.Minutes;
+
+        double CookMinutes(Leaf leaf)
+        {
+            Resource? raw = leaf.Via switch { Via.PickUp => (Resource)leaf.Index, Via.Butcher => Resource.RawMeat, _ => null };
+            return CookRecipes.FirstOrDefault(c => Stations.InputOf(c) == raw) is { } r ? StationMinutes(r) : 0;
+        }
+
+        /// Water no longer wanted: what the melt made is taken, then it is stopped, so it holds no place on the fire.
+        Next? StopMelting()
+        {
+            if (PrioritiesNow[Stat.Water] > Priority.None || StationHere is not { } st || !MeltSet(st)) return null;
+            return TakeWater(st) ?? IfAllowed(new StopWork(Id, MeltRecipe.Id));
+        }
 
         // ---- building the tree ----
 
@@ -711,6 +794,7 @@ public static class Npc
         Next Keep()
         {
             if (!AtCamp) return WalkTo(Camp) ?? new(new Rest(Id), StintMinutes, StintMinutes);
+            if (StopMelting() is { } stop) return stop;
             if (!Weather.IsDaytime(world.Minute))
             {
                 if (!BurningHere && CanLight && UsableHoursAt(Here) > 0) return new(Strike()!, 1, 1);

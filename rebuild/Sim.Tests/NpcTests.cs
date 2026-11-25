@@ -223,6 +223,71 @@ public class NpcTests(ITestOutputHelper output)
         Assert.Equal(pond, mind.Plan?.At);
     }
 
+    // ---- the fire's work: cooking and melting are put on and taken (spec 2026-11-24 fire-and-rack-as-stations) ----
+
+    /// A hungry NPC with raw meat beside a good fire puts it on, takes it cooked and eats it; it never eats it raw.
+    [Fact]
+    public void AnNpc_WithRawMeatAndAFire_EndsUpHavingEatenCookedMeat()
+    {
+        var (w, npc) = Alone(5);
+        var camp = Map.Of(w).Camp;
+        Pit(w, camp, Resource.BirchFirewood, 6);
+        var pack = MindOf(npc).Pack;
+        TestKit.ClearResources(pack);
+        TestKit.Give(pack, Resource.Water, 2);
+        Items.AddPiece(pack, Resource.RawMeat, 0.4);
+        Items.AddPiece(pack, Resource.RawMeat, 0.4);
+        npc.Body.CaloriesKcal = 0;
+        var log = NpcDriver.Live(w, npc.Id, w.Minute + 120);
+        var ate = log.OfType<Ate>().Where(e => e.Who == npc.Id).ToList();
+        output.WriteLine(string.Join("\n", ate));
+        Assert.Contains(ate, e => e.Food == Resource.CookedMeat);
+        Assert.DoesNotContain(ate, e => e.Food == Resource.RawMeat);
+        Assert.Contains(log.OfType<TransformationFinished>(), e => e.SetBy == npc.Id && e.Made == Resource.CookedMeat);
+    }
+
+    /// Parched, with a fire and no open water: it sets snow melting at the fire, waits for it, takes the water and drinks there.
+    [Fact]
+    public void AnNpc_ShortOfWater_WithAFireAndNoOpenWater_EndsUpHavingDrunk()
+    {
+        var (w, npc) = Alone(5);
+        var camp = Map.Of(w).Camp;
+        Assert.False(Work.CanDrinkHere(w, camp));
+        Pit(w, camp, Resource.BirchFirewood, 6);
+        var pack = MindOf(npc).Pack;
+        TestKit.Remove(pack, Resource.Water);
+        npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
+        var log = NpcDriver.Live(w, npc.Id, w.Minute + 60);
+        output.WriteLine(string.Join("\n", log.Where(e => e is Drank or TransformationFinished or Moved)));
+        Assert.Contains(log.OfType<Drank>(), e => e.Who == npc.Id);
+        Assert.Contains(log.OfType<TransformationFinished>(), e => e.SetBy == npc.Id && e.Made == Resource.Water);
+        var drank = log.OfType<Drank>().First(e => e.Who == npc.Id);
+        Assert.Equal(camp, drank.Tile);
+        Assert.DoesNotContain(log.OfType<Moved>(), e => e.Who == npc.Id && e.Minute < drank.Minute);
+    }
+
+    /// Every place on an open fire cooking and no water: it waits by the fire for a place, rather than exploring for water.
+    [Fact]
+    public void AnNpc_ShortOfWater_AtAFireFullOfMeat_WaitsForAPlace_ThenDrinks()
+    {
+        var (w, npc) = Alone(5);
+        var camp = Map.Of(w).Camp;
+        Pit(w, camp, Resource.BirchFirewood, 6);
+        var pack = MindOf(npc).Pack;
+        TestKit.ClearResources(pack);
+        for (int i = 0; i < Fire.Room(PitType.Open); i++)
+        {
+            Items.AddPiece(pack, Resource.RawMeat, 0.4);
+            Assert.NotEqual(StepOutcome.Refused, Sim.Step(w, new PutOn(npc.Id, "cook_meat"), 1).Outcome);
+        }
+        npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
+        var (a, _) = Decide(w, npc);
+        Assert.IsType<Wait>(a);
+        var log = NpcDriver.Live(w, npc.Id, w.Minute + 60);
+        var drank = log.OfType<Drank>().First(e => e.Who == npc.Id);
+        Assert.DoesNotContain(log.OfType<Moved>(), e => e.Who == npc.Id && e.Minute < drank.Minute);
+    }
+
     // ---- interrupts and danger ----
 
     /// A predator it has just seen next to it, and no fire to hold: it steps away from it.

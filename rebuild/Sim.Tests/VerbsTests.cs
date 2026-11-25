@@ -164,7 +164,7 @@ public class VerbsTests
         Assert.True(pit.Interact);
         var fuels = Items.KgByResource(Items.Pack(w, P)).Keys.Where(Fire.IsFuel).ToList();
         Assert.Equal(fuels, pit.Menu.Select(v => v.Activity).OfType<AddFuel>().Select(a => a.Fuel));
-        Assert.Contains(pit.Menu, v => v.Activity is MeltSnow);
+        Assert.Contains(pit.Menu, v => v.Activity is PutOn { Recipe: "melt_snow" });
         Assert.Contains(here.Tile, v => v.Activity is LightTorch && v.Allowed);
         AssertEveryVerbIsTrue(w, P);
     }

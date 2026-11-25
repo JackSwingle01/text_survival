@@ -1252,21 +1252,21 @@
           "StructuralKg": 34,
           "FatKg": 11.449394004618185,
           "MuscleKg": 25.84,
-          "CoreTempF": 98.36043184463257,
+          "CoreTempF": 98.34759886542692,
           "CaloriesKcal": 1165.2975655555617,
           "EnergyMinutes": 4,
-          "HydrationMl": 3860.4166666666506,
+          "HydrationMl": 3862.9166666666288,
           "MinutesWithoutHunger": 189,
-          "ClothingHeatBufferPct": 0.285809108229097,
+          "ClothingHeatBufferPct": 0.3214850628842755,
           "Effects": [
-            {
-              "Kind": 8,
-              "Severity": 0.12683066252750044,
-              "RequiresTreatment": false
-            },
             {
               "Kind": 16,
               "Severity": 0.01259999999999995,
+              "RequiresTreatment": false
+            },
+            {
+              "Kind": 8,
+              "Severity": 0.13103619127123964,
               "RequiresTreatment": false
             },
             {
@@ -2687,7 +2687,7 @@
     },
     "1": {
       "Tile": "7,41",
-      "LastUpdatedMinute": 187,
+      "LastUpdatedMinute": 189,
       "Pit": 0,
       "UnburnedKg": {},
       "BurningKg": {},
@@ -2788,6 +2788,22 @@
         "Gear": []
       },
       "ReadyAmounts": 0
+    },
+    "1": {
+      "Working": [],
+      "Ongoing": [
+        {
+          "Recipe": "melt_snow",
+          "SetBy": 1,
+          "DonePct": 0.8355749823804243
+        }
+      ],
+      "Ready": {
+        "Amounts": {},
+        "Pieces": {},
+        "Gear": []
+      },
+      "ReadyAmounts": 0
     }
   },
   "Racks": {
@@ -2845,12 +2861,42 @@
         "Tile": "7,41"
       },
       {
+        "kind": "transformationfinished",
+        "Station": {
+          "Kind": "Fire",
+          "Tile": "7,41",
+          "Index": 1,
+          "TrailDirection": null
+        },
+        "SetBy": 1,
+        "Recipe": "melt_snow",
+        "Made": 25,
+        "Kg": 1,
+        "Minute": 80,
+        "Tile": "7,41"
+      },
+      {
         "kind": "putonpile",
         "Who": 1,
         "Resource": 11,
         "Kg": 7.996415930017461,
         "Pieces": 2,
-        "Minute": 83,
+        "Minute": 90,
+        "Tile": "7,41"
+      },
+      {
+        "kind": "transformationfinished",
+        "Station": {
+          "Kind": "Fire",
+          "Tile": "7,41",
+          "Index": 1,
+          "TrailDirection": null
+        },
+        "SetBy": 1,
+        "Recipe": "melt_snow",
+        "Made": 25,
+        "Kg": 1,
+        "Minute": 99,
         "Tile": "7,41"
       },
       {
@@ -2863,10 +2909,10 @@
         "kind": "pickedup",
         "Who": 1,
         "Resource": 25,
-        "Kg": 0.18999999999999773,
+        "Kg": 0.17999999999999972,
         "Taken": false,
         "Pieces": 0,
-        "Minute": 111,
+        "Minute": 109,
         "Tile": "7,41"
       },
       {
@@ -2875,14 +2921,14 @@
         "Resource": 11,
         "Kg": 8.055004281235645,
         "Pieces": 2,
-        "Minute": 112,
+        "Minute": 110,
         "Tile": "7,41"
       },
       {
         "kind": "pickedup",
         "Who": 1,
         "Resource": 25,
-        "Kg": 0.4131008026567713,
+        "Kg": 0.4231008026567693,
         "Taken": false,
         "Pieces": 0,
         "Minute": 113,
