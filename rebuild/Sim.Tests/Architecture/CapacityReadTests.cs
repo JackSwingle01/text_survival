@@ -23,17 +23,19 @@ public class CapacityReadTests
 
     /// What one dependency reads: a capacity by name, the whole record, or a region's capacities. Null for
     /// anything else.
+    const string TheWholeRecord = "Capacities";
+
     static string? ReadBy(ITypeDependency d)
     {
         if (d.Target.FullName == CapacitiesType)
         {
             string? member = (d as IMemberMemberDependency)?.TargetMember.Name;
             string name = member is null ? "" : member.Split('(')[0].Replace("get_", "");
-            return CapacityNames.Contains(name) ? name : "Capacities";
+            return CapacityNames.Contains(name) ? name : TheWholeRecord;
         }
         if (d.Target.FullName == BodyType && d is IMemberMemberDependency call)
         {
-            if (call.TargetMember is MethodMember { ReturnType.FullName: var returns } && returns == CapacitiesType) return "Capacities";
+            if (call.TargetMember is MethodMember { ReturnType.FullName: var returns } && returns == CapacitiesType) return TheWholeRecord;
             if (call.TargetMember.Name.StartsWith(nameof(Body.RegionCapacities) + "(")) return nameof(Body.RegionCapacities);
         }
         return null;
@@ -48,24 +50,27 @@ public class CapacityReadTests
             {
                 var reads = member.MemberDependencies.Select(ReadBy).OfType<string>().ToHashSet();
                 if (reads.Count == 0) continue;
-                if (reads.Overlaps(CapacityNames) || reads.Contains(nameof(Body.RegionCapacities))) reads.Remove("Capacities");
+                // A member that reads a capacity by name is listed by those names, not also by the record they came in.
+                if (reads.Overlaps(CapacityNames) || reads.Contains(nameof(Body.RegionCapacities))) reads.Remove(TheWholeRecord);
                 string typeName = type.FullName.StartsWith("Survival.") ? type.FullName["Survival.".Length..] : type.FullName;
                 yield return $"{typeName}.{member.Name.Split('(')[0]}: {string.Join(", ", reads.Order(StringComparer.Ordinal))}";
             }
     }
 
-    static IEnumerable<IType> Outside(params Type[] skipped) =>
-        Compiled.Value.Types.Where(t => !skipped.Any(s => t.FullName == s.FullName));
+    /// Every read outside the body but this rule's own class, which names the type to look for it.
+    static readonly Lazy<List<string>> ReadsToday = new(() => [.. CapacityReads(Compiled.Value.Types
+        .Where(t => t.FullName != typeof(CapacityReadTests).FullName && t.FullName != typeof(BreachingSample).FullName))]);
+
+    const string Fix = "Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception)";
 
     static List<string> Problems(IEnumerable<string> reads, IEnumerable<string> listed) =>
         WhereThingsGoTests.SetRatchet(reads.Distinct().Select(r => (r, $"{r} reads a capacity")),
-            listed.ToDictionary(k => k, _ => ""), nameof(CapacityReadsToday),
-            "Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception)");
+            listed.ToDictionary(k => k, _ => ""), nameof(CapacityReadsToday), Fix);
 
     [Fact]
     public void OnlyTheBodyReadsACapacity()
     {
-        var problems = Problems(CapacityReads(Outside(typeof(CapacityReadTests), typeof(BreachingSample))), CapacityReadsToday);
+        var problems = Problems(ReadsToday.Value, CapacityReadsToday);
         Assert.True(problems.Count == 0, string.Join("\n", problems));
     }
 
@@ -106,13 +111,13 @@ public class CapacityReadTests
     public void AnUnlistedRead_Fails_EvenBesideAListedOne()
     {
         var problems = Problems(SampleReads().Where(r => r.Contains(".Listed:") || r.Contains(".Unlisted:")), [Sample("Listed: Moving")]);
-        Assert.Equal([$"{Sample("Unlisted: Sight")} reads a capacity. Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception)"], problems);
+        Assert.Equal([$"{Sample("Unlisted: Sight")} reads a capacity. {Fix}"], problems);
     }
 
     [Fact]
     public void AnEntryTakenOffWhileItsReadRemains_Fails_AndSoDoesOneWhoseReadIsGone()
     {
-        var reads = CapacityReads(Outside(typeof(CapacityReadTests), typeof(BreachingSample))).ToList();
+        var reads = ReadsToday.Value;
         string first = CapacityReadsToday[0];
         Assert.Single(Problems(reads, CapacityReadsToday.Skip(1)), p => p.StartsWith(first));
         Assert.Single(Problems(reads, [.. CapacityReadsToday, "Travel.Gone: Moving"]), p => p.StartsWith("Travel.Gone: Moving is fixed"));

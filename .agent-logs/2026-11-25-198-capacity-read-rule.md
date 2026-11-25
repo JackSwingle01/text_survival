@@ -23,3 +23,7 @@ Revised: the rule's own test class names the `Capacities` type (its static const
 Revised: `WhereThingsGoTests.SetRatchet` was private → made internal and reused; visibility only, no test changed.
 Revised: "the screen" is `Web/Host`, its own assembly → Sim.Tests references Host so its compiled code is read too. Cli and Tools are not read; neither reads a capacity today.
 Revised: the list holds 12 sim, 2 screen and 37 test members (the issue's "about fifty" counted calls, of which several share a member).
+Revised (review): the standards review asked for a `dev/ratchets.md` section → not added: the issue says a later ticket (#205) adds it.
+Revised (review): the record's label was a bare "Capacities" string removed by an unexplained rule, and the fix text and the scan were repeated → a named constant with its reason, one `Fix`, and today's reads scanned once.
+Follow-up: Host.Tests, Tune.Tests, Cli and Tools are not scanned; none reads a capacity today. Adding their assemblies to `CapacityReadTests.Compiled` would cover them.
+Follow-up: `Effects.CapacityDeltas` is public and returns per-capacity deltas (SurvivalTests and EffectsPropertyTests call it); it is not counted as a capacity read. Decide whether #199 hides it with the capacities.
