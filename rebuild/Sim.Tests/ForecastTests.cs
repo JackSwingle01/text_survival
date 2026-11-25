@@ -50,12 +50,12 @@ public class ForecastTests
     public void MoreTinder_KeepsALightGoingLongerAndHotter()
     {
         var w = WithStriker();
-        Give(w, (Resource.BirchBark, 3), (Resource.Oak, 4));
+        Give(w, (Resource.BirchBark, 3), (Resource.OakBranch, 4));
         var little = Fire.ForecastLight(w, Strike(0.05, 0));
         var more = Fire.ForecastLight(w, Strike(2.5, 0));
         Assert.True(more.FlameHours > little.FlameHours);
-        Assert.False(little.Takes(Resource.Oak));
-        Assert.True(more.Takes(Resource.Oak));
+        Assert.False(little.Takes(Resource.OakBranch));
+        Assert.True(more.Takes(Resource.OakBranch));
         Assert.Equal(0, little.KeepsGoingPct);
         Assert.True(more.KeepsGoingPct > 0);
     }
@@ -88,10 +88,10 @@ public class ForecastTests
         Gen.Select(Gen.Double[0.02, 2.5], Gen.Double[0, 3], Gen.Int[0, 3]).Check(c =>
         {
             var (tinderKg, kindlingKg, log) = c;
-            if (kindlingKg < Items.Resources[Resource.Kindling].MinPieceKg) kindlingKg = 0; // less than a stick is none
-            var fuel = new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Bone }[log];
+            if (kindlingKg < Items.Resources[Resource.Stick].MinPieceKg) kindlingKg = 0; // less than a stick is none
+            var fuel = new[] { Resource.PineBranch, Resource.BirchBranch, Resource.OakBranch, Resource.Bone }[log];
             var w = WithStriker();
-            Give(w, (Resource.BirchBark, tinderKg * 5), (Resource.Kindling, kindlingKg), (fuel, 2));
+            Give(w, (Resource.BirchBark, tinderKg * 5), (Resource.Stick, kindlingKg), (fuel, 2));
             var forecast = Fire.ForecastLight(w, Strike(tinderKg, kindlingKg));
             for (int tries = 0; Sim.Step(w, Strike(tinderKg, kindlingKg), 1).Reason == Fire.DidNotCatch; tries++)
             {
@@ -113,12 +113,12 @@ public class ForecastTests
         Gen.Select(Gen.Int[0, 4], Gen.Double[0.1, 3], Gen.Double[0.2, 3], Gen.Int[0, 2]).Check(c =>
         {
             var (log, kindlingKg, logKg, state) = c;
-            var fuel = new[] { Resource.Kindling, Resource.Pine, Resource.Birch, Resource.Oak, Resource.Bone }[log];
+            var fuel = new[] { Resource.Stick, Resource.PineBranch, Resource.BirchBranch, Resource.OakBranch, Resource.Bone }[log];
             var f = new FireState { Tile = new TileId(0, 0), LastUpdatedMinute = 0 };
             long minute = 0;
             if (state < 2)
             {
-                Fire.AddFuel(f, Resource.Kindling, kindlingKg);
+                Fire.AddFuel(f, Resource.Stick, kindlingKg);
                 Fire.IgniteAll(f);
                 while (state == 1 && Fire.BurningKg(f) > 0) Fire.Tick(f, default, ++minute, []);
             }
@@ -138,25 +138,25 @@ public class ForecastTests
     [Fact]
     public void WoodWithNoWayToLightIt_IsNoWarmth()
     {
-        var oak = new Dictionary<Resource, double> { [Resource.Oak] = 8 };
-        var oakAndTinder = new Dictionary<Resource, double> { [Resource.Oak] = 8, [Resource.BirchBark] = 0.05 };
-        var oakTinderKindling = new Dictionary<Resource, double> { [Resource.Oak] = 8, [Resource.BirchBark] = 0.05, [Resource.Kindling] = 1 };
+        var oak = new Dictionary<Resource, double> { [Resource.OakBranch] = 8 };
+        var oakAndTinder = new Dictionary<Resource, double> { [Resource.OakBranch] = 8, [Resource.BirchBark] = 0.05 };
+        var oakTinderKindling = new Dictionary<Resource, double> { [Resource.OakBranch] = 8, [Resource.BirchBark] = 0.05, [Resource.Stick] = 1 };
         Assert.Equal(0, Fire.UsableHours(null, PitType.Open, oak, canStrike: true));
         Assert.Equal(0, Fire.UsableHours(null, PitType.Open, oakTinderKindling, canStrike: false));
         double tinderOnly = Fire.UsableHours(null, PitType.Open, oakAndTinder, canStrike: true);
         double withKindling = Fire.UsableHours(null, PitType.Open, oakTinderKindling, canStrike: true);
         Assert.True(tinderOnly > 0);
-        Assert.True(withKindling > tinderOnly + Fire.FuelHours(Resource.Kindling, 1)); // the kindling brings the oak in
+        Assert.True(withKindling > tinderOnly + Fire.FuelHours(Resource.Stick, 1)); // the kindling brings the oak in
         Assert.Equal(Priority.Need, Priorities.WarmthPriority(98.6, false, Fire.UsableHours(null, PitType.Open, oak, canStrike: true), tonightHours: 12));
-        Assert.Equal(Priority.None, Priorities.WarmthPriority(98.6, false, Fire.FuelHours(Resource.Oak, 8) * 3, tonightHours: 2)); // raw hours would read warm
+        Assert.Equal(Priority.None, Priorities.WarmthPriority(98.6, false, Fire.FuelHours(Resource.OakBranch, 8) * 3, tonightHours: 2)); // raw hours would read warm
     }
 
     [Fact]
     public void ABurningPit_TakesTheWoodItIsHotEnoughFor()
     {
         var w = At();
-        var pit = w.Fires[PitWith(w, Resource.Birch, 3)];
-        var oak = new Dictionary<Resource, double> { [Resource.Oak] = 4 };
+        var pit = w.Fires[PitWith(w, Resource.BirchBranch, 3)];
+        var oak = new Dictionary<Resource, double> { [Resource.OakBranch] = 4 };
         Assert.True(Fire.UsableHours(pit, PitType.Open, oak, canStrike: false) > Fire.HoursItWillBurn(pit));
         var embersOnly = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute };
         Assert.Equal(0, Fire.UsableHours(embersOnly, PitType.Open, oak, canStrike: false));
@@ -169,7 +169,7 @@ public class ForecastTests
         var w = WithStriker();
         double max = Fire.MaxFuelKg(PitType.Open);
         var id = new FireId(w.NextFireId++);
-        var pit = w.Fires[id] = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Birch] = max - 0.2 } };
+        var pit = w.Fires[id] = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.BirchBranch] = max - 0.2 } };
         for (int i = 0; i < 20; i++) Items.AddPiece(Items.Pack(w, P), Resource.Chaga, 0.15);
         // Two pieces are asked for and only one fits: the strike spends one.
         var strike = new StartFire(P, ToolType.FireStriker, Resource.Chaga, 0.3, 0);
@@ -184,7 +184,7 @@ public class ForecastTests
         Assert.Null(missed);
         Assert.True(Fire.TotalKg(pit) <= max + 1e-9, $"the pit holds {Fire.TotalKg(pit)} kg of {max}");
         // With room for less than the lightest piece, the strike is refused before any tinder is spent.
-        var full = w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = new TileId(Camp(w).X + 1, Camp(w).Y), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.Birch] = max - 0.05 } };
+        var full = w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = new TileId(Camp(w).X + 1, Camp(w).Y), LastUpdatedMinute = w.Minute, UnburnedKg = { [Resource.BirchBranch] = max - 0.05 } };
         Me(w).Tile = full.Tile;
         var refused = Sim.Refusal(w, strike);
         Assert.StartsWith("the fire has no room for a whole ", refused?.Reason);
@@ -198,19 +198,19 @@ public class ForecastTests
     public void AddFuel_RefusesASliver_WithTheRoomItNeeds()
     {
         var w = At();
-        Give(w, (Resource.Birch, 5), (Resource.Kindling, 0.05), (Resource.Tinder, 1));
-        var pit = w.Fires[PitWith(w, Resource.Birch, Fire.MaxFuelKg(PitType.Open) - 0.1)];
+        Give(w, (Resource.BirchBranch, 5), (Resource.Stick, 0.05), (Resource.Tinder, 1));
+        var pit = w.Fires[PitWith(w, Resource.BirchBranch, Fire.MaxFuelKg(PitType.Open) - 0.1)];
         // A log goes on whole or not at all: a nearly full fire refuses it, naming the room a log needs (#142).
-        var refused = Sim.Refusal(w, new AddFuel(P, Resource.Birch, 1));
-        Assert.Equal("the fire has no room for a whole birch log", refused?.Reason);
+        var refused = Sim.Refusal(w, new AddFuel(P, Resource.BirchBranch, 1));
+        Assert.Equal("the fire has no room for a whole birch branch", refused?.Reason);
         var room = Assert.IsType<MissingState>(refused!.Missing);
-        Assert.Equal((Lack.FireRoomKg, Items.LightestKg(Items.Pack(w, P), Resource.Birch)), (room.Lack, room.Need));
+        Assert.Equal((Lack.FireRoomKg, Items.LightestKg(Items.Pack(w, P), Resource.BirchBranch)), (room.Lack, room.Need));
         Assert.Equal(0.1, room.Have!.Value, 6);
         // An amount that would only fill a sliver of the room is refused as before.
         var sliver = Sim.Refusal(w, new AddFuel(P, Resource.Tinder, 1));
         Assert.Equal("the fire is full", sliver?.Reason);
         Assert.Equal((Lack.FireRoomKg, Fire.SliverKg), (((MissingState)sliver!.Missing!).Lack, ((MissingState)sliver.Missing!).Need));
-        Assert.Null(Sim.Refusal(w, new AddFuel(P, Resource.Kindling, 0.05))); // a small stick that fits is no sliver
+        Assert.Null(Sim.Refusal(w, new AddFuel(P, Resource.Stick, 0.05))); // a small stick that fits is no sliver
         Assert.Equal(Fire.MaxFuelKg(PitType.Open) - 0.1, Fire.TotalKg(pit), 9);
     }
 
@@ -226,7 +226,7 @@ public class ForecastTests
             var (startMinute, pitKg, torchMinutes) = c;
             var w = At(Bush);
             w.Minute = Clock(startMinute % 1440);
-            if (pitKg > 0.05) PitWith(w, Resource.Kindling, pitKg);
+            if (pitKg > 0.05) PitWith(w, Resource.Stick, pitKg);
             if (torchMinutes > 0)
                 w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute, CarriedBy = P, TorchMinutesLeft = torchMinutes };
             int forecast = Work.MinutesUntilTooDark(w, Me(w));
@@ -310,14 +310,17 @@ public class ForecastTests
     }
 
     [Fact]
-    public void TheGatherForecast_CountsATreeOnlyIfItComesDown_AndAHarvestByItsCycles()
+    public void TheGatherForecast_CountsATreeOnlyOnceItComesDown_ItsFirewoodByThePiece_AndAHarvestByItsCycles()
     {
-        var w = At(new TreePool("trees", Resource.Birch, 100), Bush);
+        var w = At(new TreePool("trees", Resource.BirchFirewood, 100), Bush);
         Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
         w.Minute = Clock(9 * 60);
-        Assert.Empty(Work.ExpectedGather(w, Me(w), new Gather(P, 0), 60));
+        Assert.Empty(Work.ExpectedGather(w, Me(w), new Gather(P, 0), 30)); // it comes down at 40 minutes
+        var down = Work.ExpectedGather(w, Me(w), new Gather(P, 0), 45);
+        Assert.False(down.ContainsKey(Resource.BirchFirewood)); // down, but no piece cut yet (60 minutes over 9 pieces)
+        Assert.True(down[Resource.Stick] > 0);
         var felled = Work.ExpectedGather(w, Me(w), new Gather(P, 0), 120);
-        Assert.Equal(Pools.ExpectedTree(new TreePool("trees", Resource.Birch, 100)), felled);
+        Assert.Equal(Pools.ExpectedTree(new TreePool("trees", Resource.BirchFirewood, 100)), felled);
         Assert.Equal(0.12, Work.ExpectedGather(w, Me(w), new Gather(P, 1), 60)[Resource.Berries], 9); // 12 cycles of 5 minutes
         w.Minute = Clock(22 * 60);
         Assert.Empty(Work.ExpectedGather(w, Me(w), new Gather(P, 1), 60)); // too dark to start
@@ -332,7 +335,7 @@ public class ForecastTests
         var got = new SortedDictionary<Resource, double>();
         const int trees = 2000;
         for (int i = 0; i < trees; i++)
-            foreach (var (r, kg) in Items.Totals(Pools.Chop(w, id, 1, Rng.ForSystem(i, "felling"))!)) got[r] = got.GetValueOrDefault(r) + kg / trees;
+            foreach (var (r, kg) in Items.Totals(Pools.Chop(w, id, 1, Rng.ForSystem(i, "felling")).Got)) got[r] = got.GetValueOrDefault(r) + kg / trees;
         Assert.Equal(mixed.Keys, got.Keys);
         foreach (var (r, kg) in mixed) Assert.InRange(got[r], kg * 0.9, kg * 1.1);
     }
@@ -648,7 +651,7 @@ public class ForecastTests
     public void ARefusalNamesWhatIsMissing_AndHowMuch()
     {
         var w = WithStriker();
-        Give(w, (Resource.BirchBark, 0.02), (Resource.Kindling, 0.4));
+        Give(w, (Resource.BirchBark, 0.02), (Resource.Stick, 0.4));
         var tinder = Sim.Refusal(w, Strike(0.05, 0))!;
         Assert.Equal("not enough birch bark", tinder.Reason);
         var short1 = Assert.IsType<MissingResource>(tinder.Missing);
@@ -666,16 +669,16 @@ public class ForecastTests
     public void AFireTooCoolForAFuel_NamesTheHeatItNeeds()
     {
         var w = At();
-        Give(w, (Resource.Oak, 2));
+        Give(w, (Resource.OakBranch, 2));
         var pit = w.Fires[PitWith(w, Resource.Tinder, 0.2)];
-        var hot = Assert.IsType<MissingState>(Sim.Refusal(w, new AddFuel(P, Resource.Oak, 1))!.Missing);
-        Assert.Equal((Lack.FireHeatF, Fire.Props[Resource.Oak].MinFireTempF, Fire.CatchTemperatureF(pit)), (hot.Lack, hot.Need!.Value, hot.Have!.Value));
+        var hot = Assert.IsType<MissingState>(Sim.Refusal(w, new AddFuel(P, Resource.OakBranch, 1))!.Missing);
+        Assert.Equal((Lack.FireHeatF, Fire.Props[Resource.OakBranch].MinFireTempF, Fire.CatchTemperatureF(pit)), (hot.Lack, hot.Need!.Value, hot.Have!.Value));
     }
 
     [Fact]
     public void WorkMakeAndTravel_NameWhatTheyLack()
     {
-        var w = At(new TreePool("trees", Resource.Birch, 100));
+        var w = At(new TreePool("trees", Resource.BirchFirewood, 100));
         w.Minute = Clock(10 * 60);
         Assert.Equal(new MissingTool(ToolType.Axe), Sim.Refusal(w, new Gather(P, 0))!.Missing);
         var stone = Assert.IsType<MissingResource>(Sim.Refusal(w, new Make(P, "sharp_rock"))!.Missing);

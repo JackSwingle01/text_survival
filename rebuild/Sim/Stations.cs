@@ -27,9 +27,9 @@ public sealed record TransformationFinished(long Minute, TileId Tile, FireId Fir
 /// each world minute (Scheduler.Minute), so a finish's minute does not depend on who watches or how the world steps.
 public static class Stations
 {
-    /// A good fire: the smallest steady fire of the coolest log (pine, 800 °F at 0.85 of its size) is above it.
+    /// A good fire: the smallest steady fire of the coolest wood (pine, 800 °F at 0.85 of its size) is above it.
     public const double ReferenceTempF = 650;
-    /// Embers: low but above zero, below the weakest flame (kindling at half its size, 300 °F, 0.46).
+    /// Embers: low but above zero, below the weakest flame (sticks at half its size, 300 °F, 0.46).
     public const double EmberRatePct = 0.25;
     public const int HandlingMinutes = 1;
     /// A hair of slack: fifteen fifteenths are not exactly 1 in floating point.

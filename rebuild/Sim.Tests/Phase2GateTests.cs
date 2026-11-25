@@ -119,7 +119,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     static double CampWoodKg(World w)
     {
         var camp = Map.Of(w).Camp;
-        double kg = new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling }.Sum(r => Items.Have(Items.PileAt(w, camp), r));
+        double kg = new[] { Resource.PineBranch, Resource.BirchBranch, Resource.OakBranch, Resource.Stick }.Sum(r => Items.Have(Items.PileAt(w, camp), r));
         return kg + (Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f]) ? Fire.TotalKg(w.Fires[f]) : 0);
     }
     /// About what two days of blizzard by the fire burn (seed 17 has one of 36 h, then 12 h of whiteout).
@@ -239,8 +239,8 @@ public class Phase2GateTests(ITestOutputHelper output)
         foreach (var (r, kg) in Items.KgByResource(pack).ToList())
         {
             if (Items.Resources[r].Category == ResourceCategory.Food) continue;
-            double keep = r switch { Resource.Kindling => 2.0, Resource.Tinder or Resource.BirchBark or Resource.Amadou => 0.3, _ => 0 };
-            if (r is Resource.Pine or Resource.Birch or Resource.Oak) t.WoodKg += kg;
+            double keep = r switch { Resource.Stick => 2.0, Resource.Tinder or Resource.BirchBark or Resource.Amadou => 0.3, _ => 0 };
+            if (r is Resource.PineBranch or Resource.BirchBranch or Resource.OakBranch) t.WoodKg += kg;
             if (kg - keep > 1e-6) S(w, new PutDown(P, r, kg - keep), 1);
         }
     }
@@ -309,10 +309,10 @@ public class Phase2GateTests(ITestOutputHelper output)
     static void Feed(World w, double kg)
     {
         var pile = Items.PileAt(w, Map.Of(w).Camp);
-        foreach (var wood in new[] { Resource.Pine, Resource.Birch, Resource.Oak, Resource.Kindling })
+        foreach (var wood in new[] { Resource.PineBranch, Resource.BirchBranch, Resource.OakBranch, Resource.Stick })
         {
             if (kg <= 0) break;
-            double spare = wood == Resource.Kindling ? Items.Have(pile, wood) - 3 : Items.Have(pile, wood); // kindling kept for lighting
+            double spare = wood == Resource.Stick ? Items.Have(pile, wood) - 3 : Items.Have(pile, wood); // kindling kept for lighting
             double take = Math.Min(kg, spare);
             if (take <= 0) continue;
             S(w, new PickUp(P, wood, take), 1);
@@ -331,14 +331,14 @@ public class Phase2GateTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         var pack = Items.Pack(w, P);
         var pile = Items.PileAt(w, camp);
-        foreach (var (r, want) in new[] { (Resource.Kindling, 2.0), (Resource.Tinder, 0.3), (Resource.BirchBark, 0.3), (Resource.Amadou, 0.3) })
+        foreach (var (r, want) in new[] { (Resource.Stick, 2.0), (Resource.Tinder, 0.3), (Resource.BirchBark, 0.3), (Resource.Amadou, 0.3) })
             if (Items.Have(pack, r) < want && Items.Have(pile, r) > 0) S(w, new PickUp(P, r, want - Items.Have(pack, r)), 1);
         bool Burning() => Fire.PitAt(w, camp) is FireId id && Fire.IsActive(w.Fires[id]);
         for (int i = 0; i < 20 && !Burning(); i++)
         {
             var tinder = new[] { Resource.BirchBark, Resource.Amadou, Resource.Tinder, Resource.Usnea, Resource.Chaga }
-                .FirstOrDefault(r => Items.Have(pack, r) >= 0.05, Resource.Kindling);
-            double kindling = Math.Min(0.3, Items.Have(pack, Resource.Kindling) - (tinder == Resource.Kindling ? 0.05 : 0));
+                .FirstOrDefault(r => Items.Have(pack, r) >= 0.05, Resource.Stick);
+            double kindling = Math.Min(0.3, Items.Have(pack, Resource.Stick) - (tinder == Resource.Stick ? 0.05 : 0));
             if (kindling <= 0 || S(w, new StartFire(P, ToolType.HandDrill, tinder, 0.05, kindling), 1).MinutesElapsed == 0) break;
         }
         if (!Burning()) return false;
@@ -460,7 +460,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         string? RunCli(string save)
         {
             var psi = new ProcessStartInfo(dotnet) { RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = work };
-            foreach (string arg in new[] { cli, "--seed", "17", "wait 30", "fire", "fuel birch 3", "w", "e careful",
+            foreach (string arg in new[] { cli, "--seed", "17", "wait 30", "fire", "fuel birchbranch 3", "w", "e careful",
                          "e", "rest 120", "w careful", "sleep 480", $"save {save}" })
                 psi.ArgumentList.Add(arg);
             Process p;

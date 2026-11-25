@@ -37,7 +37,7 @@ public class OddsTests
     }
 
     static readonly ToolType[] Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
-    static readonly Resource[] StrikeFuels = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Kindling];
+    static readonly Resource[] StrikeFuels = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Stick];
     static readonly double[] Dexterities = [0, 0.13, 0.3, 0.5, 0.77, 0.9999, 1];
 
     /// The fold is the formula: the total is base plus each term in order, clamped, exactly.
@@ -78,7 +78,7 @@ public class OddsTests
         Assert.True(best.Capped);
         AssertAddsUp(best);
 
-        var worst = Fire.StartOdds(ToolType.HandDrill, Resource.Kindling, 0, dexterityPct: 0, handsWhy: "dark, wet");
+        var worst = Fire.StartOdds(ToolType.HandDrill, Resource.Stick, 0, dexterityPct: 0, handsWhy: "dark, wet");
         Assert.Equal(0.05, worst.TotalPct);
         Assert.True(worst.Capped);
         Assert.Equal(["Hands (dark, wet)"], worst.Terms.Select(t => t.Factor));

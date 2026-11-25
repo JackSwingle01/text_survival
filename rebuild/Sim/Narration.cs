@@ -188,7 +188,7 @@ public static class Narration
 
     static string Pct(double p) => (p * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 
-    /// Items.Describe's "3 sticks of kindling, 50 g birch bark, Hand Drill" as "3 sticks of kindling, 50 g birch bark, hand drill".
+    /// Items.Describe's "3 sticks, 50 g birch bark, Hand Drill" as "3 sticks, 50 g birch bark, hand drill".
     static string Haul(string what) =>
         string.Join(", ", what.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(part =>
             Items.GearKinds.Values.Any(g => g.Name == part) ? part.ToLowerInvariant() : part));

@@ -116,7 +116,7 @@ public class ObserverTests
         var w = o.World;
         var tile = Survival.Map.Of(w).Camp;
         var pit = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, Pit = PitType.Open };
-        Fire.AddFuel(pit, Resource.Kindling, 1);
+        Fire.AddFuel(pit, Resource.Stick, 1);
         Fire.IgniteAll(pit);
         w.Fires[new FireId(w.NextFireId++)] = pit;
         Assert.True(View(o.View()).Places.Single(p => p.X == tile.X && p.Y == tile.Y).FireHoursLeft > 0);

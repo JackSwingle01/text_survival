@@ -497,7 +497,7 @@ public class CarcassTests
         var (kg, muscle, fat, _, _) = Animals["Wolf"];
         var body = BodyState.Create(BodyKind.Quadruped, kg, fat / kg, muscle / kg);
         var c = Carcasses.Create(w, Map.Of(w).Camp, "Wolf", body, 0, special: new Dictionary<Resource, double> { [Resource.Ivory] = 0.5 });
-        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, Pit = PitType.Stone, BurningKg = { [Resource.OakBranch] = 10 } };
         for (int i = 0; i < 3; i++) Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); // room for every whole piece: this is about the blade, not the pack
         var r = Sim.Step(w, new Butcher(P, c.Id), 24 * 60);
         Assert.Equal(Work.NeedsABlade, r.InterruptedReason);

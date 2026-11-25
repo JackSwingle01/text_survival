@@ -11,7 +11,7 @@ public class ReportTests
         var camp = Map.Of(w).Camp;
         for (int i = 0; i < 10 && Fire.PitAt(w, camp) == null; i++)
             Sim.Step(w, new StartFire(AgentId.Player, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
-        Sim.Step(w, new PutDown(AgentId.Player, Resource.Kindling, 1), 1);
+        Sim.Step(w, new PutDown(AgentId.Player, Resource.Stick, 1), 1);
         Sim.Step(w, new Gather(AgentId.Player, 0), 60);
         Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, w.Rng("test")), w.Minute);
         Sim.Advance(w, 2 * 1440);
@@ -189,9 +189,9 @@ public class ReportTests
     /// pinches for the middles of draws that are 8-10, 4-6 and 2-3, and overstated every stand by ~5%.)
     [Theory]
     [InlineData(null)]
-    [InlineData(Resource.Pine)]
-    [InlineData(Resource.Birch)]
-    [InlineData(Resource.Oak)]
+    [InlineData(Resource.PineFirewood)]
+    [InlineData(Resource.BirchFirewood)]
+    [InlineData(Resource.OakFirewood)]
     public void TreeFireHours_IsTheMiddleOfWhatChopGives(Resource? wood)
     {
         var w = TestWorlds.New(1);
@@ -203,7 +203,7 @@ public class ReportTests
         double fire = 0;
         for (int i = 0; i < trees; i++)
         {
-            var tree = Pools.Chop(w, id, 10, rng)!;
+            var tree = Pools.Chop(w, id, 10, rng).Got;
             fire += Items.Totals(tree).Sum(x => x.Kg / Fire.Props[x.Resource].BurnRateKgPerHour);
         }
         double mean = fire / trees;

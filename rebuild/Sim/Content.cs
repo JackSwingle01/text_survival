@@ -45,9 +45,9 @@ public sealed record SiteForage(double Density, IReadOnlyList<ForageItem> Items)
 public sealed record SiteTrees(string Name, double MinutesToFell, Resource? Wood = null, int? Trees = null, double RespawnHoursPerTree = 168) : SiteFeature;
 /// Harvest takes Items one cycle at a time; Salvage rolls a Loot table once, when generated.
 public sealed record SiteStock(string Name, StockKind Work, int Minutes, IReadOnlyList<SiteStockItem>? Items = null,
-    string? Loot = null, ToolType? RequiresTool = null, string? Description = null) : SiteFeature;
-/// UnitsMax: units drawn in [Units, UnitsMax] when generated.
-public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit, int? UnitsMax = null);
+    string? Loot = null, string? Description = null) : SiteFeature;
+/// UnitsMax: units drawn in [Units, UnitsMax] when generated. RequiresTool: only someone carrying it works this item.
+public sealed record SiteStockItem(Resource Resource, int Units, double KgPerUnit, double RespawnHoursPerUnit, int? UnitsMax = null, ToolType? RequiresTool = null);
 
 /// Open water is a source to draw from; ice adds to the ground's hazard.
 /// Frozen: ice in its season (Map.IsFrozen); water that is not never freezes. Ice and Fish wait for ice holes and fishing.

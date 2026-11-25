@@ -30,11 +30,11 @@ public class KillChainTests
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
-        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.PineBranch, 1);
         var first = LocationFeatures.PileAt(w, camp)!.Value;
-        Assert.Equal(1, Items.MoveFromPile(w, camp, new Inventory(), Resource.Pine, 1));
+        Assert.Equal(1, Items.MoveFromPile(w, camp, new Inventory(), Resource.PineBranch, 1));
         Assert.False(LocationFeatures.Exists(w, first));
-        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Oak, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.OakBranch, 1);
         var second = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.NotEqual(first, second);
         Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old pile never names the new one");
@@ -616,11 +616,11 @@ public class KillChainTests
         TestKit.Supply(w, npc);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
-        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.Pine, 1))); // a new pile: the player's own
-        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
-        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.Pine, 1))); // still the player's own
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PutDown(npc, Resource.Pine, 1))?.Reason); // someone else's
-        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PickUp(npc, Resource.Pine, 1))?.Reason);
+        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.PineBranch, 1))); // a new pile: the player's own
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 1), 1);
+        Assert.Null(Work.Refusal(w, new PutDown(P, Resource.PineBranch, 1))); // still the player's own
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PutDown(npc, Resource.PineBranch, 1))?.Reason); // someone else's
+        Assert.Equal("a wolf pack guards it", Work.Refusal(w, new PickUp(npc, Resource.PineBranch, 1))?.Reason);
     }
 
     // ---- the caches ----
