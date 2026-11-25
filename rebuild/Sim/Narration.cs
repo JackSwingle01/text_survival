@@ -97,7 +97,7 @@ public static class Narration
             TutorialShown x => (Tutorials.Text(x.Tutorial, x.Kg), Tone.Plain),
             TreeFelled => ("The tree comes down.", Tone.Good),
             Ate x => ($"{Does(x.Who, "eat")} {Names.Kg(x.Kg, x.Food)}.", Tone.Plain),
-            Washed x => ($"{Does(x.Who, "wash")} {x.In switch { WashedIn.Snow => "with snow", WashedIn.CarriedWater => "with carried water", _ => "in the water" }}, and {(Me(x.Who) ? "are" : "is")} left damp.", Tone.Plain),
+            Washed x => ($"{Does(x.Who, "wash")} {x.In switch { WashedIn.Snow => "with snow", WashedIn.CarriedWater => "with carried water", WashedIn.Water => "in the water", _ => throw new NotSupportedException($"No words for washing in {x.In}") }}, and {(Me(x.Who) ? "are" : "is")} left damp.", Tone.Plain),
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),

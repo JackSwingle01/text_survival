@@ -143,6 +143,7 @@ public class DirtyTests
         TestKit.EditGround(w, camp, (g, sub) => Ground.AddSnow(g, sub, 0.1));
         Soil(w);
         double carried = Items.Have(Items.Pack(w, P), Resource.Water);
+        Assert.True(WashVerb(w).Allowed);
         Assert.Equal("washed", Sim.Step(w, new Wash(P), 30).InterruptedReason);
         Assert.False(Effects.Has(w.Agent(P).Body, EffectKind.Dirty) || Effects.Has(w.Agent(P).Body, EffectKind.Bloody));
         Assert.Equal(carried, Items.Have(Items.Pack(w, P), Resource.Water));
@@ -163,7 +164,10 @@ public class DirtyTests
         Assert.Equal(new MissingResource(Resource.Water, Work.WashLiters).AnyOf, ((MissingResource)refused.Missing!).AnyOf);
         Assert.Equal(refused.Reason, Sim.Step(w, new Wash(P), 30).InterruptedReason);
 
-        Items.Add(pack, Resource.Water, 1);
+        Items.Add(pack, Resource.Water, 0.3); // not enough to wash with
+        var tooLittle = WashVerb(w).Refused!;
+        Assert.Equal(Work.WashLiters - 0.3, ((MissingResource)tooLittle.Missing!).Kg, 9);
+        Items.Add(pack, Resource.Water, 0.7);
         Assert.Equal("washed", Sim.Step(w, new Wash(P), 30).InterruptedReason);
         Assert.Equal(1 - Work.WashLiters, Items.Have(pack, Resource.Water), 9);
         Assert.False(Effects.Has(w.Agent(P).Body, EffectKind.Dirty));

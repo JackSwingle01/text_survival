@@ -41,6 +41,7 @@ public static class Work
     public const double MeltSnowLiters = 1.0;
     public const int WashMinutes = 5;
     public const double WashLiters = 0.5;
+    public const string NoWashingWater = "no water or snow here";
     public const double ChopMinutesPerAxeUse = 60;
 
     public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or Cook or MeltSnow or PutDown or PickUp or Wear or TakeOff or WalkAbout;
@@ -237,7 +238,7 @@ public static class Work
                 return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? new("not thirsty") : null;
             case Wash:
                 return WashingWater(world, agent, pack) == null
-                    ? new("no water or snow here", new MissingResource(Resource.Water, WashLiters - Items.Have(pack, Resource.Water)))
+                    ? new(NoWashingWater, new MissingResource(Resource.Water, WashLiters - Items.Have(pack, Resource.Water)))
                     : null;
             case Cook c:
                 if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
@@ -504,7 +505,7 @@ public static class Work
             case Wash:
                 {
                     if (s.Minutes < s.TargetMinutes) return null;
-                    if (WashingWater(world, agent, pack) is not WashedIn source) return "no water or snow here";
+                    if (WashingWater(world, agent, pack) is not WashedIn source) return NoWashingWater;
                     if (source == WashedIn.CarriedWater) Items.Take(pack, Resource.Water, WashLiters);
                     Body.Wash(agent.Body);
                     events.Add(new Washed(world.Minute, agent.Id, agent.Tile, source));
