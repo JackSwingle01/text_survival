@@ -37,7 +37,7 @@ public class StepOutcomeTests
     {
         var w = Camp(out _);
         TestKit.Supply(w);
-        Items.Add(Items.Pack(w, P), Resource.Berries, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Berries, 1);
         var ate = Sim.Step(w, new Eat(P, Resource.Berries, 0.5), Verbs.UntilDoneMinutes);
         Assert.Equal((StepOutcome.Finished, Work.Ate), (ate.Outcome, ate.Reason));
 
@@ -94,7 +94,7 @@ public class StepOutcomeTests
     {
         var w = Camp(out var camp);
         TestKit.Supply(w);
-        Items.Add(Items.Pack(w, P), Resource.RawMeat, 5);
+        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 5);
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) Sim.Step(w, light.Activity, 1);
         var pit = w.Fires[Fire.PitAt(w, camp)!.Value];

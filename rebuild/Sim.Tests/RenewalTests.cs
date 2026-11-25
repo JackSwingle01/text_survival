@@ -280,7 +280,7 @@ public class RenewalTests
         var camp = Map.Of(w).Camp;
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var kill = Caribou(w, camp, new Cause(P, "the player's wooden spear"));
-        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 2);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 2);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);

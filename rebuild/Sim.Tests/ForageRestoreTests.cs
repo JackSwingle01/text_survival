@@ -73,7 +73,7 @@ public class ForageRestoreTests(ITestOutputHelper output)
         Assert.Null(Work.Mood(Session(1.0)));
         var good = Session(1.5);
         Assert.Null(Work.Mood(good));
-        Items.Add(good.Got, Resource.Kindling, 0.3);
+        TestKit.Give(good.Got, Resource.Kindling, 0.3);
         Assert.Equal(Clues.Table.Luck[LuckTier.Good], Work.Mood(good));
     }
 

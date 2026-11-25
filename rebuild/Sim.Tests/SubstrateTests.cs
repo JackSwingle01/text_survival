@@ -142,10 +142,10 @@ public class SubstrateTests
         Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
         Assert.Equal(new Cause(P, "put down by the player"), w.Tiles[camp].PileCause);
         // The pile keeps its maker while it stands; emptied, it is gone with its cause.
-        Items.Add(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.Oak, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.Oak, 1);
         Assert.Equal(P, w.Tiles[camp].PileCause!.Value.Who);
-        Items.TakeFromPile(w, camp, Resource.Pine, 9);
-        Items.TakeFromPile(w, camp, Resource.Oak, 9);
+        Items.MoveFromPile(w, camp, new Inventory(), Resource.Pine, 9);
+        Items.MoveFromPile(w, camp, new Inventory(), Resource.Oak, 9);
         Assert.Null(w.Tiles.GetValueOrDefault(camp)?.PileCause);
 
         for (int i = 0; i < 20 && Fire.PitAt(w, camp) == null; i++)
@@ -154,7 +154,7 @@ public class SubstrateTests
 
         var east = new TileId(camp.X + 1, camp.Y);
         w.Agent(P).Tile = east;
-        Items.Add(Items.Pack(w, P), Resource.Kindling, 10);
+        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 10);
         var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.True(w.Shelters.ContainsKey(east), $"{r.InterruptedReason} at {w.Minute}");
         Assert.Equal(new Cause(P, "built by the player"), w.Shelters[east].Cause);
@@ -437,7 +437,7 @@ public class SubstrateTests
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "someone else's kill, with a pack on it");
         Assert.True(Tags.Of(w, t, npc).HasFlag(Tag.Occupied), "the viewer's own kill: the wolves have taken it");
         var goods = Items.PileAt(w, camp, new Cause(npc, "put down by a person"));
-        Items.Add(goods, Resource.Pine, 1);
+        TestKit.Give(goods, Resource.Pine, 1);
         var pile = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.False(Tags.Of(w, pile, npc).HasFlag(Tag.Occupied), "what the viewer made");
         Assert.True(Tags.Of(w, pile, P).HasFlag(Tag.Occupied), "what someone else made");
@@ -491,7 +491,7 @@ public class SubstrateTests
         Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99))?.Reason);
         Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99))?.Reason);
         Assert.Equal("no pine in the pile here", Work.Refusal(w, new PickUp(P, Resource.Pine, 1))?.Reason);
-        Items.Add(Items.Pack(w, P), Resource.Pine, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Pine, 1);
         Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1))?.Reason);
         Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P))?.Reason);
         Assert.Equal("there's no tent to pack up here", Shelters.Refusal(w, new PackTent(P))?.Reason);

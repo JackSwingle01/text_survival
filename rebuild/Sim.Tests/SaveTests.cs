@@ -85,7 +85,7 @@ public class SaveTests
     {
         var w = World.New(17);
         var tile = Map.Step(Map.Of(w).Camp, Direction.West);
-        Items.Add(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
+        TestKit.Give(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
         var raven = Agents.SpawnGroup(w, Species.Raven, tile, 4)[0];
         w.Agent(raven).Doing = new Doing { Plain = new Raid(raven), MinutesLeft = 1 };
 
@@ -123,7 +123,8 @@ public class SaveFixtureTests
         var camp = map.Camp;
         var w = new World { Seed = 17, GeneratedMap = map };
         w.Agents[P] = new Agent { Id = P, Tile = camp };
-        Shelters.Place(w, camp, Shelters.CampOverhang);
+        var shelter = Shelters.Place(w, camp, Shelters.CampOverhang);
+        (shelter.WorkingPiece, shelter.WorkingPieceStat, shelter.WorkingPieceLeftPct) = (Resource.Hide, ShelterStat.Insulation, 0.5); // a hide half worked in
         Shelters.PlaceBedding(w, camp, BeddingKind.Camp);
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);

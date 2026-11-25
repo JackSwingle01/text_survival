@@ -82,11 +82,12 @@ public static partial class Fauna
     static void RaidMinute(World world, Agent herd)
     {
         var mind = MindOf(herd);
+        // The flock carries off the lightest cut whole, however small its appetite, and more only within it.
         double want = RaidKgPerMember * herd.Members.Count, taken = 0, kcal = 0;
         foreach (var r in RaidFood)
             if (want > taken)
             {
-                double kg = Items.TakeFromPile(world, herd.Tile, r, want - taken);
+                double kg = Items.MoveFromPile(world, herd.Tile, new Inventory(), r, want - taken, taken > 0 ? want - taken : double.PositiveInfinity);
                 taken += kg;
                 kcal += kg * Items.Resources[r].KcalPerKg;
             }

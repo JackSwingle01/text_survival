@@ -90,8 +90,8 @@ sealed class ViewBuilder(World world, int gen)
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
-                StartFire f => [Names.Kg(f.TinderKg, f.Tinder), .. f.KindlingKg > 0 ? new[] { Names.Kg(f.KindlingKg, Resource.Kindling) } : [], Names.Of(f.Tool)],
-                AddFuel f => [Names.Kg(f.Kg, f.Fuel)],
+                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Kindling, f.KindlingKg) } : [], Names.Of(f.Tool)],
+                AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },
             Durations: v.Durations);
@@ -153,9 +153,9 @@ sealed class ViewBuilder(World world, int gen)
     {
         var r = Recipes.Get(mk.Recipe);
         double? progress = Making.MinutesDone(world, _player, r) / r.Minutes;
-        var materials = r.Materials.Select(m => $"{Names.Kg(m.Kg)} {string.Join(" or ", m.AnyOf.Select(x => Names.Of(x)))}")
+        var materials = r.Materials.Select(Making.Words)
             .Concat(r.Items.Select(Names.GearWords)).ToList();
-        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? Names.Kg(r.Result.Kg, res) : r.Name;
+        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}") : r.Name;
         return new MakeDto(r.Id, r.Name, Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
@@ -242,12 +242,16 @@ sealed class ViewBuilder(World world, int gen)
         return new FireDto(Names.Title(phase), Fire.Burns(phase), Math.Round(Fire.FuelHours(f), 2), Math.Round(Fire.TemperatureF(f)), Math.Round(f.CharcoalKg, 2));
     }
 
+    /// What an activity would take from the pack, in words: the whole pieces it would move, or the amount.
+    string Load(Resource r, double kg) => Items.PackOf(_player) is { } pack
+        ? Names.Amount(r, Items.WouldMoveKg(pack, r, kg), Items.WouldMovePieces(pack, r, kg)) : Names.Kg(kg, r);
+
     PackDto Pack()
     {
         var pack = Items.PackOf(_player) ?? new Inventory();
         GearDto G(Gear g) => new(g.Kind, Items.Def(g).Name, Items.ConditionPct(g), Items.Def(g).Slot is EquipSlot slot ? Names.Title(slot) : null);
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
-            [.. pack.Kg.Where(x => x.Value > 0.001).Select(x => new StackDto(x.Key.ToString(), Names.Title(x.Key), Math.Round(x.Value, 2), Names.Kg(x.Value)))],
+            [.. Items.Totals(pack).Where(x => x.Kg > 0.001).Select(x => new StackDto(x.Resource.ToString(), Names.Title(x.Resource), Math.Round(x.Kg, 2), Names.Amount(x.Resource, x.Kg, Items.Count(pack, x.Resource))))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
             [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Recipes.Get(p.Recipe).Name, Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }

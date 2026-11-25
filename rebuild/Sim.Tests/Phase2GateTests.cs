@@ -83,7 +83,7 @@ public class Phase2GateTests(ITestOutputHelper output)
 
         var pack = Items.Pack(w, P);
         double gathered = 0;
-        foreach (var food in pack.Kg.Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).ToList())
+        foreach (var food in Items.KgByResource(pack).Keys.Where(r => Items.Resources[r].Category == ResourceCategory.Food).ToList())
             gathered += S(w, new Eat(P, food, 99), Work.EatMinutes).Events.OfType<Ate>().Sum(a => a.Kcal);
         t.GatheredKcal += gathered;
         // Topped up to a full store, not past it: surplus became fat once food could (Body.Eat), and this
@@ -183,11 +183,11 @@ public class Phase2GateTests(ITestOutputHelper output)
             {
                 t.Injuries += Walk(w, Direction.East, 1);
                 var pile = Items.PileAt(w, wood);
-                foreach (var r in pile.Kg.Keys.ToList()) S(w, new PickUp(P, r, 99), 1);
+                foreach (var r in Items.KgByResource(pile).Keys.ToList()) S(w, new PickUp(P, r, 99), 1);
             }
             t.Injuries += Walk(w, Direction.West, 1);
             PutDownWood(w, t);
-            if (Items.PileAt(w, wood).Kg.Count == 0) break;
+            if (!Items.HasResources(Items.PileAt(w, wood))) break;
         }
     }
 
@@ -236,7 +236,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     static void PutDownWood(World w, Tally t)
     {
         var pack = Items.Pack(w, P);
-        foreach (var (r, kg) in pack.Kg.ToList())
+        foreach (var (r, kg) in Items.KgByResource(pack).ToList())
         {
             if (Items.Resources[r].Category == ResourceCategory.Food) continue;
             double keep = r switch { Resource.Kindling => 2.0, Resource.Tinder or Resource.BirchBark or Resource.Amadou => 0.3, _ => 0 };

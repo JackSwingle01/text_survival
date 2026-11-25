@@ -232,7 +232,7 @@ public class ArchitectureTests
         // the busy day made of it: on seed 17 a wolf pack lies up on its kill beside the NPC's camp.
         if (!Sim.IsAlive(npc)) npc.Members[0] = BodyState.BaselineHuman();
         npc.Body.HydrationMl = Body.MaxHydrationMl;
-        Items.Add(Items.Pack(world, npc.Id), Resource.Water, 3);
+        TestKit.Give(Items.Pack(world, npc.Id), Resource.Water, 3);
         for (int i = 0; i < 3 * 24 * 60 && npc.Doing?.Work == null; i++)
         {
             Sim.Advance(world, 1);

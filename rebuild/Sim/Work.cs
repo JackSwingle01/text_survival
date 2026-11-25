@@ -18,6 +18,9 @@ public sealed class WorkSession
     public PoolId? Pool { get; init; }
     public double TargetMinutes { get; init; }
     public double DoneKg { get; set; }
+    /// Cooking's progress toward the next whole piece, in kilos of it.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public double CookingKg { get; set; }
     /// A forage's luck, rolled once when it begins (Pools.RollLuck); 0 for other work.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public double LuckFactor { get; init; }
@@ -257,8 +260,11 @@ public static class Work
                 var pile = world.Tiles.GetValueOrDefault(agent.Tile)?.Pile;
                 if (pile == null || Items.Have(pile, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} in the pile here");
                 if (Access.Refusal(world, agent.Id, LocationFeatures.PileAt(world, agent.Tile)!.Value) is { } pickUpBarred) return pickUpBarred;
-                return Items.CarriedKg(agent) >= Items.CapacityKg(pack)
-                    ? new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)))
+                if (Items.CarriedKg(agent) >= Items.CapacityKg(pack))
+                    return new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)));
+                return Items.LightestKg(pile, u.Resource) is double pieceKg && pieceKg > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9
+                    ? new($"no room in your pack for a whole {Names.PieceWord(u.Resource)}",
+                        new MissingState(Lack.PackRoomKg, pieceKg, Items.CapacityKg(pack) - Items.CarriedKg(agent)))
                     : null;
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
@@ -378,12 +384,13 @@ public static class Work
                 }
             case Eat e:
                 {
-                    double kg = Items.Take(pack, e.Food, e.Kg);
+                    var eaten = new Inventory();
+                    double kg = Items.Move(pack, eaten, e.Food, e.Kg); // a cut of meat is eaten whole
                     var def = Items.Resources[e.Food];
                     double kcal = kg * def.KcalPerKg;
                     Body.Eat(body, kcal);
                     body.HydrationMl = Math.Clamp(body.HydrationMl + kg * def.HydrationMlPerKg, 0, Body.MaxHydrationMl);
-                    events.Add(new Ate(world.Minute, agent.Id, agent.Tile, e.Food, kg, kcal));
+                    events.Add(new Ate(world.Minute, agent.Id, agent.Tile, e.Food, kg, kcal, Items.Count(eaten, e.Food)));
                     return new WorkSession { Activity = activity, TargetMinutes = EatMinutes };
                 }
             case Drink d:
@@ -400,17 +407,17 @@ public static class Work
                 }
             case PutDown s:
                 {
-                    double kg = Items.Take(pack, s.Resource, s.Kg);
-                    Items.Add(Items.PileAt(world, agent.Tile, new Cause(agent.Id, $"put down by {Cause.Describe(world, agent.Id)}")), s.Resource, kg);
-                    events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, s.Resource, kg));
+                    int had = Items.Count(pack, s.Resource);
+                    double kg = Items.Move(pack, Items.PileAt(world, agent.Tile, new Cause(agent.Id, $"put down by {Cause.Describe(world, agent.Id)}")), s.Resource, s.Kg);
+                    events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, s.Resource, kg, had - Items.Count(pack, s.Resource)));
                     return new WorkSession { Activity = activity };
                 }
             case PickUp u:
                 {
-                    double kg = Items.TakeFromPile(world, agent.Tile, u.Resource, Math.Min(u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent)));
-                    Items.Add(pack, u.Resource, kg);
+                    int had = Items.Count(pack, u.Resource);
+                    double kg = Items.MoveFromPile(world, agent.Tile, pack, u.Resource, u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent));
                     bool taken = agent.Mind is not PersonMind || Memories.CampOf(world, agent) != agent.Tile;
-                    events.Add(new PickedUp(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken));
+                    events.Add(new PickedUp(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken, Items.Count(pack, u.Resource) - had));
                     return new WorkSession { Activity = activity };
                 }
             case Wear w:
@@ -472,11 +479,23 @@ public static class Work
                                 var rng = world.Rng("work", agent.Id);
                                 var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor);
                                 var got = new Inventory();
+                                var pieceRng = world.Rng("yield", agent.Id);
                                 foreach (var (r, kg) in Focus(finds, g.Focus, world.Rng("focus", agent.Id)))
                                 {
-                                    double found = kg * yieldFactor * Survival.Clues.YieldFactor(s.Clues ?? [], g.Focus, r);
-                                    Items.Add(got, r, found);
-                                    s.Finds.Add(new Find(world.Minute, r, found));
+                                    double factor = yieldFactor * Survival.Clues.YieldFactor(s.Clues ?? [], g.Focus, r);
+                                    if (!Items.IsDiscrete(r))
+                                    {
+                                        Items.Add(got, r, kg * factor);
+                                        s.Finds.Add(new Find(world.Minute, r, kg * factor));
+                                        continue;
+                                    }
+                                    int pieces = (int)Math.Floor(factor); // the factor counts pieces, never sizes them
+                                    if (pieceRng.NextDouble() < factor - pieces) pieces++;
+                                    for (int i = 0; i < pieces; i++)
+                                    {
+                                        Items.AddPiece(got, r, kg);
+                                        s.Finds.Add(new Find(world.Minute, r, kg));
+                                    }
                                 }
                                 Keep(world, agent, s, got, events);
                                 Pools.Search(world, agent, perception / 60.0, events);
@@ -518,10 +537,14 @@ public static class Work
                     // A practised cook turns it sooner: less time over the fire (Skills).
                     double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
                         * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
-                    double kg = Items.Take(pack, c.Raw, Math.Min(perMinute, c.Kg - s.DoneKg));
-                    Items.Add(pack, Cooked(c.Raw)!.Value, kg);
-                    s.DoneKg += kg;
-                    Skills.Award(world, agent, Skill.Cooking, kg * Skills.CookXpPerKg, events);
+                    s.CookingKg += perMinute;
+                    while (Items.LightestKg(pack, c.Raw) is double pieceKg && pieceKg <= s.CookingKg + 1e-9 && s.DoneKg < c.Kg - 1e-9)
+                    {
+                        foreach (var kg in Items.TakePieces(pack, c.Raw, 1)) Items.AddPiece(pack, Cooked(c.Raw)!.Value, kg);
+                        s.CookingKg = Math.Max(0, s.CookingKg - pieceKg);
+                        s.DoneKg += pieceKg;
+                        Skills.Award(world, agent, Skill.Cooking, pieceKg * Skills.CookXpPerKg, events);
+                    }
                     return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? CookedReason : null;
                 }
             case MeltSnow:
@@ -563,11 +586,11 @@ public static class Work
         if (s.Activity is WalkAbout && s.Minutes > 0) Survival.Clues.Redraw(world, agent.Tile);
         LuckTier? luck = foraged ? Pools.TierOf(s.LuckFactor) : null;
         double? density = foraged ? Pools.ForageDensity(world, s.Pool!.Value) : null;
-        if (s.Got.Kg.Count > 0 || s.Got.Gear.Count > 0)
+        if (!Items.IsEmpty(s.Got))
             events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Got), luck, density));
         else if (foraged)
             events.Add(new Gathered(world.Minute, agent.Id, agent.Tile, "", luck, density));
-        if (s.Dropped.Kg.Count > 0 || s.Dropped.Gear.Count > 0)
+        if (!Items.IsEmpty(s.Dropped))
             events.Add(new Dropped(world.Minute, agent.Id, agent.Tile, Items.Describe(s.Dropped)));
     }
 
@@ -588,7 +611,7 @@ public static class Work
         var ready = Carcasses.TakeReady(c);
         var leftovers = Items.Receive(world, agent, ready, events, dropExcess: false);
         Carcasses.PutBack(c, leftovers);
-        foreach (var (r, kg) in ready.Kg) if (kg - Items.Have(leftovers, r) > 0) Items.Add(s.Got, r, kg - Items.Have(leftovers, r));
+        Items.AddAll(s.Got, Items.Without(ready, leftovers));
         // Blood on you an hour, at most 0.5 from butchering; scent on the carcass an hour.
         double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
         if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));
@@ -615,7 +638,7 @@ public static class Work
 
     static void Keep(World world, Agent agent, WorkSession s, Inventory got, List<WorldEvent> events)
     {
-        if (got.Kg.Count == 0 && got.Gear.Count == 0) return;
+        if (Items.IsEmpty(got)) return;
         Items.AddAll(s.Got, got);
         Items.AddAll(s.Dropped, Items.Receive(world, agent, got, events: null));
     }
@@ -649,8 +672,8 @@ public static class Work
         if (agent.Id != AgentId.Player || Items.PackOf(agent) is not { } pack) return;
         if (Items.Tool(pack, ToolType.Axe) != null) Tutorials.Show(world, agent, Tutorial.Axe, events);
         if (Items.Tool(pack, ToolType.Shovel) != null) Tutorials.Show(world, agent, Tutorial.Shovel, events);
-        double fuelFound = s.Got.Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
-        double fuelHeld = pack.Kg.Where(kv => Items.Resources[kv.Key].Category == ResourceCategory.Fuel).Sum(kv => kv.Value);
+        double fuelFound = Items.Totals(s.Got).Where(x => Items.Resources[x.Resource].Category == ResourceCategory.Fuel).Sum(x => x.Kg);
+        double fuelHeld = Items.Totals(pack).Where(x => Items.Resources[x.Resource].Category == ResourceCategory.Fuel).Sum(x => x.Kg);
         if (Weather.DayNumber(world.Minute) == 1 && fuelFound > 0 && fuelHeld < DayOneFuelKg)
             Tutorials.Show(world, agent, Tutorial.DayOneFuel, events, DayOneFuelKg - fuelHeld);
     }
@@ -664,7 +687,7 @@ public static class Work
         if (clue.Animals is not { Count: > 0 })
         {
             var bones = new Inventory();
-            Items.Add(bones, Resource.Bone, ScrapBoneKg[0] + rng.NextDouble() * (ScrapBoneKg[1] - ScrapBoneKg[0]));
+            Items.AddPiece(bones, Resource.Bone, ScrapBoneKg[0] + rng.NextDouble() * (ScrapBoneKg[1] - ScrapBoneKg[0]));
             Keep(world, agent, s, bones, events);
             events.Add(new Scavenged(world.Minute, agent.Id, agent.Tile, null, clue.Remains!));
             return;
@@ -693,7 +716,7 @@ public static class Work
     {
         if (s.LuckFactor <= 0) return null;
         var tier = Pools.TierOf(s.LuckFactor);
-        bool shows = tier == LuckTier.Lean || (tier != LuckTier.Normal && (s.Got.Kg.Count > 0 || s.Dropped.Kg.Count > 0));
+        bool shows = tier == LuckTier.Lean || (tier != LuckTier.Normal && (Items.HasResources(s.Got) || Items.HasResources(s.Dropped)));
         return shows ? Survival.Clues.Table.Luck[tier] : null;
     }
 }

@@ -254,8 +254,8 @@ public class ShelterTests
         Assert.Equal(BeddingKind.Camp, w.Beddings[camp]);
         Assert.Empty(w.Projects);
         // A sleeping bag is as good to sleep on and warmer: it replaces the sleeping area.
-        Items.Add(Items.Pack(w, P), Resource.CuredHide, 4);
-        Items.Add(Items.Pack(w, P), Resource.Sinew, 0.6);
+        TestKit.Give(Items.Pack(w, P), Resource.CuredHide, 4);
+        TestKit.Give(Items.Pack(w, P), Resource.Sinew, 0.6);
         Assert.Null(Sim.Refusal(w, new Make(P, "sleeping_bag")));
     }
 
@@ -285,13 +285,13 @@ public class ShelterTests
     {
         var w = Builder(out var tile);
         var pack = Items.Pack(w, P);
-        Items.Add(pack, Resource.Kindling, 1.5);
-        double sticks = Items.Have(pack, Resource.Kindling);
+        TestKit.Give(pack, Resource.Kindling, 1.5);
+        int sticks = Items.Count(pack, Resource.Kindling);
         var r = Sim.Step(w, new Make(P, "branch_frame"), 120);
         Assert.Equal("built", r.InterruptedReason);
         Assert.Equal(30, r.MinutesElapsed);
         Assert.Contains(r.Events, e => e is Built { Recipe: "branch_frame" });
-        Assert.Equal(sticks - 4 * 0.3, Items.Have(pack, Resource.Kindling), Digits);
+        Assert.Equal(sticks - 4, Items.Count(pack, Resource.Kindling)); // four sticks, whatever they weigh
         var s = Shelters.At(w, tile, [])!;
         Assert.Equal((0.15, 0.25, 0.20), (s.InsulationLevel, s.OverheadLevel, s.WindLevel));
         Assert.Contains("already a shelter", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
@@ -348,8 +348,8 @@ public class ShelterTests
     public void Project_PersistsAcrossSteps_AndBlocksAnotherBuild()
     {
         var w = Builder(out var tile);
-        Items.Add(Items.Pack(w, P), Resource.Kindling, 1.2);
-        Items.Add(Items.Pack(w, P), Resource.Pine, 6);
+        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1.2);
+        TestKit.Give(Items.Pack(w, P), Resource.Pine, 6);
         Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
         Assert.Contains("half-built", Sim.Step(w, new Make(P, "log_frame"), 10).InterruptedReason);
         Assert.Equal(6, Items.Have(Items.Pack(w, P), Resource.Pine));
@@ -361,8 +361,8 @@ public class ShelterTests
     static string BuildAndImprove(int chunk, bool reload = false)
     {
         var w = Builder(out _);
-        Items.Add(Items.Pack(w, P), Resource.Kindling, 1.2);
-        Items.Add(Items.Pack(w, P), Resource.Hide, 3);
+        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 1.2);
+        TestKit.Give(Items.Pack(w, P), Resource.Hide, 3);
         foreach (var (a, total) in new (Activity, int)[] { (new Make(P, "branch_frame"), 30), (new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 50) })
             for (int done = 0; done < total; done += chunk)
             {
@@ -386,7 +386,7 @@ public class ShelterTests
     {
         var w = Builder(out var tile);
         var s = Shelters.Place(w, tile, new ShelterDef("Frame", ShelterKind.BranchFrame));
-        Items.Add(Items.Pack(w, P), Resource.Hide, 5);
+        TestKit.Give(Items.Pack(w, P), Resource.Hide, 5);
         Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10);
         Assert.Equal(4, Items.Have(Items.Pack(w, P), Resource.Hide), Digits);
         // Ten tenths of a piece come close to the old one-piece gain 0.05 * 0.9 * (1 - 0.15/0.5) = 0.0315.
@@ -394,6 +394,27 @@ public class ShelterTests
         s.InsulationLevel = s.InsulationCap;
         Assert.Contains("can't be improved", Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10).InterruptedReason);
         Assert.Contains("no use", Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Berries), 10).InterruptedReason);
+    }
+
+    /// A piece left part-worked goes into the stat it was being worked into, whatever is improved next (#142 review).
+    [Fact]
+    public void APartWorkedPiece_GoesIntoTheStatItWasFor_WhenTheWorkTurnsElsewhere()
+    {
+        var w = Builder(out var tile);
+        var s = Shelters.Place(w, tile, new ShelterDef("Frame", ShelterKind.BranchFrame));
+        TestKit.Give(Items.Pack(w, P), Resource.Hide, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Stone, 0.3);
+        Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 5);
+        Assert.Equal((Resource.Hide, ShelterStat.Insulation), (s.WorkingPiece, s.WorkingPieceStat));
+        double halfWay = s.InsulationLevel, overhead = s.OverheadLevel;
+        w = TestWorlds.Load(Save.ToJson(w)); // the piece and its stat are saved
+        s = Shelters.At(w, tile, [])!;
+        // The same hide turned to another stat: its rest goes where it was going, and with no second hide the work is refused.
+        Assert.Contains("no hide", Sim.Step(w, new ImproveShelter(P, ShelterStat.Overhead, Resource.Hide), 1).InterruptedReason);
+        Sim.Step(w, new ImproveShelter(P, ShelterStat.Wind, Resource.Stone), 1);
+        Assert.True(s.InsulationLevel > halfWay, "the rest of the hide did not reach insulation");
+        Assert.Equal(overhead, s.OverheadLevel);
+        Assert.Equal((Resource.Stone, ShelterStat.Wind), (s.WorkingPiece, s.WorkingPieceStat));
     }
 
     /// old game: the pitched tent's item was [JsonIgnore], so after a load it could never be packed (bug, fixed).
@@ -420,7 +441,7 @@ public class ShelterTests
         var w = Builder(out var tile);
         Items.Pack(w, P).Gear.Add(Items.Make("hide_tent"));
         Sim.Step(w, new Make(P, "tent"), 10);
-        Items.Add(Items.Pack(w, P), Resource.Hide, 2);
+        TestKit.Give(Items.Pack(w, P), Resource.Hide, 2);
         Sim.Step(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Hide), 10);
         var improved = Shelters.At(w, tile, [])!;
         double insulation = improved.InsulationLevel;
@@ -540,7 +561,7 @@ public class ShelterTests
     public void Find_UnderAHalfBuiltFrame_Waits_AndTheFrameIsFinished()
     {
         var (w, tile, pool) = FindTile(Mild);
-        Items.Add(Items.Pack(w, P), Resource.Kindling, 2);
+        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 2);
         Assert.Null(Sim.Step(w, new Make(P, "branch_frame"), 10).InterruptedReason);
         var events = new List<WorldEvent>();
         Pools.Search(w, w.Agent(P), 1000, events);

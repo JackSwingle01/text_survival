@@ -38,6 +38,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, IReadOnlyList<Accident>> Accidents,
     IReadOnlyList<Recipe> MakeRecipes,
     IReadOnlyDictionary<Enum, string> Names,
+    IReadOnlyDictionary<Resource, IReadOnlyList<string>> PieceWords,
     ForagingTables Foraging);
 
 // ---- rows that have no home in a system's own file ----
@@ -84,9 +85,10 @@ public static partial class Content
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
         IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null,
         double? FasterFactor = null);
-    sealed record InputRow(string? Item = null, string? Of = null, double Kg = 0);
-    sealed record ResultRow(string? Gear = null, Resource? Resource = null, double Kg = 0, ShelterKind? Shelter = null, string? ShelterName = null,
-        BeddingKind? Bedding = null);
+    /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
+    sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
+    sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -151,6 +153,7 @@ public static partial class Content
         var mixedWood = Keyed<Resource, double>(terrain.Felling.MixedWood, "terrain.json felling mixedWood", problems);
         var draws = Keyed<Terrain, IReadOnlyList<DiscoveryDraw>>(discoveries.Terrains, "discoveries.json terrains", problems);
         var detailDraws = Keyed<Terrain, IReadOnlyList<string>>(discoveries.DetailDraws, "discoveries.json detailDraws", problems);
+        var pieceWords = PieceWordTable(nameRows, items.Resources, problems);
         var names = NameTable(nameRows, problems);
         var luck = Keyed<LuckTier, string>(foraging.Luck, "foraging.json luck", problems);
         var hints = Keyed<Resource, string>(foraging.Hints, "foraging.json hints", problems, complete: true);
@@ -171,7 +174,8 @@ public static partial class Content
         problems.AddRange(DiscoveryProblems(discoveries, draws, detailDraws, terrains, items.Gear, loot, locations));
         problems.AddRange(AccidentProblems(accidents));
         problems.AddRange(ForagingProblems(foraging, luck));
-        var makeRecipes = MakeRecipes(recipeRows, items.Gear, problems);
+        var makeRecipes = MakeRecipes(recipeRows, items.Gear, resources, problems);
+        problems.AddRange(PieceProblems(resources, forage, locations, discoveries, loot, terrain.Felling, logKg, packKg));
         problems.AddRange(DeadRows(locations, loot, terrain, forage, discoveries, accidents));
         foreach (var kind in CodeGear) if (!items.Gear.ContainsKey(kind)) problems.Add($"items.json: no gear kind '{kind}', which the code names");
         foreach (var id in CodeLocations) if (!locations.Any(l => l.Id == id)) problems.Add($"locations.json: no location '{id}', which the code names");
@@ -199,7 +203,7 @@ public static partial class Content
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
                 ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
-            makeRecipes, ReadOnly(names),
+            makeRecipes, ReadOnly(names), ReadOnly(pieceWords),
             new ForagingTables(foraging.Quality, foraging.Failures, ReadOnly(luck), ReadOnly(hints), foraging.Clues, ReadOnly(tutorials), foraging.SearchBands));
     }
 
@@ -239,11 +243,33 @@ public static partial class Content
         if (f.Clues.Count(c => c.Kind == ClueKind.Resource && c.When == ClueWhen.Always) != 1) yield return "foraging.json clues: exactly one generic (Always) resource clue";
     }
 
+    const string PiecesTable = "Pieces";
+
+    /// names.json Pieces: "one|many" for every discrete resource, and for nothing else.
+    static Dictionary<Resource, IReadOnlyList<string>> PieceWordTable(Dictionary<string, Dictionary<string, string>> rows,
+        Dictionary<string, ResourceDef> resources, List<string> problems)
+    {
+        var table = new Dictionary<Resource, IReadOnlyList<string>>();
+        var words = rows.GetValueOrDefault(PiecesTable) ?? [];
+        foreach (var r in Enum.GetValues<Resource>())
+        {
+            bool discrete = resources.TryGetValue(r.ToString(), out var def) && def.Discrete;
+            if (!words.TryGetValue(r.ToString(), out var w)) { if (discrete) problems.Add($"names.json Pieces: no words for discrete {r}"); continue; }
+            if (!discrete && def?.Form != null) problems.Add($"names.json Pieces: {r} is not discrete");
+            var both = w.Split('|');
+            if (both.Length != 2 || both.Any(x => string.IsNullOrWhiteSpace(x) || x != x.Trim())) problems.Add($"names.json Pieces.{r}: '{w}' is not 'one|many'");
+            else table[r] = Array.AsReadOnly(both);
+        }
+        foreach (var key in words.Keys)
+            if (!Enum.GetNames<Resource>().Contains(key, StringComparer.Ordinal)) problems.Add($"names.json Pieces: no Resource '{key}'");
+        return table;
+    }
+
     /// names.json: every value of every enum Names.Tables lists, and nothing else, each with its words.
     static Dictionary<Enum, string> NameTable(Dictionary<string, Dictionary<string, string>> rows, List<string> problems)
     {
         var table = new Dictionary<Enum, string>();
-        foreach (var name in rows.Keys)
+        foreach (var name in rows.Keys.Where(n => n != PiecesTable))
             if (!Survival.Names.Tables.Any(t => t.Name == name)) problems.Add($"names.json: {name} is not a table of names (Names.Tables)");
         foreach (var type in Survival.Names.Tables)
         {
@@ -310,7 +336,7 @@ public static partial class Content
         }
         if (node.GetType().Namespace != nameof(Survival)) yield break;
         foreach (var prop in node.GetType().GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
-            if (prop.GetIndexParameters().Length == 0 && prop.GetValue(node) is { } value)
+            if (prop.GetIndexParameters().Length == 0 && prop.CanWrite && prop.GetValue(node) is { } value) // read, not derived
                 foreach (var p in NullsIn(value, $"{path}.{char.ToLowerInvariant(prop.Name[0])}{prop.Name[1..]}")) yield return p;
     }
 
@@ -323,7 +349,8 @@ public static partial class Content
 
     /// The Make recipes, in file order, each checked: names resolve, outcomes parse and name only the
     /// recipe's own inputs and tools, and the odds leave most of the work to the plain result.
-    static IReadOnlyList<Recipe> MakeRecipes(Dictionary<string, RecipeFileRow> rows, IReadOnlyDictionary<string, GearDef> gear, List<string> problems)
+    static IReadOnlyList<Recipe> MakeRecipes(Dictionary<string, RecipeFileRow> rows, IReadOnlyDictionary<string, GearDef> gear,
+        IReadOnlyDictionary<Resource, ResourceDef> resources, List<string> problems)
     {
         var recipes = new List<Recipe>();
         foreach (var (id, row) in rows)
@@ -334,11 +361,12 @@ public static partial class Content
             var items = new List<string>();
             foreach (var input in row.Inputs)
             {
-                if ((input.Item != null) == (input.Of != null)) { problems.Add($"{at}: an input is an item or a material (of, kg), exactly one"); continue; }
+                if ((input.Item != null) == (input.Of != null)) { problems.Add($"{at}: an input is an item or a material (of), exactly one"); continue; }
+                if (input.Kg != 0) problems.Add($"{at}: {input.Item ?? input.Of} names kg: a discrete input is a count, a continuous one grams (g)");
                 if (input.Item != null)
                 {
                     if (!gear.ContainsKey(input.Item)) problems.Add($"{at}: no gear kind '{input.Item}'");
-                    if (input.Kg != 0) problems.Add($"{at}: an item input {input.Item} has no kg");
+                    if (input.G != 0 || input.Count != 0) problems.Add($"{at}: an item input {input.Item} is one piece, with no count or g");
                     items.Add(input.Item);
                     continue;
                 }
@@ -346,8 +374,12 @@ public static partial class Content
                 foreach (var name in input.Of!.Split('|'))
                     if (Enum.GetNames<Resource>().Contains(name, StringComparer.Ordinal)) anyOf.Add(Enum.Parse<Resource>(name));
                     else problems.Add($"{at}: no Resource '{name}'");
-                if (input.Kg <= 0) problems.Add($"{at}: {input.Of} kg {input.Kg}");
-                materials.Add(new MaterialInput(anyOf.AsReadOnly(), input.Kg));
+                bool anyDiscrete = anyOf.Any(x => resources[x].Discrete), anyContinuous = anyOf.Any(x => !resources[x].Discrete);
+                if (anyDiscrete != input.Count > 0) problems.Add($"{at}: {input.Of} count {input.Count}: a discrete input, and only one, is a count of pieces");
+                if (anyContinuous != input.G > 0) problems.Add(anyContinuous ? $"{at}: {input.Of} g {input.G}: a continuous input is grams"
+                    : $"{at}: {input.Of} is discrete: a count of pieces, never a weight (g)");
+                if (input.Count < 0) problems.Add($"{at}: {input.Of} count {input.Count}");
+                materials.Add(new MaterialInput(anyOf.AsReadOnly(), input.G / 1000, input.Count));
             }
             var inputResources = materials.SelectMany(m => m.AnyOf).ToList();
             if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
@@ -358,9 +390,12 @@ public static partial class Content
                 problems.Add($"{at}: the result is a gear kind, a resource, a shelter or a bedding, exactly one");
             else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
-            else if (r.Gear != null && r.Kg != 0) problems.Add($"{at}: a gear result is one piece, with no kg");
-            else if (r.Resource != null && r.Kg <= 0) problems.Add($"{at}: result {r.Resource} kg {r.Kg}");
+            else if (r.Gear != null && (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0)) problems.Add($"{at}: a gear result is one piece, with no amount");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
+            else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
+                problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
+            else if (r.Resource is Resource made2 && !resources[made2].Discrete && (r.G <= 0 || r.Count != 0 || r.SharePct != 0 || r.Kg != 0))
+                problems.Add($"{at}: a continuous result {made2} is grams (g)");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
             if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
@@ -385,22 +420,66 @@ public static partial class Content
                             problems.Add($"{at}: extra_product {x.What} is no gear kind or resource"); break;
                         case ExtraProduct x when gear.ContainsKey(x.What) && x.Amount != Math.Floor(x.Amount):
                             problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
+                        case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete:
+                            problems.Add($"{at}: extra_product {x.What} is discrete, and an extra resource is an amount"); break;
                     }
-            // A resource result is worked from what is left after any saving: it never weighs more.
-            if (r.Resource != null && r.Kg > materials.Sum(m => m.Kg) + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg)} kg");
-            if (r.Resource != null)
-                foreach (var o in outcomes)
-                {
-                    double savedKg = o.Effects.OfType<SaveMaterial>().Sum(s => materials.First(m => m.AnyOf.Contains(s.Input)).Kg * s.SharePct);
-                    if (r.Kg > materials.Sum(m => m.Kg) - savedKg + 1e-9) problems.Add($"{at}: {r.Kg} kg of {r.Resource} from {materials.Sum(m => m.Kg) - savedKg} kg ({o.Text})");
-                }
+            if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.Kg, r.Shelter, r.ShelterName, r.Bedding), outcomes.AsReadOnly(), row.FasterFactor ?? Making.FasterToolFactor));
+                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct), outcomes.AsReadOnly(),
+                row.FasterFactor ?? Making.FasterToolFactor));
         }
         return recipes.AsReadOnly();
+    }
+
+    /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
+    /// pieces, or its grams; null heaviest for nothing to bound it.
+    static (double Lightest, double Heaviest) InputKg(MaterialInput m, IReadOnlyDictionary<Resource, ResourceDef> resources, int? pieces = null)
+    {
+        var each = m.AnyOf.Select(x => resources[x].Discrete
+            ? ((pieces ?? m.Count) * resources[x].MinPieceKg, (pieces ?? m.Count) * resources[x].MaxPieceKg)
+            : (m.Kg, m.Kg)).ToList();
+        return (each.Min(e => e.Item1), each.Max(e => e.Item2));
+    }
+
+    /// Gear weighs no more than its lightest possible inputs. A resource result never weighs more than what it is
+    /// worked from, less any saving; a discrete one's pieces stay in their kind's range, however light or heavy the
+    /// pieces that went in and whatever a succeeding outcome wastes.
+    static IEnumerable<string> WeightProblems(string at, List<MaterialInput> materials, List<string> items, ResultRow r, List<Outcome> outcomes,
+        IReadOnlyDictionary<string, GearDef> gear, IReadOnlyDictionary<Resource, ResourceDef> resources)
+    {
+        double lightest = materials.Sum(m => InputKg(m, resources).Lightest) + items.Sum(i => gear[i].BaseWeightKg);
+        if (r.Gear != null && gear[r.Gear].BaseWeightKg > lightest + 1e-9)
+            yield return $"{at}: {r.Gear} weighs {gear[r.Gear].BaseWeightKg} kg, above its lightest possible inputs, {lightest:0.###} kg";
+        if (r.Resource is not Resource made) yield break;
+        foreach (var o in outcomes.Prepend(null))
+        {
+            double ShareOf(Resource? input, IEnumerable<Effect> effects) => effects.Where(e => e is WasteMaterial w && w.Input == input || e is SaveMaterial s && s.Input == input)
+                .Sum(e => e is WasteMaterial w ? w.SharePct : ((SaveMaterial)e).SharePct);
+            var effects = o?.Effects ?? [];
+            if (o?.Kind == OutcomeKind.Fail) continue;
+            double lo = 0, hi = 0, saved = 0;
+            foreach (var m in materials)
+            {
+                double share = Math.Min(1, m.AnyOf.Sum(x => ShareOf(x, effects.OfType<WasteMaterial>())));
+                double kept = m.AnyOf.Sum(x => ShareOf(x, effects.OfType<SaveMaterial>()));
+                var (l, h) = InputKg(m, resources);
+                lo += l * (1 - share);
+                hi += h;
+                saved += l * kept;
+            }
+            if (resources[made].Discrete)
+            {
+                double light = lo * r.SharePct / r.Count, heavy = hi * r.SharePct / r.Count;
+                if (light < resources[made].MinPieceKg - 1e-9 || heavy > resources[made].MaxPieceKg + 1e-9)
+                    yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
+                if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
+            }
+            else if (r.G / 1000 > lightest - saved + 1e-9)
+                yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";
+        }
     }
 
     /// Something placed on the tile is camp work, takes no items, rolls no outcomes, and a shelter
@@ -411,7 +490,7 @@ public static partial class Content
         if (row.Category != MakeCategory.Camp) yield return $"{at}: a placed result is Camp work";
         if (items.Count > 0) yield return $"{at}: a placed result takes no items";
         if (row.Outcomes.Count > 0) yield return $"{at}: a placed result has no outcomes";
-        if (r.Kg != 0) yield return $"{at}: a placed result has no kg";
+        if (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0) yield return $"{at}: a placed result has no amount";
         bool tent = row.Requires.Contains(Requirement.Tent);
         if (r.Bedding != null && (r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter))) yield return $"{at}: a bedding is not named, needs no tent and goes beside a shelter";
         if (r.Shelter != null && !row.Requires.Contains(Requirement.NoShelter)) yield return $"{at}: a shelter needs NoShelter";
@@ -433,6 +512,10 @@ public static partial class Content
             if (def.Category is not (ResourceCategory.Food or ResourceCategory.Water) && (def.KcalPerKg != 0 || def.HydrationMlPerKg != 0))
                 yield return $"items.json: {r} is not food or water and gives kcal or water";
             if (def.KcalPerKg < 0) yield return $"items.json: {r} kcalPerKg {def.KcalPerKg}";
+            if (def.Form == null) yield return $"items.json: {r} is neither discrete nor continuous (form)";
+            else if (def.Discrete && !(def.PieceKg is { Min: > 0 } range && range.Min <= range.Max))
+                yield return $"items.json: discrete {r} needs pieceKg [min, max], above 0";
+            else if (!def.Discrete && def.PieceKg != null) yield return $"items.json: continuous {r} has no pieces (pieceKg)";
             if ((def.Category == ResourceCategory.Food) != (def.ScentLevel != null)) yield return $"items.json: {r}: food, and only food, states its scentLevel";
             if (def.ScentLevel is < 0 or > 1) yield return $"items.json: {r} scentLevel {def.ScentLevel} is not in 0-1";
         }
@@ -697,6 +780,47 @@ public static partial class Content
 
     static string? ForageRefProblem(ForageRef r, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage) =>
         !forage.ContainsKey(r.Table) ? $"no forage table '{r.Table}'" : r.Density <= 0 ? $"forage density {r.Density}" : null;
+
+    /// Everything a carcass can give (Carcasses.Create and the special yields).
+    static readonly Resource[] CarcassYields =
+        [Resource.RawMeat, Resource.RawFat, Resource.Bone, Resource.Sinew, Resource.Hide, Resource.Feather, Resource.Ivory, Resource.MammothHide];
+
+    /// Every table that yields a discrete resource yields whole pieces inside its kind's range.
+    static IEnumerable<string> PieceProblems(IReadOnlyDictionary<Resource, ResourceDef> resources, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage,
+        IReadOnlyList<LocationDef> locations, DiscoveriesFile discoveries, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, FellingFile felling,
+        Dictionary<Resource, double> logKg, Dictionary<Resource, IReadOnlyList<double>> packKg)
+    {
+        IEnumerable<string> Range(string at, Resource r, double lo, double hi) =>
+            resources[r] is { Discrete: true } d && (lo < d.MinPieceKg - 1e-9 || hi > d.MaxPieceKg + 1e-9)
+                ? [$"{at}: a piece of {r} at {lo}-{hi} kg is outside its range, {d.MinPieceKg}-{d.MaxPieceKg} kg (items.json)"] : [];
+        foreach (var (table, rows) in forage)
+            foreach (var i in rows) foreach (var p in Range($"forage.json {table}", i.Resource, i.MinKg, i.MaxKg)) yield return p;
+        foreach (var l in locations)
+            foreach (var f in l.All)
+                switch (f)
+                {
+                    case SiteForage fo: foreach (var i in fo.Items) foreach (var p in Range($"locations.json {l.Id} forage", i.Resource, i.MinKg, i.MaxKg)) yield return p; break;
+                    case SiteStock { Items: { } stock }: foreach (var i in stock) foreach (var p in Range($"locations.json {l.Id} {f.GetType().Name}", i.Resource, i.KgPerUnit, i.KgPerUnit)) yield return p; break;
+                }
+        IEnumerable<FindItem> Flat(IEnumerable<FindItem> items) => items.SelectMany(i => i.Shuffle is { } s ? Flat(s) : [i]);
+        foreach (var (name, d) in discoveries.Finds.Concat(discoveries.Details))
+            foreach (var i in Flat(d.Items ?? []))
+                foreach (var r in i.AnyOf ?? (i.Resource is Resource one ? [one] : []))
+                    foreach (var p in Range($"discoveries.json {name}", r, i.KgPerUnit, i.KgPerUnitMax ?? i.KgPerUnit)) yield return p;
+        IEnumerable<LootRoll> Rolls(IEnumerable<LootRoll> rolls) => rolls.SelectMany(x => x.Of is { } of ? Rolls(of).Prepend(x) : [x]);
+        foreach (var (name, rolls) in loot)
+            foreach (var x in Rolls(rolls))
+                if (x.Resource is Resource r && x.Kg is [var lo, var hi]) foreach (var p in Range($"loot.json {name}", r, lo, hi)) yield return p;
+        foreach (var (wood, kg) in logKg) foreach (var p in Range("terrain.json felling logKg", wood, kg * (1 - felling.LogKgSpreadPct), kg * (1 + felling.LogKgSpreadPct))) yield return p;
+        foreach (var (r, pieces) in new[] { (Resource.Kindling, felling.Kindling), (Resource.Tinder, felling.Tinder) })
+            if (pieces.Kg is [var lo, var hi]) foreach (var p in Range($"terrain.json felling {r}", r, lo, hi)) yield return p;
+        foreach (var (r, pieces) in packKg)
+            foreach (var kg in pieces) foreach (var p in Range("items.json startingPack", r, kg, kg)) yield return p;
+        // A carcass gives its last pieces evenly (Carcasses.TakeReady): that needs a range at least two-fold.
+        foreach (var r in CarcassYields)
+            if (resources[r] is { Discrete: true } d && d.MinPieceKg > d.MaxPieceKg / 2)
+                yield return $"items.json: {r} comes off a carcass, and its pieces need to run from at most half the largest";
+    }
 
     static IEnumerable<string> ForageProblems(IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage)
     {

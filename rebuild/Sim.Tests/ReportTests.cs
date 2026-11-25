@@ -204,7 +204,7 @@ public class ReportTests
         for (int i = 0; i < trees; i++)
         {
             var tree = Pools.Chop(w, id, 10, rng)!;
-            fire += tree.Kg.Sum(x => x.Value / Fire.Props[x.Key].BurnRateKgPerHour);
+            fire += Items.Totals(tree).Sum(x => x.Kg / Fire.Props[x.Resource].BurnRateKgPerHour);
         }
         double mean = fire / trees;
         // Private on the old build, so reached by name; the same call either way.

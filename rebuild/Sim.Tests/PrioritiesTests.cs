@@ -9,7 +9,7 @@ public class PrioritiesTests
     {
         var w = TestWorlds.Bare(17);
         var p = w.Agent(AgentId.Player);
-        Items.Pack(w, AgentId.Player).Kg.Remove(Resource.Water);
+        TestKit.Remove(Items.Pack(w, AgentId.Player), Resource.Water);
         var b = p.Body;
         (b.CoreTempF, b.HydrationMl, b.EnergyMinutes) = (98.6, 0.95 * Body.MaxHydrationMl, Body.MaxEnergyMinutes);
         var fine = Priorities.Of(w, AgentId.Player);

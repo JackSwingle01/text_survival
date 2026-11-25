@@ -77,16 +77,16 @@ public class ScentTests
     {
         var w = TestWorlds.Bare(17);
         var me = w.Agent(AgentId.Player);
-        foreach (var r in Items.Pack(w, me.Id).Kg.Keys.ToList()) Items.Take(Items.Pack(w, me.Id), r, double.MaxValue);
+        foreach (var r in Items.KgByResource(Items.Pack(w, me.Id)).Keys.ToList()) Items.Move(Items.Pack(w, me.Id), new Inventory(), r, double.MaxValue);
         double clean = Scent.Of(w, me);
         Assert.Equal(SpeciesTable.Of(Species.Human).ScentLevel, clean, 6);
         Assert.InRange(clean, 0.01, 0.2); // low for people
 
-        Items.Add(Items.Pack(w, me.Id), Resource.CookedMeat, 1);
+        Items.AddPiece(Items.Pack(w, me.Id), Resource.CookedMeat, 1);
         double meat = Scent.Of(w, me);
         Assert.True(meat > clean + 0.3, $"{meat} carrying cooked meat, {clean} with nothing");
 
-        Items.Take(Items.Pack(w, me.Id), Resource.CookedMeat, 1);
+        Items.Move(Items.Pack(w, me.Id), new Inventory(), Resource.CookedMeat, 1);
         Effects.Add(me.Body, EffectKind.Bleeding, 0.5);
         Assert.True(Scent.Of(w, me) >= 0.9, "bleeding is among the strongest");
     }
@@ -188,9 +188,9 @@ public class ScentTests
         var person = w.Agent(Npc.Spawn(w, T(20)));
         var pack = StarvingPack(w, T(34));
         var pack0 = Items.PackOf(person)!;
-        foreach (var r in pack0.Kg.Keys.ToList()) Items.Take(pack0, r, double.MaxValue);
+        foreach (var r in Items.KgByResource(pack0).Keys.ToList()) Items.Move(pack0, new Inventory(), r, double.MaxValue);
         Assert.False(Senses.Now(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
-        Items.Add(pack0, Resource.CookedMeat, 1);
+        Items.AddPiece(pack0, Resource.CookedMeat, 1);
         Assert.True(Senses.Now(w, pack).Finds(w, person.Tile, Scent.Of(w, person)));
     }
 

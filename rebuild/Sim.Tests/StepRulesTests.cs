@@ -49,7 +49,7 @@ public class StepRulesTests
         {
             // A fresh world each try: a fire that catches ends the tries in that world.
             var world = TestWorlds.Bare(3);
-            Items.Add(Items.Pack(world, P), Resource.Tinder, 5);
+            TestKit.Give(Items.Pack(world, P), Resource.Tinder, 5);
             world.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(i, "ignition trial");
             double kcal = world.Agent(P).Body.CaloriesKcal;
             long minute = world.Minute;

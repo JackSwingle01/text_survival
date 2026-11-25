@@ -54,7 +54,7 @@ public sealed record FullyRested(long Minute, AgentId Who, TileId Tile) : WorldE
 
 public sealed record FireLit(long Minute, FireId Fire, TileId Tile, AgentId By) : WorldEvent(Minute, Tile);
 public sealed record FireStartFailed(long Minute, AgentId Who, TileId Tile, double ChancePct) : WorldEvent(Minute, Tile);
-public sealed record FuelAdded(long Minute, FireId Fire, TileId Tile, AgentId By, Resource Fuel, double Kg) : WorldEvent(Minute, Tile);
+public sealed record FuelAdded(long Minute, FireId Fire, TileId Tile, AgentId By, Resource Fuel, double Kg, int Pieces = 0) : WorldEvent(Minute, Tile);
 public sealed record FireBurnedToEmbers(long Minute, FireId Fire, TileId Tile) : WorldEvent(Minute, Tile);
 /// Embers gone cold, or a torch burned out.
 public sealed record FireDied(long Minute, FireId Fire, TileId Tile) : WorldEvent(Minute, Tile);
@@ -73,13 +73,13 @@ public sealed record TutorialShown(long Minute, AgentId Who, TileId Tile, Tutori
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] double? Kg = null) : WorldEvent(Minute, Tile);
 /// More than the pack could hold: the rest went on the tile's pile.
 public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What) : WorldEvent(Minute, Tile);
-public sealed record PutOnPile(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg) : WorldEvent(Minute, Tile);
+public sealed record PutOnPile(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, int Pieces = 0) : WorldEvent(Minute, Tile);
 /// Taken: by someone whose camp this was not, as it stood when they took it (Journal.IsNotable).
-public sealed record PickedUp(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken) : WorldEvent(Minute, Tile);
+public sealed record PickedUp(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken, int Pieces = 0) : WorldEvent(Minute, Tile);
 /// A hidden pool found by searching. Only this agent now knows it.
 public sealed record PoolDiscovered(long Minute, AgentId Who, PoolId Pool, string Name) : WorldEvent(Minute, Pool.Tile);
 public sealed record TreeFelled(long Minute, AgentId Who, PoolId Pool) : WorldEvent(Minute, Pool.Tile);
-public sealed record Ate(long Minute, AgentId Who, TileId Tile, Resource Food, double Kg, double Kcal) : WorldEvent(Minute, Tile);
+public sealed record Ate(long Minute, AgentId Who, TileId Tile, Resource Food, double Kg, double Kcal, int Pieces = 0) : WorldEvent(Minute, Tile);
 public sealed record Drank(long Minute, AgentId Who, TileId Tile, double Liters) : WorldEvent(Minute, Tile);
 public sealed record Washed(long Minute, AgentId Who, TileId Tile, WashedIn In) : WorldEvent(Minute, Tile);
 public sealed record Butchered(long Minute, AgentId Who, TileId Tile, int Carcass, bool Finished) : WorldEvent(Minute, Tile);

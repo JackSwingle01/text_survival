@@ -229,13 +229,13 @@ public static class Npc
         /// From away, the fire as last seen beside it and the pile as it left it.
         double UsableHoursAt(TileId site)
         {
-            if (Here == site) return Fire.UsableHours(PitHere, PitType.Open, WithPack(PileHere?.Kg), Fire.CanStrike(pack));
+            if (Here == site) return Fire.UsableHours(PitHere, PitType.Open, WithPack(PileHere is { } here ? Items.KgByResource(here) : null), Fire.CanStrike(pack));
             return FireLeftHoursAt(site) + Fire.UsableHours(null, PitType.Open, WithPack(memory.Places.GetValueOrDefault(site)?.Pile), Fire.CanStrike(pack));
         }
 
         Dictionary<Resource, double> WithPack(IReadOnlyDictionary<Resource, double>? pile)
         {
-            var all = new Dictionary<Resource, double>(pack.Kg);
+            var all = new Dictionary<Resource, double>(Items.KgByResource(pack));
             foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) all[r] = all.GetValueOrDefault(r) + kg;
             return all;
         }
@@ -315,7 +315,7 @@ public static class Npc
 
         /// A strike it can make whose fire, by the light forecast, will take a log it carries or left on the pile here.
         bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && Fire.ForecastLight(world, s) is var f
-            && (f.KeepsGoingPct > 0 || PileHere is { } pile && pile.Kg.Any(x => x.Value > DustKg && IsLog(x.Key) && f.Takes(x.Key)));
+            && (f.KeepsGoingPct > 0 || PileHere is { } pile && Items.Totals(pile).Any(x => x.Kg > DustKg && IsLog(x.Resource) && f.Takes(x.Resource)));
 
         /// The fire's site is a one of: the camp, here, or one of the nearest places it remembers trees, by the walk
         /// there plus the tree there. Committing to the plan there moves the camp.
@@ -382,7 +382,7 @@ public static class Npc
             double wantedKg = plan.Leaves.Where(l => l.Tile != Here).Sum(l => l.Kg);
             if (!AtCamp || wantedKg + FullPackKg < RoomKg) return null;
             var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).Concat(Fire.Tinders).Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).ToHashSet();
-            var put = pack.Kg.Where(x => x.Value > DustKg && !kept.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
+            var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !kept.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
             return put is Resource r ? new(new PutDown(Id, r, Items.Have(pack, r)), 1, 1) : null;
         }
 
@@ -508,7 +508,7 @@ public static class Npc
             return null;
         }
 
-        Resource? ReadyFood(Inventory inv) => inv.Kg.Where(x => x.Value > DustKg && FoodResources.Contains(x.Key) && (!Raw.Contains(x.Key) || !BurningHere))
+        Resource? ReadyFood(Inventory inv) => Items.KgByResource(inv).Where(x => x.Value > DustKg && FoodResources.Contains(x.Key) && (!Raw.Contains(x.Key) || !BurningHere))
             .Select(x => x.Key).OrderByDescending(r => Items.Resources[r].KcalPerKg).ThenBy(r => r).Cast<Resource?>().FirstOrDefault();
 
         // ---- building the tree ----
@@ -524,10 +524,10 @@ public static class Npc
         Tree Build(TileId site, IReadOnlyList<Req> reqs)
         {
             var plan = new Tree();
-            var packLeft = new Dictionary<Resource, double>(pack.Kg);
-            var pileLeft = new Dictionary<Resource, double>((Here == site ? PileHere?.Kg : memory.Places.GetValueOrDefault(site)?.Pile) ?? new SortedDictionary<Resource, double>());
+            var packLeft = new Dictionary<Resource, double>(Items.KgByResource(pack));
+            var pileLeft = new Dictionary<Resource, double>((Here == site ? (PileHere is { } p0 ? Items.KgByResource(p0) : null) : memory.Places.GetValueOrDefault(site)?.Pile) ?? new SortedDictionary<Resource, double>());
             // Logs carried go down at camp before a trip: their room counts, wherever the plan is made from.
-            double freeKg = RoomKg + pack.Kg.Where(x => IsLog(x.Key)).Sum(x => x.Value);
+            double freeKg = RoomKg + Items.Totals(pack).Where(x => IsLog(x.Resource)).Sum(x => x.Kg);
             double tripMinutes = 0, awayWanted = 0, awayPlanned = 0;
             foreach (var req in reqs)
             {
@@ -602,7 +602,7 @@ public static class Npc
         {
             var seen = memory.Places.GetValueOrDefault(t);
             double unsure = t == Here ? 0 : Memories.PilePrecisionKg / 2;
-            var pile = t == Here ? PileHere?.Kg : seen?.Pile;
+            var pile = t == Here ? (PileHere is { } p1 ? Items.KgByResource(p1) : null) : seen?.Pile;
             if (t != site && pile != null)
                 foreach (var r in req.AnyOf.Where(r => pile.GetValueOrDefault(r) - unsure > DustKg))
                 {
@@ -692,7 +692,7 @@ public static class Npc
             if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
             {
                 var keep = Fire.Tinders.Append(Resource.Kindling).Append(Resource.Water).Concat(FoodResources).Append(r).ToHashSet();
-                var put = pack.Kg.Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
+                var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
                 return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
             }
             return Sim.Refusal(world, take) == null ? new(take, 1, 1) : null;

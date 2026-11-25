@@ -39,13 +39,86 @@ static class TestKit
         return b;
     }
 
+    /// The pieces today's recipes were written in (recipes.json's header); a resource left out is its range's middle.
+    static readonly Dictionary<Resource, double> NominalKg = new()
+    {
+        [Resource.Stone] = 0.3,
+        [Resource.Flint] = 0.3,
+        [Resource.Pyrite] = 0.1,
+        [Resource.Bone] = 0.3,
+        [Resource.Kindling] = 0.3,
+        [Resource.Pine] = 2.0,
+        [Resource.Birch] = 2.0,
+        [Resource.Oak] = 2.0,
+        [Resource.Sinew] = 0.1,
+        [Resource.Rope] = 0.2,
+        [Resource.Hide] = 1.0,
+        [Resource.ScrapedHide] = 0.8,
+        [Resource.CuredHide] = 0.7,
+        [Resource.RawMeat] = 0.5,
+        [Resource.CookedMeat] = 0.5,
+        [Resource.DriedMeat] = 0.5,
+        [Resource.RawFish] = 0.5,
+        [Resource.CookedFish] = 0.5,
+        [Resource.DriedFish] = 0.5,
+        [Resource.RawFat] = 0.5,
+    };
+
+    /// Kilos of r for setting a scene: an amount of a continuous resource, or as many nominal pieces of a discrete one
+    /// as make those kilos, split evenly (each inside the kind's range; less than the smallest piece gives nothing).
+    public static void Give(Inventory inv, Resource r, double kg)
+    {
+        if (!Items.IsDiscrete(r)) { Items.Add(inv, r, kg); return; }
+        if (kg <= 0) return;
+        var def = Items.Resources[r];
+        double nominal = NominalKg.GetValueOrDefault(r, (def.MinPieceKg + def.MaxPieceKg) / 2);
+        int n = Math.Max(1, (int)Math.Round(kg / nominal, MidpointRounding.AwayFromZero));
+        while (kg / n > def.MaxPieceKg) n++;
+        while (n > 1 && kg / n < def.MinPieceKg) n--;
+        if (kg / n < def.MinPieceKg) return; // less than one piece is none (the property tests draw any kilos)
+        for (int i = 0; i < n; i++) Items.AddPiece(inv, r, kg / n);
+    }
+
+    /// count nominal pieces of a discrete r.
+    public static void GivePieces(Inventory inv, Resource r, int count)
+    {
+        var def = Items.Resources[r];
+        double nominal = Math.Clamp(NominalKg.GetValueOrDefault(r, (def.MinPieceKg + def.MaxPieceKg) / 2), def.MinPieceKg, def.MaxPieceKg);
+        for (int i = 0; i < count; i++) Items.AddPiece(inv, r, nominal);
+    }
+
+    /// What a recipe input asks for, of one of its alternatives.
+    public static void GiveFor(Inventory inv, Resource r, MaterialInput m)
+    {
+        if (Items.IsDiscrete(r)) GivePieces(inv, r, m.Count);
+        else Items.Add(inv, r, m.Kg);
+    }
+
+    /// Whether the pack holds enough for the input, in either of its forms.
+    public static bool Enough(Inventory inv, MaterialInput m) =>
+        m.Discrete().Any() && m.Discrete().Sum(x => Items.Count(inv, x)) >= m.Count
+        || m.Continuous().Any() && m.Continuous().Sum(x => Items.Have(inv, x)) >= m.Kg - 1e-9;
+
+    /// Every resource gone, gear kept.
+    public static void ClearResources(Inventory inv)
+    {
+        inv.Amounts.Clear();
+        inv.Pieces.Clear();
+    }
+
+    public static void Remove(Inventory inv, Resource r)
+    {
+        inv.Amounts.Remove(r);
+        inv.Pieces.Remove(r);
+    }
+
     public static World Supply(World world, AgentId? who = null)
     {
         var pack = Items.Pack(world, who ?? AgentId.Player);
         pack.Gear.Add(Items.Make("fire_striker"));
         for (int i = 0; i < 3; i++) pack.Gear.Add(Items.Make("torch"));
         foreach (var (r, kg) in new[] { (Resource.BirchBark, 1.0), (Resource.Kindling, 10.0), (Resource.Birch, 10.0), (Resource.Pine, 5.0), (Resource.Bone, 2.0) })
-            Items.Add(pack, r, kg);
+            Give(pack, r, kg);
         return world;
     }
 }

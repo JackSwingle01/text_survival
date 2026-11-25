@@ -74,7 +74,9 @@ public class DirtyTests
     {
         var w = Bare();
         var me = w.Agent(P);
-        foreach (var r in Items.Pack(w, P).Kg.Keys.ToList()) Items.Take(Items.Pack(w, P), r, double.MaxValue);
+        var pack = Items.Pack(w, P);
+        foreach (var r in pack.Amounts.Keys.ToList()) Items.Take(pack, r, double.MaxValue);
+        foreach (var r in pack.Pieces.Keys.ToList()) Items.TakePieces(pack, r, int.MaxValue);
         var nose = new Senses(new TileId(me.Tile.X + 3, me.Tile.Y), SightBudgetTiles: 0, SpeciesTable.Of(Species.Wolf).SmellFactor, WindDirection.Calm);
         Effects.Set(me.Body, EffectKind.Dirty, 0);
         Assert.False(nose.Finds(w, me.Tile, Scent.Of(w, me)), "a clean person smelled three tiles off");

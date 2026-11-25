@@ -56,14 +56,14 @@ public class ConservationItemsTests
         var w = Bare(s.TempC);
         var camp = Camp(w);
         var pack = Items.Pack(w, P);
-        pack.Kg.Clear();
-        for (int i = 0; i < PackResources.Length; i++) if (s.PackKg[i] > 0) Items.Add(pack, PackResources[i], s.PackKg[i]);
+        TestKit.ClearResources(pack);
+        for (int i = 0; i < PackResources.Length; i++) if (s.PackKg[i] > 0) TestKit.Give(pack, PackResources[i], s.PackKg[i]);
         pack.Gear.Add(Items.Make("fire_striker"));
         if (s.Knife) pack.Gear.Add(Items.Make("flint_knife"));
         // A spare garment for Wear to swap with what is worn.
         pack.Gear.Add(Items.Make(Items.GearKinds.First(kv => kv.Value.Slot != null).Key));
         for (int i = 0; i < PackResources.Length; i++)
-            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), PackResources[i], s.PileKg[i]);
+            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), PackResources[i], s.PileKg[i]);
 
         long start = Math.Max(s.CarcassAgeMinutes, s.DeadDays * 1440L);
         if (s.DeadDays > 0)
@@ -127,7 +127,8 @@ public class ConservationItemsTests
             // Into the pit what it has room for; the rest stays in the pack (Fire.Start).
             double max = Fire.MaxFuelKg(start.Pit), t0 = before.PitTotalKg;
             double tinder = t0 < max ? Math.Min(start.TinderKg, max - t0) : 0;
-            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Math.Min(start.KindlingKg, max - t0 - tinder) : 0;
+            // Kindling in whole sticks, as many as the pit has room for (Items.Move).
+            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Items.WouldMoveKg(before.Pack, Resource.Kindling, start.KindlingKg, max - t0 - tinder) : 0;
             AddTo(d, start.Tinder, -tinder);
             AddTo(d, Resource.Kindling, -kindling);
         }
@@ -160,7 +161,7 @@ public class ConservationItemsTests
 
     sealed record Before(SortedDictionary<Resource, double> Items, SortedDictionary<string, int> Gear, double PackWaterKg,
         double PitTotalKg, double PitCharcoalKg, List<(Carcass C, Dictionary<Resource, double> Yield)> Carcasses,
-        Dictionary<Carcass, TileId> CarcassTile);
+        Dictionary<Carcass, TileId> CarcassTile, Inventory Pack);
 
     static Before Snapshot(World w)
     {
@@ -176,7 +177,7 @@ public class ConservationItemsTests
                 tiles[c] = tile;
             }
         return new Before(ItemKg(w), GearCount(w), Items.Have(Items.Pack(w, P), Resource.Water),
-            pit == null ? 0 : Fire.TotalKg(pit), pit?.CharcoalKg ?? 0, carcasses, tiles);
+            pit == null ? 0 : Fire.TotalKg(pit), pit?.CharcoalKg ?? 0, carcasses, tiles, Items.CopyResources(Items.Pack(w, P)));
     }
 
     /// Floating-point summation, and one Items.SliverKg a strike: Fire.Start takes a last sliver of
@@ -205,6 +206,7 @@ public class ConservationItemsTests
                     $"op {i} {a} ({step.MinutesElapsed} min, {step.InterruptedReason}): {r} moved {delta:R}, declared {want:R}, leak {delta - want:R}");
             }
             Assert.Equal(before.Gear, GearCount(w));
+            Assert.Null(BrokenPiece(w)); // after any take, drop, burn, eat, cook or butchering, every piece is whole (#142)
             Assert.Empty(notes);
             if (!Sim.IsAlive(player)) return;
         }
@@ -235,7 +237,7 @@ public class ConservationItemsTests
         var w = Bare(5);
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
         for (int i = 0; i < RaidPile.Length; i++)
-            if (s.PileKg[i] > 0) Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
+            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
         Agents.SpawnGroup(w, Species.Raven, tile, s.Members);
         var before = ItemKg(w);
         var gear = GearCount(w);
@@ -251,6 +253,7 @@ public class ConservationItemsTests
         }
         Assert.True(taken <= 0.05 * s.Members * s.Minutes + Tolerance, $"took {taken:R} kg in {s.Minutes} min with {s.Members} members");
         Assert.Equal(gear, GearCount(w));
+        Assert.Null(BrokenPiece(w));
     }
 
     [Fact]
@@ -283,7 +286,7 @@ public class ConservationItemsTests
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(camp, 0));
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("stone_axe"));
-        if (s.FillKg > 0) Items.Add(pack, Resource.Stone, s.FillKg);
+        if (s.FillKg > 0) TestKit.Give(pack, Resource.Stone, s.FillKg);
         w.Minute = 10 * 60; // daylight
         var before = ItemKg(w);
         var gear = GearCount(w);
@@ -298,12 +301,13 @@ public class ConservationItemsTests
         }
         Work.End(w, w.Agent(P), session, events);
         var after = ItemKg(w);
-        foreach (var r in after.Keys.Union(before.Keys).Union(session.Got.Kg.Keys))
+        foreach (var r in after.Keys.Union(before.Keys).Union(Items.KgByResource(session.Got).Keys))
         {
             double delta = after.GetValueOrDefault(r) - before.GetValueOrDefault(r);
             Assert.True(Math.Abs(delta - Items.Have(session.Got, r)) <= Tolerance, $"{r}: got {Items.Have(session.Got, r):R}, items moved {delta:R}");
         }
         Assert.Equal(gear, GearCount(w));
+        Assert.Null(BrokenPiece(w)); // forage, felling and stock yield whole pieces in range (#142)
     }
 
     [Fact]

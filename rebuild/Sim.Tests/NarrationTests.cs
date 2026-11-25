@@ -18,8 +18,10 @@ public class NarrationTests
     {
         var w = Camp(out var camp);
         Assert.Equal("You light a fire.", Narration.ForPlayer(w, new FireLit(0, new FireId(0), camp, P))!.Text);
-        Assert.Equal("You add 1 kg birch to the fire.", Narration.ForPlayer(w, new FuelAdded(0, new FireId(0), camp, P, Resource.Birch, 1))!.Text);
+        // A discrete resource by its count, a continuous one by its amount (#142).
+        Assert.Equal("You add 2 birch logs to the fire.", Narration.ForPlayer(w, new FuelAdded(0, new FireId(0), camp, P, Resource.Birch, 4, 2))!.Text);
         Assert.Equal("You eat 0.5 kg berries.", Narration.ForPlayer(w, new Ate(0, P, camp, Resource.Berries, 0.5, 250))!.Text);
+        Assert.Equal("You eat 120 g berries.", Narration.ForPlayer(w, new Ate(0, P, camp, Resource.Berries, 0.12, 60))!.Text);
         Assert.Equal("You are shivering.", Narration.ForPlayer(w, new EffectStarted(0, P, camp, EffectKind.Shivering))!.Text);
         Assert.Equal("You are no longer wet.", Narration.ForPlayer(w, new EffectEnded(0, P, camp, EffectKind.Wet))!.Text);
         Assert.Equal("The fire goes out.", Narration.ForPlayer(w, new FireDied(0, new FireId(0), camp))!.Text);
@@ -47,7 +49,7 @@ public class NarrationTests
     {
         var w = Camp(out var camp);
         TestKit.Supply(w);
-        Items.Add(Items.Pack(w, P), Resource.Berries, 1);
+        TestKit.Give(Items.Pack(w, P), Resource.Berries, 1);
         var events = new List<WorldEvent>();
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) events.AddRange(Sim.Step(w, light.Activity, 1).Events);

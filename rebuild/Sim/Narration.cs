@@ -77,7 +77,7 @@ public static class Narration
             FullyRested x => ($"{Is(x.Who)} fully rested.", Tone.Good),
             FireLit x => ($"{Does(x.By, "light")} a fire.", Tone.Good),
             FireStartFailed x => ($"The fire will not catch ({Pct(x.ChancePct)} chance).", Tone.Bad),
-            FuelAdded x => ($"{Does(x.By, "add")} {Names.Kg(x.Kg, x.Fuel)} to the fire.", Tone.Plain),
+            FuelAdded x => ($"{Does(x.By, "add")} {Names.Amount(x.Fuel, x.Kg, x.Pieces)} to the fire.", Tone.Plain),
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
@@ -88,15 +88,15 @@ public static class Narration
             Gathered x => x.What.Length > 0 ? ($"{Does(x.Who, "gather")} {Haul(x.What)}.", Tone.Good)
                 : Me(x.Who) && x.Density is double d ? (FailureLine(d, x.Minute), Tone.Bad) : ($"{Does(x.Who, "find")} nothing.", Tone.Bad),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
-            PutOnPile x => ($"{Does(x.Who, "put")} down {Names.Kg(x.Kg, x.Resource)}.", Tone.Plain),
-            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Kg(x.Kg, x.Resource)} from the pile." : $"{Does(x.Who, "pick")} up {Names.Kg(x.Kg, x.Resource)}.",
+            PutOnPile x => ($"{Does(x.Who, "put")} down {Names.Amount(x.Resource, x.Kg, x.Pieces)}.", Tone.Plain),
+            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Amount(x.Resource, x.Kg, x.Pieces)} from the pile." : $"{Does(x.Who, "pick")} up {Names.Amount(x.Resource, x.Kg, x.Pieces)}.",
                 x.Taken ? Tone.Bad : Tone.Plain),
             PoolDiscovered x => (Me(x.Who) && Pools.FoundLine(world, x.Pool) is string found ? found : $"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
             Scavenged x => (x.Animal is Species a ? $"{Does(x.Who, "find")} a {x.Remains} - {Names.Of(a)}. It could be butchered for resources."
                 : $"{Does(x.Who, "find")} some bone fragments.", Tone.Rare),
             TutorialShown x => (Tutorials.Text(x.Tutorial, x.Kg), Tone.Plain),
             TreeFelled => ("The tree comes down.", Tone.Good),
-            Ate x => ($"{Does(x.Who, "eat")} {Names.Kg(x.Kg, x.Food)}.", Tone.Plain),
+            Ate x => ($"{Does(x.Who, "eat")} {Names.Amount(x.Food, x.Kg, x.Pieces)}.", Tone.Plain),
             Washed x => ($"{Does(x.Who, "wash")} {x.In switch { WashedIn.Snow => "with snow", WashedIn.CarriedWater => "with carried water", WashedIn.Water => "in the water", _ => throw new NotSupportedException($"No words for washing in {x.In}") }}, and {(Me(x.Who) ? "are" : "is")} left damp.", Tone.Plain),
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
@@ -187,15 +187,8 @@ public static class Narration
 
     static string Pct(double p) => (p * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 
-    /// Items.Describe's "Kindling 0.3kg, BirchBark 0.05kg, Hand Drill" as "0.3 kg kindling, 0.05 kg birch bark, hand drill".
+    /// Items.Describe's "3 sticks of kindling, 50 g birch bark, Hand Drill" as "3 sticks of kindling, 50 g birch bark, hand drill".
     static string Haul(string what) =>
         string.Join(", ", what.Split(", ", StringSplitOptions.RemoveEmptyEntries).Select(part =>
-        {
-            int sp = part.LastIndexOf(' ');
-            if (sp > 0 && part.EndsWith("kg", StringComparison.Ordinal) && Enum.TryParse<Resource>(part[..sp], out var r) &&
-                double.TryParse(part[(sp + 1)..^2], NumberStyles.Float, CultureInfo.InvariantCulture, out double kg))
-                return Names.Kg(kg, r);
-            return Items.GearKinds.Values.Any(g => g.Name == part) ? part.ToLowerInvariant()
-                : throw new FormatException($"'{part}' in a haul is neither kilos of a resource nor a gear name (Items.Describe)");
-        }));
+            Items.GearKinds.Values.Any(g => g.Name == part) ? part.ToLowerInvariant() : part));
 }

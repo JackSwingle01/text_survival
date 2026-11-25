@@ -415,7 +415,7 @@ public static class Memories
         var carcasses = state?.Carcasses is { Count: > 0 } cs ? cs.Select(c => new SeenCarcass(c.Id, c.Animal)).OrderBy(c => c.Id).ToList() : null;
         SortedDictionary<Resource, double>? pile = null;
         if (state?.Pile is { } st)
-            foreach (var (r, kg) in st.Kg)
+            foreach (var (r, kg) in Items.Totals(st))
                 if (Math.Round(kg / PilePrecisionKg) > 0) (pile ??= [])[r] = Math.Round(kg / PilePrecisionKg) * PilePrecisionKg;
         string? shelter = Shelters.Peek(world, tile)?.Name;
 
@@ -554,7 +554,7 @@ public static class Journal
     public static bool Staked(World world, TileId tile)
     {
         if (tile == Map.Of(world).Camp || Fire.PitAt(world, tile) != null || world.Projects.ContainsKey(tile)) return true;
-        if (world.Tiles.TryGetValue(tile, out var state) && state.Pile is { } pile && (pile.Kg.Count > 0 || pile.Gear.Count > 0)) return true;
+        if (world.Tiles.TryGetValue(tile, out var state) && state.Pile is { } pile && !Items.IsEmpty(pile)) return true;
         if (world.Shelters.TryGetValue(tile, out var shelter) && !Shelters.Kinds[shelter.Kind].IsNatural) return true;
         foreach (var a in world.Agents.Values)
         {

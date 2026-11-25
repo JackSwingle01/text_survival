@@ -153,7 +153,7 @@ public sealed class Fights
                     arm.Muscle.Condition = 0.2; arm.Bone.Condition = 0.5;
                     break;
                 case "bleeding": Effects.Add(b, EffectKind.Bleeding, 0.3); break;
-                case "meat": Items.Add(pack, Resource.RawMeat, 30); break;
+                case "meat": Items.AddPieces(pack, Resource.RawMeat, Enumerable.Repeat(1.0, 30)); break;
                 default: throw new ArgumentException(cond);
             }
             return b;
@@ -196,7 +196,7 @@ public sealed class Fights
         Gear? ArmPlayer()
         {
             var pack = Items.Pack(w, P);
-            pack.Gear.Clear(); pack.Kg.Clear();
+            pack.Gear.Clear(); pack.Amounts.Clear(); pack.Pieces.Clear();
             w.Agent(P).Members[0] = Body_(c.Cond, pack);
             Torch(P);
             return Arm(pack, c.Weapon);

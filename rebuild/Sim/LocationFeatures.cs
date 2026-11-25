@@ -133,7 +133,7 @@ public static class LocationFeatures
         world.Tiles.TryGetValue(tile, out var state) ? PileOf(state, tile) : null;
 
     static LocationFeature? PileOf(TileState state, TileId tile) =>
-        state.Pile is { } s && (s.Kg.Count > 0 || s.Gear.Count > 0) ? new(LocationFeatureKind.Pile, tile, state.PileId ?? LocationFeature.NoId) : null;
+        state.Pile is { } s && !Items.IsEmpty(s) ? new(LocationFeatureKind.Pile, tile, state.PileId ?? LocationFeature.NoId) : null;
 
     public static LocationFeature? ShelterAt(World world, TileId tile) =>
         Shelters.Peek(world, tile) is { } s ? new(LocationFeatureKind.Shelter, tile, s.Id) : null;

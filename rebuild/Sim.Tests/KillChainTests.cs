@@ -30,11 +30,11 @@ public class KillChainTests
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
-        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 1);
         var first = LocationFeatures.PileAt(w, camp)!.Value;
-        Assert.Equal(1, Items.TakeFromPile(w, camp, Resource.Pine, 1));
+        Assert.Equal(1, Items.MoveFromPile(w, camp, new Inventory(), Resource.Pine, 1));
         Assert.False(LocationFeatures.Exists(w, first));
-        Items.Add(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Oak, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Oak, 1);
         var second = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.NotEqual(first, second);
         Assert.False(LocationFeatures.Exists(w, first), "a held ref to the old pile never names the new one");
@@ -545,7 +545,7 @@ public class KillChainTests
         var w = Bare();
         var camp = Map.Of(w).Camp;
         var tile = Map.Step(camp, Direction.West);
-        Items.Add(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
+        TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
         var ravens = Animals.Spawn(w, Species.Raven, tile, 4);
         foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
         Assert.Null(Fauna.Refusal(w, new Raid(ravens)));

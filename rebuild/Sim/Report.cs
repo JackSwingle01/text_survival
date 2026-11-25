@@ -123,8 +123,7 @@ public static class Report
                     break;
                 case SignKind.Pile:
                     var pile = w.Tiles[t].Pile!;
-                    Add(t, "pile", FindCategory.Resource, age, "pile: " + string.Join(", ",
-                        pile.Kg.Select(kv => Invariant($"{kv.Key} {kv.Value:0.##}kg")).Concat(pile.Gear.Select(g => Items.Def(g).Name))), sign.Cause);
+                    Add(t, "pile", FindCategory.Resource, age, "pile: " + Items.Describe(pile), sign.Cause);
                     break;
                 case SignKind.FirePit:
                     var f = w.Fires[new FireId(sign.LocationFeature.Index)];
@@ -217,7 +216,7 @@ public static class Report
         var tile = w.Tiles.GetValueOrDefault(p.Tile);
         foreach (var c in tile?.Carcasses ?? [])
             lines.Add(Invariant($"carcass {c.Id}: {c.Animal}, decay {Carcasses.DecayLevelNow(w, p.Tile, c):P0}, {Carcasses.TotalRemainingKg(c):0.0} kg left"));
-        if (tile?.Pile is { } pile && (pile.Kg.Count > 0 || pile.Gear.Count > 0)) lines.Add($"pile: {Items.Describe(pile)}");
+        if (tile?.Pile is { } pile && !Items.IsEmpty(pile)) lines.Add($"pile: {Items.Describe(pile)}");
         if (Work.HasOpenWater(w, p.Tile)) lines.Add("open water");
         return lines;
     }

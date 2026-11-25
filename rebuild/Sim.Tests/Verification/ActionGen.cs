@@ -89,7 +89,7 @@ static class ActionGen
             var pack = Items.Pack(w, P);
             foreach (var kind in new[] { "flint_knife", "stone_axe", "large_bag", "hide_tent", "wooden_spear" }) pack.Gear.Add(Items.Make(kind));
             foreach (var (r, kg) in new[] { (Resource.RawMeat, 1.5), (Resource.Berries, 0.5), (Resource.Water, 1.0), (Resource.Hide, 2.0), (Resource.Stone, 1.0) })
-                Items.Add(pack, r, kg);
+                TestKit.Give(pack, r, kg);
         }
         if (s.Carcass)
             Combat.LeaveCarcass(w, camp, Species.Caribou, BodyState.Create(SpeciesTable.Of(Species.Caribou).Body, 100, 0.1, 0.4), new Cause(null, "a test"));
@@ -116,7 +116,7 @@ static class ActionGen
         // In a fight, everything but a round is refused: most intents become a round, so fights end.
         if (Combat.EncounterOf(w, P) is Encounter enc && (i.Act == Act.Fight || pick % 4 != 0))
             return FightRound(w, enc, pick);
-        List<Resource> Held(Func<Resource, bool> which) => pack.Kg.Where(kv => kv.Value > 0 && which(kv.Key)).Select(kv => kv.Key).ToList();
+        List<Resource> Held(Func<Resource, bool> which) => Items.KgByResource(pack).Where(kv => kv.Value > 0 && which(kv.Key)).Select(kv => kv.Key).ToList();
         switch (i.Act)
         {
             case Act.Wait: return new Wait(P);
@@ -157,7 +157,7 @@ static class ActionGen
             case Act.PickUp:
                 {
                     var pile = w.Tiles.GetValueOrDefault(tile)?.Pile;
-                    var there = pile?.Kg.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList() ?? [];
+                    List<Resource> there = pile == null ? [] : Items.KgByResource(pile).Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
                     return new PickUp(P, PickOf(there, pick, Resource.Kindling), 0.1 + pick % 5 * 0.3);
                 }
             case Act.Butcher:

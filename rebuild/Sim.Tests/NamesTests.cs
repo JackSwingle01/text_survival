@@ -28,6 +28,18 @@ public class NamesTests
     public void AnAmountTooSmallToRound_ReadsAsLessThanTheLeastShown(double kg, string words) =>
         Assert.Equal(words, Names.Kg(kg));
 
+    /// A discrete resource reads as its count, a continuous one as grams below 500 g and kilos to one decimal above (#142).
+    [Theory]
+    [InlineData(Resource.Stone, 0.9, 3, "3 stones")]
+    [InlineData(Resource.Stone, 0.3, 1, "1 stone")]
+    [InlineData(Resource.Pine, 2.5, 1, "1 pine log")]
+    [InlineData(Resource.PlantFiber, 0.12, 0, "120 g plant fibre")]
+    [InlineData(Resource.PlantFiber, 1.2, 0, "1.2 kg plant fibre")]
+    [InlineData(Resource.PlantFiber, 0.4996, 0, "0.5 kg plant fibre")]
+    [InlineData(Resource.Water, 0.0002, 0, "<1 g water")]
+    public void AnAmount_IsACountOrAWeight_ByTheResourcesForm(Resource r, double kg, int pieces, string words) =>
+        Assert.Equal(words, Names.Amount(r, kg, pieces));
+
     /// names.json must name every value of every table it keeps: a value added in code with no words fails at load.
     [Fact]
     public void EveryValueOfEveryTable_HasWords()

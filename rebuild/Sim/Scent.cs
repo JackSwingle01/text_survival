@@ -35,7 +35,7 @@ public static class Scent
         level += BloodyLevel * Effects.Severity(agent.Body, EffectKind.Bloody);
         level += DirtyLevel * Effects.Severity(agent.Body, EffectKind.Dirty);
         double food = 0;
-        foreach (var (r, kg) in person.Pack.Kg)
+        foreach (var (r, kg) in Items.Totals(person.Pack))
             if (kg > 0) food = Math.Max(food, OfFood(r) * Math.Min(1, kg));
         return Math.Min(1, level + food);
     }

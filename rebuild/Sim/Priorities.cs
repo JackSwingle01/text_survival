@@ -122,8 +122,8 @@ public static class Priorities
         var body = agent.Body;
         var pack = Items.PackOf(agent);
         double waterL = Work.CanDrinkHere(world, agent.Tile) ? double.PositiveInfinity : pack != null ? Items.Have(pack, Resource.Water) : 0;
-        bool food = pack != null && pack.Kg.Any(x => x.Value > 0 && Items.Resources[x.Key].Category == ResourceCategory.Food
-            && x.Key is not (Resource.RawMeat or Resource.RawFish));
+        bool food = pack != null && Items.Totals(pack).Any(x => x.Kg > 0 && Items.Resources[x.Resource].Category == ResourceCategory.Food
+            && x.Resource is not (Resource.RawMeat or Resource.RawFish));
         double hoursLeftToday = (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0;
         return new StatPriorities(
             CorePriority(body.CoreTempF, seeingTo: false),

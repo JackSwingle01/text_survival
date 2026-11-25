@@ -105,7 +105,7 @@ public class OddsTests
                 var w = TestWorlds.Bare(3);
                 ((PersonMind)w.Agent(P).Mind).Skills[Skill.Firecraft] = new SkillProgress { Level = level };
                 if (wet) Effects.Set(w.Agent(P).Body, EffectKind.Wet, 1.0);
-                Items.Add(Items.Pack(w, P), Resource.Tinder, 1);
+                TestKit.Give(Items.Pack(w, P), Resource.Tinder, 1);
                 w.Rngs[StreamName.Of("fire", P)] = Rng.ForSystem(seed, "ignition trial");
                 double sheet = Fire.StartOdds(w, w.Agent(P), ToolType.HandDrill, Resource.Tinder).TotalPct;
                 var failed = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0), 1).Events.OfType<FireStartFailed>().SingleOrDefault();

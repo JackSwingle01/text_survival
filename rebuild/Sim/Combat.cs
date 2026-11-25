@@ -522,7 +522,7 @@ public static partial class Combat
             CombatAction.Throw when Items.Def(unit.Weapon!).Weapon!.Thrown == null => new("That is not made to be thrown."),
             CombatAction.Throw or CombatAction.ThrowStone when zone is not (Zone.Mid or Zone.Far) => new("Requires mid or far range."),
             CombatAction.ThrowStone when zone != Zone.Mid => new("Stones require mid range."),
-            CombatAction.ThrowStone when StonesHeldKg(world, unit) < StoneKg => new("No stones to throw.", new MissingResource(Resource.Stone, StoneKg - StonesHeldKg(world, unit))),
+            CombatAction.ThrowStone when StonesHeldKg(world, unit) <= 0 => new("No stones to throw.", new MissingResource([Resource.Stone], StoneKg, 1)),
             CombatAction.Throw when distance > Items.Def(unit.Weapon!).Weapon!.Thrown!.RangeM => new("Beyond weapon range."),
             CombatAction.ThrowStone when distance > Stone.Thrown!.RangeM => new("Beyond weapon range."),
             _ => null,
@@ -557,7 +557,7 @@ public static partial class Combat
             case CombatAction.Attack: result = Attack(world, enc, unit, target!, events); break;
             case CombatAction.Throw: result = Throw(world, enc, unit, target!, events); break;
             case CombatAction.ThrowStone:
-                Items.Take(Items.PackOf(world.Agent(unit.Agent))!, Resource.Stone, StoneKg);
+                Items.TakePieces(Items.PackOf(world.Agent(unit.Agent))!, Resource.Stone, 1);
                 result = ThrowStone(world, enc, unit, target!, events);
                 break;
             case CombatAction.PickUp:
