@@ -170,7 +170,7 @@ public static class Sim
     static readonly HashSet<string> Finishing =
     [
         Traversal.Arrived, Traversal.CrossedThePassReason,
-        Work.Ate, Work.Drank, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason, Work.WalkedAbout,
+        Work.Ate, Work.Drank, Work.WashedReason, Work.CookedReason, Work.Melted, Work.TreeFelled, Work.ButcheredReason, Work.WalkedAbout,
         Shelters.BuiltReason, Shelters.Packed, Shelters.AsGoodAsItGets,
         Making.MadeIt, Making.Spoiled,
         Fire.DidNotCatch, // the strike was made and failed: the attempt is over
@@ -369,7 +369,7 @@ public static class Sim
         {
             Sleep => (0.5, 2.0, true, true),
             Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Wear or TakeOff => (1.0, 2.0, false, true),
-            Eat or Drink or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, tending the fire
+            Eat or Drink or Wash or Cook or MeltSnow => (1.0, 2.0, false, true), // eating, washing, tending the fire
             ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat
             // Basal only: a fight's strikes, dodges, steps and sprints pay their own work as they happen (Body.Burst,
@@ -387,7 +387,7 @@ public static class Sim
         {
             Sleep or Rest => SurfaceContact.RestingOnGround,
             Gather when gathering is StockPool { Kind: StockKind.Detail } => SurfaceContact.RestingOnGround,
-            StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Cook or MeltSnow or Butcher => SurfaceContact.WorkingOnGround,
+            StartFire or AddFuel or LightTorch or GatherCharcoal or Eat or Drink or Wash or Cook or MeltSnow or Butcher => SurfaceContact.WorkingOnGround,
             _ => SurfaceContact.Walking,
         };
         return new Hold(activityFactor, fireProximityFactor, sleeping, stationary, contact);

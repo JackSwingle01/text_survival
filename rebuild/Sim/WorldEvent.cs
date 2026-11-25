@@ -32,6 +32,7 @@ namespace Survival;
 [JsonDerivedType(typeof(TreeFelled), "treefelled")]
 [JsonDerivedType(typeof(Ate), "ate")]
 [JsonDerivedType(typeof(Drank), "drank")]
+[JsonDerivedType(typeof(Washed), "washed")]
 [JsonDerivedType(typeof(Butchered), "butchered")]
 [JsonDerivedType(typeof(Killed), "killed")]
 [JsonDerivedType(typeof(EncounterEnded), "encounterended")]
@@ -80,6 +81,7 @@ public sealed record PoolDiscovered(long Minute, AgentId Who, PoolId Pool, strin
 public sealed record TreeFelled(long Minute, AgentId Who, PoolId Pool) : WorldEvent(Minute, Pool.Tile);
 public sealed record Ate(long Minute, AgentId Who, TileId Tile, Resource Food, double Kg, double Kcal) : WorldEvent(Minute, Tile);
 public sealed record Drank(long Minute, AgentId Who, TileId Tile, double Liters) : WorldEvent(Minute, Tile);
+public sealed record Washed(long Minute, AgentId Who, TileId Tile, WashedIn In) : WorldEvent(Minute, Tile);
 public sealed record Butchered(long Minute, AgentId Who, TileId Tile, int Carcass, bool Finished) : WorldEvent(Minute, Tile);
 
 /// An animal member died on Tile: a carcass of this species and mass. By struck the blow; null if it bled out.
