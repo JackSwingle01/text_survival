@@ -20,6 +20,9 @@
 // terrains, cave: the draws, in order. Each entry is there on its spawnChance and found after about
 //   expectedHours of searching. An entry that waitsFor a system not built yet (small game, events)
 //   still takes its turn, so the draw is the old one, and leaves nothing.
+// cavePerMap: finds no map goes without. Where the cave draws left a map fewer than atLeast of one, the
+//   rest are dealt onto cave floors that have no named site, one to a floor, and found after about
+//   expectedHours of searching there.
 // detailDraws: the details each terrain can have (a name twice is twice as likely); examineOnly are
 //   the ones with nothing to take, which only ever told a story and leave nothing.
 {
@@ -319,6 +322,10 @@
   { "find": "CaveSeep", "spawnChance": 0.06, "expectedHours": 0.7 },
   { "find": "SleepingRecess", "spawnChance": 0.05, "expectedHours": 1.0 },
   { "find": "ObsidianSeam", "spawnChance": 0.04, "expectedHours": 0.6 }
+ ],
+
+ "cavePerMap": [
+  { "find": "ObsidianSeam", "atLeast": 1, "expectedHours": 0.6 }
  ],
 
  "detailDraws": {

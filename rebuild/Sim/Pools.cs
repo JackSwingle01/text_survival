@@ -70,8 +70,11 @@ public sealed record FindItem(Resource? Resource = null, IReadOnlyList<Resource>
 /// One entry of a discovery draw: a find, or a place held for a system not built yet (WaitsFor).
 public sealed record DiscoveryDraw(double SpawnChance, double ExpectedHours, string? Find = null, string? WaitsFor = null);
 
+/// A find no map has fewer than AtLeast of: what the cave draws left short is dealt onto bare cave floors, found after about ExpectedHours of searching.
+public sealed record DealtFind(string Find, int AtLeast, double ExpectedHours);
+
 public sealed record DiscoveryTables(IReadOnlyDictionary<string, FindDef> Finds, IReadOnlyDictionary<string, FindDef> Details,
-    IReadOnlyDictionary<Terrain, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
+    IReadOnlyDictionary<Terrain, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave, IReadOnlyList<DealtFind> CavePerMap,
     IReadOnlyDictionary<Terrain, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
 
 /// What drawing from a pool has changed. Only pools something has worked are stored.
@@ -140,15 +143,52 @@ public static class Pools
 
     internal static IReadOnlyList<PoolDef> Generate(int seed, GeneratedMap m, TileId tile)
     {
+        var (pools, rng) = Drawn(seed, m, tile);
+        // Last, so a dealt find moves none of the tile's other draws.
+        foreach (var dealt in DealtFinds(seed, m).GetValueOrDefault(tile) ?? [])
+            pools.Add(Hidden(Make(Finds.Finds[dealt.Find], rng!, 0), RevealAt(rng!, dealt.ExpectedHours))!);
+        return pools;
+    }
+
+    /// The cavePerMap finds the map's own draws left it short of, each on a cave floor with no site, on a stream
+    /// of its own. Worked out once per map, from every cave tile's draws.
+    static IReadOnlyDictionary<TileId, IReadOnlyList<DealtFind>> DealtFinds(int seed, GeneratedMap m)
+    {
+        if (m.DealtFinds is { } known) return known;
+        var dealt = new Dictionary<TileId, IReadOnlyList<DealtFind>>();
+        if (Finds.CavePerMap.Count > 0)
+        {
+            var caves = new List<TileId>();
+            for (int x = 0; x < m.Width; x++)
+                for (int y = 0; y < m.Height; y++)
+                    if (m.CaveAt(new(x, y)) != Cave.None) caves.Add(new(x, y));
+            var drawn = caves.SelectMany(t => Drawn(seed, m, t).Pools).Select(p => p.Name).ToList();
+            foreach (var find in Finds.CavePerMap)
+            {
+                var rng = Rng.ForSystem(seed, $"per map {find.Find}");
+                var free = caves.Where(t => m.CaveAt(t) == Cave.Floor && m.SiteAt(t) == null && !dealt.ContainsKey(t)).ToList();
+                for (int have = drawn.Count(n => n == Finds.Finds[find.Find].Name); have < find.AtLeast && free.Count > 0; have++)
+                {
+                    int at = rng.NextInt(free.Count);
+                    dealt[free[at]] = [find];
+                    free.RemoveAt(at);
+                }
+            }
+        }
+        return m.DealtFinds = dealt;
+    }
+
+    static (List<PoolDef> Pools, Rng? Rng) Drawn(int seed, GeneratedMap m, TileId tile)
+    {
         var pools = new List<PoolDef>();
-        if (!m.InBounds(tile) || !m.TerrainAt(tile).IsPassable()) return pools;
+        if (!m.InBounds(tile) || !m.TerrainAt(tile).IsPassable()) return (pools, null);
         var rng = Rng.ForSystem(seed, $"pools {TileIdConverter.Format(tile)}");
         var terrain = m.TerrainAt(tile);
 
         if (tile == m.Camp)
         {
             pools.Add(new ForagePool("forage", 0.38, MixedForest));
-            return pools;
+            return (pools, rng);
         }
         // A named place carries its own content; open-land sites also keep the terrain's hidden finds and
         // cave sites the passage's, skipping what the site already has.
@@ -158,20 +198,20 @@ public static class Pools
             if (site.Placement == Placement.Named) pools.AddRange(Discoveries(terrain, rng));
             else if (site.Placement == Placement.Cave)
                 pools.AddRange(CaveDiscoveries(rng).Where(d => pools.All(p => p.Name != d.Name) && site.All.OfType<SiteShelter>().All(s => s.Name != d.Name)));
-            return pools;
+            return (pools, rng);
         }
         if (m.CaveAt(tile) != Cave.None)
         {
             var forage = m.CaveAt(tile).Row().Forage;
             pools.Add(new ForagePool("forage", forage.Density, ForageTables[forage.Table]));
             pools.AddRange(CaveDiscoveries(rng));
-            return pools;
+            return (pools, rng);
         }
         pools.Add(TerrainForage(terrain, rng));
         if (terrain.Row().Trees is TreeRow trees) pools.Add(new TreePool(trees.Name, null, trees.MinutesToFell));
         pools.AddRange(Details(terrain, rng));
         pools.AddRange(Discoveries(terrain, rng));
-        return pools;
+        return (pools, rng);
     }
 
     static ForagePool TerrainForage(Terrain terrain, Rng rng)
@@ -304,18 +344,19 @@ public static class Pools
         {
             if (rng.NextDouble() >= t.SpawnChance) continue;
             var made = t.Find is string id ? Make(Finds.Finds[id], rng, 0) : null;
-            double reveal = RevealAt(rng, t.ExpectedHours);
-            switch (made)
-            {
-                case StockPool stock: yield return stock with { RevealAtHours = reveal }; break;
-                case ShelterFind find: yield return find with { RevealAtHours = reveal }; break;
-                case CarcassFind find: yield return find with { RevealAtHours = reveal }; break;
-                case PileFind find: yield return find with { RevealAtHours = reveal }; break;
-                case null: break;
-                default: throw new InvalidOperationException($"No reveal for a {made.GetType().Name}");
-            }
+            if (Hidden(made, RevealAt(rng, t.ExpectedHours)) is { } hidden) yield return hidden;
         }
     }
+
+    static PoolDef? Hidden(PoolDef? made, double reveal) => made switch
+    {
+        StockPool stock => stock with { RevealAtHours = reveal },
+        ShelterFind find => find with { RevealAtHours = reveal },
+        CarcassFind find => find with { RevealAtHours = reveal },
+        PileFind find => find with { RevealAtHours = reveal },
+        null => null,
+        _ => throw new InvalidOperationException($"No reveal for a {made.GetType().Name}"),
+    };
 
     /// How high a find stands, for how far snow buries it: a bush, a salvage pile, a detail on the ground.
     static double PlacementHeightM(StockKind kind) => kind switch { StockKind.Salvage => 0.3, StockKind.Detail => 0.25, _ => 0.6 };
@@ -535,7 +576,7 @@ public static class Pools
         var m = Map.Of(world);
         var draws = m.CaveAt(tile) != Cave.None && m.SiteAt(tile)?.Placement != Placement.Named ? Finds.Cave
             : Finds.Terrains.GetValueOrDefault(m.TerrainAt(tile)) ?? [];
-        return draws.Count == 0 ? 1 : draws.Max(d => d.ExpectedHours);
+        return draws.Select(d => d.ExpectedHours).Concat((DealtFinds(world.Seed, m).GetValueOrDefault(tile) ?? []).Select(d => d.ExpectedHours)).DefaultIfEmpty(1).Max();
     }
 
     /// A forecast: the kg of each resource searching here for the minutes given (each worth effectivePct of a minute's

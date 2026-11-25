@@ -80,23 +80,26 @@ public class MapTests
     // Old GridWorldGenerator.Generate's named places (tmp harness p4a/oldplace): every tile that is not
     // plain terrain, the camp or a cave mouth, x-major, as "x,y,Name|" hashed FNV-1a by char - the open-land
     // sites, the cave sites and the pass stages, each the old one on the old tile.
-    public static readonly TheoryData<int, int, string> OldSites = new()
+    // addedOutcrop: the old deal gave the seed no Obsidian Outcrop, so the one it has is the one every map is
+    // owed (locations.json atLeast); it is left out of the rows, and the rest are the old sites untouched.
+    public static readonly TheoryData<int, int, string, bool> OldSites = new()
     {
-        { 1, 99, "1700e032cfe3c77b" },
-        { 17, 108, "c7f17a7897f594e1" },
-        { 2048, 102, "77a610aa69ddb41" }, // the Shale Outcrop renamed the Obsidian Outcrop (#145), on the same tile
-        { 91237, 93, "81d4b0066110062c" },
-        { 42, 110, "b04bbb6ef5c90d08" },
+        { 1, 99, "1700e032cfe3c77b", true },
+        { 17, 108, "c7f17a7897f594e1", true },
+        { 2048, 102, "77a610aa69ddb41", false }, // the Shale Outcrop renamed the Obsidian Outcrop (#145), on the same tile
+        { 91237, 93, "81d4b0066110062c", true },
+        { 42, 110, "b04bbb6ef5c90d08", true },
     };
 
     [Theory, MemberData(nameof(OldSites))]
-    public void Generate_NamedPlacesMatchOldExactly(int seed, int count, string hash)
+    public void Generate_NamedPlacesMatchOldExactly(int seed, int count, string hash, bool addedOutcrop)
     {
         var m = Map.Generate(seed);
         var rows = new List<string>();
         for (int x = 0; x < m.Width; x++)
             for (int y = 0; y < m.Height; y++)
                 if (m.SiteAt(new(x, y)) is { } site) rows.Add($"{x},{y},{site.Name}");
+        if (addedOutcrop) Assert.Equal(1, rows.RemoveAll(r => r.EndsWith(",Obsidian Outcrop")));
         ulong h = 14695981039346656037;
         foreach (char c in string.Concat(rows.Select(r => r + "|"))) { h ^= c; h *= 1099511628211; }
         Assert.Equal((count, hash), (rows.Count, h.ToString("x")));
@@ -400,5 +403,49 @@ public class MapTests
 
         var herd = new Agent { Id = new AgentId(5), Tile = Map.Of(world).Camp, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
         Assert.Throws<InvalidOperationException>(() => herd.Body);
+    }
+
+    static List<TileId> Outcrops(GeneratedMap m) => [.. m.Sites.Where(s => s.Value.Id == "obsidian_outcrop").Select(s => s.Key)];
+
+    static int Seams(int seed, GeneratedMap m) =>
+        Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .Where(t => m.CaveAt(t) != Cave.None).Sum(t => Pools.Generate(seed, m, t).Count(p => p.Name == "Obsidian Seam"));
+
+    [Fact]
+    public void EveryMap_HasAnObsidianOutcropWithItsGlass_AndAnObsidianSeam()
+    {
+        for (int seed = 1; seed <= 25; seed++)
+        {
+            var m = Map.Generate(seed);
+            var outcrops = Outcrops(m);
+            Assert.True(outcrops.Count >= 1, $"seed {seed}: no obsidian outcrop");
+            Assert.All(outcrops, t => Assert.Contains(Pools.Generate(seed, m, t).OfType<ForagePool>(), f => f.Items.Any(i => i.Resource == Resource.Obsidian)));
+            Assert.True(Seams(seed, m) >= 1, $"seed {seed}: no obsidian seam");
+        }
+    }
+
+    /// Seed 1's weighted deal leaves it no outcrop, so its one outcrop is the added one.
+    [Fact]
+    public void TheAddedOutcrop_IsOnRock_AndTheSameEveryTime()
+    {
+        var m = TestWorlds.Map(1);
+        var outcrop = Assert.Single(Outcrops(m));
+        Assert.Equal(Terrain.Rock, m.TerrainAt(outcrop));
+        Assert.Equal(outcrop, Assert.Single(Outcrops(Map.Generate(1))));
+    }
+
+    /// Seed 170's cave draws leave it no seam, so its one seam is the dealt one.
+    [Fact]
+    public void TheDealtSeam_IsHiddenOnABareCaveFloor()
+    {
+        const int seed = 170;
+        var m = TestWorlds.Map(seed);
+        var floor = Enumerable.Range(0, m.Width).SelectMany(x => Enumerable.Range(0, m.Height).Select(y => new TileId(x, y)))
+            .Single(t => m.CaveAt(t) != Cave.None && Pools.Generate(seed, m, t).Any(p => p.Name == "Obsidian Seam"));
+        Assert.Equal(Cave.Floor, m.CaveAt(floor));
+        Assert.Null(m.SiteAt(floor));
+        var seam = Assert.IsType<StockPool>(Pools.Generate(seed, m, floor).Single(p => p.Name == "Obsidian Seam"));
+        Assert.True(seam.RevealAtHours > 0);
+        Assert.InRange(seam.Items.Single().Units, 2, 3);
     }
 }

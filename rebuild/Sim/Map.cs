@@ -129,6 +129,8 @@ public sealed class GeneratedMap(int width, int height, Terrain[,] terrain, Cave
     public IReadOnlyCollection<TileId> Pass => _pass;
     public LocationDef? SiteAt(TileId t) => StageAt(t) ?? _sites.GetValueOrDefault(t);
     public IReadOnlyDictionary<TileId, LocationDef> Sites => _sites;
+    /// Pools' own note of the finds it dealt this map (Pools.DealtFinds); the same for a seed whoever works it out.
+    internal IReadOnlyDictionary<TileId, IReadOnlyList<DealtFind>>? DealtFinds { get; set; }
     public EdgeType? EdgeBetween(TileId a, TileId b) => edges.TryGetValue(MapGen.EdgeKey(a, b), out var e) ? e : null;
 
     /// Map.BaseTraversalMinutes by tile, 0 until first read: a pure function of the map, read on every crossing

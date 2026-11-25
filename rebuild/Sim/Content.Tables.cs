@@ -79,7 +79,7 @@ public static partial class Content
     sealed record FellingFile(Pieces Firewood, Dictionary<string, double> FirewoodKg, double FirewoodKgSpreadPct, Dictionary<string, double> MixedWood,
         Pieces Sticks, Pieces Tinder);
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
-        Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
+        Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave, IReadOnlyList<DealtFind> CavePerMap,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
     sealed record ForagingFile(IReadOnlyList<QualityRow> Quality, IReadOnlyList<FailureRow> Failures, Dictionary<string, string> Luck,
         Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
@@ -204,7 +204,7 @@ public static partial class Content
             terrain.WaterIce,
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
-                ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
+                ReadOnly(draws), discoveries.Cave, discoveries.CavePerMap, ReadOnly(detailDraws), discoveries.ExamineOnly),
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
             makeRecipes, ReadOnly(names), ReadOnly(pieceWords),
             new ForagingTables(foraging.Quality, foraging.Failures, ReadOnly(luck), ReadOnly(hints), foraging.Clues, ReadOnly(tutorials), foraging.SearchBands));
@@ -918,6 +918,11 @@ public static partial class Content
                 if (d.Find != null && !f.Finds.ContainsKey(d.Find)) yield return $"discoveries.json {where}: no find '{d.Find}'";
                 if (d.SpawnChance is <= 0 or > 1 || d.ExpectedHours <= 0) yield return $"discoveries.json {where}: {d.Find ?? d.WaitsFor} chance or hours";
             }
+        foreach (var d in f.CavePerMap)
+        {
+            if (!f.Finds.ContainsKey(d.Find)) yield return $"discoveries.json cavePerMap: no find '{d.Find}'";
+            if (d.AtLeast < 1 || d.ExpectedHours <= 0) yield return $"discoveries.json cavePerMap: {d.Find} atLeast or hours";
+        }
         foreach (var (t, ids) in detailDraws)
             foreach (var id in ids)
                 if (!f.Details.ContainsKey(id) && !f.ExamineOnly.Contains(id)) yield return $"discoveries.json detailDraws {t}: no detail '{id}'";
@@ -1037,7 +1042,7 @@ public static partial class Content
     {
         var forageUsed = terrain.Terrains.Values.Select(t => t.Forage?.Table).Concat(terrain.Caves.Values.Select(c => c.Forage.Table)).Concat(CodeForage).ToHashSet();
         foreach (var name in forage.Keys) if (!forageUsed.Contains(name)) yield return $"forage.json {name}: no terrain or cave forages it";
-        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find)
+        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find).Concat(discoveries.CavePerMap.Select(d => d.Find))
             .Concat(locations.SelectMany(l => l.All.OfType<SiteFind>()).Select(s => s.Find)).ToHashSet();
         foreach (var id in discoveries.Finds.Keys) if (!findsUsed.Contains(id)) yield return $"discoveries.json finds {id}: no draw finds it";
         var detailsUsed = discoveries.DetailDraws.Values.SelectMany(d => d).ToHashSet();

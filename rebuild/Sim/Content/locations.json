@@ -9,6 +9,7 @@
 // features: forage, trees and stock become the tile's pools (forage always first: pool 0 is a tile's
 // forage). water, smallGame, shelter, cache and event are carried for systems that do not exist yet.
 // chance: the odds generation puts the feature there. revealAtHours: 0 is in plain sight.
+// atLeast: no map has fewer of this named place; MapGen adds what the weighted deal left short.
 {
  "locations": [
   {
@@ -1407,6 +1408,7 @@
    "name": "Obsidian Outcrop",
    "placement": "Named",
    "weight": 3,
+   "atLeast": 1,
    "terrain": [ "Rock" ],
    "tags": "[Rock] [Stone] [Exposed]",
    "discoveryText": "Dark rock, split by frost into sharp-edged sheets. In places it is black glass, sharper than any flint.",
@@ -1424,10 +1426,9 @@
     },
     {
      "kind": "forage",
-     "chance": 0.3,
-     "density": 0.6,
+     "density": 1.0,
      "items": [
-      { "resource": "Obsidian", "abundance": 0.6, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "Obsidian", "abundance": 0.45, "minKg": 0.1, "maxKg": 0.3 }
      ]
     }
    ]

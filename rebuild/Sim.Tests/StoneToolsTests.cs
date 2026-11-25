@@ -205,15 +205,14 @@ public class StoneToolsTests
     }
 
     [Fact]
-    public void NoTableNamesShale_AndObsidianLies_OnlyInTheCaveFindAndTheRareOutcrop()
+    public void NoTableNamesShale_AndObsidianLies_OnlyInTheCaveFindAndTheOutcrop()
     {
         Assert.DoesNotContain("Shale", Enum.GetNames<Resource>());
         var obsidian = Sources().Where(s => s.Resource == Resource.Obsidian).Select(s => s.Where).ToHashSet();
         Assert.Equal(new HashSet<string> { "find ObsidianSeam", "obsidian_outcrop" }, obsidian);
         Assert.Contains(Content.Tables.Discoveries.Cave, d => d.Find == "ObsidianSeam");
-        // Rare: the glass shows at only some of the outcrops, so the valley's maps are drawn as before.
         var outcrop = Assert.Single(Content.Locations, l => l.Id == "obsidian_outcrop");
         var glass = Assert.Single(outcrop.All.OfType<SiteForage>(), f => f.Items.Any(i => i.Resource == Resource.Obsidian));
-        Assert.True(glass.Chance <= 0.5, $"obsidian at {glass.Chance:P0} of the outcrops");
+        Assert.Equal(1, glass.Chance);
     }
 }
