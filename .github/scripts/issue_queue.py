@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 REPO = os.environ["GITHUB_REPOSITORY"]
 NEEDS_USER = "needs-user"
@@ -36,11 +37,34 @@ TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 RATCHET_BOT, RATCHET_LABEL = "github-actions[bot]", "ratchet"
 
 
+# GitHub's own failures, as the gh CLI words them on stderr: a 5xx status, or no answer at all.
+# A 4xx is an answer (a missing blocked-by endpoint, a refusal) and is never retried.
+TRANSIENT = re.compile(
+    r"HTTP 5\d\d|Bad Gateway|Something went wrong|timeout|timed out|connection re(set|fused)|EOF|TLS handshake",
+    re.IGNORECASE,
+)
+# Seconds to wait before each further try. GitHub's API failed for minutes on 2026-11-25, and one
+# failed lookup ended the build's Report step before it had commented on the issue.
+RETRY_WAITS = (5, 15, 45)
+
+
+def gh_api(path, sleep=time.sleep):
+    """`gh api --paginate` output, tried again while GitHub itself is failing."""
+    for wait in (*RETRY_WAITS, None):
+        try:
+            return subprocess.run(
+                ["gh", "api", "--paginate", path], check=True, capture_output=True, text=True
+            ).stdout
+        except subprocess.CalledProcessError as e:
+            if wait is None or not TRANSIENT.search(e.stderr or ""):
+                raise
+            print(f"{path}: {e.stderr.strip()}; trying again in {wait}s", file=sys.stderr)
+            sleep(wait)
+
+
 def api(path):
     """Every item of a (paginated) list endpoint, or the single object of an item endpoint."""
-    out = subprocess.run(
-        ["gh", "api", "--paginate", path], check=True, capture_output=True, text=True
-    ).stdout
+    out = gh_api(path)
     # --paginate concatenates one JSON document per page.
     docs, decoder, i = [], json.JSONDecoder(), 0
     while i < len(out):

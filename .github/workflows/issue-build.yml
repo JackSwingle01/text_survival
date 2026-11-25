@@ -48,6 +48,12 @@ name: Issue build
 # workflows to run" in the PR's merge box starts CI and Claude Review (the PR body says so).
 # Interim, until the PR is opened by an app whose PRs start CI without approval.
 #
+# GitHub failing. Its API answers 5xx for minutes at a time (2026-11-25: a built #189 was left with a
+# pushed branch, no PR, no labels and no comment, and the next run was not dispatched). The queue's
+# lookups (issue_queue.py) try a 5xx again themselves, and the calls that publish a build or move the
+# queue go through .github/scripts/retry.sh: four tries over two minutes. Past that, Report still
+# parks the issue with what it knows, and the hourly run restarts the chain.
+#
 # Cancelling a run stops the queue: a cancelled build parks nothing (its issue keeps `ready-for-agent`)
 # and the run dispatches no next one. The hourly run, or the next dispatch, picks up from there.
 #
@@ -114,7 +120,7 @@ jobs:
           done
           # A build branches from main, so while main's CI is red (ci.yml keeps a `main-red` issue open)
           # its PR would carry the red check: nothing is built. The hourly run resumes once it is closed.
-          red=$(gh issue list --state open --label main-red --limit 1 --json number --jq '.[0].number // empty')
+          red=$(.github/scripts/retry.sh gh issue list --state open --label main-red --limit 1 --json number --jq '.[0].number // empty')
           if [ -n "$red" ]; then
             echo "main's CI is red (#$red): no build starts until that issue is closed." | tee -a "$GITHUB_STEP_SUMMARY"
             echo "issues=[]" >> "$GITHUB_OUTPUT"
@@ -329,11 +335,25 @@ jobs:
           # Often the build pushed its branch before its token expired and only `gh pr create` was
           # refused. Then there is nothing to push: open the PR, and leave any conflict with a main that
           # moved during the build to the PR, where it is resolved like any other.
+          # A try GitHub answered with a 5xx may have opened the PR all the same, and a second
+          # `gh pr create` would then be refused: look for it before each further try.
+          open_pr() {
+            local wait
+            for wait in 10 30 90 0; do
+              gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body" && return 0
+              if [ -n "$(gh pr list --head "$BRANCH" --state open --json url --jq '.[0].url // empty' || true)" ]; then
+                echo "The PR is open: the try that failed had opened it."
+                return 0
+              fi
+              if [ "$wait" != 0 ]; then echo "Trying again in ${wait}s."; sleep "$wait"; fi
+            done
+            return 1
+          }
           pushed=$(git "${nocreds[@]}" ls-remote "$remote" "refs/heads/$BRANCH" | cut -f1)
           if [ "$pushed" = "$(git rev-parse HEAD)" ]; then
             echo "The build pushed $BRANCH already; opening the PR only."
-            gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
-            exit 0
+            open_pr
+            exit
           fi
           # GitHub refuses a push with this token whenever the branch's workflow files differ from main's
           # (it has no `workflows` permission), and that includes a branch merely behind a main whose
@@ -352,8 +372,8 @@ jobs:
             echo "::error::The build changed workflow files ($changed), which this token can't push. Push it by hand from the issue-$ISSUE-work artifact."
             exit 1
           fi
-          git "${nocreds[@]}" push "$remote" "HEAD:refs/heads/$BRANCH"
-          gh pr create --base main --head "$BRANCH" --title "$title" --body-file "$body"
+          .github/scripts/retry.sh git "${nocreds[@]}" push "$remote" "HEAD:refs/heads/$BRANCH"
+          open_pr
 
       # The work is kept even when no PR came of it: pr/work.patch (the commits, for `git am`),
       # pr/uncommitted.diff, pr/branch.txt, pr/title.txt, pr/body.md.
@@ -426,26 +446,36 @@ jobs:
           IMPLEMENT: ${{ steps.implement.outcome }}
           OUTPUT: ${{ steps.implement.outputs.structured_output }}
         run: |
-          set -uo pipefail
-          gh issue edit "$ISSUE" --remove-label ready-for-agent || true
-          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE")
+          # No -e (the default shell has it): a call GitHub fails must not end the step before the
+          # issue is parked. On 2026-11-25 the PR lookup failed here, and #189 got no comment and no label.
+          set +e -uo pipefail
+          retry=.github/scripts/retry.sh
+          "$retry" gh issue edit "$ISSUE" --remove-label ready-for-agent
+          looked=true
+          pr=$(python3 .github/scripts/issue_queue.py pr "$ISSUE") || looked=false
           if [ -n "$pr" ]; then
             echo "Opened $pr" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ -n "${OUTPUT:-}" ] && [ "$(jq -r '.outcome' <<< "$OUTPUT")" = "built" ]; then
+          built=false
+          if [ -n "${OUTPUT:-}" ] && [ "$(jq -r '.outcome' <<< "$OUTPUT")" = "built" ]; then built=true; fi
+          if [ "$looked" = false ] && [ "$built" = true ]; then
+            note="Built and tested, but GitHub's API was failing, so whether the PR opened could not be checked. If the branch is pushed with no PR, open it from the title and body in the run's issue-$ISSUE-work artifact; the queue skips an issue that has a branch."
+          elif [ "$built" = true ]; then
             note="Built and tested, but publishing the PR failed. The commits and PR text are in the run's issue-$ISSUE-work artifact."
           elif [ -n "${OUTPUT:-}" ]; then note=$(jq -r '.note' <<< "$OUTPUT")
           else note="The build ended ($IMPLEMENT) without a pull request."; fi
           jq -rn --arg run "$RUN_URL" --arg note "$note" --arg artifact "issue-$ISSUE-work" \
             '$note + " Work so far: the `" + $artifact + "` artifact." + "\n\n<sub>[Issue build](" + $run + ") · remove `needs-user` to requeue</sub>"' > comment.md
-          gh issue comment "$ISSUE" --body-file comment.md
-          gh issue edit "$ISSUE" --add-label needs-user
           cat comment.md >> "$GITHUB_STEP_SUMMARY"
+          failed=0
+          "$retry" gh issue comment "$ISSUE" --body-file comment.md || failed=1
+          "$retry" gh issue edit "$ISSUE" --add-label needs-user || failed=1
+          exit "$failed"
 
       - name: Clear working
         if: always()
-        run: gh issue edit "$ISSUE" --remove-label agent-working || true
+        run: .github/scripts/retry.sh gh issue edit "$ISSUE" --remove-label agent-working || true
 
       - name: Stop the queue
         if: always() && steps.plan.outputs.stop == 'true'
@@ -476,7 +506,7 @@ jobs:
       - name: Dispatch the next run
         run: |
           set -euo pipefail
-          stopped=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
+          stopped=$(.github/scripts/retry.sh gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
             --jq '[.jobs[].steps[]? | select(.name == "Stop the queue" and .conclusion == "failure")] | length')
           if [ "$stopped" -gt 0 ]; then
             echo "A build stopped the queue: nothing dispatched." >> "$GITHUB_STEP_SUMMARY"
@@ -484,6 +514,6 @@ jobs:
           fi
           next=$(python3 .github/scripts/issue_queue.py ready 2>/dev/null | jq -r '.eligible[0] // ""')
           if [ -n "$next" ]; then
-            gh workflow run issue-build.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH"
+            .github/scripts/retry.sh gh workflow run issue-build.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH"
             echo "Dispatched the next run (#$next is oldest ready)." >> "$GITHUB_STEP_SUMMARY"
           fi
