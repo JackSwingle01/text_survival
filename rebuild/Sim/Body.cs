@@ -13,8 +13,7 @@ public enum DamageType
     Blunt, Sharp, Pierce, Poison,
     /// Blood loss in ml; only Blood takes it.
     Bleed,
-    /// Starvation, dehydration, cold: bypasses clothing and natural absorption, and takes condition
-    /// directly, whatever the tissue's toughness or what it has already lost.
+    /// Starvation, dehydration, cold: past clothing and natural absorption, whatever the tissue's toughness.
     Internal,
     Burn,
 }
@@ -89,8 +88,7 @@ public sealed class BodyState
     /// it ahead of the clock. A minute up to this one is not lived again: every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
-    /// Who last hurt this body in a fight, and with what ("the player's wooden spear"): what an
-    /// animal that bleeds out later, or a person, died of. Cleared on an animal once it has mended.
+    /// Who last hurt it in a fight, and with what: the cause if it bleeds out later. Cleared once mended.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? WoundedBy { get; set; }
     /// When it died (Body.MarkDead), and of what: kept the moment the fatal damage lands (Body.Damage).
@@ -123,7 +121,6 @@ public sealed class BodyState
         StructuralKg = weightKg * (1 - fatPct - musclePct),
     };
 
-    /// A dressed adult in furs and boots: 1.33 clo, 3.05 kg.
     public static BodyState BaselineHuman(Sex sex = Sex.Male)
     {
         var row = SpeciesTable.Of(Species.Human);
@@ -162,8 +159,7 @@ public sealed class DamageResult
 
 public static partial class Body
 {
-    /// The reference man the body's scales are measured from (the calorie store's 2,000 kcal, the
-    /// reserve's six minutes): an Upper Palaeolithic man (documentation/species-stats-research.md §2.1).
+    /// The man the 2,000 kcal store and six-minute reserve scale from (documentation/species-stats-research.md §2.1).
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodMlPerKg = 70;
     public static double BloodVolumeMl(BodyState body) => BloodMlPerKg * body.WeightKg;
@@ -297,7 +293,6 @@ public static partial class Body
     static void TissueCapacities(BodyState body, Span<double> c)
     {
         var regions = body.Regions;
-        // One row of capacities per region.
         Span<double> caps = stackalloc double[regions.Count * CapacityCount];
         for (int r = 0; r < regions.Count; r++) RegionCapacities(regions[r], caps.Slice(r * CapacityCount, CapacityCount));
 
@@ -346,7 +341,6 @@ public static partial class Body
         return result;
     }
 
-    /// Fills result (zeroed, one per Capacity).
     static void RegionCapacities(Region region, Span<double> result)
     {
         if (region.IsDestroyed) return;
@@ -406,16 +400,14 @@ public static partial class Body
     public static double Vitality(BodyState body) => Vitality(GetCapacities(body));
     static double Vitality(Capacities c) => Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
 
-    /// Life is tissue and blood: breathing, a pumping heart and a working brain, before any effect.
-    /// Effects disable (consciousness can fall to nothing and leave you unable to act) but never kill.
+    /// Effects disable (consciousness can fall to nothing) but never kill: life is tissue and blood alone.
     public static bool IsAlive(BodyState body) => TissueVitality(body) > 0;
 
-    /// Vitality from tissue and blood alone: the harm that kills, not the hunger or pain that only disables.
     public static double TissueVitality(BodyState body) => Vitality(GetCapacitiesWithoutEffects(body));
 
     public const double CirculationFailsBloodPct = 0.5;
 
-    /// Keeps the time, and the cause only if no damage already named one (Body.Damage). A body dies once.
+    /// The cause counts only if no damage already named one (Body.Damage).
     public static void MarkDead(BodyState body, long minute, Cause cause)
     {
         if (body.DiedMinute != null) return;
@@ -425,8 +417,7 @@ public static partial class Body
 
     public static readonly Cause UnnamedInjuries = new(null, "its injuries");
 
-    /// Kept as the fatal damage lands (DamageInfo.By), not read off the dead body afterwards, so a
-    /// person who freezes days after a wolf bite died of the cold.
+    /// Kept as the fatal damage lands, so a person who freezes days after a wolf bite died of the cold.
     public static Cause CauseOfDeath(BodyState body)
     {
         if (IsAlive(body)) throw new InvalidOperationException("This body is alive: it has no cause of death");
@@ -530,8 +521,7 @@ public static partial class Body
         return Math.Clamp(insulation, 0, 0.95);
     }
 
-    /// The one way anything hurts a body. Damage is the only thing that kills (IsAlive), so the damage
-    /// that takes a body over the line names its death.
+    /// The one way anything hurts or kills a body (IsAlive), so the damage over the line names its death.
     public static DamageResult Damage(BodyState body, DamageInfo hit, Rng rng)
     {
         bool wasAlive = body.DeathCause == null && IsAlive(body);
@@ -678,8 +668,7 @@ public static partial class Body
         else Take(organ, remaining, type, size, result);
     }
 
-    /// A tissue stops up to its EffectiveToughness of one blow and passes the rest on: a narrow blow
-    /// destroys a layer only over several blows.
+    /// Passes on what its EffectiveToughness cannot stop, so a narrow blow destroys a layer only over several.
     static double Take(Tissue tissue, double amount, DamageType type, double size, DamageResult result)
     {
         double shrugged = tissue.Condition > 0 ? Math.Min(amount, NaturalAbsorption(tissue, type)) : 0;
