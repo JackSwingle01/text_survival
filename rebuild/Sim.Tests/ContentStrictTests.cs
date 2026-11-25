@@ -72,6 +72,9 @@ public class ContentStrictTests
     [InlineData("recipes.json", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"station\": \"Fire\", \"driver\": \"Heat\"", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"station\": \"Fire\"", "names its driver")]
     [InlineData("recipes.json", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"station\": \"Fire\", \"driver\": \"Heat\"", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"driver\": \"Heat\"", "a driver with no station")]
     [InlineData("recipes.json", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"station\": \"Fire\", \"driver\": \"Heat\"", "\"cook_meat\": { \"name\": \"Cook meat\", \"category\": \"Processing\", \"station\": \"Oven\", \"driver\": \"Heat\"", "no StationKind 'Oven'")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"Water\", \"g\": 1000, \"capG\": 4000 }", "\"result\": { \"resource\": \"Water\", \"g\": 1000 }", "up to a capG of at least its g")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"Water\", \"g\": 1000, \"capG\": 4000 }", "\"result\": { \"resource\": \"CookedMeat\", \"count\": 1, \"sharePct\": 1 }", "makes grams of a continuous resource")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"CookedFish\", \"count\": 1, \"sharePct\": 1 }", "\"result\": { \"resource\": \"CookedFish\", \"count\": 1, \"sharePct\": 1, \"capG\": 4000 }", "capG is for a station-worked recipe with no input")]
     [InlineData("fire.json", "\"Mound\": { \"room\": 3, ", "\"Mound\": { ", "room")]
     [InlineData("fire.json", "\"Mound\": { \"room\": 3, ", "\"Mound\": { \"room\": 0, ", "fire.json pits Mound: out of range")]
     public void Loader_RefusesAStationRecipe_ThatIsNotOnePieceRolledNothing_AndAPitWithNoRoom(string file, string from, string to, string named) =>

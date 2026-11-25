@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack, StopWork }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -69,7 +69,7 @@ static class ActionGen
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.Wash)), (1, Gen.Const(Act.MeltSnow)), (1, Gen.Const(Act.Cook)),
             (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
             (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)),
-            (1, Gen.Const(Act.PutOn)), (1, Gen.Const(Act.TakeFinished)), (1, Gen.Const(Act.TakeBack)))
+            (1, Gen.Const(Act.PutOn)), (1, Gen.Const(Act.TakeFinished)), (1, Gen.Const(Act.TakeBack)), (1, Gen.Const(Act.StopWork)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
 
     public static Gen<Script> ScriptGen(int minIntents, int maxIntents, double scale) =>
@@ -195,6 +195,7 @@ static class ActionGen
                     var x = PickOf(working, pick, null);
                     return new TakeBack(P, x?.Input ?? Resource.RawMeat, x?.InputKg ?? 0.4);
                 }
+            case Act.StopWork: return new StopWork(P, "melt_snow");
             default: throw new NotSupportedException(i.Act.ToString());
         }
     }

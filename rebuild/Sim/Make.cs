@@ -149,9 +149,9 @@ public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int
 }
 
 /// A gear kind; Kg of a continuous resource; Count pieces of a discrete one, together SharePct of the inputs' actual
-/// weight; or placed on the tile: a shelter (ShelterName, or the tent) or a bedding.
+/// weight; or placed on the tile: a shelter (ShelterName, or the tent) or a bedding. CapKg: see Stations.FromNothing.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
-    int Count = 0, double SharePct = 0)
+    int Count = 0, double SharePct = 0, double CapKg = 0)
 {
     public bool Placed => Shelter != null || Bedding != null;
 }

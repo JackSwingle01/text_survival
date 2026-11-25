@@ -50,6 +50,7 @@ static class Words
         ShelterCollapsed => "shelter",
         Made m => m.Succeeded ? "ui/project" : "ui/cancel",
         ProjectAbandoned => "ui/cancel",
+        TransformationFinished { Made: Resource.Water } => "ui/water",
         TransformationFinished => "ui/meat",
         _ => throw new ArgumentOutOfRangeException(nameof(e), e.GetType().Name, "Narration tells of it, but it has no icon"),
     };

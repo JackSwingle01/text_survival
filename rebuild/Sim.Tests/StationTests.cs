@@ -129,7 +129,7 @@ public class StationTests
         Pit(w, 0);
         Meat(w, 0.4);
         Sim.Advance(w, 1);
-        Assert.True(Offer(w, a => a is PutOn).Allowed);
+        Assert.True(Offer(w, a => a is PutOn { Recipe: "cook_meat" }).Allowed);
         PutOnMeat(w);
         Assert.DoesNotContain(Sim.Advance(w, 180), e => e is TransformationFinished);
         Assert.Contains(FireMenu(w), v => v.Activity is TakeBack);
@@ -146,7 +146,7 @@ public class StationTests
             Sim.Advance(w, 1);
             PutOnMeat(w);
             PutOnMeat(w);
-            var third = Offer(w, a => a is PutOn);
+            var third = Offer(w, a => a is PutOn { Recipe: "cook_meat" });
             Assert.Equal(refused, !third.Allowed);
             var step = Sim.Step(w, third.Activity, 1);
             if (refused)
@@ -260,5 +260,148 @@ public class StationTests
         Assert.Contains(FireMenu(w), v => v.Activity is TakeFinished);
         Assert.Equal(1, Sim.Step(w, back.Activity, back.Minutes).MinutesElapsed);
         Assert.Equal([0.7], Items.Pack(w, P).Pieces[Resource.RawMeat]);
+    }
+
+    // ---- Melt snow (#186): no input, a litre every ten minutes at full rate, until 4 L waits ----
+
+    static Verb MeltVerb(World w) => Offer(w, a => a is PutOn { Recipe: "melt_snow" });
+
+    static void SetSnowMelting(World w)
+    {
+        var melt = MeltVerb(w);
+        Assert.Equal("Melt snow", melt.Label);
+        Assert.Equal(1, Sim.Step(w, melt.Activity, melt.Minutes).MinutesElapsed);
+    }
+
+    static double WaterAt(World w, FireId id) => Items.Have(Stations.At(w, id).Ready, Resource.Water);
+
+    [Fact]
+    public void Snow_SetMeltingAtAGoodFire_Gives1LAfter10Minutes_And3LAfter30_WithNoOneActing()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        SetSnowMelting(w);
+        Sim.Advance(w, (int)(setAt + 9 - w.Minute));
+        Assert.Equal(0, WaterAt(w, id));
+        var litre = Sim.Advance(w, 1).OfType<TransformationFinished>().Single();
+        Assert.Equal(1, WaterAt(w, id), 9);
+        Assert.Equal("1.0 kg water waits at the fire.", Narration.ForPlayer(w, litre)!.Text);
+        Sim.Advance(w, 20);
+        Assert.Equal(3, WaterAt(w, id), 9);
+        Assert.Equal(0, Items.Have(Items.Pack(w, P), Resource.Water));
+    }
+
+    [Fact]
+    public void Melting_StopsAt4L_AndGoesOnAfterTheWaterIsTaken_IntoThePackAsWater()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        SetSnowMelting(w);
+        Sim.Advance(w, 120);
+        Assert.Equal(4, WaterAt(w, id), 9);
+
+        var take = Offer(w, a => a is TakeFinished);
+        long takenAt = w.Minute; // the minute of taking is the first of the next litre's ten
+        Assert.Equal(1, Sim.Step(w, take.Activity, take.Minutes).MinutesElapsed);
+        Assert.Equal(4, Items.Have(Items.Pack(w, P), Resource.Water), 9);
+        Assert.Equal(0, WaterAt(w, id));
+        Assert.Equal(takenAt + 10, FinishOf(w, 30).Minute); // the litre stopped at the cap starts again from nothing
+        Assert.Equal(1, WaterAt(w, id), 9);
+    }
+
+    [Fact]
+    public void Melting_TakesOnePlace_LeavingRoomForOnePieceOfMeatAtAnOpenFire_NotTwo()
+    {
+        var w = Camp(out _);
+        Pit(w, 5);
+        Meat(w, 0.3);
+        Meat(w, 0.4);
+        Sim.Advance(w, 1);
+        SetSnowMelting(w);
+        PutOnMeat(w);
+        var second = Offer(w, a => a is PutOn { Recipe: "cook_meat" });
+        Assert.Equal("the fire has room for 2, and all of it is taken", second.Refused?.Reason);
+        Assert.Equal("the fire has room for 2, and all of it is taken", MeltVerb(w).Refused?.Reason);
+    }
+
+    [Fact]
+    public void Snow_IsSetMeltingOnceAFire_AndStopping_FreesThePlace_AndKeepsTheWater()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5, PitType.Stone);
+        Sim.Advance(w, 1);
+        SetSnowMelting(w);
+        Assert.Equal("the fire is already set to melt snow", MeltVerb(w).Refused?.Reason);
+        Sim.Advance(w, 15);
+
+        var stop = Offer(w, a => a is StopWork { Recipe: "melt_snow" });
+        Assert.Equal("Stop: melt snow", stop.Label);
+        Assert.Equal(1, Sim.Step(w, stop.Activity, stop.Minutes).MinutesElapsed);
+        Assert.Equal(1, WaterAt(w, id), 9);
+        Assert.Empty(Stations.At(w, id).Ongoing);
+        Assert.DoesNotContain(Sim.Advance(w, 60), e => e is TransformationFinished);
+        Assert.Equal(1, WaterAt(w, id), 9);
+        Assert.True(MeltVerb(w).Allowed);
+    }
+
+    static long FirstLitre(World w, Action<World> fire)
+    {
+        fire(w);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        SetSnowMelting(w);
+        return FinishOf(w, 240).Minute - setAt;
+    }
+
+    [Fact]
+    public void Melting_IsSlowerAtAWeakFire()
+    {
+        Assert.Equal(10, FirstLitre(Camp(out _), w => Pit(w, 5)));
+        long weak = FirstLitre(Camp(out _), w => Pit(w, 0.45));
+        Assert.True(weak > 10, $"weak {weak}");
+    }
+
+    [Fact]
+    public void Melting_StopsWhenTheFireIsCold_LosingNothing_AndGoesOnWhenRelit()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        SetSnowMelting(w);
+        Sim.Advance(w, 14); // 1.5 litres of work: one waits, half of the next is done
+        Assert.Equal(1, WaterAt(w, id), 9);
+        var f = w.Fires[id];
+        f.BurningKg.Clear();
+        f.UnburnedKg.Clear();
+        Sim.Advance(w, 1);
+        Assert.False(Fire.IsActive(f) || f.HasEmbers);
+        Assert.DoesNotContain(Sim.Advance(w, 120), e => e is TransformationFinished);
+        Assert.Equal(1, WaterAt(w, id), 9);
+
+        f.BurningKg[Resource.Birch] = 5;
+        long relit = w.Minute;
+        Assert.Equal(relit + 5, FinishOf(w, 30).Minute);
+        Assert.Equal(2, WaterAt(w, id), 9);
+    }
+
+    [Fact]
+    public void SavingAndLoading_MidMelt_LeavesTheAmountsAndTimesUnchanged()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        SetSnowMelting(w);
+        Sim.Advance(w, 14);
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        foreach (var x in new[] { w, loaded })
+        {
+            Assert.Equal(1, WaterAt(x, id), 9);
+            Assert.Equal(setAt + 20, FinishOf(x, 30).Minute);
+            Assert.Equal(2, WaterAt(x, id), 9);
+        }
     }
 }

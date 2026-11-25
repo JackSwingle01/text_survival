@@ -6,7 +6,8 @@ namespace Survival.Tests.Verification;
 /// A transformation's finish minute does not depend on who is watching or how the world is stepped
 /// (spec 2026-11-24 fire-and-rack-as-stations, "Stepping"): the same fire, with the same piece on it,
 /// advanced in one step or in many small ones, with the player standing at it or far away, finishes in
-/// the same minute, or not at all.
+/// the same minute, or not at all. Snow melting beside it gives each litre in the same minute, and stops at the
+/// same cap.
 public class StationSteppingTests
 {
     static readonly AgentId P = AgentId.Player;
@@ -18,7 +19,7 @@ public class StationSteppingTests
 
     const int Horizon = 180;
 
-    static long? FinishMinute(Scene s, bool reference)
+    static string FinishMinutes(Scene s, bool reference)
     {
         var w = ConservationWorlds.Bare(-5);
         var camp = Map.Of(w).Camp;
@@ -28,6 +29,7 @@ public class StationSteppingTests
         w.Fires[new FireId(w.NextFireId++)] = f;
         Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
         Assert.Equal(1, Sim.Step(w, new PutOn(P, "cook_meat"), 1).MinutesElapsed);
+        Assert.Equal(1, Sim.Step(w, new PutOn(P, "melt_snow"), 1).MinutesElapsed);
         if (!reference && !s.Present) w.Agent(P).Tile = Map.Step(Map.Step(Map.Step(camp, Direction.West), Direction.West), Direction.West);
 
         var events = new List<WorldEvent>();
@@ -42,10 +44,10 @@ public class StationSteppingTests
                 left -= n;
             }
         }
-        return events.OfType<TransformationFinished>().SingleOrDefault()?.Minute;
+        return string.Join(", ", events.OfType<TransformationFinished>().Select(e => $"{e.Recipe} {e.Minute}"));
     }
 
-    static void Run(Scene s) => Assert.Equal(FinishMinute(s, reference: true), FinishMinute(s, reference: false));
+    static void Run(Scene s) => Assert.Equal(FinishMinutes(s, reference: true), FinishMinutes(s, reference: false));
 
     [Fact]
     public void TheFinishMinute_IsTheSame_HoweverTheWorldIsStepped_AndWhoeverIsThere() => Scenes.Check(Run, iter: 12);

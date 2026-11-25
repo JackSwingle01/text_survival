@@ -18,9 +18,11 @@ namespace Survival.Tests.Verification;
 /// on into its result, at the recipe's share of its weight:
 ///
 ///   Δ held[input] = -TransformationFinished.Kg / share, Δ held[made] = +TransformationFinished.Kg
+///
+/// and one with no input (melting snow) makes its result from nothing held: only Δ held[made] = +Kg.
 public class ConservationMakeTests
 {
-    public enum OpKind { Make, Abandon, Wait, PutOn, TakeFinished, TakeBack }
+    public enum OpKind { Make, Abandon, Wait, PutOn, TakeFinished, TakeBack, StopWork }
 
     public sealed record Op(OpKind Kind, int Recipe, int Minutes);
 
@@ -33,7 +35,7 @@ public class ConservationMakeTests
     static readonly Recipe[] AtTheFire = [.. Stations.FireRecipes];
 
     static readonly Gen<Op> OpGen = Gen.Select(Gen.Frequency((6, Gen.Const(OpKind.Make)), (1, Gen.Const(OpKind.Abandon)), (1, Gen.Const(OpKind.Wait)),
-            (2, Gen.Const(OpKind.PutOn)), (1, Gen.Const(OpKind.TakeFinished)), (1, Gen.Const(OpKind.TakeBack))),
+            (2, Gen.Const(OpKind.PutOn)), (1, Gen.Const(OpKind.TakeFinished)), (1, Gen.Const(OpKind.TakeBack)), (1, Gen.Const(OpKind.StopWork))),
         Gen.Int[0, Recipes.ByHand.Count - 1], Gen.Int[1, 90], (k, r, m) => new Op(k, r, m));
 
     static readonly Gen<Scene> Scenes = Gen.Select(
@@ -117,11 +119,12 @@ public class ConservationMakeTests
                 OpKind.TakeFinished => new TakeFinished(P),
                 OpKind.TakeBack => Stations.At(w, new FireId(0)).Working.ElementAtOrDefault(op.Minutes % 3) is { } x
                     ? new TakeBack(P, x.Input, x.InputKg) : new TakeBack(P, Resource.RawMeat, 0.4),
+                OpKind.StopWork => new StopWork(P, "melt_snow"),
                 _ => new Wait(P),
             };
             var held = Held(w);
             var pieces = Pieces(w);
-            var step = Sim.Step(w, a, a is PutOn or TakeFinished or TakeBack ? Stations.HandlingMinutes : op.Minutes);
+            var step = Sim.Step(w, a, a is PutOn or TakeFinished or TakeBack or StopWork ? Stations.HandlingMinutes : op.Minutes);
 
             var declared = new SortedDictionary<Resource, double>(held);
             void Move(IEnumerable<KeyValuePair<Resource, double>> kgs, int sign) { foreach (var (r, kg) in kgs) declared[r] = declared.GetValueOrDefault(r) + sign * kg; }
@@ -146,7 +149,7 @@ public class ConservationMakeTests
                     case TransformationFinished t:
                         {
                             var r = Recipes.Get(t.Recipe);
-                            Move([new(Stations.InputOf(r), t.Kg / r.Result.SharePct)], -1);
+                            if (!Stations.FromNothing(r)) Move([new(Stations.InputOf(r), t.Kg / r.Result.SharePct)], -1); // snow melts from nothing held
                             Move([new(t.Made, t.Kg)], +1);
                             break;
                         }
