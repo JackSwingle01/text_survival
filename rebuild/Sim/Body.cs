@@ -88,7 +88,7 @@ public sealed class BodyState
     /// it ahead of the clock. A minute up to this one is not lived again: every minute exactly once.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public long WoundsLivedThroughMinute { get; set; }
-    /// What a body that bleeds out later died of. Cleared on an animal once it has mended.
+    /// Who last hurt it in a fight, and with what: the cause if it bleeds out later. Cleared once mended.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? WoundedBy { get; set; }
     /// When it died (Body.MarkDead), and of what: kept the moment the fatal damage lands (Body.Damage).
@@ -159,7 +159,7 @@ public sealed class DamageResult
 
 public static partial class Body
 {
-    /// The scales' reference man, Upper Palaeolithic (documentation/species-stats-research.md §2.1).
+    /// The man the 2,000 kcal store and six-minute reserve scale from (documentation/species-stats-research.md §2.1).
     public const double BaselineWeightKg = 68, BaselineFatPct = 0.12, BaselineMusclePct = 0.38;
     public const double BloodMlPerKg = 70;
     public static double BloodVolumeMl(BodyState body) => BloodMlPerKg * body.WeightKg;
@@ -521,7 +521,7 @@ public static partial class Body
         return Math.Clamp(insulation, 0, 0.95);
     }
 
-    /// The only thing that kills (IsAlive), so the damage that takes a body over the line names its death.
+    /// The one way anything hurts or kills a body (IsAlive), so the damage over the line names its death.
     public static DamageResult Damage(BodyState body, DamageInfo hit, Rng rng)
     {
         bool wasAlive = body.DeathCause == null && IsAlive(body);

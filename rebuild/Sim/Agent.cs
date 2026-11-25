@@ -78,7 +78,7 @@ public static class Agents
         return ids;
     }
 
-    /// Ids are never made twice (NewId), so nothing rolls on its streams again and a save need not carry them.
+    /// Drops its rng streams too: ids are never made twice (NewId), so a save need not carry them.
     public static void Remove(World world, AgentId id)
     {
         if (!world.Agents.Remove(id)) throw new InvalidOperationException($"No agent {id} to remove");
