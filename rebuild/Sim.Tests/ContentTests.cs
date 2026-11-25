@@ -30,6 +30,17 @@ public class ContentTests
         Assert.All(Enum.GetValues<EffectKind>(), k => Assert.True(t.Effects.ContainsKey(k), $"{k} has no effect row"));
         Assert.All(Enum.GetValues<Species>(), s => Assert.True(t.Species.ContainsKey(s), $"{s} has no species row"));
         Assert.All(Enum.GetValues<Diet>(), d => Assert.True(t.Diets.ContainsKey(d), $"{d} has no diet"));
+        // Three diets (#122): what each eats from a pile, and the grazing lists the herds started from.
+        Assert.Equal([Diet.Carnivore, Diet.Omnivore, Diet.Herbivore], Enum.GetValues<Diet>());
+        Assert.Contains(Resource.RawMeat, t.Diets[Diet.Carnivore]);
+        Assert.DoesNotContain(Resource.Berries, t.Diets[Diet.Carnivore]);
+        Assert.Contains(Resource.RawMeat, t.Diets[Diet.Omnivore]);
+        Assert.Contains(Resource.Berries, t.Diets[Diet.Omnivore]);
+        Assert.Empty(t.Diets[Diet.Herbivore]);
+        Assert.All(new[] { Species.Fox, Species.Raven, Species.Bear, Species.CaveBear }, s => Assert.Equal(Diet.Omnivore, t.Species[s].Diet));
+        Assert.All(new[] { Species.Caribou, Species.Megaloceros, Species.Mammoth, Species.Bison, Species.Hare }, s => Assert.Equal(Diet.Herbivore, t.Species[s].Diet));
+        Assert.All(new[] { Species.Caribou, Species.Megaloceros, Species.Mammoth }, s => Assert.Equal([Resource.Usnea, Resource.Stick, Resource.BirchPolypore], t.Species[s].Grazes));
+        Assert.Equal([Resource.Tinder], t.Species[Species.Bison].Grazes);
         Assert.All(Enum.GetValues<ShelterKind>(), k => Assert.True(t.ShelterKinds.ContainsKey(k), $"{k} has no shelter kind row"));
         // Every shelter and bedding the old Build path made has a camp recipe placing it.
         var camp = t.MakeRecipes.Where(r => r.Result.Placed).ToList();
@@ -247,7 +258,8 @@ public class ContentTests
         var t = Content.Parse(Content.EmbeddedFiles());
         Assert.Equal(Content.Tables.Resources, t.Resources);
         Assert.Equal(Content.Tables.Fuels, t.Fuels);
-        Assert.Equal(Content.Tables.Species, t.Species);
+        // Field by field: a species row holds its grazing list, and two lists are equal only when they are the same list.
+        Assert.Equivalent(Content.Tables.Species, t.Species, strict: true);
         Assert.Equal(Content.Tables.Beddings, t.Beddings);
         Assert.Equal(Content.Tables.Gear.Keys, t.Gear.Keys);
         Assert.Equal(Content.Tables.Discoveries.Finds.Keys, t.Discoveries.Finds.Keys);

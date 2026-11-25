@@ -116,8 +116,9 @@ the species' sense of smell. Piles and caches are found only by scent or by stan
 _Avoid_: smell radius, signal (signal is the wider set: noise, scent, fire light)
 
 **Diet**:
-Which foods an animal eats from piles, caches and carcasses: carnivore, omnivore or herbivore. What a
-herbivore grazes from the ground is its own list per species.
+Which foods an animal eats from piles, caches and carcasses: carnivore, omnivore or herbivore. What an
+animal grazes from the ground is its species' own grazing list: every herbivore has one, and so do the
+omnivores that forage.
 _Avoid_: browser, grazer (as diets)
 
 ## Items

@@ -69,7 +69,7 @@ public sealed class World
     internal (long Minute, Dictionary<GroundClass, Surface> ByClass)? SurfaceCache;
     /// The stored-plan benchmark's other arm: animals plan again at every decision (Fauna.Needs).
     internal bool ReplanEveryDecision;
-    internal Dictionary<Diet, double>? ValleyForageCache;
+    internal Dictionary<Species, double>? ValleyForageCache;
     internal List<TileId>? OpenLandCache;
     internal double? MeanForageDensityCache;
     internal SortedSet<TileId>? CarcassTiles;

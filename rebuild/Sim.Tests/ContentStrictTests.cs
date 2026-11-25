@@ -26,8 +26,8 @@ public class ContentStrictTests
     [Theory]
     // Comma lists: the stock reader ORs them together ("Prey, Predator" was Predator; "Pine, Oak" was RawFish).
     [InlineData("species.json", "\"role\": \"Predator\"", "\"role\": \"Prey, Predator\"", "no Role 'Prey, Predator'")]
-    [InlineData("species.json", "\"Grazer\": [ \"Tinder\" ]", "\"Grazer\": [ \"Pine, Oak\" ]", "no Resource 'Pine, Oak'")]
-    [InlineData("species.json", "\"Grazer\": [ \"Tinder\" ]", "\"Grazer\": [ \"SphagnumMoss, Usnea\" ]", "no Resource 'SphagnumMoss, Usnea'")]
+    [InlineData("species.json", "\"grazes\": [ \"Tinder\" ]", "\"grazes\": [ \"Pine, Oak\" ]", "no Resource 'Pine, Oak'")]
+    [InlineData("species.json", "\"grazes\": [ \"Tinder\" ]", "\"grazes\": [ \"SphagnumMoss, Usnea\" ]", "no Resource 'SphagnumMoss, Usnea'")]
     // Case: the stock reader matches names ignoring it.
     [InlineData("items.json", "\"slot\": \"Chest\"", "\"slot\": \"chest\"", "no EquipSlot 'chest'")]
     [InlineData("recipes.json", "\"of\": \"Stick\", \"count\": 4", "\"of\": \"stick\", \"count\": 4", "no Resource 'stick'")]
@@ -169,10 +169,24 @@ public class ContentStrictTests
     [InlineData("species.json", "\"reachM\": 2.5,", "\"reachM\": -2.5,", "reachM -2.5")]
     [InlineData("locations.json", "\"animals\": [\n      { \"animal\": \"Hare\", \"weight\": 0.6 },\n      { \"animal\": \"Fox\", \"weight\": 0.3 }\n     ]", "\"animals\": []", "small game needs a density, animals")]
     // Role and herd life agree: a caribou herd does not hunt as a pack.
-    [InlineData("species.json", "\"temperament\": \"never\", \"behavior\": \"Prey\", \"diet\": \"Browser\"", "\"temperament\": \"never\", \"behavior\": \"Pack\", \"diet\": \"Browser\"", "species.json Caribou: role Prey does not live as a Pack herd")]
+    [InlineData("species.json", "\"temperament\": \"never\", \"behavior\": \"Prey\", \"diet\": \"Herbivore\"", "\"temperament\": \"never\", \"behavior\": \"Pack\", \"diet\": \"Herbivore\"", "species.json Caribou: role Prey does not live as a Pack herd")]
     [InlineData("species.json", "\"role\": \"Predator\"", "\"role\": \"Scavenger\"", "species.json Wolf: role Scavenger does not live as a Pack herd")]
     public void Loader_RefusesAValueOutOfRange_OrRowsThatDisagree(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
+
+    // ---- 2b. three diets, each with its foods; every herbivore with its grazing list (#122) ----
+
+    [Theory]
+    [InlineData("\"diet\": \"Herbivore\", \"grazes\": [ \"Tinder\" ],", "\"diet\": \"Herbivore\",", "species.json Bison: a herbivore needs a grazing list")]
+    [InlineData("\"grazes\": [ \"Tinder\" ]", "\"grazes\": []", "species.json Bison: a herbivore needs a grazing list")]
+    [InlineData("\"grazeKcalPerMinute\": 35", "\"grazeKcalPerMinute\": 0", "species.json Bison: a grazing list needs grazeKcalPerMinute above 0")]
+    [InlineData("\"diet\": \"Herbivore\"", "\"diet\": \"Browser\"", "no Diet 'Browser'")]
+    [InlineData(",\n  \"Herbivore\": []", "", "species.json diets: no row for Herbivore")]
+    [InlineData("\"Herbivore\": []", "\"Herbivore\": [ \"Berries\" ]", "species.json diets Herbivore: a herbivore eats from no pile, cache or carcass")]
+    [InlineData("\"Carnivore\": [ \"RawMeat\", \"CookedMeat\", \"DriedMeat\", \"RawFish\", \"CookedFish\", \"DriedFish\" ]", "\"Carnivore\": []", "species.json diets Carnivore: needs its foods")]
+    [InlineData("\"Omnivore\": [ \"RawMeat\"", "\"Omnivore\": [ \"Tinder\"", "species.json diets Omnivore: Tinder is not a food")]
+    public void Loader_RefusesAHerbivoreWithNoGrazingList_OrADietWithNoFoodList(string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn("species.json", from, to));
 
     [Theory]
     [InlineData("forage.json", "\"MixedForest\": [", "\"Orphan\": [ { \"resource\": \"Stone\", \"abundance\": 1, \"minKg\": 0.1, \"maxKg\": 0.2 } ],\n \"MixedForest\": [", "forage.json Orphan: no terrain or cave forages it")]
@@ -238,7 +252,8 @@ public class ContentStrictTests
         Assert.True(found.Count == 0, string.Join("\n", found.Take(40)));
 
         // The cases the review named, cast back the way a careless caller would.
-        Assert.False(Content.Tables.Diets[Diet.Browser] is List<Resource>);
+        Assert.False(Content.Tables.Diets[Diet.Omnivore] is List<Resource>);
+        Assert.False(SpeciesTable.Of(Species.Caribou).Grazes is List<Resource>);
         Assert.False(Content.Tables.Forage["MixedForest"] is List<ForageItem>);
         Assert.False(Content.Tables.Accidents["Sprains"] is List<Accident>);
         Assert.False(Content.Tables.StartingClothes is List<KitGear>);
