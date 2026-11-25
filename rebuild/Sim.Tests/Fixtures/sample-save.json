@@ -472,6 +472,11 @@
           "ClothingHeatBufferPct": 0.9992449752579204,
           "Effects": [
             {
+              "Kind": 16,
+              "Severity": 0.3001333333333333,
+              "RequiresTreatment": false
+            },
+            {
               "Kind": 15,
               "Severity": 1,
               "RequiresTreatment": false
@@ -1080,6 +1085,11 @@
           "MinutesWithoutHunger": 172,
           "ClothingHeatBufferPct": 0.8082539711540284,
           "Effects": [
+            {
+              "Kind": 16,
+              "Severity": 0.011466666666666623,
+              "RequiresTreatment": false
+            },
             {
               "Kind": 14,
               "Severity": 0.4222222222222222,

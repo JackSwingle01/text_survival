@@ -16,6 +16,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Butcher), "butcher")]
 [JsonDerivedType(typeof(Eat), "eat")]
 [JsonDerivedType(typeof(Drink), "drink")]
+[JsonDerivedType(typeof(Wash), "wash")]
 [JsonDerivedType(typeof(Cook), "cook")]
 [JsonDerivedType(typeof(MeltSnow), "meltsnow")]
 [JsonDerivedType(typeof(WalkAbout), "walkabout")]
@@ -50,6 +51,7 @@ public sealed record Gather(AgentId Who, int Pool, ForageFocus Focus = ForageFoc
 public sealed record Butcher(AgentId Who, int Carcass, ButcherMode? Mode = null) : Activity(Who);
 public sealed record Eat(AgentId Who, Resource Food, double Kg) : Activity(Who);
 public sealed record Drink(AgentId Who, double Liters = Work.MaxDrinkLiters) : Activity(Who);
+public sealed record Wash(AgentId Who) : Activity(Who);
 public sealed record Cook(AgentId Who, Resource Raw, double Kg) : Activity(Who);
 public sealed record MeltSnow(AgentId Who) : Activity(Who);
 public sealed record WalkAbout(AgentId Who) : Activity(Who);

@@ -227,6 +227,7 @@ public static partial class Body
         ProcessTemperature(body, ctx, minutes, d);
         ProcessWetness(body, ctx, minutes, d);
         ProcessBloody(body, ctx, minutes, d);
+        ProcessDirty(body, ctx, minutes, d);
 
         double calories = body.CaloriesKcal + d.CaloriesDeltaKcal;
         double hydration = body.HydrationMl + d.HydrationDeltaMl;
@@ -390,7 +391,7 @@ public static partial class Body
         d.Effects.Add((EffectKind.Wet, next)); // Set: zero dries you off
     }
 
-    /// A level like wetness: wounds add, it dries on its own (twice as fast by a fire). No washing, no floor: what the game cannot treat must not need treating
+    /// A level like wetness: wounds add, it dries on its own (twice as fast by a fire). Washing clears it too (Body.Wash). No floor: what the game cannot treat must not need treating
     /// (documentation/decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
     static void ProcessBloody(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
@@ -404,6 +405,29 @@ public static partial class Body
 
     /// Per hour: gained from a full bleed; share dried; least dried. Butchering's 0.5 is gone in ~5 hours, 2.5 by a fire.
     const double BloodyPerBleedingHour = 0.15, BloodyDryingPctPerHour = 1.0, BloodyLastSmearDryingPerHour = 0.01;
+
+    /// A level that only builds: living, and faster sweating; carcass work adds its own (Work). Washing is
+    /// the only way off (Body.Wash), so it never fades.
+    static void ProcessDirty(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
+    {
+        double perHour = DirtyPerHour + Sweat(body, ctx).ProducedMlPerHour / 1000 * DirtyPerSweatLiter;
+        d.Effects.Add((EffectKind.Dirty, Math.Clamp(Effects.Severity(body, EffectKind.Dirty) + perHour / 60.0 * minutes, 0, 1)));
+    }
+
+    /// Fully dirty in about ten days of living unwashed; a hard hour's half litre of sweat adds half a day's.
+    const double DirtyPerHour = 0.004, DirtyPerSweatLiter = 0.1;
+
+    /// Washing clears Dirty and Bloody together, and leaves the body wet: a splash at least, more the more was washed off.
+    public static void Wash(BodyState body)
+    {
+        double washed = Effects.Severity(body, EffectKind.Dirty) + Effects.Severity(body, EffectKind.Bloody);
+        Effects.Set(body, EffectKind.Dirty, 0);
+        Effects.Set(body, EffectKind.Bloody, 0);
+        Effects.Set(body, EffectKind.Wet, Effects.Severity(body, EffectKind.Wet) + WashWetLevel + WashWetPerSeverityWashed * washed);
+    }
+
+    /// A splash, and 0.3 more for washing off full grime and full blood.
+    const double WashWetLevel = 0.05, WashWetPerSeverityWashed = 0.15;
 
     static void ProcessStarvation(BodyState body, double calories, SurvivalDelta d)
     {
@@ -535,7 +559,7 @@ public static partial class Body
         }
         foreach (var (kind, severity) in d.Effects)
         {
-            if (kind is EffectKind.Wet or EffectKind.Bloody) Effects.Set(body, kind, severity);
+            if (kind is EffectKind.Wet or EffectKind.Bloody or EffectKind.Dirty) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
         WellFed(body);
