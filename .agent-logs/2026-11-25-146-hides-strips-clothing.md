@@ -20,3 +20,7 @@ Revised: pre-existing EveryRecipe_CanBeMade wore its bone needle out (Binding an
 Revised: pre-existing BreakTool_CostsWholeUses_OrBreaksItOutright fed hide_cap a cured hide → two hide strips.
 Revised: MakeTests.Noon takes an air temperature, -2 °C by default.
 Revised: CommentHygieneTests' ratchet put Make.cs and Names.cs at 12% → the new code's comments trimmed to one line.
+Revised (review): the loader had two near-identical "whole pieces" arms for extra_product → one arm for gear and discrete resources.
+Revised (review): the coat's fail outcome wasted the cured hide, not its main input → it wastes the cured mammoth hide, as the hood does.
+Revised (review): no test refused strips or a mammoth scrape without a blade → the cutting refusal test covers scrape_hide, scrape_mammoth_hide and hide_strips.
+Revised (review): the third strip is a success bonus, so Crafting raises it 0.04 a level and dark or cold hands lower it → kept: the spec's 50% is the base odds, and every success bonus moves this way (decision "No special cases").

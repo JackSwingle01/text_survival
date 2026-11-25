@@ -418,12 +418,11 @@ public static partial class Content
                             problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
                         case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
                             problems.Add($"{at}: extra_product {x.What} is no gear kind or resource"); break;
-                        case ExtraProduct x when gear.ContainsKey(x.What) && x.Amount != Math.Floor(x.Amount):
+                        case ExtraProduct x when (gear.ContainsKey(x.What) || Enum.TryParse<Resource>(x.What, out var whole) && resources[whole].Discrete)
+                            && x.Amount != Math.Floor(x.Amount):
                             problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
-                        case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr2) && resources[xr2].Discrete && x.Amount != Math.Floor(x.Amount):
-                            problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
                     }
             if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);

@@ -491,12 +491,17 @@ public class MakeTests
         Assert.Equal(curedKg, Assert.Single(pack.Pieces[Resource.CuredHide]), 9);
     }
 
-    [Fact]
-    public void ScrapingAHide_NeedsSomethingForCutting()
+    [Theory]
+    [InlineData("scrape_hide", Resource.Hide)]
+    [InlineData("scrape_mammoth_hide", Resource.MammothHide)]
+    [InlineData("hide_strips", Resource.CuredHide)]
+    public void ScrapingAndCuttingStrips_NeedSomethingForCutting(string recipe, Resource hide)
     {
         var w = Noon(out var pack);
-        TestKit.GivePieces(pack, Resource.Hide, 1);
-        Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, "scrape_hide"))?.Reason);
+        TestKit.GivePieces(pack, hide, 1);
+        Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, recipe))?.Reason);
+        pack.Gear.Add(Items.Make("flint_knife"));
+        Assert.Null(Sim.Refusal(w, new Make(P, recipe)));
     }
 
     /// A cured hide cuts into two strips, or three on the outcome that gives one more, all of its weight between them.

@@ -179,7 +179,7 @@
  "mammoth_hide_coat": { "name": "Mammoth hide coat", "category": "Clothing",
   "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "CuredHide", "count": 1 }, { "of": "Sinew", "count": 4 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 180,
   "result": { "gear": "mammoth_hide_coat" },
-  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
+  "outcomes": ["succeed:injury:LeftArm|RightArm:0.02=.03", "fail:waste_material:CuredMammothHide:0.25=.05", "fail:break_tool:Sewing=.02"] },
  "mammoth_hood": { "name": "Mammoth hood", "category": "Clothing",
   "inputs": [ { "of": "CuredMammothHide", "count": 1 }, { "of": "Sinew", "count": 2 } ], "tools": ["Sewing"], "requires": ["Light"], "minutes": 90,
   "result": { "gear": "mammoth_hood" },
