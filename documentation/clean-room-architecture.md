@@ -28,9 +28,17 @@ weather type, animal, recipe, effect, condition, item, verb, terrain, discovery 
 - **Refusals are data:** a reason, plus what is missing and how much (`Refusal` and `Missing`, `Sim/Verbs.cs`).
 - **The NPC AI uses only the Sim's public interface:** verbs, refusals, forecasts and memory.
 - **Everything outside a body reads its faculties,** never its capacities (`GLOSSARY.md`): only
-  `Body` reads `Capacities`, `Body.GetCapacities` and `Body.RegionCapacities`. The sim, the screen
-  (`Web/Host`) and the tests are held to it by `Architecture/CapacityReadTests.cs`, which reads their
-  compiled code; the reads that exist today are listed there by member, and the list only shrinks.
+  the body's own code (its tiers, below) reads `Capacities`, `Body.GetCapacities` and
+  `Body.RegionCapacities`. The sim, the screen (`Web/Host`) and the tests are held to it by
+  `Architecture/CapacityReadTests.cs`, which reads their compiled code; the reads that exist today
+  are listed there by member, and the list only shrinks.
+- **A body is read in tiers,** each its own type in `Sim/BodyTiers.cs`, each reading only the ones
+  below it: state and effects (`TissueReads`), `BloodAndBreath`, `Capacities`, `Faculties`,
+  `Vitality`, with `Alive` read beside the faculties. `Body`'s faculties, vitality and life are the
+  interface over them; no tier reads `Body`. The screen's health panel reads a body's capacities,
+  blood and breath through `BodyReadOut`, and nothing else calls it. Held by
+  `Architecture/BodyTierTests.cs`, which lists the breaches that exist today (the faculties still
+  read vitality).
 - **An activity is declared once,** by its owning system, with every facet together: offer and
   refusal, minute, end, body profile and UI kind. `Sim.Step`, `Verbs`, the UI and the test
   generator read that one declaration, and a test enforces completeness. *Target state, not built.*
