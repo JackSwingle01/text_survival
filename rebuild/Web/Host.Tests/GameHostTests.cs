@@ -66,7 +66,7 @@ public class GameHostTests
         var me = w.Agent(AgentId.Player);
         if (Fire.PitAt(w, me.Tile) == null)
             w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
-        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.Birch] = 5;
+        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.BirchFirewood] = 5;
         static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
         double before = Items.Have(Items.Pack(w, AgentId.Player), Resource.Water);
 
