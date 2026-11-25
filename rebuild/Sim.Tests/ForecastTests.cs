@@ -763,4 +763,43 @@ public class ForecastTests
         }
         Assert.Null(Stations.Forecast(w, pit, Stations.At(w, pit).Ongoing.Single()));
     }
+
+    /// A rack's finish under a fixed sky: the menu's forecast, then the minute it finishes, if within two days. The fire,
+    /// if any, burns down untended; its own forecast of its burn is the rack's.
+    static (long? Forecast, long? Finished) DryOn(WeatherSample sky, double birchKg)
+    {
+        var w = At();
+        w.FixedWeather = sky;
+        if (birchKg > 0) PitWith(w, Resource.BirchFirewood, birchKg);
+        var rack = Stations.Build(w, Camp(w));
+        Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.5);
+        Sim.Advance(w, 1);
+        Sim.Step(w, new PutOn(P, "dry_meat", rack), 1);
+        var forecast = Verbs.At(w, P).LocationFeatures.Single(t => t.LocationFeature.Kind == LocationFeatureKind.Rack)
+            .Menu.Single(v => v.Activity is TakeBack).Progress!.FinishMinute;
+        for (int i = 0; i < 2 * 1440; i++)
+            if (Sim.Advance(w, 1).OfType<TransformationFinished>().FirstOrDefault() is { } done) return (forecast, done.Minute);
+        return (forecast, null);
+    }
+
+    static readonly WeatherSample StillCold = new(0, WeatherCondition.Cloudy, -12, 0, 0, 0.8, WindDirection.North);
+
+    [Theory]
+    [InlineData(0.0)] // no fire
+    [InlineData(0.4)] // a fire that dies early on
+    [InlineData(3.0)] // a fire that burns most of the way
+    public void ARacksForecastFinish_AgreesWithWhatThenHappens_WithAndWithoutAFire(double birchKg)
+    {
+        var (forecast, finished) = DryOn(StillCold, birchKg);
+        Assert.NotNull(finished);
+        Assert.Equal(finished, forecast);
+    }
+
+    [Fact]
+    public void ARacksForecast_InFallingSnow_IsNone_AndNothingFinishes()
+    {
+        var (forecast, finished) = DryOn(new(0, WeatherCondition.HeavySnow, -10, 0.2, 0.6, 1, WindDirection.North), 3);
+        Assert.Null(forecast);
+        Assert.Null(finished);
+    }
 }
