@@ -155,7 +155,7 @@
   "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
   "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
   "outcomes": [] },
- // On a curing rack; the minutes are a dry, still day's.
+ // On a curing rack; the minutes are for dry, still days.
  "cure_hide": { "name": "Cure hide", "category": "Processing", "station": "Rack", "driver": "Drying",
   "inputs": [ { "of": "ScrapedHide", "count": 1 } ], "tools": [], "requires": [], "minutes": 2880,
   "result": { "resource": "CuredHide", "count": 1, "sharePct": 0.9 },

@@ -13,3 +13,7 @@ Revised (review): `dev/active/parity-audit-items.json` ITM-21 names `dry_hide` �
 Revised: `AHide_ScrapesAndDries_ToAShareOfItsWeight` and `AMammothHide_IsCuredBeforeItIsSewn` (pre-existing) drove the deleted hand recipes → their curing halves moved to `RackTests`; the first is renamed `AHide_Scrapes_ToAShareOfItsWeight`.
 Revised: without `dry_hide` the reachability walk's scraped hides were never used up, the pack filled, and `large_bag` failed on "Rope never reaches the pack" → after each recipe the walk also returns what no carried recipe takes (a scraped hide), and a missing material is cured on a rack when a rack recipe makes it.
 Revised: the issue said to decide the TDD seams without a person → used the existing seams: the rack's menu (`Verbs.At`), `Sim.Step`/`Sim.Advance`, and the recipe table.
+Revised: `RackTests.Drying_IsNotByHand` (pre-existing) → it also names `cure_hide` and `cure_mammoth_hide`, and checks `cure_hide` is refused by hand.
+Revised (review): `AMammothHide_IsCuredBeforeItIsSewn` no longer cures → renamed `AMammothHide_IsNotSewnRaw_AndScrapesToEightTenths`, and the parity checklist's references follow.
+Revised (review): the spec's "a hide half cured" save check had no test → `RackTests.AHalfCuredHide_SurvivesSaveAndLoad_WithTheFinishMinuteUnchanged`.
+Revised (review): the walk's last assert claimed more than it checked, and the rack comment read as one day → the assert checks only that a rack was used; the comment says "dry, still days".

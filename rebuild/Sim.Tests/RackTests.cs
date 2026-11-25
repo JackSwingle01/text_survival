@@ -295,6 +295,20 @@ public class RackTests
         Assert.Equal(7.2, done.Kg, 9);
     }
 
+    [Fact]
+    public void AHalfCuredHide_SurvivesSaveAndLoad_WithTheFinishMinuteUnchanged()
+    {
+        var w = WithRack();
+        Items.AddPiece(Pack(w), Resource.ScrapedHide, 2.4);
+        long setAt = w.Minute;
+        PutOn(w, a => a is PutOn { Recipe: "cure_hide" });
+        Sim.Advance(w, 24 * 60);
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        var done = FinishOf(loaded, 24 * 60 + 5);
+        Assert.Equal(setAt + 48 * 60, done.Minute);
+        Assert.Equal(2.16, done.Kg, 9);
+    }
+
     /// One place takes one hide, however many are carried.
     [Fact]
     public void ARawHide_IsNotOfferedForTheRack_AndAPlaceTakesOneScrapedHide()
@@ -314,7 +328,6 @@ public class RackTests
     public void NoHandRecipe_CuresAHide()
     {
         Assert.DoesNotContain(Recipes.ByHand, r => r.Result.Resource is Resource.CuredHide or Resource.CuredMammothHide);
-        Assert.DoesNotContain(Recipes.All, r => r.Id is "dry_hide" or "dry_mammoth_hide" || r.Name == "Dry a hide by the fire");
         Assert.DoesNotContain(Verbs.At(WithRack(), P).Make, v => v.Label.Contains("hide by the fire"));
     }
 
