@@ -23,7 +23,8 @@ static class ConservationWorlds
     public static TileId Camp(World w) => Map.Of(w).Camp;
 
     /// Kilograms of each resource held as items: every pack, every pile, and every cut piece
-    /// waiting on a carcass. Carcass ledgers (uncut Remaining) and fires are not items.
+    /// waiting on a carcass, and everything at a station, working or finished. Carcass ledgers (uncut Remaining) and
+    /// fires' fuel are not items.
     public static SortedDictionary<Resource, double> ItemKg(World w)
     {
         var t = new SortedDictionary<Resource, double>();
@@ -37,11 +38,16 @@ static class ConservationWorlds
             if (ts.Pile is { } pile) Add(Items.KgByResource(pile));
             foreach (var c in ts.Carcasses ?? []) Add(c.Pending);
         }
+        foreach (var s in w.Stations.Values)
+        {
+            Add(Items.KgByResource(s.Ready));
+            foreach (var x in s.Working) Add([new(x.Input, x.InputKg)]);
+        }
         return t;
     }
 
-    /// Every inventory a piece can be in: packs, piles, projects in either and on tiles, and the parts records of all
-    /// gear, wherever it is.
+    /// Every inventory a piece can be in: packs, piles, projects in either and on tiles, the parts records of all
+    /// gear, wherever it is, and what is at a station.
     public static IEnumerable<Inventory> AllInventories(World w)
     {
         var all = new List<Inventory>();
@@ -58,6 +64,13 @@ static class ConservationWorlds
         }
         foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) With(pile);
         foreach (var p in w.Projects.Values) With(p.Materials);
+        foreach (var s in w.Stations.Values)
+        {
+            With(s.Ready);
+            var working = new Inventory();
+            foreach (var x in s.Working) Items.AddPiece(working, x.Input, x.InputKg); // throws on a piece out of its range
+            With(working);
+        }
         return all;
     }
 

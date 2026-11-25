@@ -161,7 +161,12 @@ public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, S
 public sealed record Recipe(
     string Id, string Name, MakeCategory Category, IReadOnlyList<MaterialInput> Materials, IReadOnlyList<string> Items,
     IReadOnlyList<Capability> Tools, IReadOnlyList<Capability> Faster, IReadOnlyList<Requirement> Requires, int Minutes,
-    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor);
+    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor,
+    StationKind? Station = null, StationDriver? Driver = null)
+{
+    /// Worked by a person through Make, not by a station (Stations).
+    public bool ByHand => Station == null;
+}
 
 /// A placed recipe's unfinished work (GLOSSARY: Project), on its tile for anyone there to go on with.
 public sealed class TileProject
@@ -176,6 +181,9 @@ public static class Recipes
 {
     public static readonly IReadOnlyList<Recipe> All = Content.Tables.MakeRecipes;
     static readonly IReadOnlyDictionary<string, Recipe> ById = All.ToDictionary(r => r.Id);
+
+    /// The recipes a person works through Make, in menu order.
+    public static readonly IReadOnlyList<Recipe> ByHand = [.. All.Where(r => r.ByHand)];
 
     public static Recipe Get(string id) => ById.TryGetValue(id, out var r) ? r : throw new KeyNotFoundException($"No recipe '{id}'");
     public static bool Exists(string id) => ById.ContainsKey(id);
@@ -235,6 +243,7 @@ public static class Making
             case Make m:
                 {
                     var r = Recipes.Get(m.Recipe);
+                    if (r.Station is StationKind station) return new($"{Names.Lower(r.Name)} is not done by hand: put it on at a {Stations.Word(station)}");
                     if (r.Result.Placed) return PlacedRefusal(world, agent, pack, r);
                     bool begun = ProjectFor(pack, r.Id) != null;
                     if (!begun && MissingMaterial(pack, r) is { } material) return material;

@@ -26,7 +26,7 @@ public sealed record MissingGear(IReadOnlyList<string> AnyOf) : Missing
 /// Need is the line and Have where it stands, in the unit the Lack names; both null for a state that is there or not.
 public sealed record MissingState(Lack Lack, double? Need = null, double? Have = null) : Missing;
 
-public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, MovingPct, FrostF, Shelter, Dry }
+public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, MovingPct, FrostF, Shelter, Dry, StationRoom }
 
 /// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
@@ -126,7 +126,7 @@ public static class Verbs
         var make = new List<(string, Activity, int)>();
         if (pack != null)
         {
-            foreach (var r in Recipes.All)
+            foreach (var r in Recipes.ByHand)
                 make.Add((MakeLabel(r, Making.MinutesDone(world, agent, r) != null), new Make(who, r.Id), UntilDoneMinutes));
             foreach (var p in pack.Projects ?? []) make.Add(($"Abandon the unfinished {Names.Lower(Recipes.Get(p.Recipe).Name)}", new Abandon(who, p.Recipe), 1));
         }
@@ -259,6 +259,13 @@ public static class Verbs
             if (Fire.IsFuel(r)) menu.Add(($"Add {Names.Of(r)}", new AddFuel(who, r, Items.WouldMoveKg(pack!, r, FuelKg)), 1));
         if (!Fire.IsActive(pit) && pack != null) menu.Add(("Light the fire", Light(who, pack, pit.Pit), 1));
         if (pit.CharcoalKg > 0) menu.Add(("Gather charcoal", new GatherCharcoal(who), 1));
+        var station = Stations.At(world, new FireId(t.Index));
+        foreach (var r in Stations.FireRecipes)
+            if (pack != null && Items.Count(pack, Stations.InputOf(r)) > 0)
+                menu.Add(($"Put on {Names.Of(Stations.InputOf(r))}", new PutOn(who, r.Id), Stations.HandlingMinutes));
+        if (Items.HasResources(station.Ready)) menu.Add(($"Take {Items.Describe(station.Ready)}", new TakeFinished(who), Stations.HandlingMinutes));
+        foreach (var x in station.Working)
+            menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg), Stations.HandlingMinutes));
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
             if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
         menu.Add(("Melt snow", new MeltSnow(who), Work.MeltSnowMinutes));

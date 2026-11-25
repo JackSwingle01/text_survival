@@ -20,6 +20,10 @@
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
 //     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes;
+//   station and driver (optional): a recipe worked by a station (StationKind) rather than a person, and what
+//     drives it (StationDriver). It has one input, one piece of one discrete resource; its result is a count of 1
+//     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs; and it has no
+//     tools, faster tools, items, requirements or outcomes: nothing is rolled and nothing fails;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
 //     save_material:<input>:<share>, extra_product:<gear or resource>:<n> (of the recipe's own discrete result, n more
@@ -108,6 +112,16 @@
   "inputs": [ { "of": "CuredHide", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 10,
   "result": { "resource": "HideStrip", "count": 2, "sharePct": 1 },
   "outcomes": ["succeed:extra_product:HideStrip:1=.5"] },
+
+ // ---- worked by a station: put on, left, taken when done (spec 2026-11-24 fire-and-rack-as-stations) ----
+ "cook_meat": { "name": "Cook meat", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawMeat", "count": 1 } ], "tools": [], "requires": [], "minutes": 15,
+  "result": { "resource": "CookedMeat", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+ "cook_fish": { "name": "Cook fish", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
+  "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
 
  // ---- weapons ----
  "stone": { "name": "Stone", "category": "HuntingWeapon",
