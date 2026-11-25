@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, MeltSnow, Cook, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -68,7 +68,8 @@ static class ActionGen
             (4, Gen.Const(Act.Gather)), (2, Gen.Const(Act.StartFire)), (2, Gen.Const(Act.AddFuel)), (1, Gen.Const(Act.LightTorch)), (1, Gen.Const(Act.WalkAbout)),
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.Wash)), (1, Gen.Const(Act.MeltSnow)), (1, Gen.Const(Act.Cook)),
             (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
-            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)))
+            (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)),
+            (1, Gen.Const(Act.PutOn)), (1, Gen.Const(Act.TakeFinished)), (1, Gen.Const(Act.TakeBack)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
 
     public static Gen<Script> ScriptGen(int minIntents, int maxIntents, double scale) =>
@@ -182,10 +183,18 @@ static class ActionGen
                 {
                     // A project in the pack is the one to go on with; otherwise any recipe.
                     var projects = Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [];
-                    return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.All[pick % Recipes.All.Count].Id);
+                    return new Make(P, projects.Count > 0 && pick % 3 != 0 ? PickOf(projects, pick, "") : Recipes.ByHand[pick % Recipes.ByHand.Count].Id);
                 }
             case Act.Abandon:
-                return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.All[pick % Recipes.All.Count].Id));
+                return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.ByHand[pick % Recipes.ByHand.Count].Id));
+            case Act.PutOn: return new PutOn(P, PickOf([.. Stations.FireRecipes.Select(r => r.Id)], pick, "cook_meat"));
+            case Act.TakeFinished: return new TakeFinished(P);
+            case Act.TakeBack:
+                {
+                    var working = Fire.PitAt(w, tile) is FireId pit ? Stations.At(w, pit).Working : [];
+                    var x = PickOf(working, pick, null);
+                    return new TakeBack(P, x?.Input ?? Resource.RawMeat, x?.InputKg ?? 0.4);
+                }
             default: throw new NotSupportedException(i.Act.ToString());
         }
     }

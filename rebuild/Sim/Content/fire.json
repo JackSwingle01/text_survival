@@ -4,8 +4,9 @@
 // fuels: the resources that burn; a resource with no row here does not. peakTempF is how hot it can
 //   make a fire; minFireTempF is how hot the fire must already be before it catches; ignitionBonusPct
 //   is what it adds to the odds of starting a fire as tinder.
-// pits: every PitType. maxFuelKg is what it holds; windProtectionLevel how much wind it keeps off the
-//   flames; fuelEfficiencyFactor how much longer fuel lasts in it.
+// pits: every PitType. room is how many things it works at once as a station (Stations), fixed by the
+//   pit; maxFuelKg is what it holds; windProtectionLevel how much wind it keeps off the flames;
+//   fuelEfficiencyFactor how much longer fuel lasts in it.
 // deterrence: what flame does to an animal's nerve (Combat.FireDeterrence).
 //   fireFear is the one base value for every animal (people are not deterred): what a flame at full
 //   intensity, close by, takes off its resolve. torchIntensityPct is what a lit torch counts for against a
@@ -36,9 +37,9 @@
  },
 
  "pits": {
-  "Open": { "maxFuelKg": 12, "windProtectionLevel": 0, "fuelEfficiencyFactor": 1.0 },
-  "Mound": { "maxFuelKg": 15, "windProtectionLevel": 0.4, "fuelEfficiencyFactor": 1.0 },
-  "Stone": { "maxFuelKg": 18, "windProtectionLevel": 0.7, "fuelEfficiencyFactor": 1.15 }
+  "Open": { "room": 2, "maxFuelKg": 12, "windProtectionLevel": 0, "fuelEfficiencyFactor": 1.0 },
+  "Mound": { "room": 3, "maxFuelKg": 15, "windProtectionLevel": 0.4, "fuelEfficiencyFactor": 1.0 },
+  "Stone": { "room": 4, "maxFuelKg": 18, "windProtectionLevel": 0.7, "fuelEfficiencyFactor": 1.15 }
  },
 
  "deterrence": { "fireFear": 2.0, "torchIntensityPct": 0.25, "fullIntensityHeatF": 30, "fullWithinM": 6 }
