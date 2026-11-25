@@ -126,9 +126,9 @@ sealed class ViewBuilder(World world, int gen)
         Make m when Recipes.Get(m.Recipe).Result.Placed => "build", // camp work: the page lists it as building here
         Make => "make",
         Abandon => "abandon",
-        PutOn p when Stations.FromNothing(Recipes.Get(p.Recipe)) => "melt",
+        PutOn p when Stations.FromNothing(p.Recipe) => "melt",
         PutOn => "puton",
-        StopWork => "takeback",
+        StopWork => "stopwork",
         TakeFinished => "take",
         TakeBack => "takeback",
         Hunt => "hunt",

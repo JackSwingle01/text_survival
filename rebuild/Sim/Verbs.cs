@@ -268,7 +268,7 @@ public static class Verbs
         foreach (var x in station.Working)
             menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg), Stations.HandlingMinutes));
         foreach (var o in station.Ongoing)
-            menu.Add(($"Stop: {Recipes.Get(o.Recipe).Name.ToLowerInvariant()}", new StopWork(who, o.Recipe), Stations.HandlingMinutes));
+            menu.Add((Stations.StopLabel(o.Recipe), new StopWork(who, o.Recipe), Stations.HandlingMinutes));
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
             if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
         menu.Add(("Melt snow by hand", new MeltSnow(who), Work.MeltSnowMinutes));

@@ -14,7 +14,7 @@ public sealed class Transformation
     public double DonePct { get; set; }
 }
 
-/// A recipe with no input at work on a station (melting snow): each full share of the work adds its result.
+/// GLOSSARY: Transformation, one with no input (melting snow): each full share of the work adds its result.
 public sealed class Ongoing
 {
     public required string Recipe { get; init; }
@@ -55,6 +55,9 @@ public static class Stations
 
     /// Takes nothing: set going, it works until its Result.CapKg waits at the station (the loader's rule).
     public static bool FromNothing(Recipe r) => r.Materials.Count == 0;
+    public static bool FromNothing(string recipe) => FromNothing(Recipes.Get(recipe));
+    static string Lower(string recipe) => Recipes.Get(recipe).Name.ToLowerInvariant();
+    public static string StopLabel(string recipe) => $"Stop: {Lower(recipe)}";
 
     public static string Word(StationKind kind) => kind switch { StationKind.Fire => "fire" };
 
@@ -94,7 +97,7 @@ public static class Stations
                         return new($"no {Names.Of(input)} to put on", new MissingResource([input], Items.Resources[input].MinPieceKg, 1));
                     int room = Room(world, id);
                     if (Used(s) >= room) return new($"the fire has room for {room}, and all of it is taken", new MissingState(Lack.StationRoom, room + 1, Used(s)));
-                    if (s.Ongoing.Any(o => o.Recipe == a.Recipe)) return new($"the fire is already set to {r.Name.ToLowerInvariant()}");
+                    if (s.Ongoing.Any(o => o.Recipe == a.Recipe)) return new($"the fire is already set to {Lower(a.Recipe)}");
                     return null;
                 }
             case TakeFinished:
@@ -102,7 +105,7 @@ public static class Stations
             case TakeBack a:
                 return Piece(s, a) != null ? null : new("nothing there to take back");
             case StopWork a:
-                return s.Ongoing.Any(o => o.Recipe == a.Recipe) ? null : new($"the fire is not set to {Recipes.Get(a.Recipe).Name.ToLowerInvariant()}");
+                return s.Ongoing.Any(o => o.Recipe == a.Recipe) ? null : new($"the fire is not set to {Lower(a.Recipe)}");
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a station activity");
         }
@@ -117,7 +120,7 @@ public static class Stations
         if (!world.Stations.TryGetValue(id, out var s)) world.Stations[id] = s = new StationState();
         switch (activity)
         {
-            case PutOn a when FromNothing(Recipes.Get(a.Recipe)):
+            case PutOn a when FromNothing(a.Recipe):
                 s.Ongoing.Add(new Ongoing { Recipe = a.Recipe, SetBy = agent.Id });
                 break;
             case PutOn a:

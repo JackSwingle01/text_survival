@@ -18,3 +18,9 @@ Revised: the old activity's verb is relabelled "Melt snow by hand", so the menu 
 Revised: the finish narrates "1.0 kg water waits at the fire." and takes the water icon; grams read as kilos for water, as everywhere (Names.Grams).
 Revised: comment ratchet (CommentHygieneTests) over on Activity.cs and Make.cs → doc lines folded.
 Follow-up: water reads in kilos ("1.0 kg water"), not litres, in the menu and the log; a litre word for water is a Names change outside this ticket.
+Revised (review, term): Ongoing was a transformation under a name GLOSSARY.md does not define → the Transformation entry is widened to one with no input, naming Ongoing as its code.
+Revised (review): Stations.FromNothing(Recipes.Get(id)) and the lowered recipe name repeated in five places → FromNothing(string), Lower, StopLabel in Stations.
+Revised (review): StopWork took the web kind "takeback", which means returning a piece → its own kind "stopwork", the cancel icon.
+Revised (review): the weak-fire melt test did not check embers → embers give the first litre in 40 minutes, a quarter of the rate.
+Revised (review): kept, with reasons: StopWork, one melt a fire and the relabel (logged above); water waiting takes no place (the spec's "no queue" is about pieces, and 4 L caps it); work left over when the cap is reached carries to the next litre (the spec's "nothing is lost"); CapG 0 as no cap (the loader's G, Count, SharePct all use 0 so).
+Follow-up: design calls for Jack, made here without him: a way to stop melting (StopWork), one melt a fire, and water waiting at a fire taking no place of its own.

@@ -80,7 +80,7 @@ public static class Narration
             FuelAdded x => ($"{Does(x.By, "add")} {Names.Amount(x.Fuel, x.Kg, x.Pieces)} to the fire.", Tone.Plain),
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
-            TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} {(Stations.FromNothing(Recipes.Get(x.Recipe)) ? "waits" : "is done")} at the fire.", Tone.Good),
+            TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} {(Stations.FromNothing(x.Recipe) ? "waits" : "is done")} at the fire.", Tone.Good),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
             Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
                 : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd

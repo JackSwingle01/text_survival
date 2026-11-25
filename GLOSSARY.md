@@ -188,7 +188,9 @@ _Avoid_: job, task, build in progress
 **Transformation**:
 Inputs at a station being turned into a recipe's result by the station, with no person working: meat
 cooking at a fire, a hide curing on a rack. It makes a different thing and never goes back, which is
-what tells it from an effect. Its rate comes from the exposure at the station.
+what tells it from an effect. Its rate comes from the exposure at the station. One with no input (snow
+melting at a fire) is set going and adds its result each unit of work until its cap waits there
+(`Ongoing` in the code).
 _Avoid_: job, project (a project is a person's work), process
 
 **Station**:

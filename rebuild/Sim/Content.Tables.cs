@@ -424,7 +424,7 @@ public static partial class Content
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
-            bool fromNothing = row.Station != null && materials.Count == 0 && items.Count == 0;
+            bool fromNothing = row.Station != null && materials.Count == 0 && items.Count == 0; // Stations.FromNothing, before the Recipe exists
             if (r.CapG != 0 && !fromNothing) problems.Add($"{at}: capG is for a station-worked recipe with no input");
             if (row.Station != null || row.Driver != null) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
             if (problems.Count == before && !fromNothing) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
@@ -451,7 +451,7 @@ public static partial class Content
         if (items.Count > 0 || materials.Count > 1) yield return $"{at}: a station-worked recipe has one input";
         else if (materials.Count == 0)
         {
-            if (row.Result.Resource is not Resource water || resources[water].Discrete || row.Result.G <= 0 || row.Result.CapG < row.Result.G)
+            if (row.Result.Resource is not Resource result || resources[result].Discrete || row.Result.G <= 0 || row.Result.CapG < row.Result.G)
                 yield return $"{at}: a station-worked recipe with no input makes grams of a continuous resource, up to a capG of at least its g";
             yield break;
         }

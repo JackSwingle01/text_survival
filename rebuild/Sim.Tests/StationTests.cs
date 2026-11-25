@@ -357,11 +357,19 @@ public class StationTests
     }
 
     [Fact]
-    public void Melting_IsSlowerAtAWeakFire()
+    public void Melting_IsSlowerAtAWeakFire_AndOnEmbersSlowerStill()
     {
         Assert.Equal(10, FirstLitre(Camp(out _), w => Pit(w, 5)));
         long weak = FirstLitre(Camp(out _), w => Pit(w, 0.45));
+        long embers = FirstLitre(Camp(out _), w =>
+        {
+            var f = w.Fires[Pit(w, 0)];
+            f.HasEmbers = true;
+            f.EmberStartTempF = 400;
+            f.EmberDurationHours = f.EmberHoursRemaining = 3;
+        });
         Assert.True(weak > 10, $"weak {weak}");
+        Assert.Equal(40, embers); // a quarter of the rate
     }
 
     [Fact]
