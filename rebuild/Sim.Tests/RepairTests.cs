@@ -58,11 +58,11 @@ public class RepairTests
     public void Sharpening_RestoresHalfTheMissingCondition_WithNoInputs()
     {
         var w = Noon(out var pack);
-        var knife = Worn("stone_knife", 4); // 40%
+        var knife = Worn("obsidian_knife", 4); // 40%
         pack.Gear.Add(knife);
-        Assert.Equal("you need something for striking", Sim.Refusal(w, new Make(P, "sharpen", "stone_knife"))?.Reason);
-        pack.Gear.Add(Items.Make("hammerstone"));
-        Repair(w, "sharpen", "stone_knife");
+        Assert.Equal("you need something for striking", Sim.Refusal(w, new Make(P, "sharpen", "obsidian_knife"))?.Reason);
+        pack.Gear.Add(Items.Make("stone"));
+        Repair(w, "sharpen", "obsidian_knife");
         Assert.Equal(7, knife.Durability); // 70%
     }
 
@@ -119,21 +119,21 @@ public class RepairTests
     {
         var w = Noon(out var pack);
         SewingKit(pack);
-        pack.Gear.Add(Items.Make("hammerstone"));
+        pack.Gear.Add(Items.Make("stone"));
         pack.Gear.Add(Worn("hide_gloves", 40));
-        pack.Gear.Add(Worn("stone_knife", 4));
+        pack.Gear.Add(Worn("obsidian_knife", 4));
         pack.Gear.Add(Items.Make("hide_cap")); // whole: nothing to mend
         var body = w.Agent(P).Body;
         body.Worn.Clear();
         body.Worn.Add(Worn("hide_boots", 10));
         var repairs = Verbs.At(w, P).Make.Where(v => v.Activity is Make { Target: not null }).ToList();
-        Assert.Equal(["mend hide_boots", "mend hide_gloves", "sharpen stone_knife"],
+        Assert.Equal(["mend hide_boots", "mend hide_gloves", "sharpen obsidian_knife"],
             repairs.Select(v => (Make)v.Activity).Select(m => $"{m.Recipe} {m.Target}").Order());
         Assert.Contains(repairs, v => v.Label == "Mend hide gloves" && v.Refused == null);
-        Assert.Contains(repairs, v => v.Label == "Sharpen stone knife" && v.Refused == null);
+        Assert.Contains(repairs, v => v.Label == "Sharpen obsidian knife" && v.Refused == null);
         // Sharpening a garment, or mending a knife, is not offered, and refused if asked for.
         Assert.NotNull(Sim.Refusal(w, new Make(P, "sharpen", "hide_gloves")));
-        Assert.NotNull(Sim.Refusal(w, new Make(P, "mend", "stone_knife")));
+        Assert.NotNull(Sim.Refusal(w, new Make(P, "mend", "obsidian_knife")));
         Assert.NotNull(Sim.Refusal(w, new Make(P, "mend")));
         Assert.NotNull(Sim.Refusal(w, new Make(P, "mend", "hide_cap"))); // whole
     }

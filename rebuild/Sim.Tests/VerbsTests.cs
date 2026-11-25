@@ -63,6 +63,18 @@ public class VerbsTests
         AssertEveryVerbIsTrue(w, P);
     }
 
+    /// Lame, every walk is listed refused, with the words Step refuses it with (a whole body: the test above).
+    [Fact]
+    public void ALameBody_IsListedRefusedToWalk_ExactlyWhenStepRefusesIt()
+    {
+        var w = Camp(out _);
+        Sim.Step(w, new Wait(P), 1);
+        foreach (var leg in w.Agent(P).Body.Regions.Where(r => r.Name.EndsWith("Leg")))
+            foreach (var layer in leg.Layers) layer.Condition = 0;
+        Assert.All(Verbs.At(w, P).Walk, v => Assert.IsType<MissingFaculty>(v.Refused?.Missing));
+        AssertEveryVerbIsTrue(w, P);
+    }
+
     /// Against the map's edge and the mountain wall a walk is listed, refused with the map's reason.
     [Fact]
     public void AWalkIntoTheMountains_IsListed_RefusedWithTheMapsReason()
@@ -152,7 +164,7 @@ public class VerbsTests
         Assert.True(pit.Interact);
         var fuels = Items.KgByResource(Items.Pack(w, P)).Keys.Where(Fire.IsFuel).ToList();
         Assert.Equal(fuels, pit.Menu.Select(v => v.Activity).OfType<AddFuel>().Select(a => a.Fuel));
-        Assert.Contains(pit.Menu, v => v.Activity is MeltSnow);
+        Assert.Contains(pit.Menu, v => v.Activity is PutOn { Recipe: "melt_snow" });
         Assert.Contains(here.Tile, v => v.Activity is LightTorch && v.Allowed);
         AssertEveryVerbIsTrue(w, P);
     }

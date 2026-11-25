@@ -51,6 +51,8 @@ public sealed class World
     public SortedDictionary<TileId, TileProject> Projects { get; init; } = [];
     /// What is at each fire working as a station: only fires with something on them. Owned by Stations.
     public SortedDictionary<FireId, StationState> Stations { get; init; } = [];
+    public SortedDictionary<RackId, RackState> Racks { get; init; } = [];
+    public int NextRackId { get; set; }
     /// Shelter finds waiting for a taken tile: the index of the pool (Pools.At). Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// Owned by Journal.

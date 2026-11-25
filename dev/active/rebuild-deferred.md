@@ -189,8 +189,9 @@ that are settled (a stone weighs 0.3 kg, no leap years, Rng modulo bias) are not
 - `Knowledge.cs:58` - `Danger` has Hurt and Den; no thin ice, since Ground models no ice thickness yet.
 - `Npc.cs:36` - an NPC's last close threat (`ThreatTile`) stays its own decision state, not a `Sighting`: it keeps the
   flight logic exactly as tuned. Upgrade: derive it from `Beliefs.Sightings` if the two should agree.
-- `Shelter.cs:407`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking pays
-  in speed only (cooking has no bad results yet). Upgrade: crafting luck and cooking quality (short-loop feature 8).
+- `Shelter.cs:407`, `Skills.cs:62` - Crafting teaches but pays nothing (crafting has no failures to spare yet); Cooking
+  teaches the person who set the food and pays nothing (cooking has no bad results yet). Upgrade: crafting luck and
+  cooking quality (short-loop feature 8).
 - `Odds.cs` - odds come as factors for fire-starting, throws, injury on hazardous ground and forage yield. Not yet:
   stalking detection (`Combat.DetectionChance`, a power curve the stalk redesign replaces), dodge, shove and the flat
   90% blow (no player choice rides on them yet), butchering yield (one product per resource; a sheet when butchering

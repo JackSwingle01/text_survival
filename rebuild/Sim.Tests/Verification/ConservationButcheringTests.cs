@@ -20,7 +20,7 @@ public class ConservationButcheringTests
 {
     static readonly Species[] Kinds =
         [Species.Hare, Species.Fox, Species.Wolf, Species.Caribou, Species.Megaloceros, Species.Bison, Species.Bear, Species.Mammoth];
-    static readonly string?[] Tools = [null, "flint_knife", "stone_axe", "worn_knife"];
+    static readonly string?[] Tools = [null, "flint_knife", "ground_stone_axe", "worn_knife"];
 
     public sealed record Chunk(int Minutes, bool SaveLoad, int GapMinutes, bool Unload);
 

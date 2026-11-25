@@ -20,7 +20,7 @@ public class WorkTests
     static StockPool Bush() => new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0);
 
     static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
-    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
     /// Room for a whole tree's trunk in one go (a pack alone takes it in loads).
     static void RoomForATree(World w) { Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); }
     static void FastForwardTo(World w, int hour) { while (Weather.MinuteOfDay(w.Minute) / 60 != hour) w.Minute++; }
@@ -33,8 +33,6 @@ public class WorkTests
     [InlineData("pool")]
     [InlineData("axe")]
     [InlineData("eat")]
-    [InlineData("cook")]
-    [InlineData("melt")]
     [InlineData("butcher")]
     public void Refusals_CostNoTime_AndChangeNothing(string what)
     {
@@ -45,8 +43,6 @@ public class WorkTests
             "pool" => new Gather(P, 7),
             "axe" => new Gather(P, 1),
             "eat" => new Eat(P, Resource.Berries, 1),
-            "cook" => new Cook(P, Resource.RawMeat, 1),
-            "melt" => new MeltSnow(P),
             _ => new Butcher(P, 3),
         };
         var r = Sim.Step(w, a, 30);
@@ -63,8 +59,8 @@ public class WorkTests
     {
         var one = WithPools(Trees);
         var quarters = WithPools(Trees);
-        Items.Pack(one, P).Gear.Add(Items.Make("stone_axe", durability: 10)); // stone axes never wear; this one does
-        Items.Pack(quarters, P).Gear.Add(Items.Make("stone_axe", durability: 10));
+        Items.Pack(one, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10)); // a ground stone axe never wears; this one does
+        Items.Pack(quarters, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10));
         RoomForATree(one);
         RoomForATree(quarters);
         var r = Sim.Step(one, new Gather(P, 0), 300);
@@ -382,30 +378,6 @@ public class WorkTests
         w.Agent(P).Body.HydrationMl = 1000;
         Assert.Equal("drank", Sim.Step(w, new Drink(P), 5).InterruptedReason);
         Assert.True(w.Agent(P).Body.HydrationMl > 1900);
-    }
-
-    [Fact]
-    public void Cooking_TurnsRawToCooked_AtAKiloAQuarterHour_OnABurningFire()
-    {
-        var w = WithPools(Forage);
-        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 2);
-        Assert.Equal("no fire to cook on", Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 30).InterruptedReason);
-        LightAPit(w);
-        var r = Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60);
-        Assert.Equal(("cooked", 15), (r.InterruptedReason, r.MinutesElapsed));
-        Assert.Equal(1, Items.Have(Items.Pack(w, P), Resource.CookedMeat), 9);
-        Assert.Equal(1, Items.Have(Items.Pack(w, P), Resource.RawMeat), 9);
-        Assert.Equal("Berries is not something to cook", Sim.Step(w, new Cook(P, Resource.Berries, 1), 30).InterruptedReason);
-    }
-
-    [Fact]
-    public void MeltingSnow_MakesALitreInTenMinutes()
-    {
-        var w = WithPools(Forage);
-        LightAPit(w);
-        var r = Sim.Step(w, new MeltSnow(P), 30);
-        Assert.Equal(("melted", 10), (r.InterruptedReason, r.MinutesElapsed));
-        Assert.Equal(1, Items.Have(Items.Pack(w, P), Resource.Water), 9);
     }
 
     [Fact]

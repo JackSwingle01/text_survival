@@ -50,8 +50,8 @@ public class ContentStrictTests
     [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\" }", "discrete Stone needs pieceKg")]
     [InlineData("items.json", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.08, 1.5] }", "\"Stone\": { \"category\": \"Material\", \"form\": \"Discrete\", \"pieceKg\": [0.5, 0.2] }", "discrete Stone needs pieceKg")]
     [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\", \"pieceKg\": [1, 2] }", "continuous Water has no pieces")]
-    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"g\": 600 }", "Stone is discrete: a count of pieces, never a weight")]
-    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 2 }", "{ \"of\": \"Stone\", \"count\": 2, \"kg\": 0.6 }", "Stone names kg")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 1 }", "{ \"of\": \"Stone\", \"g\": 300 }", "Stone is discrete: a count of pieces, never a weight")]
+    [InlineData("recipes.json", "{ \"of\": \"Stone\", \"count\": 1 }", "{ \"of\": \"Stone\", \"count\": 1, \"kg\": 0.3 }", "Stone names kg")]
     [InlineData("recipes.json", "{ \"of\": \"PlantFiber\", \"g\": 300 }", "{ \"of\": \"PlantFiber\", \"count\": 3 }", "a discrete input, and only one, is a count")]
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:Sinew:1=.5\"", "extra_product Sinew is discrete")]
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:HideStrip:1.5=.5\"", "extra_product HideStrip is whole pieces")]
@@ -70,12 +70,12 @@ public class ContentStrictTests
     // ---- 1c. a repair works on pieces that wear, each kind by one recipe, none a tool of its own repair (#148) ----
 
     [Theory]
-    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"stone_axe\", \"worn_knife\"", "stone_axe never wears")]
-    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"hide_gloves\", \"worn_knife\"", "hide_gloves is repaired by another recipe too")]
-    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"hammerstone\", \"worn_knife\"", "hammerstone gives a capability its own repair uses")]
-    [InlineData("\"repairs\": [\"sharp_rock\", \"worn_knife\"", "\"repairs\": [\"no_such\", \"worn_knife\"", "no gear kind 'no_such'")]
+    [InlineData("\"repairs\": [\"crude_edge\", \"worn_knife\"", "\"repairs\": [\"ground_stone_axe\", \"worn_knife\"", "ground_stone_axe never wears")]
+    [InlineData("\"repairs\": [\"crude_edge\", \"worn_knife\"", "\"repairs\": [\"hide_gloves\", \"worn_knife\"", "hide_gloves is repaired by another recipe too")]
+    [InlineData("\"repairs\": [\"crude_edge\", \"worn_knife\"", "\"repairs\": [\"stone\", \"worn_knife\"", "stone gives a capability its own repair uses")]
+    [InlineData("\"repairs\": [\"crude_edge\", \"worn_knife\"", "\"repairs\": [\"no_such\", \"worn_knife\"", "no gear kind 'no_such'")]
     [InlineData("\"restoresPct\": 0.5", "\"restoresPct\": 1.5", "restoresPct 1.5 is a share")]
-    [InlineData("\"restoresPct\": 0.5", "\"restoresPct\": 0.5, \"gear\": \"stone_knife\"", "exactly one")]
+    [InlineData("\"restoresPct\": 0.5", "\"restoresPct\": 0.5, \"gear\": \"obsidian_knife\"", "exactly one")]
     public void Loader_RefusesARepair_ThatCannotWork(string from, string to, string named) =>
         Assert.Contains(named, BrokenIn("recipes.json", from, to));
 
@@ -96,6 +96,18 @@ public class ContentStrictTests
     [InlineData("fire.json", "\"Mound\": { \"room\": 3, ", "\"Mound\": { \"room\": 0, ", "fire.json pits Mound: out of range")]
     public void Loader_RefusesAStationRecipe_ThatIsNotOnePieceRolledNothing_AndAPitWithNoRoom(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
+
+    // ---- 1d. the rack: an amount up to a cap goes on, and a rack is built (#187) ----
+
+    [Theory]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedBerries\", \"g\": 150 }", "as a sharePct (0-1] of its input")]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 1.3 }", "as a sharePct (0-1] of its input")]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedMeat\", \"count\": 1, \"sharePct\": 0.3 }", "an amount from an amount")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }", "\"result\": { \"station\": \"Fire\" }", "a placed station is a Rack")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }", "\"result\": { \"station\": \"Rack\", \"bedding\": \"Makeshift\" }", "exactly one")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }, \"outcomes\": []", "\"result\": { \"station\": \"Rack\" }, \"outcomes\": [\"fail=.1\"]", "a placed result has no outcomes")]
+    public void Loader_RefusesADryingRecipe_OrARack_ThatCannotWork(string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn("recipes.json", from, to));
 
     // ---- 2. a row's fields are required, whatever kind of row it is ----
 
@@ -122,6 +134,10 @@ public class ContentStrictTests
     [InlineData("effects.json", "\"treatmentAboveSeverity\": 0, ", "", "treatmentAboveSeverity")]
     [InlineData("items.json", "\"Water\": { \"category\": \"Water\", \"hydrationMlPerKg\": 1000, \"form\": \"Continuous\" }", "\"Water\": { \"category\": \"Water\", \"form\": \"Continuous\" }", "water Water needs its hydrationMlPerKg")]
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
+    // An axe that left its speed out would chop at some unstated rate (#145).
+    [InlineData("items.json", "\"tool\": \"Axe\", \"chopFactor\": 1.5, ", "\"tool\": \"Axe\", ", "flint_axe: axes, and only axes, state their chopFactor")]
+    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.65", "\"tool\": \"Knife\", \"chopFactor\": 1, \"weapon\": { \"damage\": 3.65", "obsidian_knife: axes, and only axes, state their chopFactor")]
+    [InlineData("items.json", "\"chopFactor\": 1.5", "\"chopFactor\": 0", "flint_axe: chopFactor 0 (above 0)")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
     [InlineData("terrain.json", ", \"trees\": { \"name\": \"Forest Trees\", \"minutesToFell\": 100 }", "", "trees")]
@@ -170,7 +186,7 @@ public class ContentStrictTests
 
     /// NPCs are handed a stone axe and a flint knife by name: a rename fails at load, not at the first spawn.
     [Theory]
-    [InlineData("stone_axe", "stone_hatchet")]
+    [InlineData("ground_stone_axe", "stone_hatchet")]
     [InlineData("flint_knife", "flint_blade")]
     public void Loader_RefusesARename_OfGearTheCodeNames(string kind, string renamed)
     {

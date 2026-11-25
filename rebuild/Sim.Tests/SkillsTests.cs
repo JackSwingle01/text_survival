@@ -173,14 +173,45 @@ public class SkillsTests
         Assert.Equal(Skills.ForageXpPerHour, Xp(w, Skill.Foraging), 6);
     }
 
+    /// Cooking teaches by the kilo cooked, to whoever set the piece, when it finishes: not when it is put on.
     [Fact]
-    public void Cooking_TeachesByTheKilo()
+    public void Cooking_TeachesTheSetter_WhenThePieceFinishes()
     {
         var w = Mild17();
         LightPit(w);
-        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 1);
-        Assert.Equal("cooked", Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60).InterruptedReason);
-        Assert.Equal(Skills.CookXpPerKg, Xp(w, Skill.Cooking), 6);
+        Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.5);
+        Assert.NotEqual(StepOutcome.Refused, Sim.Step(w, new PutOn(P, "cook_meat"), 1).Outcome);
+        Assert.Equal(0, Xp(w, Skill.Cooking));
+        var done = AdvanceUntilFinished(w, 60);
+        Assert.Equal(P, done.SetBy);
+        Assert.Equal(0.5 * Skills.CookXpPerKg, Xp(w, Skill.Cooking), 6);
+    }
+
+    /// A setter who has died gains nothing; the piece still cooks.
+    [Fact]
+    public void Cooking_TeachesNobody_WhenTheSetterHasDied()
+    {
+        var w = Mild17();
+        LightPit(w);
+        var npc = Npc.Spawn(w, Map.Of(w).Camp);
+        var mind = (NpcMind)w.Agent(npc).Mind;
+        TestKit.ClearResources(mind.Pack);
+        Items.AddPiece(mind.Pack, Resource.RawMeat, 0.5);
+        Assert.Null(Sim.Refusal(w, new PutOn(npc, "cook_meat")));
+        Assert.NotEqual(StepOutcome.Refused, Sim.Step(w, new PutOn(npc, "cook_meat"), 1).Outcome);
+        Assert.Equal(0, mind.Skills.GetValueOrDefault(Skill.Cooking)?.Xp ?? 0);
+        w.Agent(npc).Body.BloodPct = 0;
+        Assert.False(Sim.IsAlive(w.Agent(npc)));
+        var done = AdvanceUntilFinished(w, 60);
+        Assert.Equal(npc, done.SetBy);
+        Assert.Equal(0, mind.Skills.GetValueOrDefault(Skill.Cooking)?.Xp ?? 0);
+    }
+
+    static TransformationFinished AdvanceUntilFinished(World w, int withinMinutes)
+    {
+        for (int i = 0; i < withinMinutes; i++)
+            if (Sim.Advance(w, 1).OfType<TransformationFinished>().FirstOrDefault() is { } done) return done;
+        throw new Xunit.Sdk.XunitException($"nothing finished within {withinMinutes} minutes");
     }
 
     [Fact]
@@ -235,21 +266,6 @@ public class SkillsTests
         SetLevel(w, P, Skill.Foraging, 10);
         var odds = Work.ForageYield(w, w.Agent(P));
         Assert.Contains(odds.Terms, t => t.Factor == "Foraging" && t.Op == OddsOp.Scale && Math.Abs(t.Value - 1.15) < 1e-12);
-    }
-
-    [Fact]
-    public void Cooking_TakesLessTimeAtTheFire()
-    {
-        int Minutes(int level)
-        {
-            var w = Mild17();
-            SetLevel(w, P, Skill.Cooking, level);
-            LightPit(w);
-            TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 1);
-            return Sim.Step(w, new Cook(P, Resource.RawMeat, 1), 60).MinutesElapsed;
-        }
-        Assert.Equal(Work.CookMeatMinutesPerKg, Minutes(0));
-        Assert.True(Minutes(10) < Minutes(0));
     }
 
     /// Practice wins back what spoiling meat would cost, and nothing past a clean cut: at the most

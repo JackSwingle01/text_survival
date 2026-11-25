@@ -17,8 +17,6 @@ namespace Survival;
 [JsonDerivedType(typeof(Eat), "eat")]
 [JsonDerivedType(typeof(Drink), "drink")]
 [JsonDerivedType(typeof(Wash), "wash")]
-[JsonDerivedType(typeof(Cook), "cook")]
-[JsonDerivedType(typeof(MeltSnow), "meltsnow")]
 [JsonDerivedType(typeof(WalkAbout), "walkabout")]
 [JsonDerivedType(typeof(PutDown), "putdown")]
 [JsonDerivedType(typeof(PickUp), "pickup")]
@@ -56,8 +54,6 @@ public sealed record Butcher(AgentId Who, int Carcass, ButcherMode? Mode = null)
 public sealed record Eat(AgentId Who, Resource Food, double Kg) : Activity(Who);
 public sealed record Drink(AgentId Who, double Liters = Work.MaxDrinkLiters) : Activity(Who);
 public sealed record Wash(AgentId Who) : Activity(Who);
-public sealed record Cook(AgentId Who, Resource Raw, double Kg) : Activity(Who);
-public sealed record MeltSnow(AgentId Who) : Activity(Who);
 public sealed record WalkAbout(AgentId Who) : Activity(Who);
 public sealed record PutDown(AgentId Who, Resource Resource, double Kg) : Activity(Who);
 public sealed record PickUp(AgentId Who, Resource Resource, double Kg) : Activity(Who);
@@ -77,8 +73,8 @@ public sealed record PackTent(AgentId Who) : Activity(Who);
 public sealed record Make(AgentId Who, string Recipe, string? Target = null) : Activity(Who);
 public sealed record Abandon(AgentId Who, string Recipe, string? Target = null) : Activity(Who);
 
-/// At the fire here (Stations). TakeBack names the very piece put on: its input and kilos; StopWork, a recipe with no input.
-public sealed record PutOn(AgentId Who, string Recipe) : Activity(Who);
-public sealed record TakeFinished(AgentId Who) : Activity(Who);
-public sealed record TakeBack(AgentId Who, Resource Input, double Kg) : Activity(Who);
+/// At a station here: Rack names a rack, null the fire. TakeBack names the very thing put on: its input and kilos; StopWork, a recipe with no input.
+public sealed record PutOn(AgentId Who, string Recipe, RackId? Rack = null) : Activity(Who);
+public sealed record TakeFinished(AgentId Who, RackId? Rack = null) : Activity(Who);
+public sealed record TakeBack(AgentId Who, Resource Input, double Kg, RackId? Rack = null) : Activity(Who);
 public sealed record StopWork(AgentId Who, string Recipe) : Activity(Who);

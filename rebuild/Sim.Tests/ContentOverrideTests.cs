@@ -27,7 +27,7 @@ public class ContentOverrideTests
         Assert.Equal(3.5, t.Sightings.Alert[1]);
         Assert.Equal(Content.Tables.Species[Species.Bear], t.Species[Species.Bear]);
         Assert.Equal(Content.Tables.Species[Species.Wolf].Threat, t.Species[Species.Wolf].Threat);
-        Assert.Equal(Content.Tables.Gear["stone_axe"].Weapon, t.Gear["stone_axe"].Weapon);
+        Assert.Equal(Content.Tables.Gear["ground_stone_axe"].Weapon, t.Gear["ground_stone_axe"].Weapon);
     }
 
     [Fact]

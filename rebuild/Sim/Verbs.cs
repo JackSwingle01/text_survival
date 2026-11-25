@@ -26,7 +26,10 @@ public sealed record MissingGear(IReadOnlyList<string> AnyOf) : Missing
 /// Need is the line and Have where it stands, in the unit the Lack names; both null for a state that is there or not.
 public sealed record MissingState(Lack Lack, double? Need = null, double? Have = null) : Missing;
 
-public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, MovingPct, FrostF, Shelter, Dry, StationRoom }
+public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, FrostF, Shelter, Dry, StationRoom }
+
+/// A faculty at zero (GLOSSARY: Crippled), and why: what would have to mend or be put down.
+public sealed record MissingFaculty(Faculty Faculty, IReadOnlyList<CrippledBy> Because) : Missing;
 
 /// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
@@ -192,7 +195,7 @@ public static class Verbs
     {
         LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
         LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)) && !Pools.LaysItsOwnFeature(Pools.Def(world, new PoolId(t.Tile, t.Index))),
-        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item or LocationFeatureKind.Trodden => true,
+        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item or LocationFeatureKind.Trodden or LocationFeatureKind.Rack => true,
     };
 
     /// What a thing on a tile is called, the same whoever looks (and with no one there to look).
@@ -208,6 +211,7 @@ public static class Verbs
         LocationFeatureKind.Track => t.TrailDirection is Direction dir ? $"{Names.Of(Tracks.TierOf(world, t.Tile, Map.Step(t.Tile, dir)))} {Names.Of(dir)}"
             : $"{Names.Of((TrackMaker)t.Index)} prints",
         LocationFeatureKind.Trodden => "trodden ground",
+        LocationFeatureKind.Rack => "curing rack",
         LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
         LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
     };
@@ -225,6 +229,7 @@ public static class Verbs
             LocationFeatureKind.Pile => [.. Items.Totals(world.Tiles[t.Tile].Pile!).Select(x => ($"Take {Names.Of(x.Resource)}", (Activity)new PickUp(who, x.Resource, x.Kg), 1))],
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
+            LocationFeatureKind.Rack => StationVerbs(world, who, StationKind.Rack, world.Racks[new(t.Index)].Work, new(t.Index), pack),
             LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
         });
     }
@@ -273,19 +278,23 @@ public static class Verbs
             if (Fire.IsFuel(r)) menu.Add(($"Add {Names.Of(r)}", new AddFuel(who, r, Items.WouldMoveKg(pack!, r, FuelKg)), 1));
         if (!Fire.IsActive(pit) && pack != null) menu.Add(("Light the fire", Light(who, pack, pit.Pit), 1));
         if (pit.CharcoalKg > 0) menu.Add(("Gather charcoal", new GatherCharcoal(who), 1));
-        var station = Stations.At(world, new FireId(t.Index));
-        foreach (var r in Stations.FireRecipes)
-            if (Stations.FromNothing(r)) menu.Add((r.Name, new PutOn(who, r.Id), Stations.HandlingMinutes));
-            else if (pack != null && Items.Count(pack, Stations.InputOf(r)) > 0)
-                menu.Add(($"Put on {Names.Of(Stations.InputOf(r))}", new PutOn(who, r.Id), Stations.HandlingMinutes));
-        if (Items.HasResources(station.Ready)) menu.Add(($"Take {Items.Describe(station.Ready)}", new TakeFinished(who), Stations.HandlingMinutes));
+        menu.AddRange(StationVerbs(world, who, StationKind.Fire, Stations.At(world, new FireId(t.Index)), null, pack));
+        return menu;
+    }
+
+    /// Put on, for each recipe the station works whose input is carried; Take, for everything finished; Take back, for each thing working.
+    static List<(string, Activity, int)> StationVerbs(World world, AgentId who, StationKind kind, StationState station, RackId? rack, Inventory? pack)
+    {
+        var menu = new List<(string, Activity, int)>();
+        foreach (var r in Stations.RecipesOf(kind))
+            if (Stations.FromNothing(r)) menu.Add((r.Name, new PutOn(who, r.Id, rack), Stations.HandlingMinutes));
+            else if (pack != null && Items.Have(pack, Stations.InputOf(r)) > Items.SliverKg)
+                menu.Add(($"Put on {Names.Of(Stations.InputOf(r))}", new PutOn(who, r.Id, rack), Stations.HandlingMinutes));
+        if (Items.HasResources(station.Ready)) menu.Add(($"Take {Items.Describe(station.Ready)}", new TakeFinished(who, rack), Stations.HandlingMinutes));
         foreach (var x in station.Working)
-            menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg), Stations.HandlingMinutes));
+            menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg, rack), Stations.HandlingMinutes));
         foreach (var o in station.Ongoing)
             menu.Add((Stations.StopLabel(o.Recipe), new StopWork(who, o.Recipe), Stations.HandlingMinutes));
-        foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
-            if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
-        menu.Add(("Melt snow by hand", new MeltSnow(who), Work.MeltSnowMinutes));
         return menu;
     }
 

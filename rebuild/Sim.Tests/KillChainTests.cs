@@ -337,7 +337,7 @@ public class KillChainTests
         var bones = w.Tiles[camp].Carcasses!.Single(c => c.Animal == "Human");
         Assert.Equal(cause, bones.Cause);
         Assert.Equal(RemainsStage.Bones, Remains.StageOf(w, camp, bones));
-        Assert.Contains(w.Tiles[camp].Pile!.Gear, g => g.Kind == "stone_axe"); // what they carried lies beside them
+        Assert.Contains(w.Tiles[camp].Pile!.Gear, g => g.Kind == "ground_stone_axe"); // what they carried lies beside them
         Assert.Equal(npc, w.Tiles[camp].PileCause!.Value.Who);
     }
 
@@ -613,7 +613,8 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         TestKit.Supply(w);
         var npc = Npc.Spawn(w, camp);
-        TestKit.Supply(w, npc);
+        // Branches only: TestKit.Supply's whole load is more than a body carries, and a lame person lights a fire, which holds off the pack.
+        TestKit.Give(Items.Pack(w, npc), Resource.PineBranch, 5);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Null(Work.Refusal(w, new PutDown(P, Resource.PineBranch, 1))); // a new pile: the player's own

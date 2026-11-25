@@ -24,11 +24,11 @@ public class MakeTests
     [Fact]
     public void Parse_ReadsEveryEffectKind_AndStacksThem()
     {
-        var o = Assert.Single(Outcomes.Parse("succeed:save_material:Sinew:1:extra_product:sharp_rock:1:injury:LeftArm:0.2:break_tool:Cutting:2=.1"));
+        var o = Assert.Single(Outcomes.Parse("succeed:save_material:Sinew:1:extra_product:crude_edge:1:injury:LeftArm:0.2:break_tool:Cutting:2=.1"));
         Assert.Equal(OutcomeKind.Succeed, o.Kind);
         Assert.Equal(new Effect[]
         {
-            new SaveMaterial(Resource.Sinew, 1), new ExtraProduct("sharp_rock", 1), new Injury(BodyTarget.LeftArm, 0.2), new BreakTool(Capability.Cutting, 2),
+            new SaveMaterial(Resource.Sinew, 1), new ExtraProduct("crude_edge", 1), new Injury(BodyTarget.LeftArm, 0.2), new BreakTool(Capability.Cutting, 2),
         }, o.Effects);
         // No amount: the tool breaks outright.
         Assert.Equal(new Effect[] { new BreakTool(Capability.Striking, null) }, Assert.Single(Outcomes.Parse("fail:break_tool:Striking=.02")).Effects);
@@ -253,7 +253,7 @@ public class MakeTests
         {
             var w = Noon(out var pack);
             pack.Gear.Add(Items.Make("flint_knife"));
-            pack.Gear.Add(Items.Make("hammerstone"));
+            pack.Gear.Add(Items.Make("stone"));
             pack.Gear.Add(Items.Make("wooden_spear"));
             TestKit.Give(pack, Resource.Flint, 0.5);
             TestKit.Give(pack, Resource.Sinew, 0.2);
@@ -306,7 +306,7 @@ public class MakeTests
     public void Refusals_SayWhatIsMissing_AndCostNothing()
     {
         var w = Noon(out var pack);
-        Assert.Equal("you need 1 stone", Sim.Refusal(w, new Make(P, "sharp_rock"))?.Reason);
+        Assert.Equal("you need 1 stone", Sim.Refusal(w, new Make(P, "crude_edge"))?.Reason);
         Assert.Equal("you need 1 pine branch or 1 birch branch or 1 oak branch", Sim.Refusal(w, new Make(P, "crude_spear"))?.Reason);
         TestKit.Give(pack, Resource.PineBranch, 2.0);
         Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, "crude_spear"))?.Reason);
@@ -315,13 +315,13 @@ public class MakeTests
         Assert.Equal("you need a fire burning here", Sim.Refusal(w, new Make(P, "wooden_spear"))?.Reason);
         Assert.Equal("you have no unfinished crude spear", Sim.Refusal(w, new Abandon(P, "crude_spear"))?.Reason);
         TestKit.Give(pack, Resource.Stone, 0.3);
-        Assert.Null(Sim.Refusal(w, new Make(P, "sharp_rock")));
+        Assert.Null(Sim.Refusal(w, new Make(P, "crude_edge")));
 
         w.Minute = 14 * 60; // eleven at night, and no fire
-        Assert.Equal(Work.TooDark, Sim.Refusal(w, new Make(P, "sharp_rock"))?.Reason);
+        Assert.Equal(Work.TooDark, Sim.Refusal(w, new Make(P, "crude_edge"))?.Reason);
         Assert.Null(Sim.Refusal(w, new Make(P, "staff"))); // a straight branch, trimmed by feel
         string before = Save.ToJson(w);
-        Assert.Equal(0, Sim.Step(w, new Make(P, "sharp_rock"), 10).MinutesElapsed);
+        Assert.Equal(0, Sim.Step(w, new Make(P, "crude_edge"), 10).MinutesElapsed);
         Assert.Equal(before, Save.ToJson(w));
     }
 
@@ -424,12 +424,12 @@ public class MakeTests
     [Fact]
     public void Injury_IsACut_ThroughTheBody()
     {
-        var w = Begun("sharp_rock", pack => TestKit.Give(pack, Resource.Stone, 0.3));
-        Assert.Equal(Making.MadeIt, Complete(w, "sharp_rock", "succeed:injury:LeftArm:0.05=0.05", out var events));
+        var w = Begun("crude_edge", pack => TestKit.Give(pack, Resource.Stone, 0.3));
+        Assert.Equal(Making.MadeIt, Complete(w, "crude_edge", "succeed:injury:LeftArm:0.05=0.05", out var events));
         var cut = Assert.Single(events.OfType<Injured>());
         Assert.Equal(DamageType.Sharp, cut.Type);
         Assert.Contains("Arm", cut.Region);
-        Assert.Single(Items.Pack(w, P).Gear, g => g.Kind == "sharp_rock");
+        Assert.Single(Items.Pack(w, P).Gear, g => g.Kind == "crude_edge");
     }
 
     [Fact]
@@ -437,17 +437,17 @@ public class MakeTests
     {
         var w = Begun("flint_knife", pack =>
         {
-            pack.Gear.Add(Items.Make("hammerstone"));
+            pack.Gear.Add(Items.Make("stone"));
             TestKit.Give(pack, Resource.Flint, 0.3);
             TestKit.Give(pack, Resource.Stick, 0.3);
             TestKit.Give(pack, Resource.PlantFiber, 0.1);
         });
-        Complete(w, "flint_knife", "succeed:extra_product:sharp_rock:1=0.05", out var events);
+        Complete(w, "flint_knife", "succeed:extra_product:crude_edge:1=0.05", out var events);
         var pack = Items.Pack(w, P);
         Assert.Single(pack.Gear, g => g.Kind == "flint_knife");
-        Assert.Single(pack.Gear, g => g.Kind == "sharp_rock");
-        Assert.Equal(["sharp_rock"], Assert.Single(events.OfType<Made>()).ExtraGear);
-        Assert.Equal(29, pack.Gear.Single(g => g.Kind == "hammerstone").Durability); // used once
+        Assert.Single(pack.Gear, g => g.Kind == "crude_edge");
+        Assert.Equal(["crude_edge"], Assert.Single(events.OfType<Made>()).ExtraGear);
+        Assert.Equal(-1, pack.Gear.Single(g => g.Kind == "stone").Durability); // used once, and a stone never wears
     }
 
     [Fact]
@@ -670,17 +670,17 @@ public class MakeTests
         TestKit.Give(pack, Resource.Stick, 1.0);
         var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then abandoning
         Assert.Equal(Recipes.ByHand.Where(r => r.Result.Repair == null).Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe)); // repairs: per piece held (RepairTests)
-        var rock = make.Single(v => v.Activity == new Make(P, "sharp_rock"));
-        Assert.Equal("Make sharp rock", rock.Label);
+        var rock = make.Single(v => v.Activity == new Make(P, "crude_edge"));
+        Assert.Equal("Make crude edge", rock.Label);
         Assert.Null(rock.Refused);
         Assert.Equal(0.75, rock.Outcomes!.PlainPct, 12);
         Assert.Equal("you need something for cutting", make.Single(v => v.Activity == new Make(P, "hand_drill")).Refused?.Reason);
 
-        Sim.Step(w, new Make(P, "sharp_rock"), 2);
+        Sim.Step(w, new Make(P, "crude_edge"), 2);
         make = [.. Verbs.At(w, P).Make];
-        Assert.Equal("Go on making sharp rock", make.Single(v => v.Activity == new Make(P, "sharp_rock")).Label);
+        Assert.Equal("Go on making crude edge", make.Single(v => v.Activity == new Make(P, "crude_edge")).Label);
         var abandon = Assert.Single(make, v => v.Activity is Abandon);
-        Assert.Equal("Abandon the unfinished sharp rock", abandon.Label);
+        Assert.Equal("Abandon the unfinished crude edge", abandon.Label);
         Assert.Null(abandon.Refused);
     }
 
@@ -810,13 +810,13 @@ public class MakeTests
     {
         var w = Begun("crude_spear", pack =>
         {
-            pack.Gear.Add(Items.Make("sharp_rock", durability: 1));
+            pack.Gear.Add(Items.Make("crude_edge", durability: 1));
             pack.Gear.Add(Items.Make("flint_knife"));
             TestKit.Give(pack, Resource.PineBranch, 1.5);
         });
         Complete(w, "crude_spear", "fail:break_tool:Cutting=0.02", out _);
         var pack = Items.Pack(w, P);
-        Assert.False(Items.Works(pack.Gear.Single(g => g.Kind == "sharp_rock")));
+        Assert.False(Items.Works(pack.Gear.Single(g => g.Kind == "crude_edge")));
         Assert.True(Items.Works(pack.Gear.Single(g => g.Kind == "flint_knife")));
     }
 
@@ -824,7 +824,7 @@ public class MakeTests
     public void Odds_NeverAddUpToMoreThanACertainty()
     {
         // As risky as the loader allows, with no dexterity (a foggy head is in it): 0.5 x 2 = 1.
-        var risky = Recipes.Get("hammerstone") with { Outcomes = [.. Outcomes.Parse("fail=.3"), .. Outcomes.Parse("fail:break_tool:Striking=.2")] };
+        var risky = Recipes.Get("hand_drill") with { Outcomes = [.. Outcomes.Parse("fail=.3"), .. Outcomes.Parse("fail:break_tool:Striking=.2")] };
         var odds = Making.Odds(risky, craftingLevel: 0, dexterityPct: 0);
         Assert.Equal(1.0, odds.Outcomes.Sum(o => o.Odds.TotalPct), 12);
         Assert.Equal(0.3 / 0.5, odds.Outcomes[0].Odds.TotalPct, 12); // each keeps its share
@@ -837,7 +837,7 @@ public class MakeTests
         var w = Noon(out _);
         var me = w.Agent(P);
         ((PersonMind)me.Mind).Skills[Skill.Crafting] = new SkillProgress { Level = 10 };
-        var odds = Making.Odds(w, me, Recipes.Get("hammerstone"));
+        var odds = Making.Odds(w, me, Recipes.Get("hand_drill"));
         Assert.Equal(0.05 * 0.6, Assert.Single(odds.Outcomes).Odds.TotalPct, 9);
     }
 }

@@ -226,8 +226,8 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Eat any food: calories and water per kg | `ConsumptionHandler` | Done | `Work` `Eat`; CLI `eat`; `WorkTests.Eating_TakesTenMinutes_AndPutsItsCaloriesAndWaterIntoTheBody` | | |
 | Drink from the pack, or from a river or lake | `ConsumptionHandler`, `WaterFeature` | Changed | Drinking straight from a river or lake is new and easier; the old game drank only from the pack. Sim: CLI `drink`; `WorkTests.Drinking_UsesThePacksWaterFirst_AtMostALitre_AndRefusesWhenThereIsNone`, `ARiverOrLake_GivesWaterWithoutAPack` | | |
 | Cold water cools an overheated body | `ConsumptionHandler` | Done | `Work.Begin` (`Work.cs:202`); covered by the drink test | | |
-| Cook meat and fish at a burning fire | `CookingHandler.CookMeat/CookFish` | Done | CLI `cook`; `WorkTests.Cooking_TurnsRawToCooked_AtAKiloAQuarterHour_OnABurningFire` | | |
-| Melt snow | `CookingHandler.MeltSnow` | Partial | `WorkTests.MeltingSnow_MakesALitreInTenMinutes`. Missing: it ignores the real snow depth (`Work.cs:306`), so it works in July, as the old one did | S | |
+| Cook meat and fish at a burning fire | `CookingHandler.CookMeat/CookFish` | Changed | Put on the fire and taken later, not cooked by hand (spec 2026-11-24 fire-and-rack-as-stations); `StationTests` | | |
+| Melt snow | `CookingHandler.MeltSnow` | Partial | Set melting at the fire and the water taken (spec 2026-11-24 fire-and-rack-as-stations); `StationTests`. Missing: it ignores the real snow depth, so it works in July, as the old one did | S | |
 | Wash off blood | `ConsumptionHandler` `wash_blood` | Missing | Bloody only decays at its floor | S | |
 | Honey's energy boost | `ConsumptionHandler.EatHoney` | Missing | See §5 | S | |
 
@@ -264,7 +264,7 @@ unlocking through the discovery log. The rebuild has the Make recipes in `recipe
 | Camp structures by recipe: makeshift, padded and moss bedding, sleeping bag, branch frame, log frame, snow shelter | CampInfrastructure | Reduced | The snow shelter needs a shovel, and no shovel can be made or found, so it never happens in play. Sim: the Camp recipes in `Content/recipes.json`, made by `Make`; CLI `build <recipe>`; `ShelterTests.BranchFrame_TakesItsSticksAndHalfAnHour`, `SnowShelter_IsDugWithAShovel_InTheCold`, `SleepingBag_WarmsTheSleeper` | | |
 | Crafting engine: recipe table as data, materials, time, tool needs, odds | `NeedCraftingSystem`, `CraftOption`, `CraftingHandler`, `CraftingEffort` | Missing | Everything below waits on this. Short-loop feature 8 (crafting luck) and the odds sheet build on it | L | data tables (§1) |
 | Fire starting: hand drill, bow drill, flint striker, pyrite strike-a-light, tinder bundle | FireStarting | Replaced | Spec "Recipes that make sense", Fire (#144): hand and bow drills, a flint-and-pyrite strike-a-light made by feel, resin tinder (40 g tinder + 10 g pine resin); no flint-and-amadou striker and no tinder bundle (FIR-5 reversed). The replacement exists. Sim: the FireStarting recipes in `Content/recipes.json`, catch bonuses in `Content/fire.json`; `FireStartingTests` | | engine |
-| Cutting tools: crude edge, sharp rock, stone, bone, shale and flint knives, stone axe, bone shovel, knapping stone, bone needle | CuttingTool | Missing | | S | engine |
+| Cutting tools: crude edge, sharp rock, stone, bone, shale and flint knives, stone axe, bone shovel, knapping stone, bone needle | CuttingTool | Done (#145) | The crude edge stands for the sharp rock, the stone for the knapping stone; flint, obsidian and bone knives, the ground stone and flint axes, the bone shovel and needle. No shale or stone knife (spec 2026-11-24 recipes-that-make-sense) | S | engine |
 | Hunting weapons: wooden, heavy, stone-tipped and ivory-tipped spears | HuntingWeapon | Missing | | S | engine |
 | Trapping: simple and reinforced snares | Trapping | Missing | | S | engine, §22 |
 | Fishing: rod, net | Fishing | Missing | | S | engine, §22 |

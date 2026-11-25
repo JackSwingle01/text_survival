@@ -54,7 +54,6 @@
  // Old CaveLocationFactory.CreateForage.
  "CaveFloor": [
   { "resource": "Stone", "abundance": 1.0, "minKg": 0.15, "maxKg": 0.45 },
-  { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
   { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
   { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
   { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
@@ -62,7 +61,6 @@
  // The floor's, and sticks and tinder blown in at the mouth.
  "CaveMouth": [
   { "resource": "Stone", "abundance": 1.0, "minKg": 0.15, "maxKg": 0.45 },
-  { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
   { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
   { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
   { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 },

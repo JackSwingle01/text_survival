@@ -60,9 +60,10 @@
 
   { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.5, "max": 6, "log": true, "note": "in units of tissue condition" },
   { "name": "crudeSpear.damage", "path": "items.json:gear.crude_spear.weapon.damage", "min": 0.3, "max": 6, "log": true },
-  { "name": "axe.damage", "path": "items.json:gear.stone_axe.weapon.damage", "min": 0.3, "max": 6, "log": true },
-  { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage",
-   "items.json:gear.stone_knife.weapon.damage"], "min": 0.3, "max": 6, "log": true, "note": "every knife alike" },
+  { "name": "axe.damage", "paths": ["items.json:gear.ground_stone_axe.weapon.damage", "items.json:gear.flint_axe.weapon.damage"], "min": 0.3, "max": 6, "log": true,
+   "note": "both axes alike" },
+  { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage"], "min": 0.3, "max": 6, "log": true,
+   "note": "every knife alike but obsidian, which keeps its ratio to flint (items.json)" },
   { "name": "stone.damage", "path": "items.json:gear.stone.weapon.damage", "min": 0.1, "max": 3, "log": true, "note": "a stone in the hand" },
   { "name": "staff.damage", "path": "items.json:gear.staff.weapon.damage", "min": 0.1, "max": 3, "log": true },
 

@@ -186,18 +186,37 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     /// Tissue and blood alone, as life uses: no effect stops a heart.
     internal static Capacities WithoutEffects(BodyState body, out BloodAndBreath feed) => Of(body, TissueReads.NoEffects, out feed);
 
-    static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed)
+    static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed) =>
+        Scaled(Unscaled(body, effectDeltas, out feed), feed);
+
+    internal static Capacities Unscaled(BodyState body, out BloodAndBreath feed)
+    {
+        Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
+        Effects.CapacityDeltas(body, effectDeltas);
+        return Unscaled(body, effectDeltas, out feed);
+    }
+
+    static Capacities Unscaled(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed)
     {
         Span<double> c = stackalloc double[TissueReads.CapacityCount];
         TissueReads.Fill(body, effectDeltas, c);
         feed = BloodAndBreath.Of(body, c);
-
-        double consciousness = c[(int)Capacity.Consciousness] * feed.LostBloodScale * feed.ShortBreathScale;
-        double limbs = consciousness > 0 ? feed.LostBloodScale : 0; // unconscious, the limbs give nothing
-        return new Capacities(c[(int)Capacity.Moving] * limbs, c[(int)Capacity.Manipulation] * limbs, consciousness,
+        return new Capacities(c[(int)Capacity.Moving], c[(int)Capacity.Manipulation], c[(int)Capacity.Consciousness],
             c[(int)Capacity.Sight], c[(int)Capacity.Hearing]);
     }
+
+    internal static Capacities Scaled(in Capacities unscaled, in BloodAndBreath feed)
+    {
+        double consciousness = unscaled.Consciousness * feed.LostBloodScale * feed.ShortBreathScale;
+        double limbs = consciousness > 0 ? feed.LostBloodScale : 0; // unconscious, the limbs give nothing
+        return new Capacities(unscaled.Moving * limbs, unscaled.Manipulation * limbs, consciousness, unscaled.Sight, unscaled.Hearing);
+    }
 }
+
+public enum Faculty { Strength, Speed, Dexterity, Perception }
+
+/// Why a faculty is at zero (GLOSSARY: Crippled). NoWorkingLimb: its limbs give nothing, wounded or cold.
+public enum CrippledBy { NoWorkingLimb, LostBlood, Unconscious, Load, Build }
 
 /// Each reads the capacities and the body's build: none reads vitality, the tier above.
 internal static class Faculties
@@ -224,8 +243,13 @@ internal static class Faculties
 
     internal static double Speed(BodyState body, AbilityContext context = default) => Speed(body, Capacities.Of(body), context);
 
-    /// Movement rate. Strength modulates load: a strong person feels 30kg less than a weak one.
     internal static double Speed(BodyState body, in Capacities c, AbilityContext context)
+    {
+        var (shape, size) = Build(body);
+        return c.Moving * shape * size * LoadScale(body, c, context);
+    }
+
+    static (double Shape, double Size) Build(BodyState body)
     {
         double fatPct = body.FatPct;
 
@@ -241,11 +265,29 @@ internal static class Faculties
         double sizeModifier = 1 - 0.03 * Math.Log2(body.WeightKg / SpeedReferenceWeightKg);
 
         // Each term held at zero: two below it would make a body faster under its pack.
-        double baseSpeed = c.Moving * Math.Max(0, 1 + muscleModifier - fatPenalty + weightEffect) * Math.Max(0, sizeModifier);
+        return (Math.Max(0, 1 + muscleModifier - fatPenalty + weightEffect), Math.Max(0, sizeModifier));
+    }
 
+    /// Strength modulates load: a strong person feels 30kg less than a weak one.
+    static double LoadScale(BodyState body, in Capacities c, AbilityContext context)
+    {
         double effectiveLoad = context.EncumbrancePct / (0.5 + Strength(body, c) * 0.5);
         double loadPenalty = Math.Max(0, (effectiveLoad - 0.5) * 0.8);
-        return baseSpeed * Math.Max(0, 1 - loadPenalty);
+        return Math.Max(0, 1 - loadPenalty);
+    }
+
+    /// Empty exactly when Speed, these terms multiplied, is above zero.
+    internal static IReadOnlyList<CrippledBy> SpeedCrippledBy(BodyState body, AbilityContext context = default)
+    {
+        var unscaled = Capacities.Unscaled(body, out var feed);
+        var c = Capacities.Scaled(unscaled, feed);
+        var why = new List<CrippledBy>();
+        if (unscaled.Moving <= 0) why.Add(CrippledBy.NoWorkingLimb);
+        if (feed.LostBloodScale <= 0) why.Add(CrippledBy.LostBlood);
+        else if (unscaled.Consciousness * feed.ShortBreathScale <= 0) why.Add(CrippledBy.Unconscious);
+        if (Build(body) is var (shape, size) && (shape <= 0 || size <= 0)) why.Add(CrippledBy.Build);
+        if (LoadScale(body, c, context) <= 0) why.Add(CrippledBy.Load);
+        return why;
     }
 
     internal static double Perception(BodyState body, AbilityContext context = default) => Perception(Capacities.Of(body), context);

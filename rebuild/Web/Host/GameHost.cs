@@ -162,8 +162,8 @@ public sealed class GameHost
         return new Job("Asleep", ViewBuilder.KindOf(sleep), sleep, Body.AsleepMinutesLeft(p.Body), chunked: true, p.Tile, null);
     }
 
-    /// Work that takes time, run in chunks and held between them: a search, a butchering, cooking, melting snow.
-    static bool HeldWork(Activity a) => a is Gather or Butcher or Cook or MeltSnow or WalkAbout;
+    /// Work that takes time, run in chunks and held between them: a search, a butchering, a walk about.
+    static bool HeldWork(Activity a) => a is Gather or Butcher or WalkAbout;
 
     void Run(Job job, int chunk)
     {

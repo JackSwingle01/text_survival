@@ -203,8 +203,20 @@ public class Phase2GateTests(ITestOutputHelper output)
                 S(w, new PickUp(P, Resource.Water, 1), 1);
             if (Items.Have(Items.Pack(w, P), Resource.Water) > 0) { t.WaterLiters += Sip(w); continue; }
             if (!TendFire(w)) return;
-            if (S(w, new MeltSnow(P), Work.MeltSnowMinutes).InterruptedReason == "melted") t.WaterLiters += Sip(w);
+            if (MeltALitre(w)) t.WaterLiters += Sip(w);
         }
+    }
+    /// Snow set melting at the camp fire (if it is not already), waited on, and the water taken: whether any came.
+    static bool MeltALitre(World w)
+    {
+        var camp = Map.Of(w).Camp;
+        if (Fire.PitAt(w, camp) is not FireId id) return false;
+        if (!Stations.At(w, id).Ongoing.Any(o => o.Recipe == "melt_snow") && S(w, new PutOn(P, "melt_snow"), 1).Outcome == StepOutcome.Refused) return false;
+        for (int i = 0; i < 40 && Alive(w) && Items.Have(Stations.At(w, id).Ready, Resource.Water) <= 0; i++) S(w, new Wait(P), 1);
+        if (Items.Have(Stations.At(w, id).Ready, Resource.Water) <= 0) return false;
+        double before = Items.Have(Items.Pack(w, P), Resource.Water);
+        S(w, new TakeFinished(P), 1);
+        return Items.Have(Items.Pack(w, P), Resource.Water) > before;
     }
     static double Sip(World w) => S(w, new Drink(P), Work.DrinkMinutes).Events.OfType<Drank>().Sum(d => d.Liters);
 
@@ -215,7 +227,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         var camp = Map.Of(w).Camp;
         for (int i = 0; i < 4 && Alive(w) && Items.Have(Items.PileAt(w, camp), Resource.Water) + Items.Have(Items.Pack(w, P), Resource.Water) < 3; i++)
         {
-            if (!TendFire(w) || S(w, new MeltSnow(P), Work.MeltSnowMinutes).InterruptedReason != "melted") return;
+            if (!TendFire(w) || !MeltALitre(w)) return;
             S(w, new PutDown(P, Resource.Water, 99), 1);
         }
     }
@@ -298,7 +310,7 @@ public class Phase2GateTests(ITestOutputHelper output)
                 var r = S(w, leg, 180);
                 injuries += r.Events.OfType<Injured>().Count();
                 // Too hurt to walk: rest it off, and try again.
-                if (r.InterruptedReason == "you can barely move") { S(w, new Rest(P), 120); continue; }
+                if (r.InterruptedReason?.StartsWith(Traversal.CannotWalkPrefix) == true) { S(w, new Rest(P), 120); continue; }
                 if (r.InterruptedReason is "arrived" or "died" || r.MinutesElapsed == 0) break;
             }
         }
@@ -353,7 +365,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     static World NewWorld(int seed, int? salt = null)
     {
         var w = TestWorlds.New(seed);
-        Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+        Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
         if (salt is int s)
             foreach (var sys in PlayerStreams) w.Rngs[StreamName.Of(sys, P)] = Rng.ForSystem(s * 1000003 + seed, sys + ":salt");
         return w;

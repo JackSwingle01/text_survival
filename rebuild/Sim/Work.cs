@@ -18,9 +18,6 @@ public sealed class WorkSession
     public PoolId? Pool { get; init; }
     public double TargetMinutes { get; init; }
     public double DoneKg { get; set; }
-    /// Cooking's progress toward the next whole piece, in kilos of it.
-    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-    public double CookingKg { get; set; }
     /// A forage's luck, rolled once when it begins (Pools.RollLuck); 0 for other work.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public double LuckFactor { get; init; }
@@ -40,14 +37,13 @@ public readonly record struct Find(long Minute, Resource Resource, double Kg);
 public static class Work
 {
     public const double MaxDrinkLiters = 1.0;
-    public const int EatMinutes = 10, DrinkMinutes = 2, MeltSnowMinutes = 10, CookMeatMinutesPerKg = 15, CookFishMinutesPerKg = 12;
-    public const double MeltSnowLiters = 1.0;
+    public const int EatMinutes = 10, DrinkMinutes = 2;
     public const int WashMinutes = 5;
     public const double WashLiters = 0.5;
     public const string NoWashingWater = "no water or snow here";
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or Cook or MeltSnow or PutDown or PickUp or Wear or TakeOff or WalkAbout;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or PutDown or PickUp or Wear or TakeOff or WalkAbout;
 
     /// Keep Walking: five minutes walking the ground to notice new clues.
     public const int WalkAboutMinutes = 5;
@@ -58,7 +54,7 @@ public static class Work
 
     public const string WalkedAbout = "walked about";
 
-    public const string Ate = "ate", Drank = "drank", WashedReason = "washed", CookedReason = "cooked", Melted = "melted", TreeCutUp = "tree cut up", ButcheredReason = "butchered";
+    public const string Ate = "ate", Drank = "drank", WashedReason = "washed", TreeCutUp = "tree cut up", ButcheredReason = "butchered";
 
     public static bool TooDarkToWork(World world, Agent agent)
     {
@@ -117,7 +113,9 @@ public static class Work
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
             case TreePool:
-                foreach (var (r, got) in Pools.ExpectedChop(world, id, workMinutes)) kg[r] = got;
+                // The axe felling would pick up (Items.Axe), at its rate.
+                double chopFactor = Items.PackOf(agent) is { } axePack ? Items.ChopFactor(Items.Axe(axePack)) : 1;
+                foreach (var (r, got) in Pools.ExpectedChop(world, id, workMinutes * chopFactor)) kg[r] = got;
                 break;
             case StockPool stock:
                 int cycles = (int)Math.Floor(((Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0) / stock.MinutesPerUnit + workMinutes / stock.MinutesPerUnit + 1e-9);
@@ -248,13 +246,6 @@ public static class Work
                 return WashingWater(world, agent, pack) == null
                     ? new(NoWashingWater, new MissingResource(Resource.Water, WashLiters - Items.Have(pack, Resource.Water)))
                     : null;
-            case Cook c:
-                if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
-                if (Cooked(c.Raw) == null) return new($"{Names.Cap(Names.Of(c.Raw))} is not something to cook");
-                if (Items.Have(pack, c.Raw) <= 0) return new($"no {Names.Of(c.Raw)} to cook", new MissingResource(c.Raw, c.Kg));
-                return HasCookingFire(world, agent.Tile) ? null : new("no fire to cook on", new MissingState(Lack.BurningFire));
-            case MeltSnow:
-                return HasCookingFire(world, agent.Tile) ? null : new("no fire to melt snow on", new MissingState(Lack.BurningFire));
             case PutDown s:
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Put down a positive amount");
                 // Putting down, on a pile already here or the first thing that makes one: one gate.
@@ -350,10 +341,6 @@ public static class Work
         return Items.Have(pack, Resource.Water) >= WashLiters ? WashedIn.CarriedWater : null;
     }
 
-    static bool HasCookingFire(World world, TileId tile) => Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id]);
-
-    static Resource? Cooked(Resource raw) => raw switch { Resource.RawMeat => Resource.CookedMeat, Resource.RawFish => Resource.CookedFish, _ => null };
-
     // ---- the session ----
 
     /// Starts work Refusal allowed. Instant work (putting down, wear, eating and drinking) happens here.
@@ -446,8 +433,6 @@ public static class Work
                     pack.Gear.Add(off);
                     return new WorkSession { Activity = activity };
                 }
-            case Cook or MeltSnow:
-                return new WorkSession { Activity = activity };
             case Wash:
                 return new WorkSession { Activity = activity, TargetMinutes = WashMinutes };
             default:
@@ -511,17 +496,17 @@ public static class Work
                             }
                         case TreePool:
                             {
-                                if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
+                                if (Items.Axe(pack) is not { } axe) return "your axe is broken";
                                 // A piece the pack can't take stays on the trunk for the next trip.
                                 if (Pools.NextPieceKg(world, id) is double next && next > RoomKg(agent, pack) + 1e-9) return PackFull;
                                 Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                                var chop = Pools.Chop(world, id, effective, world.Rng("work", agent.Id), RoomKg(agent, pack));
+                                var chop = Pools.Chop(world, id, effective * Items.ChopFactor(axe), world.Rng("work", agent.Id), RoomKg(agent, pack));
                                 Keep(world, agent, s, chop.Got, events);
                                 if (chop.CameDown) events.Add(new TreeFelled(world.Minute, agent.Id, id));
                                 return chop.CutUp ? TreeCutUp : null;
                             }
                         case StockPool stock:
-                            if (Pools.WorksWith(world, id, pack, ToolType.Axe)) Items.UseFor(Items.Tool(pack, ToolType.Axe)!, 1, ChopMinutesPerAxeUse);
+                            if (Pools.WorksWith(world, id, pack, ToolType.Axe)) Items.UseFor(Items.Axe(pack)!, 1, ChopMinutesPerAxeUse);
                             Keep(world, agent, s, Pools.WorkStock(world, id, effective, pack), events);
                             return Pools.HasStock(world, id, pack) ? null : $"the {stock.Name} is picked clean";
                         default:
@@ -541,31 +526,6 @@ public static class Work
                     events.Add(new Washed(world.Minute, agent.Id, agent.Tile, source));
                     return WashedReason;
                 }
-            case Cook c:
-                {
-                    if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
-                    // A piece (about a kilo) of meat in 15 minutes, of fish in 12.
-                    // A practised cook turns it sooner: less time over the fire (Skills).
-                    double perMinute = 1.0 / (c.Raw == Resource.RawFish ? CookFishMinutesPerKg : CookMeatMinutesPerKg)
-                        * Skills.CookSpeedFactor(Skills.Level(agent, Skill.Cooking));
-                    s.CookingKg += perMinute;
-                    while (Items.LightestKg(pack, c.Raw) is double pieceKg && pieceKg <= s.CookingKg + 1e-9 && s.DoneKg < c.Kg - 1e-9)
-                    {
-                        foreach (var kg in Items.TakePieces(pack, c.Raw, 1)) Items.AddPiece(pack, Cooked(c.Raw)!.Value, kg);
-                        s.CookingKg = Math.Max(0, s.CookingKg - pieceKg);
-                        s.DoneKg += pieceKg;
-                        Skills.Award(world, agent, Skill.Cooking, pieceKg * Skills.CookXpPerKg, events);
-                    }
-                    return s.DoneKg >= c.Kg - 1e-9 || Items.Have(pack, c.Raw) <= 0 ? CookedReason : null;
-                }
-            case MeltSnow:
-                if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
-                if (s.Minutes < MeltSnowMinutes) return null;
-                // Snow is assumed freely available, even in July. Ground knows the real depth; melting does not read it yet.
-                var water = new Inventory();
-                Items.Add(water, Resource.Water, MeltSnowLiters);
-                Keep(world, agent, s, water, events);
-                return Melted;
             case PutDown or PickUp or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
             case WalkAbout:

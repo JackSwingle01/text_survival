@@ -9,6 +9,7 @@
 // features: forage, trees and stock become the tile's pools (forage always first: pool 0 is a tile's
 // forage). water, smallGame, shelter, cache and event are carried for systems that do not exist yet.
 // chance: the odds generation puts the feature there. revealAtHours: 0 is in plain sight.
+// atLeast: no map has fewer of this named place; MapGen adds what the weighted deal left short.
 {
  "locations": [
   {
@@ -1403,13 +1404,14 @@
    ]
   },
   {
-   "id": "shale_outcrop",
-   "name": "Shale Outcrop",
+   "id": "obsidian_outcrop",
+   "name": "Obsidian Outcrop",
    "placement": "Named",
    "weight": 3,
+   "atLeast": 1,
    "terrain": [ "Rock" ],
    "tags": "[Rock] [Stone] [Exposed]",
-   "discoveryText": "Layered stone, splitting into thin sheets. The edges are sharp where frost has cleaved them. Good for scraping tools.",
+   "discoveryText": "Dark rock, split by frost into sharp-edged sheets. In places it is black glass, sharper than any flint.",
    "hazard": 0.3,
    "wind": 1,
    "cover": 0,
@@ -1419,8 +1421,14 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Shale", "abundance": 1.2, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
+     ]
+    },
+    {
+     "kind": "forage",
+     "density": 1.0,
+     "items": [
+      { "resource": "Obsidian", "abundance": 0.45, "minKg": 0.1, "maxKg": 0.3 }
      ]
     }
    ]
@@ -2554,8 +2562,7 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Shale", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 }
      ]
     }
    ]
@@ -2989,7 +2996,6 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
@@ -3016,7 +3022,6 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
@@ -3030,7 +3035,7 @@
    "name": "Rubble Cave Passage",
    "placement": "Cave",
    "tags": "[Cave] [Sheltered] [Dark]",
-   "discoveryText": "Fallen slabs choke the passage. Loose shale shifts underfoot; each step needs care.",
+   "discoveryText": "Fallen slabs choke the passage. Loose rubble shifts underfoot; each step needs care.",
    "hazard": 0.55,
    "wind": 0,
    "cover": 1,
@@ -3043,7 +3048,6 @@
      "density": 0.6,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
@@ -3052,11 +3056,11 @@
     {
      "kind": "stock",
      "work": "Harvest",
-     "name": "Loose Shale",
-     "description": "Thin plates of shale have split from the cave wall. Usable pieces lie beneath the dust.",
+     "name": "Loose Rubble",
+     "description": "Stones have fallen from the cave roof. Fist-sized pieces lie among the slabs.",
      "minutes": 5,
      "items": [
-      { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
+      { "resource": "Stone", "units": 4, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -3079,7 +3083,6 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }

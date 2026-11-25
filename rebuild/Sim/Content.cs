@@ -16,7 +16,8 @@ public sealed record LocationDef(
     double Weight = 0, IReadOnlyList<Terrain>? Terrain = null, bool Elite = false,
     string? Tags = null, string? DiscoveryText = null, IReadOnlyList<string>? Stories = null, string? FirstVisitEvent = null,
     double TemperatureDeltaF = 0, double Traversal = 1, bool Dark = false, bool Escape = false, bool Vantage = false,
-    EdgeType? Edges = null, bool IsCrossingExit = false, IReadOnlyList<SiteFeature>? Features = null)
+    EdgeType? Edges = null, bool IsCrossingExit = false, IReadOnlyList<SiteFeature>? Features = null,
+    int AtLeast = 0)
 {
     public IReadOnlyList<SiteFeature> All => Features ?? NoFeatures;
     static readonly IReadOnlyList<SiteFeature> NoFeatures = Array.AsReadOnly(Array.Empty<SiteFeature>());
@@ -325,8 +326,10 @@ public static partial class Content
             if (l.Placement == Placement.Named)
             {
                 if (l.Weight <= 0) yield return $"{at}: weight {l.Weight}";
+                if (l.AtLeast < 0) yield return $"{at}: atLeast {l.AtLeast}";
                 if (l.Terrain is not { Count: > 0 } || l.Terrain.Any(t => !terrains[t].Passable)) yield return $"{at}: needs passable terrain";
             }
+            else if (l.AtLeast != 0) yield return $"{at}: atLeast is for a named place";
             if (l.DiscoveryText?.Contains("{story}") == true && l.Stories is not { Count: > 0 }) yield return $"{at}: {{story}} with no stories";
             var features = l.All;
             int firstOther = features.ToList().FindIndex(f => f is not SiteForage);
