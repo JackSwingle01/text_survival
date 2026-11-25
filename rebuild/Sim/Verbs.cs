@@ -133,9 +133,9 @@ public static class Verbs
                     var begun = (pack.Projects ?? []).Where(p => p.Recipe == r.Id).Select(p => p.Target!).ToList();
                     foreach (var kind in begun)
                         make.Add(($"Go on {Making.Doing(r)} {Names.GearWords(kind)}", new Make(who, r.Id, kind), UntilDoneMinutes));
-                    foreach (var kind in pack.Gear.Concat(agent.Body.Worn).Select(g => g.Kind).Distinct()
+                    foreach (var kind in Making.Held(agent, pack).Select(g => g.Kind).Distinct()
                         .Where(k => repair.Kinds.Contains(k) && !begun.Contains(k) && Making.RepairTarget(agent, pack, k) != null))
-                        make.Add(($"{r.Name} {Names.GearWords(kind)}", new Make(who, r.Id, kind), UntilDoneMinutes));
+                        make.Add((Making.Label(r, kind), new Make(who, r.Id, kind), UntilDoneMinutes));
                 }
                 else make.Add((MakeLabel(r, Making.MinutesDone(world, agent, r) != null), new Make(who, r.Id), UntilDoneMinutes));
             foreach (var p in pack.Projects ?? [])

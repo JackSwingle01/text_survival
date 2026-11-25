@@ -25,7 +25,7 @@ const S = {
   displayMinute: null,   // the clock as shown while time is being played out
   selected: null,
   openFeature: null,       // the location feature whose Interact menu is open
-  makeSel: null,         // the recipe selected in the make drawer
+  makeSel: null,         // the entry selected in the make drawer: a recipe, or a repair's recipe:target
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
 };

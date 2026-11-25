@@ -232,10 +232,13 @@ public static class Making
 
     public static string Verb(Recipe r) => Names.Lower(r.Name);
     public static string Doing(Recipe r) => Verb(r) + "ing";
+    public static string Label(Recipe r, string? target) => target == null ? r.Name : $"{r.Name} {Names.GearWords(target)}";
+
+    public static IEnumerable<Gear> Held(Agent agent, Inventory pack) => pack.Gear.Concat(agent.Body.Worn);
 
     /// The most worn held piece of the kind, in the pack or worn, with condition to restore (a broken one too).
     public static Gear? RepairTarget(Agent agent, Inventory pack, string kind) =>
-        pack.Gear.Concat(agent.Body.Worn).Where(g => g.Kind == kind && g.MaxDurability > 0 && g.Durability < g.MaxDurability)
+        Held(agent, pack).Where(g => g.Kind == kind && g.MaxDurability > 0 && g.Durability < g.MaxDurability)
             .OrderBy(Items.ConditionPct).FirstOrDefault();
 
     /// Restores the share of the missing condition, in whole points, at least one.
@@ -264,7 +267,7 @@ public static class Making
             case Abandon a:
                 {
                     var r = Recipes.Get(a.Recipe);
-                    return ProjectFor(pack, r.Id, a.Target) == null ? new($"you have no unfinished {r.Name.ToLowerInvariant()}") : null;
+                    return ProjectFor(pack, r.Id, a.Target) == null ? new($"you have no unfinished {Names.Lower(Label(r, a.Target))}") : null;
                 }
             default: throw new NotSupportedException($"{activity.GetType().Name} is not making");
         }
@@ -277,7 +280,7 @@ public static class Making
         if (target == null) return new($"{Verb(r)} what?");
         string words = Items.GearKinds.ContainsKey(target) ? Names.GearWords(target) : target;
         if (!repair.Kinds.Contains(target)) return new($"you cannot {Verb(r)} {words}");
-        if (!pack.Gear.Concat(agent.Body.Worn).Any(g => g.Kind == target)) return new($"you have no {words}", new MissingGear(target));
+        if (!Held(agent, pack).Any(g => g.Kind == target)) return new($"you have no {words}", new MissingGear(target));
         return RepairTarget(agent, pack, target) == null ? new($"your {words}: nothing to {Verb(r)}") : null;
     }
 

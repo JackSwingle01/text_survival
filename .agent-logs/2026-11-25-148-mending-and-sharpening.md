@@ -23,3 +23,10 @@ Revised: the sample save had no repair → `SampleWorld` begins mending worn glo
 Revised: CommentHygieneTests' ratchet put Activity.cs at 11% and Make.cs at 12% → comments trimmed.
 Revised: sharpen sits with the cutting tools in recipes.json, so the make drawer keeps one heading per category.
 Follow-up: the make drawer's per-piece entries (main.js keys a repair by recipe and target) were not clicked through in a browser; `node --check` and Host.Tests pass.
+Revised (review): a repair's label was built in Verbs, ViewBuilder.MakeOf and the project list → one `Making.Label(recipe, target)`.
+Revised (review): `pack.Gear.Concat(agent.Body.Worn)` three times → one `Making.Held`.
+Revised (review): abandoning a repair with none begun read "you have no unfinished mend" → "you have no unfinished mend hide gloves", by the label.
+Revised (review): a mend stalled by the dark leaves the garment in the project, off the body, until it goes on or is abandoned → kept: the piece is in the work, which keeps its identity, and the unfinished list names it.
+Revised (review): `MakeProject.Target` could be read off the piece in its materials → kept: ProjectFor matches recipe and target without opening the materials.
+Follow-up: `Making.Doing` adds "ing" to a repair's name, right for Mend and Sharpen only; a repair named Cut or Sew needs its gerund in data.
+Follow-up: blades of 3 to 5 points restore by whole points (a bone knife at 2/5 sharpens to 4/5, 80%), so the shares are exact only on pieces of 10 points or more; whether short-lived blades want more points is a balance choice.

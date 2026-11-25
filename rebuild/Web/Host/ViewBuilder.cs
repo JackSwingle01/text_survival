@@ -157,7 +157,7 @@ sealed class ViewBuilder(World world, int gen)
             .Concat(r.Items.Select(Names.GearWords)).ToList();
         string result = r.Result.Repair is { } repair && mk.Target is { } kind ? $"{Names.Gear(kind)}, {Names.Pct(repair.RestoresPct)} of its wear made good"
             : r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}") : r.Name;
-        return new MakeDto(r.Id, mk.Target is { } target ? $"{r.Name} {Names.GearWords(target)}" : r.Name, Names.Of(r.Category), r.Minutes, materials,
+        return new MakeDto(r.Id, Making.Label(r, mk.Target), Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
             odds == null ? [] : [.. odds.Outcomes.Select(o => new MakeOutcomeDto(o.Outcome.Words, o.Outcome.Kind == OutcomeKind.Succeed, o.Outcome.FailureLike, OddsOf(o.Odds)))],
@@ -257,7 +257,7 @@ sealed class ViewBuilder(World world, int gen)
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
             [.. Items.Totals(pack).Where(x => x.Kg > 0.001).Select(x => new StackDto(x.Resource.ToString(), Names.Title(x.Resource), Math.Round(x.Kg, 2), Names.Amount(x.Resource, x.Kg, Items.Count(pack, x.Resource))))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
-            [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, p.Target is { } kind ? $"{Recipes.Get(p.Recipe).Name} {Names.GearWords(kind)}" : Recipes.Get(p.Recipe).Name,
+            [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Making.Label(Recipes.Get(p.Recipe), p.Target),
                 Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }
 
