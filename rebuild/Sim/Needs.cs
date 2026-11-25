@@ -162,13 +162,33 @@ public static partial class Fauna
     /// Who would hunt with it (Hunters), the room it has to eat into a kill, and whether its pack would set out with it (PackReady).
     readonly record struct HuntingParty(int Hunters, double RoomKcal, bool Together = true);
 
-    /// A hunt the predator expects to lose more often than win is no source: a pair of wolves leaves a herd of bison alone.
-    const double MinKillChance = 0.5;
+    /// The gate on a hunt (HuntPays): a kill chance floor at any hunger, and the injury chance it risks, fed to starving (Desperation).
+    const double KillChanceFloor = 0.10, CalmInjuryTolerance = 0.15, DesperateInjuryTolerance = 0.75;
 
     static HuntingParty Hunting(World world, Agent animal) => new(Hunters(world, animal).Count, Math.Max(1, RoomKcal(animal, animal.Body)));
 
-    /// A forecast: kill chance (Combat.KillChance) for its hunters against the herd sensed there x the feeding rate x its share
-    /// of the kill among the hunters; none while afraid.
+    /// 0 at or below its species' hungryAt to 1 at or above its starvingAt (temperament), from its own hunger; read, never kept.
+    public static double Desperation(Agent animal)
+    {
+        var t = SpeciesTable.Of(animal.Species).Temperament;
+        double hunger = Hunger(animal);
+        if (hunger <= t.HungryAt) return 0;
+        return hunger >= t.StarvingAt ? 1 : (hunger - t.HungryAt) / (t.StarvingAt - t.HungryAt);
+    }
+
+    /// Whether a hunt with these chances (Combat.KillChance, Combat.InjuryChance) is a food source to the animal.
+    public static bool HuntPays(Agent animal, double killChance, double injuryChance) =>
+        killChance >= KillChanceFloor
+        && injuryChance <= CalmInjuryTolerance + (DesperateInjuryTolerance - CalmInjuryTolerance) * Desperation(animal);
+
+    static double GatedKillChance(Agent animal, int hunters, Species quarry, int herd) =>
+        Combat.KillChance(animal.Species, hunters, quarry, herd) is var kill
+        && HuntPays(animal, kill, Combat.InjuryChance(animal.Species, hunters, quarry, herd)) ? kill : 0;
+
+    /// A forecast: the kcal a minute a hunt on the tile pays it, from the herds it has sensed there (HuntAt, its hunters as they are).
+    public static double HuntSource(World world, Agent animal, TileId tile) => HuntAt(world, animal, MindOf(animal), tile, Hunting(world, animal));
+
+    /// A forecast: the best gated kill chance (GatedKillChance) of the herds sensed there x the feeding rate x its share; none while afraid.
     static double HuntAt(World world, Agent animal, HerdMind mind, TileId tile, HuntingParty hunting)
     {
         if (mind.Fear > Tags.AfraidLevel || mind.Sightings is not { } seen) return 0;
@@ -176,8 +196,7 @@ public static partial class Fauna
         for (int i = 0; i < seen.Count; i++)
         {
             if (seen[i] is not { Quarry: Species quarry } s || s.Tile != tile) continue;
-            double chance = Combat.KillChance(animal.Species, hunting.Hunters, quarry, s.Count);
-            if (chance < MinKillChance) continue;
+            double chance = GatedKillChance(animal, hunting.Hunters, quarry, s.Count);
             best = Math.Max(best, chance * FeedKcalPerMinute * Math.Min(1, MeatKcalOf(quarry) / (hunting.Hunters * hunting.RoomKcal)));
         }
         return best;
@@ -186,7 +205,7 @@ public static partial class Fauna
     /// The meat a kill of the species leaves (Carcasses.Create's rule, on the species' build).
     static double MeatKcalOf(Species s) => Carcasses.MeatKgOf(SpeciesTable.Of(s).WeightKg * SpeciesTable.Of(s).MusclePct) * MeatKcalPerKg;
 
-    /// The quarry on its tile it has the best kill chance against, the first in id order on a tie.
+    /// The quarry on its tile it has the best kill chance against of those that pass the gate (HuntPays), the first in id order on a tie.
     static Agent? QuarryHere(World world, Agent predator)
     {
         int hunters = Hunters(world, predator).Count;
@@ -195,7 +214,7 @@ public static partial class Fauna
         foreach (var a in Nearby.At(world, predator.Tile))
         {
             if (a.Mind is not HerdMind || !IsQuarry(a.Species) || !Sim.IsAlive(a) || Combat.EncounterOf(world, a.Id) != null) continue;
-            double chance = Combat.KillChance(predator.Species, hunters, a.Species, Combat.Side(world, a).Count);
+            double chance = GatedKillChance(predator, hunters, a.Species, Combat.Side(world, a).Count);
             if (chance > bestChance) (best, bestChance) = (a, chance);
         }
         return best;
@@ -269,7 +288,7 @@ public static partial class Fauna
     }
 
     /// A young wolf (its side's highest id) leaves a big hungry pack when the kill chance alone for the whole kill ÷ (1 + cohesion)
-    /// beats its pack's for its share; it and they are strangers from then on.
+    /// beats its pack's for its share (GatedKillChance); it and they are strangers from then on.
     static void Disperse(World world, Agent animal, HerdMind mind)
     {
         if (!IsClosedGroup(animal.Species) || mind.Sightings == null || !Combat.Hunts(animal.Species)) return;
@@ -282,8 +301,8 @@ public static partial class Fauna
         {
             if (s.Quarry is not Species quarry) continue;
             double meat = MeatKcalOf(quarry);
-            double with = Combat.KillChance(animal.Species, pack, quarry, s.Count) * Math.Min(1, meat / (pack * roomKcal));
-            double alone = Combat.KillChance(animal.Species, 1, quarry, s.Count) * Math.Min(1, meat / roomKcal) / (1 + cohesion);
+            double with = GatedKillChance(animal, pack, quarry, s.Count) * Math.Min(1, meat / (pack * roomKcal));
+            double alone = GatedKillChance(animal, 1, quarry, s.Count) * Math.Min(1, meat / roomKcal) / (1 + cohesion);
             if (alone <= with) continue;
             Fought(world, [animal.Id], side.Skip(1).Select(a => a.Id));
             return;

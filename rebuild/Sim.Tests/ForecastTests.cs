@@ -587,19 +587,28 @@ public class ForecastTests
         Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
     }
 
-    /// Combat.KillChance against fresh headless pack hunts (trials the table was not measured on): within three standard
-    /// deviations of 100 hunts. A pair against a herd of bison, a pack of six against it, a lone wolf on caribou, hyenas on megaloceros.
+    /// Combat.KillChance and Combat.InjuryChance against fresh headless pack hunts (trials the tables were not measured on): each
+    /// within three standard deviations of 100 hunts. A pair against a herd of bison, three and six against it, a lone wolf on
+    /// caribou, hyenas on megaloceros, a lone hyena on megaloceros, a lone sabre-tooth on caribou.
     [Theory]
     [InlineData(Species.Wolf, 2, Species.Bison, 4)]
+    [InlineData(Species.Wolf, 3, Species.Bison, 4)]
     [InlineData(Species.Wolf, 6, Species.Bison, 4)]
     [InlineData(Species.Wolf, 1, Species.Caribou, 1)]
     [InlineData(Species.Hyena, 2, Species.Megaloceros, 3)]
-    public void KillChance_AgreesWithHeadlessPackHunts(Species predator, int hunters, Species quarry, int herd)
+    [InlineData(Species.Hyena, 1, Species.Megaloceros, 2)]
+    [InlineData(Species.SaberTooth, 1, Species.Caribou, 3)]
+    public void KillAndInjuryChances_AgreeWithHeadlessPackHunts(Species predator, int hunters, Species quarry, int herd)
     {
-        double forecast = Combat.KillChance(predator, hunters, quarry, herd);
-        double measured = KillOdds.Measure(predator, hunters, quarry, herd, trials: 100, firstSeed: 5000);
-        double tolerance = Math.Max(0.05, 3 * Math.Sqrt(forecast * (1 - forecast) / 100));
-        Assert.True(Math.Abs(forecast - measured) <= tolerance, $"forecast {forecast:F2}, measured {measured:F2} (within {tolerance:F2})");
+        var (kill, injury) = KillOdds.Measure(predator, hunters, quarry, herd, trials: 100, firstSeed: 5000);
+        Agrees("kill", Combat.KillChance(predator, hunters, quarry, herd), kill);
+        Agrees("injury", Combat.InjuryChance(predator, hunters, quarry, herd), injury);
+
+        static void Agrees(string what, double forecast, double measured)
+        {
+            double tolerance = Math.Max(0.05, 3 * Math.Sqrt(forecast * (1 - forecast) / 100));
+            Assert.True(Math.Abs(forecast - measured) <= tolerance, $"{what}: forecast {forecast:F2}, measured {measured:F2} (within {tolerance:F2})");
+        }
     }
 
     // ---- Body: health ----
