@@ -55,7 +55,7 @@
   // Old CaveLocationFactory.CreateSeep: open water, fishless, from deep in the rock.
   "CaveSeep": { "name": "Cave Seep", "found": ["You discover something interesting: Cave Seep."], "work": "Harvest", "minutes": 1, "items": [
    { "resource": "Water", "units": 100, "kgPerUnit": 1.0, "respawnHoursPerUnit": 0.1 } ] },
-  // The one cave find of obsidian (#145): black glass, found nowhere else but the rare outcrop.
+  // The one cave find of obsidian: black glass, found nowhere else but the rare outcrop.
   "ObsidianSeam": { "name": "Obsidian Seam", "found": ["You find an obsidian seam. A vein of black glass runs through the cave wall. Broken pieces lie at its foot."], "work": "Harvest", "minutes": 5, "items": [
    { "resource": "Obsidian", "units": 2, "unitsMax": 3, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
   "FlintOutcrop": { "name": "Flint Outcrop", "found": ["Sharp flint nodules catch the light. A knapping site.", "Flint! The rock here breaks clean and sharp.", "Quality stone for tools. This spot is worth remembering."], "work": "Harvest", "minutes": 5, "items": [

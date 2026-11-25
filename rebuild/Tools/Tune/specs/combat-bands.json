@@ -83,7 +83,7 @@
  "orders": [
   { "name": "Weapon order against a lone wolf", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_axe", "wolf_knife", "wolf_stone", "wolf_staff", "wolf_hands"], "margin": 0.02,
    "note": "Strict: each must beat the next by 2 points, so a tie at 100% still costs. The weapon table's order." },
-  // The stone, flint, obsidian and bone tools (#145) in the same order: the sharpest knife below either axe, the
+  // The stone, flint, obsidian and bone tools in the same order: the sharpest knife below either axe, the
   // plainest above the stone. The two axes fight alike, as do the flint and bone knives, so none is set against its
   // twin, and the spear's lead on an axe is the order above's. The obsidian knife's damage saturates about 2 points
   // under an axe (4000 fights, 2026-11-25), so its margin there is 1 point.

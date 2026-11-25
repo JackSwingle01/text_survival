@@ -45,12 +45,12 @@ public readonly record struct PieceRange(double Min, double Max);
 
 /// Instances carry only their kind and wear. Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
-/// ChopRate: how fast an axe fells and cuts up a tree, the ground stone axe's being 1; every axe states it, and nothing else.
+/// ChopFactor: how fast an axe fells and cuts up a tree, the ground stone axe's being 1; every axe states it, and nothing else.
 public sealed record GearDef(
     string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
-    double CapacityBonusKg = 0, double? ChopRate = null);
+    double CapacityBonusKg = 0, double? ChopFactor = null);
 
 /// One discrete item. Durability -1 never wears out; 0 is broken.
 public sealed class Gear
@@ -296,10 +296,10 @@ public static class Items
 
     /// The working axe that chops fastest, the first of those if two match: the one felling picks up.
     public static Gear? Axe(Inventory inv) =>
-        inv.Gear.Where(g => Def(g).Tool == ToolType.Axe && Works(g)).OrderByDescending(ChopRate).FirstOrDefault();
+        inv.Gear.Where(g => Def(g).Tool == ToolType.Axe && Works(g)).OrderByDescending(ChopFactor).FirstOrDefault();
 
-    /// How fast an axe chops, against the ground stone axe's 1 (items.json chopRate); 1 for no axe.
-    public static double ChopRate(Gear? axe) => axe == null ? 1 : Def(axe).ChopRate ?? 1;
+    /// How fast an axe chops, against the ground stone axe's 1 (items.json chopFactor); 1 for no axe.
+    public static double ChopFactor(Gear? axe) => axe == null ? 1 : Def(axe).ChopFactor ?? 1;
 
     public static double WeightKg(Inventory inv) =>
         Totals(inv).Sum(x => x.Kg) + inv.Gear.Sum(WeightKg) + (inv.Projects?.Sum(p => WeightKg(p.Materials)) ?? 0);

@@ -16,6 +16,7 @@
 //   body (old BaseInsulation). A tent's shelter values are shelters.json's. capabilities is stated on every
 //   kind: what carrying it lets someone do to a thing (Capability names, each once; [] for none). An unlit
 //   torch gives no Light: a burning one is a fire, not gear.
+//   chopFactor (axes, and only axes): how fast it fells and cuts up a tree, the ground stone axe's being 1.
 //   weapon: damage in units of tissue condition (GLOSSARY.md, Damage), its class, how far
 //   from the wielder it strikes (reachM), and, if it is made to be thrown, how far, how true and how hard
 //   (thrown). Melee damage is the combat tuner's (Tools/Tune), which holds fights to the outcome order spear >
@@ -84,11 +85,11 @@
  },
 
  "gear": {
-  // Axes (#145): chopRate is how fast each fells and cuts up a tree, the ground stone axe's 1 the old stone axe's. The
+  // Axes: chopFactor is how fast each fells and cuts up a tree, against the ground stone axe's 1. The
   // ground stone axe is blunt and never wears; the flint axe chops half again as fast, cuts, and wears out. Both
   // fight alike (the tuner's axe.damage), at one weight: a lighter axe fights better. Each weighs no more than its lightest inputs: a stone or flint, a branch, a binding.
-  "ground_stone_axe": { "name": "Ground Stone Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": -1, "capabilities": [], "tool": "Axe", "chopRate": 1.0, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
-  "flint_axe": { "name": "Flint Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 20, "capabilities": ["Cutting"], "tool": "Axe", "chopRate": 1.5, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
+  "ground_stone_axe": { "name": "Ground Stone Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": -1, "capabilities": [], "tool": "Axe", "chopFactor": 1.0, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
+  "flint_axe": { "name": "Flint Axe", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 20, "capabilities": ["Cutting"], "tool": "Axe", "chopFactor": 1.5, "weapon": { "damage": 6.00, "class": "Blade", "blockChance": 0.05, "reachM": 1.2, "thrown": { "rangeM": 10, "accuracy": 0.45, "damage": 1.50 } } },
   "flint_knife": { "name": "Flint Knife", "category": "Tool", "baseWeightKg": 0.15, "maxDurability": -1, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
   "worn_knife": { "name": "Worn Knife", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": 3, "capabilities": ["Cutting"], "tool": "Knife", "weapon": { "damage": 3.38, "class": "Blade", "blockChance": 0.02, "reachM": 0.8, "thrown": { "rangeM": 10, "accuracy": 0.40, "damage": 1.20 } } },
   // Obsidian: sharper than flint (it hits 1.08 times as hard, a ratio the tuner leaves alone: more puts it level with an axe) and fragile, where flint never wears.

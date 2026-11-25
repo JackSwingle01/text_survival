@@ -26,3 +26,6 @@ Follow-up: the NPC bench (NPC_BENCH=1, 20 seeds, 60 days) was not run; the NPC k
 Follow-up: the frozen-in gate has no play path, so "breaks ice" can only be checked as a capability until Tags derives FrozenIn.
 Follow-up: a stock pool's axe items (deadfall firewood) are worked at one rate for every item in a cycle, so the flint axe does not speed them; only felling and cutting up a tree go faster.
 Follow-up: dev/prototypes/npc-requirements/Harness.cs still names stone_axe; it is in no solution.
+Revised: the obsidian seam is rarer than the Loose Shale it replaces (spawn chance 0.12 → 0.04, 2-3 pieces of 0.2 kg for 4 of 0.25) → "a few rare places" in the spec; the bone knife (0.3 → 0.15 kg) and bone shovel (1.2 → 1.1 kg) now have recipes, so the load check holds them to their lightest inputs.
+Revised (review): a multiplier with baseline 1 is a Factor (principles-code.md) → GearDef.ChopRate, Items.ChopRate and items.json chopRate are ChopFactor / chopFactor; it is documented in the items.json header; the content comments lose their ticket numbers.
+Revised (review): the obsidian outcrop is drawn as often as the shale outcrop was and holds glass on 30% of tiles, so 70% are an "Obsidian Outcrop" with none → kept, to leave every seed's map as it is; flagged in the PR for Jack.

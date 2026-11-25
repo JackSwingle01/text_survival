@@ -617,7 +617,7 @@ public static class Npc
                 int minutes = pools[i] switch
                 {
                     ForagePool => MaxStintMinutes,
-                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id)) / Items.ChopRate(Items.Axe(pack))) + 1,
+                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id)) / Items.ChopFactor(Items.Axe(pack))) + 1,
                     StockPool s when (t != Here || Pools.HasStock(world, id, pack)) && s.Items.Any(x => req.AnyOf.Contains(x.Resource) && Pools.CanWork(x, pack)) => MaxStintMinutes,
                     _ => 0,
                 };

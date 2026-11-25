@@ -35,7 +35,7 @@
 // a stone or flint 0.3, pyrite 0.2, bone 0.3, sinew 0.1, rope 0.2, a hide 1.0, scraped 0.8, cured 0.7 (rounded,
 // at least one). Wood is PineBranch|BirchBranch|OakBranch, gathered by hand; firewood is only ever fuel.
 {
- // ---- cutting tools (#145): a crude edge needs nothing; the stone (a weapon below) knaps the rest. A binding is
+ // ---- cutting tools: a crude edge needs nothing; the stone (a weapon below) knaps the rest. A binding is
  // 1 sinew or 50 g of plant fibre. A proper blade needs flint or obsidian; there is no obsidian axe ----
  "crude_edge": { "name": "Crude edge", "category": "CuttingTool",
   "inputs": [ { "of": "Stone", "count": 1 } ], "tools": [], "requires": ["Light"], "minutes": 5,
