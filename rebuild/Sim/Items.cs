@@ -195,6 +195,26 @@ public static class Items
         pieces.Insert(at < 0 ? ~at : at, kg);
     }
 
+    /// A weight of r as it would be fetched: a continuous amount, or the largest pieces r comes in, the last what is
+    /// left raised to the least piece. Returns the kilos added, which may exceed kg by less than a least piece.
+    public static double AddKg(Inventory inv, Resource r, double kg)
+    {
+        if (!IsDiscrete(r))
+        {
+            Add(inv, r, kg);
+            return kg;
+        }
+        var def = Resources[r];
+        double added = 0;
+        while (kg - added > RangeSlackKg)
+        {
+            double piece = Math.Max(def.MinPieceKg, Math.Min(def.MaxPieceKg, kg - added));
+            AddPiece(inv, r, piece);
+            added += piece;
+        }
+        return added;
+    }
+
     public static void AddPieces(Inventory inv, Resource r, IEnumerable<double> pieces)
     {
         foreach (var kg in pieces) AddPiece(inv, r, kg);

@@ -233,14 +233,27 @@ public static class Npc
         /// From away, the fire as last seen beside it and the pile as it left it.
         double UsableHoursAt(TileId site)
         {
-            if (Here == site) return Fire.UsableHours(PitHere, PitType.Open, WithPack(PileHere is { } here ? Items.KgByResource(here) : null), Fire.CanStrike(pack));
-            return FireLeftHoursAt(site) + Fire.UsableHours(null, PitType.Open, WithPack(memory.Places.GetValueOrDefault(site)?.Pile), Fire.CanStrike(pack));
+            if (Here == site) return FireHere().Hours;
+            return FireLeftHoursAt(site) + Fire.Forecast(new FireAsk(null, PitType.Open, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile), Starter, 0)).Hours;
         }
 
-        Dictionary<Resource, double> WithPack(IReadOnlyDictionary<Resource, double>? pile)
+        FireForecast? fireHere;
+        FireForecast FireHere() => fireHere ??= Fire.Forecast(new FireAsk(PitHere, PitType.Open, PackWith(PileHere), Starter, 0));
+
+        ToolType? Starter => Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
+
+        Inventory PackWith(Inventory? pile)
         {
-            var all = new Dictionary<Resource, double>(Items.KgByResource(pack));
-            foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) all[r] = all.GetValueOrDefault(r) + kg;
+            var all = Items.CopyResources(pack);
+            if (pile != null) Items.AddAll(all, Items.CopyResources(pile));
+            return all;
+        }
+
+        /// The pack with a pile as remembered, its weights in the pieces they would be fetched in.
+        Inventory PackWithRemembered(IReadOnlyDictionary<Resource, double>? pile)
+        {
+            var all = Items.CopyResources(pack);
+            foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) Items.AddKg(all, r, kg);
             return all;
         }
 
@@ -313,15 +326,13 @@ public static class Npc
 
         StartFire? Strike()
         {
-            var tool = Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
-            if (tool == null) return null;
+            if (Starter is not ToolType tool) return null;
             var tinder = Fire.TinderToStrike(pack, Verbs.TinderKg);
-            return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
+            return new StartFire(Id, tool, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
         }
 
-        /// A strike it can make whose fire, by the light forecast, will take a log it carries or left on the pile here.
-        bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && Fire.ForecastLight(world, s) is var f
-            && (f.KeepsGoingPct > 0 || PileHere is { } pile && Items.Totals(pile).Any(x => x.Kg > DustKg && IsLog(x.Resource) && f.Takes(x.Resource)));
+        /// A strike it can make whose fire, by the fire forecast, outlasts the strike's own flame.
+        bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && FireHere().Hours > Fire.ForecastLight(world, s).FlameHours;
 
         /// The fire's site is a one of: the camp, here, or one of the nearest places it remembers trees, by the walk
         /// there plus the tree there. Committing to the plan there moves the camp.

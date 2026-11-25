@@ -9,6 +9,25 @@ public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers
 /// the reader builds a struct row from its parameterless constructor and would take a missing field as 0.
 public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
 
+/// What a fire forecast is asked (Fire.Forecast): the pit as it is now (null: none yet) and the type a new one would
+/// have, the fuel on offer (pieces included), the starter a strike would use (null: none), and the hours wanted.
+public sealed record FireAsk(FireState? Pit, PitType NewPit, Inventory Fuel, ToolType? Starter, double HoursWanted, int FirecraftLevel = 0, double DexterityPct = 1.0);
+
+/// Bridge: fuel on offer never gets hot enough to catch. Hours: everything catches, and it is not enough.
+public enum FireNeedKind { Starter, Tinder, Bridge, Hours }
+
+/// What a fire forecast says must be added: any one of AnyOf, Kg of the first (as Items.AddKg puts it in pieces).
+public sealed record FireNeed(FireNeedKind Kind, IReadOnlyList<Resource> AnyOf, double Kg);
+
+public readonly record struct FuelToAdd(Resource Fuel, double Kg);
+
+/// The strike a fire forecast assumes for a cold pit: TinderKg of Tinder and up to KindlingKg of sticks.
+public sealed record FireStrike(Resource Tinder, double TinderKg, double KindlingKg);
+
+/// StrikePct is 1 when the pit burns or glows. LeastHeatF: the least Fire.HeatOutputF over the hours, against 0 °F air.
+/// Missing is empty when the hours reach those wanted or nothing could help (a cold pit too full to strike, >200 kg).
+public sealed record FireForecast(double StrikePct, double Hours, double LeastHeatF, IReadOnlyList<FireNeed> Missing, FuelToAdd? Next, FireStrike? Strike);
+
 public sealed record PitProps(int Room, double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
 
 /// What flame does to an animal's nerve (Content/fire.json deterrence, read by Combat.FireDeterrence).
@@ -574,7 +593,7 @@ public static class Fire
         double chance = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
         // A discrete tinder (chaga) is spent in whole pieces, no more than the pit has room for.
         double roomKg = PitAt(world, tile) is FireId there ? RoomKg(world.Fires[there]) : MaxFuelKg(a.Pit);
-        double tinderKg = Items.Move(pack, new Inventory(), a.Tinder, a.TinderKg, Items.IsDiscrete(a.Tinder) ? roomKg : double.PositiveInfinity);
+        double tinderKg = TakeTinder(pack, a.Tinder, a.TinderKg, roomKg);
         var tool = Items.Tool(pack, a.Tool)!;
         Items.Use(tool);
         if (world.Rng("fire", a.Who).NextDouble() >= chance)
@@ -591,12 +610,7 @@ public static class Fire
             Cause = new Cause(a.Who, $"lit by {Cause.Describe(world, a.Who)} with a {Items.Def(tool).Name.ToLowerInvariant()}"),
         });
         var f = world.Fires[id];
-        // What the pit has no room for stays in the pack, as Feed does; a piece of tinder goes in whole.
-        double tinderIn = AddFuel(f, a.Tinder, tinderKg);
-        if (Items.IsDiscrete(a.Tinder)) f.UnburnedKg[a.Tinder] = f.UnburnedKg.GetValueOrDefault(a.Tinder) + tinderKg - tinderIn;
-        else Items.Add(pack, a.Tinder, tinderKg - tinderIn);
-        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Stick, a.KindlingKg);
-        IgniteAll(f);
+        Kindle(f, pack, a.Tinder, tinderKg, a.KindlingKg);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         // A catching strike pays a miss's worth now, the rest when the fire takes wood (PayLighter), so tinder with no fuel to follow cannot farm levels.
         Skills.Award(world, agent, Skill.Firecraft, Skills.FireFailureXp, events);
@@ -604,6 +618,21 @@ public static class Fire
         PayLighter(world, f, events); // struck onto logs already in the pit
         return null;
     }
+
+    /// A caught strike: the tinder already taken from the pack, then up to kindlingKg of sticks, and all of it alight.
+    /// What the pit has no room for stays in the pack, as Feed does; a piece of tinder goes in whole.
+    static void Kindle(FireState f, Inventory pack, Resource tinder, double tinderKg, double kindlingKg)
+    {
+        double tinderIn = AddFuel(f, tinder, tinderKg);
+        if (Items.IsDiscrete(tinder)) f.UnburnedKg[tinder] = f.UnburnedKg.GetValueOrDefault(tinder) + tinderKg - tinderIn;
+        else Items.Add(pack, tinder, tinderKg - tinderIn);
+        if (kindlingKg > 0) PutOn(f, pack, Resource.Stick, kindlingKg);
+        IgniteAll(f);
+    }
+
+    /// The tinder a strike spends, whether or not it catches: whole pieces of a discrete one, no more than the pit has room for.
+    static double TakeTinder(Inventory pack, Resource tinder, double kg, double roomKg) =>
+        Items.Move(pack, new Inventory(), tinder, kg, Items.IsDiscrete(tinder) ? roomKg : double.PositiveInfinity);
 
     /// At most what the pack holds goes on, and what the pit has no room for stays in the pack.
     static string? Feed(World world, AddFuel a, List<WorldEvent> events)
@@ -646,7 +675,7 @@ public static class Fire
     /// never by the catch-up that sees the log take, which runs whenever someone looks.
     static void PayLighter(World world, FireState f, List<WorldEvent> events)
     {
-        if (f.LitBy is not AgentId lighter || !WillTakeALog(f)) return;
+        if (f.LitBy is not AgentId lighter || !SureToTakeFuelNeedingHeat(f)) return;
         f.LitBy = null;
         if (world.Agents.TryGetValue(lighter, out var who))
             Skills.Award(world, who, Skill.Firecraft, Skills.FireSuccessXp - Skills.FireFailureXp, events);
@@ -654,7 +683,7 @@ public static class Fire
 
     /// Burns a copy forward. The burn has no weather or dice and later fuel only helps, so the answer at the
     /// action is the answer the catch-up will find.
-    static bool WillTakeALog(FireState f)
+    static bool SureToTakeFuelNeedingHeat(FireState f)
     {
         static bool LogBurning(FireState x) => x.BurningKg.Keys.Any(r => Props[r].MinFireTempF > 0);
         if (LogBurning(f)) return true;
@@ -715,42 +744,26 @@ public static class Fire
         return minutes;
     }
 
-    /// A forecast of a strike now, assuming nobody adds fuel; fires around the agent caught up. CatchTemperatureF is the heat a minute later, when fuel
-    /// can next go on (Takes). KeepsGoingPct: the odds it catches and goes on to take a log in the pit or the pack.
-    public sealed record LightForecast(double StrikePct, double FlameHours, double CatchTemperatureF, double KeepsGoingPct)
-    {
-        public bool Takes(Resource fuel) => CatchTemperatureF >= Props[fuel].MinFireTempF;
-    }
+    /// A forecast of a single strike now, assuming nobody adds fuel; fires around the agent caught up. What fuel
+    /// then does is Forecast's.
+    public sealed record LightForecast(double StrikePct, double FlameHours);
 
     public static LightForecast ForecastLight(World world, StartFire a)
     {
         var agent = world.Agent(a.Who);
-        if (Refusal(world, a) != null) return new LightForecast(0, 0, 0, 0);
+        if (Refusal(world, a) != null) return new LightForecast(0, 0);
         double strike = StartOdds(world, agent, a.Tool, a.Tinder).TotalPct;
-        var lit = IfLit(world, a);
-        // Fuel goes on the minute after the strike, the soonest another activity can start.
-        var next = BurnCopy(lit);
-        Tick(next, default, next.LastUpdatedMinute + 1, []);
-        var pack = Items.Pack(world, a.Who);
-        bool keepsGoing = WillTakeALog(lit) || Items.Totals(pack).Any(x => Props.TryGetValue(x.Resource, out var p) && p.MinFireTempF > 0
-            && (Items.IsDiscrete(x.Resource) ? Items.LightestKg(pack, x.Resource) <= RoomKg(next) : !IsSliver(next, x.Kg))
-            && WillCatch(next, x.Resource, Items.WouldMoveKg(pack, x.Resource, x.Kg, RoomKg(next))));
-        return new LightForecast(strike, HoursItWillBurn(lit), CatchTemperatureF(next), keepsGoing ? strike : 0);
+        return new LightForecast(strike, HoursItWillBurn(IfLit(world, a)));
     }
 
     static FireState IfLit(World world, StartFire a)
     {
         var tile = world.Agent(a.Who).Tile;
         var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
-        AddFuel(lit, a.Tinder, a.TinderKg);
-        // The sticks that would go on: whole ones, as many as fit (PutOn).
-        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Stick, a.KindlingKg, RoomKg(lit)) : 0;
-        if (sticksKg > 0 && CanAddFuel(lit, Resource.Stick)) AddFuel(lit, Resource.Stick, sticksKg);
-        IgniteAll(lit);
+        var pack = Items.CopyResources(Items.Pack(world, a.Who));
+        Kindle(lit, pack, a.Tinder, TakeTinder(pack, a.Tinder, a.TinderKg, RoomKg(lit)), a.KindlingKg);
         return lit;
     }
-
-    public static bool CanStrike(Inventory pack) => Starters.Any(t => Items.Tool(pack, t) != null);
 
     public static readonly IReadOnlyList<ToolType> Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
 
@@ -760,28 +773,131 @@ public static class Fire
     /// The surest catch the pack holds enough of; plain tinder, the one a person plans to find, if none.
     public static Resource TinderToStrike(Inventory pack, double kg) => Tinders.FirstOrDefault(r => Items.Have(pack, r) >= kg, Resource.Tinder);
 
-    /// A forecast for warmth (Priorities.WarmthPriority): hours of fire from only the fuel a fire could get hot enough to take, from
-    /// the pit if it burns or glows, else struck from the fuel's tinder (canStrike); the fuel counts as one load.
-    public static double UsableHours(FireState? pit, PitType pitType, IReadOnlyDictionary<Resource, double> fuelKg, bool canStrike)
+    /// The one fire forecast: what fire can be had, if whoever asks strikes a cold pit and then puts on NextFuel each
+    /// minute. Needs no body and no mind: a strike's odds are read from the level and dexterity given.
+    public static FireForecast Forecast(FireAsk ask)
     {
-        var fuels = fuelKg.Where(x => x.Value > DustKg && IsFuel(x.Key)).ToDictionary(x => x.Key, x => x.Value);
-        bool burns = pit != null && (IsActive(pit) || pit.HasEmbers);
-        bool strikable = canStrike && fuels.Keys.Any(Tinders.Contains);
-        if (!burns && !strikable) return 0;
-        double maxKg = MaxFuelKg(pit?.Pit ?? pitType), heatF = burns ? CatchTemperatureF(pit!) : 0, ownKg = pit != null ? BurningKg(pit) : 0;
-        var taken = new HashSet<Resource>();
-        for (bool more = true; more;)
+        bool burns = ask.Pit is { } pit && (IsActive(pit) || pit.HasEmbers);
+        if (!burns && ask.Starter == null) return new(0, 0, 0, [new FireNeed(FireNeedKind.Starter, [], 0)], null, null);
+        if (!burns && ask.Pit != null && TotalKg(ask.Pit) >= MaxFuelKg(ask.Pit.Pit)) return new(0, 0, 0, [], null, null); // no room to strike in
+        double roomKg = ask.Pit != null ? RoomKg(ask.Pit) : MaxFuelKg(ask.NewPit);
+        var struck = burns ? null : StrikeFrom(ask.Fuel, roomKg);
+        var strike = struck;
+        var burned = burns || strike != null ? Burn(ask.Pit, ask.NewPit, ask.Fuel, strike) : Burned.None;
+        double strikePct = burns ? 1 : strike != null ? StartOdds(ask.Starter!.Value, strike.Tinder, ask.FirecraftLevel, ask.DexterityPct).TotalPct : 0;
+        var missing = new List<FireNeed>();
+        if (burned.Hours < ask.HoursWanted)
         {
-            more = false;
-            foreach (var r in fuels.Keys.Where(r => !taken.Contains(r) && Props[r].MinFireTempF <= heatF).ToList())
+            var offer = ask.Fuel;
+            var toSearch = burned;
+            if (!burns && strike == null)
             {
-                taken.Add(r);
-                more = true;
+                offer = Items.CopyResources(ask.Fuel);
+                Items.AddKg(offer, Tinders[0], Verbs.TinderKg);
+                missing.Add(new FireNeed(FireNeedKind.Tinder, Tinders, Verbs.TinderKg));
+                strike = StrikeFrom(offer, roomKg);
+                toSearch = Burn(ask.Pit, ask.NewPit, offer, strike);
             }
-            double loadKg = Math.Min(maxKg, ownKg + taken.Sum(r => fuels[r]));
-            if (taken.Count > 0) heatF = Math.Max(heatF, taken.Max(r => Props[r].PeakTempF) * TempSizeFactor(loadKg));
+            if (toSearch.Hours < ask.HoursWanted && FuelNeed(ask, offer, strike, toSearch) is { } need) missing.Add(need);
         }
-        return (burns ? HoursItWillBurn(pit!) : 0) + taken.Sum(r => FuelHours(r, fuels[r]));
+        return new FireForecast(strikePct, burned.Hours, burned.LeastHeatF, missing, burns ? burned.First : null, struck);
+    }
+
+    const double MostFuelSearchedKg = 200;
+
+    /// The surest tinder on offer whose lightest piece fits the pit (Refusal's rule), and a strike's kindling. Null without one.
+    static FireStrike? StrikeFrom(Inventory fuel, double roomKg) =>
+        Tinders.Where(r => Items.Have(fuel, r) >= Verbs.TinderKg - 1e-9 && !(Items.LightestKg(fuel, r) > roomKg + 1e-9)).Cast<Resource?>().FirstOrDefault() is Resource tinder
+            ? new FireStrike(tinder, Verbs.TinderKg, Items.WouldMoveKg(fuel, Resource.Stick, Verbs.KindlingKg))
+            : null;
+
+    /// One entry at most, weighed so that adding it alone reaches the hours wanted.
+    static FireNeed? FuelNeed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned)
+    {
+        if (burned.Stranded.Count > 0)
+        {
+            var target = burned.Stranded.OrderBy(r => Props[r].MinFireTempF).ThenBy(r => r).First();
+            var bridges = ByHoursPerKg(r => !burned.Stranded.Contains(r) && Props[r].MinFireTempF <= burned.HeatReachedF && Props[r].PeakTempF >= Props[target].MinFireTempF);
+            if (Weighed(ask, offer, strike, burned, bridges, FireNeedKind.Bridge, target) is { } bridge) return bridge;
+        }
+        var more = ByHoursPerKg(r => !burned.Stranded.Contains(r) && Props[r].MinFireTempF <= burned.HeatReachedF);
+        return Weighed(ask, offer, strike, burned, more, FireNeedKind.Hours, mustTake: null);
+    }
+
+    static List<Resource> ByHoursPerKg(Func<Resource, bool> which) =>
+        [.. Props.Keys.Where(which).OrderBy(r => Props[r].BurnRateKgPerHour).ThenBy(r => r)];
+
+    static FireNeed? Weighed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned, List<Resource> candidates, FireNeedKind kind, Resource? mustTake)
+    {
+        double shortHours = Math.Max(ask.HoursWanted - burned.Hours, 1.0 / 60);
+        foreach (var fuel in candidates)
+        {
+            double kg = Math.Max(Items.IsDiscrete(fuel) ? Items.Resources[fuel].MinPieceKg : 0.01, shortHours * Props[fuel].BurnRateKgPerHour * ReckonedBurnSizeFactor);
+            for (; kg <= MostFuelSearchedKg; kg *= 1.5)
+            {
+                var more = Items.CopyResources(offer);
+                double added = Items.AddKg(more, fuel, kg);
+                var tried = Burn(ask.Pit, ask.NewPit, more, strike, ask.HoursWanted, mustTake);
+                if (tried.Hours >= ask.HoursWanted && (mustTake is not Resource m || !tried.Stranded.Contains(m)))
+                    return new FireNeed(kind, [fuel, .. candidates.Where(c => c != fuel)], added);
+            }
+        }
+        return null;
+    }
+
+    /// One burn of a copy. Stranded: fuel on offer or in the pit that never caught. First: put on before the first minute.
+    sealed record Burned(double Hours, double LeastHeatF, double HeatReachedF, IReadOnlySet<Resource> Stranded, FuelToAdd? First)
+    {
+        public static readonly Burned None = new(0, 0, 0, new HashSet<Resource>(), null);
+    }
+
+    static Burned Burn(FireState? pit, PitType newPit, Inventory fuel, FireStrike? strike, double stopAtHours = double.PositiveInfinity, Resource? mustTake = null)
+    {
+        var offer = Items.CopyResources(fuel);
+        var f = pit != null ? BurnCopy(pit) : new FireState { Tile = default, LastUpdatedMinute = 0, Pit = newPit };
+        FuelToAdd? first = null;
+        if (strike != null) Kindle(f, offer, strike.Tinder, TakeTinder(offer, strike.Tinder, strike.TinderKg, RoomKg(f)), strike.KindlingKg);
+        else first = Tend(f, offer);
+        int minutes = 0;
+        double least = double.PositiveInfinity, reached = CatchTemperatureF(f);
+        while (IsActive(f))
+        {
+            if (minutes >= stopAtHours * 60 && (mustTake is not Resource m || Items.Have(offer, m) <= DustKg && !f.UnburnedKg.ContainsKey(m))) break;
+            minutes++;
+            least = Math.Min(least, HeatOutputF(f, ambientF: 0));
+            f.LastUpdatedMinute++;
+            Tick(f, default, f.LastUpdatedMinute, []);
+            reached = Math.Max(reached, CatchTemperatureF(f));
+            Tend(f, offer);
+        }
+        var stranded = Items.Totals(offer).Where(x => IsFuel(x.Resource) && x.Kg > DustKg).Select(x => x.Resource)
+            .Concat(f.UnburnedKg.Where(x => x.Value > DustKg).Select(x => x.Key)).ToHashSet();
+        return new Burned(minutes / 60.0, minutes > 0 ? least : 0, reached, stranded, first);
+    }
+
+    static FuelToAdd? Tend(FireState f, Inventory offer)
+    {
+        if (NextFuel(f, offer) is not { } next) return null;
+        PutOn(f, offer, next.Fuel, next.Kg);
+        return next;
+    }
+
+    /// The tending a forecast assumes, and its Next: of the fuel on offer that the fire takes now and has room for, the
+    /// hottest (then the slowest burning), as much as fits. Null for a cold pit.
+    internal static FuelToAdd? NextFuel(FireState f, Inventory fuel)
+    {
+        if (!IsActive(f) && !f.HasEmbers) return null;
+        var order = Items.Totals(fuel).Where(x => IsFuel(x.Resource) && x.Kg > DustKg)
+            .OrderByDescending(x => Props[x.Resource].PeakTempF).ThenBy(x => Props[x.Resource].BurnRateKgPerHour).ThenBy(x => x.Resource);
+        foreach (var (r, kg) in order)
+        {
+            if (!CanAddFuel(f, r)) continue;
+            double room = RoomKg(f);
+            if (Items.IsDiscrete(r) ? Items.LightestKg(fuel, r) > room + 1e-9 : IsSliver(f, kg)) continue;
+            double put = Items.IsDiscrete(r) ? Items.WouldMoveKg(fuel, r, kg, room) : Math.Min(kg, room);
+            if (put > 0) return new FuelToAdd(r, put);
+        }
+        return null;
     }
 
     static FireState BurnCopy(FireState f) => new()
