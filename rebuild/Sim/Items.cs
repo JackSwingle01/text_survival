@@ -45,11 +45,12 @@ public readonly record struct PieceRange(double Min, double Max);
 
 /// Instances carry only their kind and wear. Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
+/// BurnMinutes is how long a torch burns once lit.
 public sealed record GearDef(
     string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
-    double CapacityBonusKg = 0);
+    double CapacityBonusKg = 0, double BurnMinutes = 0);
 
 /// One discrete item. Durability -1 never wears out; 0 is broken.
 public sealed class Gear

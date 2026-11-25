@@ -305,6 +305,27 @@ public class FireTests
         Assert.Equal("no flame to light a torch from", Sim.Step(world, new LightTorch(P), 1).InterruptedReason);
     }
 
+    /// A resin torch is its own kind and burns about twice as long; it gives a torch's heat, fading over its last hour.
+    [Fact]
+    public void AResinTorch_BurnsTwiceAsLongAsATorch()
+    {
+        var world = LitCamp();
+        Sim.Step(world, new AddFuel(P, Resource.Stick, 2.0), 5);
+        var pack = Items.Pack(world, P);
+        pack.Gear.RemoveAll(g => g.Kind == "torch");
+        pack.Gear.Add(Items.Make("resin_torch"));
+        Assert.Null(Sim.Step(world, new LightTorch(P), 1).InterruptedReason);
+        Assert.DoesNotContain(pack.Gear, g => g.Kind == "resin_torch");
+        Assert.Equal(5.0, Fire.WarmthFor(world, P).TorchHeatF, 6);
+
+        world.Agent(P).Tile = new TileId(0, 0);
+        Assert.DoesNotContain(Sim.Step(world, new Wait(P), 61).Events, e => e is FireDied);
+        Assert.True(Fire.HasLight(world, P));
+        Assert.Equal(3.0 + 2.0 * 58 / 60, Fire.WarmthFor(world, P).TorchHeatF, 6); // 58 minutes left of 120
+        Assert.Contains(Sim.Step(world, new Wait(P), 60).Events, e => e is FireDied);
+        Assert.False(Fire.HasLight(world, P));
+    }
+
     [Fact]
     public void FireState_SurvivesSaveRoundTrip_AndIsDeterministic()
     {
