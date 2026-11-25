@@ -38,7 +38,7 @@ public class OddsTests
     }
 
     static readonly ToolType[] Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
-    static readonly Resource[] Tinders = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Kindling];
+    static readonly Resource[] StrikeFuels = [Resource.Tinder, Resource.BirchBark, Resource.Amadou, Resource.ResinTinder, Resource.Usnea, Resource.Chaga, Resource.Kindling];
     static readonly double[] Dexterities = [0, 0.13, 0.3, 0.5, 0.77, 0.9999, 1];
 
     /// The fold is the formula: the total is base plus each term in order, clamped, exactly.
@@ -61,7 +61,7 @@ public class OddsTests
     public void FireOdds_AreTheOldNumbers_AndAddUp()
     {
         foreach (var tool in Starters)
-            foreach (var tinder in Tinders)
+            foreach (var tinder in StrikeFuels)
                 foreach (bool impaired in new[] { false, true })
                     foreach (double dex in Dexterities)
                     {

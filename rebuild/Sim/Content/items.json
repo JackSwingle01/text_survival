@@ -28,6 +28,7 @@
  "resources": {
   "Tinder": { "category": "Fuel", "form": "Continuous" },
   "BirchBark": { "category": "Fuel", "form": "Continuous" },
+  "ResinTinder": { "category": "Fuel", "form": "Continuous" },
   "Kindling": { "category": "Fuel", "form": "Discrete", "pieceKg": [0.05, 1] },
   "Pine": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
   "Birch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
@@ -71,8 +72,7 @@
   "PineNeedles": { "category": "Medicine", "form": "Continuous" },
   "PineResin": { "category": "Medicine", "form": "Continuous" },
   "Usnea": { "category": "Medicine", "form": "Continuous" },
-  "SphagnumMoss": { "category": "Medicine", "form": "Continuous" },
-  "ResinTinder": { "category": "Fuel", "form": "Continuous" }
+  "SphagnumMoss": { "category": "Medicine", "form": "Continuous" }
  },
 
  "gear": {

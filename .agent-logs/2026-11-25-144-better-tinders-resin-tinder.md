@@ -13,3 +13,10 @@ Revised: `foraging.json` hints needs a row for every resource → "kindling", as
 Revised: `FireTests.StartChance_MatchesOldTable` and `OddsTests.FireOdds_AtTheExtremes_AreCappedAndSayWhy` hardcoded birch bark +25% and amadou +20% → the new +30% and +40%; `OddsTests.Tinders` gains resin tinder.
 Revised: Make's minutes on a cold dark night came to 6, not 5 → the tests check the recipe's 5 minutes, not the elapsed time.
 Revised: the "TinderBundle" loot table (`loot.json`, `discoveries.json`) yields plain tinder and is no resource or recipe → left as is; `ThereIsNoTinderBundle` checks resources, recipes and gear.
+Revised (review): the parity row's "Reshaped" isn't a legend status → "Replaced", with no size.
+Revised (review): the Light verb and the NPC each picked the tinder with their own copy of the rule → one `Fire.TinderToStrike(pack, kg)`; `Fire.Tinders` is now sorted by fire.json's ignitionBonusPct (ties keep the listed order), so a retune can't leave a stale order.
+Revised (review): the forecast property test's comment claimed any weather, but the world's weather is fixed and it reaches the odds only through dexterity (darkness, wet hands) → the comment says that; varying the time of day and the wetness covers both routes.
+Revised (review): the review asked to rename the recipe "Strike-a-light" → kept "Fire striker", the gear's name in names.json, the save fixture and the player's messages; the spec's word describes it.
+Revised (review): the review asked whether the striker's 5% flint-waste outcome should stay → kept: the spec changes the striker's tool, light and minutes, not its outcomes.
+Revised (review): the "TinderBundle" loot-table key → left, as above (it names a cache of plain tinder).
+Revised (review): `CommentHygieneTests` failed on Npc.cs and then on Fire.cs → removed the Npc comment with the shared helper, and trimmed the Fire.cs comments to one line.

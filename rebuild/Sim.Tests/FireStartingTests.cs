@@ -76,8 +76,9 @@ public class FireStartingTests
 
     static readonly Resource[] Fuels = [.. Fire.Props.Keys.Where(r => Fire.Props[r].MinFireTempF == 0).Order()];
 
-    /// Any tool, any tinder, any practice, dazed or not, any time of day and its weather, any wetness: the
-    /// forecast a person reads before striking never promises more than 95%.
+    /// Any tool, any tinder, any practice, dazed or not, any hour of light or dark, any wetness of the hands (weather
+    /// reaches the odds only through dexterity: darkness and wet): the forecast a person reads before striking never
+    /// promises more than 95%.
     [Fact]
     public void NoStrike_IsForecastAbove95Pct()
     {
