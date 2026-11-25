@@ -203,10 +203,13 @@ sealed class ViewBuilder(World world, int gen)
         if (priorities.Water == Priority.Critical) list.Add(new("dehydrated", "Dehydrated", "danger", 80, "ui/water", ["Drink, or melt snow by a fire"]));
         if (priorities.Food == Priority.Critical) list.Add(new("starving", "Starving", "danger", 70, "ui/food", ["Your body is burning muscle"]));
         if (priorities.Rest == Priority.Critical) list.Add(new("exhausted", "Exhausted", "danger", 65, "ui/energy", ["You will collapse soon"]));
-        var caps = Body.GetCapacities(b);
-        foreach (var (name, v) in new[] { ("Moving", caps.Moving), ("Manipulation", caps.Manipulation), ("Sight", caps.Sight) })
+        foreach (var (capacity, v) in BodyReadOut.Of(b))
+        {
+            if (capacity is not (Capacity.Moving or Capacity.Manipulation or Capacity.Sight)) continue;
+            string name = capacity.ToString();
             if (v < 0.9 && b.Effects.All(x => x.Kind != EffectKind.Shivering)) // shivering's cost is its own chip
                 list.Add(new("impaired-" + name.ToLowerInvariant(), $"{name} impaired", "warn", 40, "ui/capacities", [$"{name} {v:P0}"]));
+        }
         if (Items.EncumbrancePct(_player) > 1)
             list.Add(new("overloaded", "Overloaded", "warn", 35, "ui/backpack", [$"{Items.CarriedKg(_player):0.0} kg carried", "Moving slower"]));
         var memory = Memories.Of(_player);
@@ -254,14 +257,11 @@ sealed class ViewBuilder(World world, int gen)
 
     BodyDto BodyOf(BodyState b)
     {
-        var caps = Body.GetCapacities(b);
-        var all = new (string, double)[] { (Names.Title(Capacity.Moving), caps.Moving), (Names.Title(Capacity.Manipulation), caps.Manipulation),
-            (Names.Title(Capacity.Breathing), caps.Breathing), (Names.Title(Capacity.BloodPumping), caps.BloodPumping),
-            (Names.Title(Capacity.Consciousness), caps.Consciousness), (Names.Title(Capacity.Sight), caps.Sight), (Names.Title(Capacity.Hearing), caps.Hearing) };
+        var shown = BodyReadOut.Of(b);
         var skills = (_player.Mind as PersonMind)?.Skills ?? [];
         return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), b.EnergyPct,
             [.. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
-            [.. all.Where(c => c.Item2 < 0.995).Select(c => new CapacityDto(c.Item1, Math.Round(c.Item2, 3)))],
+            [.. shown.Where(c => c.Pct < 0.995).Select(c => new CapacityDto(Names.Title(c.Capacity), Math.Round(c.Pct, 3)))],
             [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(Names.Title(s.Key), s.Value.Level))],
             Math.Round(b.ClothingClo, 2));
     }
