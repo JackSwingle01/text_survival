@@ -51,6 +51,7 @@ static class Words
         Made m => m.Succeeded ? "ui/project" : "ui/cancel",
         ProjectAbandoned => "ui/cancel",
         TransformationFinished => "ui/meat",
+        TransformationStopped => "embers",
         _ => throw new ArgumentOutOfRangeException(nameof(e), e.GetType().Name, "Narration tells of it, but it has no icon"),
     };
 }

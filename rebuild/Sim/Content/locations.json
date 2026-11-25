@@ -30,19 +30,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -100,10 +100,10 @@
      "items": [
       { "resource": "PineBranch", "abundance": 2.5, "minKg": 1.5, "maxKg": 4 },
       { "resource": "BirchBranch", "abundance": 0.5, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 4, "minKg": 0.2, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Amadou", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "BirchPolypore", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Stick", "abundance": 6, "minKg": 0.2, "maxKg": 0.7 },
+      { "resource": "Tinder", "abundance": 4.5, "minKg": 0.032, "maxKg": 0.16 },
+      { "resource": "Amadou", "abundance": 0.75, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "BirchPolypore", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     {
@@ -148,9 +148,9 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 }
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 }
      ]
     },
     {
@@ -196,8 +196,8 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "PlantFiber", "abundance": 1.5, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "PlantFiber", "abundance": 6.75, "minKg": 0.15, "maxKg": 0.375 },
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Berries", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.6 }
      ]
     },
@@ -229,8 +229,8 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Stick", "abundance": 0.75, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.016, "maxKg": 0.064 }
      ]
     }
    ]
@@ -253,8 +253,8 @@
      "density": 2,
      "items": [
       { "resource": "Charcoal", "abundance": 0.8, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "Stick", "abundance": 2.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Tinder", "abundance": 4.5, "minKg": 0.032, "maxKg": 0.128 },
+      { "resource": "Stick", "abundance": 3.75, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "PineBranch", "abundance": 1.5, "minKg": 1, "maxKg": 2.5 }
      ]
     },
@@ -288,19 +288,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -347,19 +347,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     { "kind": "shelter", "name": "Tree Hollow", "type": "NaturalShelter", "insulation": 0.35, "overhead": 0.8, "wind": 0.7, "insulationCap": 0.5, "overheadCap": 0.9, "windCap": 0.8 },
@@ -391,10 +391,10 @@
      "kind": "forage",
      "density": 1.52,
      "items": [
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
-      { "resource": "Amadou", "abundance": 0.25, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Chaga", "abundance": 0.2, "minKg": 0.02, "maxKg": 0.06 },
-      { "resource": "BirchPolypore", "abundance": 0.2, "minKg": 0.02, "maxKg": 0.06 }
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.08 },
+      { "resource": "Amadou", "abundance": 0.75, "minKg": 0.042, "maxKg": 0.112 },
+      { "resource": "Chaga", "abundance": 0.5, "minKg": 0.02, "maxKg": 0.06 },
+      { "resource": "BirchPolypore", "abundance": 0.5, "minKg": 0.02, "maxKg": 0.06 }
      ]
     },
     {
@@ -437,9 +437,9 @@
      "kind": "forage",
      "density": 1.4,
      "items": [
-      { "resource": "BirchBark", "abundance": 0.8, "minKg": 0.08, "maxKg": 0.2 },
-      { "resource": "Stick", "abundance": 0.6, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.4, "minKg": 0.03, "maxKg": 0.08 }
+      { "resource": "BirchBark", "abundance": 2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.9, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.6, "minKg": 0.048, "maxKg": 0.128 }
      ]
     },
     { "kind": "trees", "name": "Birch Stand", "wood": "BirchFirewood", "minutesToFell": 120 },
@@ -470,9 +470,9 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.12 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
-      { "resource": "Stick", "abundance": 0.4, "minKg": 0.08, "maxKg": 0.2 }
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.18 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 0.6, "minKg": 0.08, "maxKg": 0.2 }
      ]
     },
     {
@@ -505,9 +505,9 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.04, "maxKg": 0.1 },
-      { "resource": "Bone", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Stick", "abundance": 0.75, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 1.35, "minKg": 0.06, "maxKg": 0.15 },
+      { "resource": "Bone", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     {
@@ -539,19 +539,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -581,11 +581,11 @@
      "kind": "forage",
      "density": 0.52,
      "items": [
-      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+      { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
     {
@@ -616,11 +616,11 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+      { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
     {
@@ -656,19 +656,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -701,10 +701,10 @@
      "kind": "forage",
      "density": 0.4,
      "items": [
-      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.4, "minKg": 0.05, "maxKg": 0.12 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Stick", "abundance": 0.45, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "PlantFiber", "abundance": 1.8, "minKg": 0.075, "maxKg": 0.18 },
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     {
@@ -737,8 +737,8 @@
      "kind": "forage",
      "density": 0.4,
      "items": [
-      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Stick", "abundance": 0.75, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "stock", "work": "Salvage", "name": "Abandoned Camp", "description": "Signs of an old camp. The fire pit is cold, shelter collapsed.", "minutes": 45, "loot": "AbandonedCamp" },
@@ -764,8 +764,8 @@
      "kind": "forage",
      "density": 0.32,
      "items": [
-      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Stick", "abundance": 0.75, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "stock", "work": "Salvage", "name": "Main Camp Area", "description": "The camp's main living area.", "minutes": 45, "loot": "EliteShelter" },
@@ -791,11 +791,11 @@
      "kind": "forage",
      "density": 0.4,
      "items": [
-      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+      { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
     {
@@ -826,8 +826,8 @@
      "kind": "forage",
      "density": 0.92,
      "items": [
-      { "resource": "PlantFiber", "abundance": 0.7, "minKg": 0.08, "maxKg": 0.18 },
-      { "resource": "Tinder", "abundance": 0.4, "minKg": 0.03, "maxKg": 0.08 }
+      { "resource": "PlantFiber", "abundance": 3.15, "minKg": 0.12, "maxKg": 0.27 },
+      { "resource": "Tinder", "abundance": 0.6, "minKg": 0.048, "maxKg": 0.128 }
      ]
     },
     {
@@ -859,7 +859,7 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     { "kind": "shelter", "name": "Stone Circle", "type": "NaturalShelter", "insulation": 0.15, "overhead": 0, "wind": 0.5, "insulationCap": 0.3, "overheadCap": 0, "windCap": 0.6 }
@@ -883,11 +883,11 @@
      "kind": "forage",
      "density": 0.52,
      "items": [
-      { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
+      { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
     {
@@ -919,8 +919,8 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 1.2, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
-      { "resource": "Flint", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.08 },
+      { "resource": "Flint", "abundance": 0.275, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     {
@@ -952,8 +952,8 @@
      "density": 0.4,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
    ]
@@ -976,8 +976,8 @@
      "density": 0.4,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     },
     {
@@ -1008,7 +1008,7 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "shelter", "name": "Rock Overhang", "type": "RockOverhang", "insulation": 0.1, "overhead": 0.7, "wind": 0.3, "insulationCap": 0.4, "overheadCap": 0.8, "windCap": 0.4 },
@@ -1033,8 +1033,8 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     },
     { "kind": "event", "event": "spot_movement", "revealAtHours": 1.5 }
@@ -1085,8 +1085,8 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
    ]
@@ -1112,8 +1112,8 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     },
     { "kind": "event", "event": "see_for_miles", "revealAtHours": 1.5 }
@@ -1139,8 +1139,8 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Bone", "abundance": 2, "minKg": 0.15, "maxKg": 0.5 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.03 }
+      { "resource": "Bone", "abundance": 4, "minKg": 0.15, "maxKg": 0.5 },
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.048 }
      ]
     },
     { "kind": "stock", "work": "Salvage", "name": "Den Floor", "description": "Bones litter the cave floor. Years of kills.", "minutes": 45, "loot": "MegafaunaGraveyard" },
@@ -1168,10 +1168,10 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Tinder", "abundance": 0.5, "minKg": 0.02, "maxKg": 0.06 },
-      { "resource": "PineNeedles", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 }
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Tinder", "abundance": 0.75, "minKg": 0.032, "maxKg": 0.096 },
+      { "resource": "PineNeedles", "abundance": 1.2, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.825, "minKg": 0.02, "maxKg": 0.1 }
      ]
     },
     {
@@ -1204,7 +1204,7 @@
      "density": 0.12,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "cache", "name": "Ice Crevasse", "capacityKg": 50, "protectsFromPredators": true, "protectsFromWeather": true, "preservesFood": true }
@@ -1229,7 +1229,7 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     {
@@ -1266,8 +1266,8 @@
      "density": 0.2,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
    ]
@@ -1293,8 +1293,8 @@
      "density": 0.6,
      "items": [
       { "resource": "Stone", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "Bone", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 }
+      { "resource": "Bone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.08 }
      ]
     },
     {
@@ -1339,7 +1339,7 @@
      "density": 1.2,
      "items": [
       { "resource": "Stone", "abundance": 1.5, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.05, "maxKg": 0.15 }
      ]
     }
    ]
@@ -1362,8 +1362,8 @@
      "density": 0.6,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     },
     { "kind": "shelter", "name": "Rock Cleft", "type": "NaturalShelter", "insulation": 0.3, "overhead": 0.6, "wind": 0.7, "insulationCap": 0.45, "overheadCap": 0.75, "windCap": 0.8 }
@@ -1386,7 +1386,7 @@
      "kind": "forage",
      "density": 0.92,
      "items": [
-      { "resource": "Bone", "abundance": 1.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Bone", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 }
      ]
     },
@@ -1452,8 +1452,8 @@
      "density": 0.4,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.25, "maxKg": 0.7 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 },
-      { "resource": "Flint", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.25 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 },
+      { "resource": "Flint", "abundance": 0.55, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
    ]
@@ -1474,12 +1474,12 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1512,7 +1512,7 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stick", "abundance": 2.25, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 }
      ]
     },
@@ -1547,7 +1547,7 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "water", "name": "Meltwater Pool", "description": "Glacial meltwater. Pure but frigid.", "frozen": true, "ice": 0.2, "fish": 0.7 },
@@ -1580,12 +1580,12 @@
      "kind": "forage",
      "density": 2.52,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1644,7 +1644,7 @@
      "density": 0.2,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "water", "name": "Ice Face", "description": "Solid ice. Harvestable for water if you have tools.", "frozen": true, "ice": 0.7, "fish": 0.7 }
@@ -1669,7 +1669,7 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     {
@@ -1709,12 +1709,12 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     { "kind": "water", "name": "Spring", "description": "Clear water seeping from underground. Slightly warm, never freezes.", "frozen": false, "fish": 0.7 },
@@ -1746,12 +1746,12 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1784,12 +1784,12 @@
      "kind": "forage",
      "density": 1.8,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1843,12 +1843,12 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1889,8 +1889,8 @@
      "kind": "forage",
      "density": 1.4,
      "items": [
-      { "resource": "PlantFiber", "abundance": 1.2, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 }
+      { "resource": "PlantFiber", "abundance": 5.4, "minKg": 0.15, "maxKg": 0.375 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.08 }
      ]
     },
     {
@@ -1933,12 +1933,12 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -1982,26 +1982,26 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Bone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "Bone", "abundance": 0.8, "minKg": 0.1, "maxKg": 0.3 }
      ]
     },
     { "kind": "trees", "name": "Perch Trees", "minutesToFell": 60 }
@@ -2027,26 +2027,26 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Bone", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Bone", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     {
@@ -2081,26 +2081,26 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
      "kind": "forage",
      "density": 0.72,
      "items": [
-      { "resource": "Bone", "abundance": 0.6, "minKg": 0.08, "maxKg": 0.2 }
+      { "resource": "Bone", "abundance": 1.2, "minKg": 0.08, "maxKg": 0.2 }
      ]
     },
     { "kind": "trees", "name": "Dead Snag", "minutesToFell": 40 },
@@ -2133,7 +2133,7 @@
      "kind": "forage",
      "density": 0.52,
      "items": [
-      { "resource": "Bone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Bone", "abundance": 1, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.08, "maxKg": 0.2 }
      ]
     }
@@ -2156,12 +2156,12 @@
      "kind": "forage",
      "density": 0.72,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     {
@@ -2195,10 +2195,10 @@
      "kind": "forage",
      "density": 0.92,
      "items": [
-      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "PineNeedles", "abundance": 0.4, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.06 }
+      { "resource": "Stick", "abundance": 0.75, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "PineNeedles", "abundance": 1.6, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.825, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Tinder", "abundance": 0.45, "minKg": 0.032, "maxKg": 0.096 }
      ]
     },
     { "kind": "trees", "name": "Pine Stand", "wood": "PineFirewood", "minutesToFell": 140 },
@@ -2231,8 +2231,8 @@
      "kind": "forage",
      "density": 0.52,
      "items": [
-      { "resource": "Stick", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.03, "maxKg": 0.08 }
+      { "resource": "Stick", "abundance": 0.45, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 1.35, "minKg": 0.045, "maxKg": 0.12 }
      ]
     },
     {
@@ -2265,7 +2265,7 @@
      "density": 0.4,
      "items": [
       { "resource": "Stone", "abundance": 0.5, "minKg": 0.15, "maxKg": 0.35 },
-      { "resource": "Bone", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "Bone", "abundance": 0.4, "minKg": 0.05, "maxKg": 0.15 }
      ]
     }
    ]
@@ -2290,19 +2290,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     { "kind": "shelter", "name": "Root Hollow", "type": "NaturalShelter", "insulation": 0.4, "overhead": 0.8, "wind": 0.7, "insulationCap": 0.55, "overheadCap": 0.9, "windCap": 0.8 },
@@ -2333,8 +2333,8 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.12 },
-      { "resource": "Bone", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.18 },
+      { "resource": "Bone", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
      ]
     },
     {
@@ -2368,19 +2368,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -2415,7 +2415,7 @@
      "density": 0.2,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "water", "name": "Pressure Ice", "description": "Ice that heaps into jumbled plates. Open water is hard to reach, but there is ice to cut.", "frozen": true, "ice": 0.7, "fish": 0.7 },
@@ -2457,12 +2457,12 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "SphagnumMoss", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
+      { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
     },
     { "kind": "water", "name": "Mineral Spring", "description": "Iron-rich water. Medicinal, if you can stomach the taste.", "frozen": false, "fish": 0.7 },
@@ -2513,7 +2513,7 @@
      "density": 0.12,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     }
    ]
@@ -2538,7 +2538,7 @@
      "density": 1.52,
      "items": [
       { "resource": "Stone", "abundance": 2, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Flint", "abundance": 0.3, "minKg": 0.08, "maxKg": 0.2 }
+      { "resource": "Flint", "abundance": 0.825, "minKg": 0.08, "maxKg": 0.2 }
      ]
     }
    ]
@@ -2584,8 +2584,8 @@
      "kind": "forage",
      "density": 2,
      "items": [
-      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Tinder", "abundance": 0.5, "minKg": 0.03, "maxKg": 0.08 }
+      { "resource": "Stick", "abundance": 2.25, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Tinder", "abundance": 0.75, "minKg": 0.048, "maxKg": 0.128 }
      ]
     },
     {
@@ -2615,7 +2615,7 @@
      "kind": "forage",
      "density": 2,
      "items": [
-      { "resource": "Flint", "abundance": 2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Flint", "abundance": 5.5, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
@@ -2638,7 +2638,7 @@
      "kind": "forage",
      "density": 1.52,
      "items": [
-      { "resource": "Bone", "abundance": 2.5, "minKg": 0.3, "maxKg": 0.8 }
+      { "resource": "Bone", "abundance": 5, "minKg": 0.3, "maxKg": 0.8 }
      ]
     },
     {
@@ -2679,7 +2679,7 @@
      "density": 0.32,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
     { "kind": "shelter", "name": "Rock Shelter", "type": "NaturalShelter", "insulation": 0.5, "overhead": 0.9, "wind": 0.8, "insulationCap": 0.65, "overheadCap": 0.95, "windCap": 0.9 },
@@ -2729,7 +2729,7 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Tinder", "abundance": 0.8, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "Tinder", "abundance": 1.2, "minKg": 0.16, "maxKg": 0.48 }
      ]
     }
    ]
@@ -2751,7 +2751,7 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Pyrite", "abundance": 1.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Pyrite", "abundance": 3, "minKg": 0.05, "maxKg": 0.15 },
       { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
@@ -2804,7 +2804,7 @@
      "kind": "forage",
      "density": 3,
      "items": [
-      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 4 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 4 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 4 }
@@ -2854,19 +2854,19 @@
       { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
+      { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
       { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
-      { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
-      { "resource": "BirchPolypore", "abundance": 0.15, "minKg": 0.05, "maxKg": 0.15 },
-      { "resource": "Chaga", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.2 },
-      { "resource": "Amadou", "abundance": 0.12, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "PineNeedles", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "PineResin", "abundance": 0.1, "minKg": 0.02, "maxKg": 0.1 },
-      { "resource": "Usnea", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Chaga", "abundance": 0.25, "minKg": 0.05, "maxKg": 0.2 },
+      { "resource": "Amadou", "abundance": 0.36, "minKg": 0.028, "maxKg": 0.112 },
+      { "resource": "PineNeedles", "abundance": 1, "minKg": 0.06, "maxKg": 0.3 },
+      { "resource": "PineResin", "abundance": 0.55, "minKg": 0.02, "maxKg": 0.1 },
+      { "resource": "Usnea", "abundance": 0.6, "minKg": 0.028, "maxKg": 0.112 }
      ]
     },
     {
@@ -2900,7 +2900,7 @@
      "density": 0.12,
      "items": [
       { "resource": "Stone", "abundance": 0.4, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
+      { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     }
    ]
@@ -2995,9 +2995,9 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
      ]
     },
     { "kind": "shelter", "name": "Dry Sleeping Recess", "type": "Cave", "insulation": 0.25, "overhead": 0.9, "wind": 0.2, "insulationCap": 0.6, "overheadCap": 0.95, "windCap": 0.4 }
@@ -3021,9 +3021,9 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
      ]
     },
     { "kind": "water", "name": "Cave Seep", "description": "A trickle from deep in the rock collects in a shallow, fishless pool.", "frozen": false, "fish": 0 }
@@ -3047,9 +3047,9 @@
      "density": 0.6,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
      ]
     },
     {
@@ -3082,9 +3082,9 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
+      { "resource": "Flint", "abundance": 0.4125, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Bone", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Pyrite", "abundance": 0.06, "minKg": 0.02, "maxKg": 0.08 }
      ]
     },
     {

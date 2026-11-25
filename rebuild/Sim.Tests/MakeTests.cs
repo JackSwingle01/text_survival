@@ -612,7 +612,7 @@ public class MakeTests
         TestKit.Give(pack, Resource.Stone, 0.3);
         TestKit.Give(pack, Resource.Stick, 1.0);
         var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then abandoning
-        Assert.Equal(Recipes.ByHand.Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe));
+        Assert.Equal(Recipes.ByHand.Where(r => r.Result.Repair == null).Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe)); // repairs: per piece held (RepairTests)
         var rock = make.Single(v => v.Activity == new Make(P, "crude_edge"));
         Assert.Equal("Make crude edge", rock.Label);
         Assert.Null(rock.Refused);
@@ -720,8 +720,8 @@ public class MakeTests
         Assert.Equal(Carried.Select(r => r.Id).Order(), made.Order());
     }
 
-    /// Camp work needs a shovel and a tent no recipe makes yet; ShelterTests builds each.
-    static readonly IReadOnlyList<Recipe> Carried = [.. Recipes.ByHand.Where(r => !r.Result.Placed)];
+    /// Camp work needs a shovel and a tent no recipe makes yet; ShelterTests builds each. A repair makes nothing: RepairTests.
+    static readonly IReadOnlyList<Recipe> Carried = [.. Recipes.ByHand.Where(r => !r.Result.Placed && r.Result.Repair == null)];
 
     static void KeepTheFireUp(World w, Inventory pack)
     {

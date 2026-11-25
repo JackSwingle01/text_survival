@@ -274,7 +274,7 @@ unlocking through the discovery log. The rebuild has the Make recipes in `recipe
 | Lighting: simple, birch bark and resin torches; amadou and polypore ember carriers | Lighting | Missing | Torches today come only from loot | S | engine |
 | Carrying: small pouch, rope belt, proper belt, large bag, mammoth hide pack | Carrying | Missing | The accessories exist as gear (except the pack); none can be made | S | engine |
 | Camp projects not yet ported: curing rack, mound and stone pits, hide and mammoth hide tents, rebuilding a branch frame into a log frame, reclaiming an abandoned project | CampInfrastructure, `CraftingProjectFeature` | Missing | `Shelter.cs:79-83` records the rebuild and reclaim gap; tents can be pitched but not made | M | engine |
-| Mending: boots, gloves, cap, chest wrap, leggings | Mending | Missing | | S | engine |
+| Mending: boots, gloves, cap, chest wrap, leggings | Mending | Replaced | Spec "Recipes that make sense", Repairs (#148): a repair recipe works on one held piece and restores a share of its missing condition. Mend any hide or fur garment with a hide strip and a sinew, a needle and light, 15 minutes (20 for a wrap), 80% of the missing condition (the old mend gave half the maximum); sharpen any blade that wears with something for striking, 10 minutes, 50%. The piece keeps its parts record and the strip and sinew join it. Sim: `mend`, `mend_wrap`, `sharpen` in `Content/recipes.json`; `RepairTests` | | |
 
 ## 11. Gathering work
 

@@ -44,6 +44,7 @@ namespace Survival;
 [JsonDerivedType(typeof(Noticed), "noticed")]
 [JsonDerivedType(typeof(Made), "made")]
 [JsonDerivedType(typeof(TransformationFinished), "transformationfinished")]
+[JsonDerivedType(typeof(TransformationStopped), "transformationstopped")]
 [JsonDerivedType(typeof(ProjectAbandoned), "projectabandoned")]
 public abstract record WorldEvent(long Minute, TileId Tile);
 

@@ -69,35 +69,28 @@ public class BodyTests
     public void HealthyBody_AllCapacitiesNearPerfect()
     {
         var c = Body.GetCapacities(Baseline());
-        foreach (var v in new[] { c.Moving, c.Manipulation, c.Breathing, c.BloodPumping, c.Consciousness, c.Sight, c.Hearing, c.Digestion })
+        foreach (var v in new[] { c.Moving, c.Manipulation, c.Consciousness, c.Sight, c.Hearing })
             Assert.True(v > 0.9, $"Capacity {v} should be near 1 for a healthy body: {c}");
+        Assert.Equal(1, Body.TissueVitality(Baseline()));
     }
 
     [Fact]
-    public void DestroyedHeart_StopsBloodPumping_AndKills()
+    public void DestroyedHeart_Kills()
     {
         var b = Baseline();
         OrganOf(b, "Heart").Condition = 0;
-        Assert.True(Body.GetCapacities(b).BloodPumping < 0.9);
+        Assert.Equal(0, Body.TissueVitality(b));
         Assert.False(Body.IsAlive(b));
     }
 
+    /// The chest's muscle and bone carry breath and blood: crushed, they loosen the body's hold on life.
     [Fact]
-    public void DestroyedLung_HalvesBreathingRoughly()
-    {
-        var b = Baseline();
-        OrganOf(b, "Left Lung").Condition = 0;
-        double breathing = Body.GetCapacities(b).Breathing;
-        Assert.InRange(breathing, 0.3, 0.9);
-    }
-
-    [Fact]
-    public void ChestTrauma_ReducesBreathing_AndPumping()
+    public void ChestTrauma_LoosensTheHoldOnLife()
     {
         var b = Baseline();
         SetLayers(RegionOf(b, "Chest"), 0.1);
-        var c = Body.GetCapacities(b);
-        Assert.True(c.Breathing < 1.0 && c.BloodPumping < 1.0, c.ToString());
+        Assert.InRange(Body.TissueVitality(b), 0.01, 0.99);
+        Assert.True(Body.IsAlive(b));
     }
 
     /// Body review A2. An organ supplies its capacity in proportion to its own condition, and a region
@@ -110,7 +103,7 @@ public class BodyTests
         var lungs = Baseline();
         OrganOf(lungs, "Left Lung").Condition = 0;
         OrganOf(lungs, "Right Lung").Condition = 0;
-        Assert.Equal(0, Body.GetCapacities(lungs).Breathing);
+        Assert.Equal(0, Body.TissueVitality(lungs));
         Assert.False(Body.IsAlive(lungs));
 
         var eyes = Baseline();
@@ -124,12 +117,14 @@ public class BodyTests
 
         var heart = Baseline();
         OrganOf(heart, "Heart").Condition = 0.02;
-        Assert.Equal(0.02, Body.GetCapacities(heart).BloodPumping, 9);
+        Assert.Equal(0.02, Body.TissueVitality(heart), 9);
 
         var gut = Baseline();
         OrganOf(gut, "Liver").Condition = 0;
         OrganOf(gut, "Stomach").Condition = 0;
-        Assert.Equal(0, Body.GetCapacities(gut).Digestion);
+        gut.CaloriesKcal = 0;
+        Body.Eat(gut, 1000);
+        Assert.Equal(500, gut.CaloriesKcal, 9); // a destroyed gut absorbs half
 
         var leg = RegionOf(Baseline(), "Left Leg");
         leg.Bone.Condition = 0.2;
@@ -154,12 +149,15 @@ public class BodyTests
                 var (ri, ti) = tissues[rng.NextInt(tissues.Count)];
                 var tissue = b.Regions[ri].Layers.Concat(b.Regions[ri].Organs).ElementAt(ti);
                 var before = Body.GetCapacities(b);
+                double beforeLife = Body.TissueVitality(b);
                 tissue.Condition *= rng.NextDouble();
                 var after = Body.GetCapacities(b);
-                double[] x = [before.Moving, before.Manipulation, before.Breathing, before.BloodPumping, before.Consciousness, before.Sight, before.Hearing, before.Digestion];
-                double[] y = [after.Moving, after.Manipulation, after.Breathing, after.BloodPumping, after.Consciousness, after.Sight, after.Hearing, after.Digestion];
+                double afterLife = Body.TissueVitality(b);
+                string[] names = ["moving", "manipulation", "consciousness", "sight", "hearing", "hold on life"];
+                double[] x = [before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing, beforeLife];
+                double[] y = [after.Moving, after.Manipulation, after.Consciousness, after.Sight, after.Hearing, afterLife];
                 for (int i = 0; i < x.Length; i++)
-                    Assert.True(y[i] <= x[i] + 1e-12, $"{kind}: lowering {b.Regions[ri].Name} {tissue.Name} raised {(Capacity)i} {x[i]} -> {y[i]}");
+                    Assert.True(y[i] <= x[i] + 1e-12, $"{kind}: lowering {b.Regions[ri].Name} {tissue.Name} raised {names[i]} {x[i]} -> {y[i]}");
             }
         }
     }
@@ -181,8 +179,8 @@ public class BodyTests
         var b = Baseline();
         Destroy(RegionOf(b, "Chest"));
         var c = Body.GetCapacities(b);
-        Assert.Equal(0, c.Breathing);
-        Assert.Equal(0, c.Consciousness); // the breathing cascade
+        Assert.Equal(0, Body.TissueVitality(b));
+        Assert.Equal(0, c.Consciousness); // breath below three tenths
         Assert.False(Body.IsAlive(b));
     }
 
@@ -193,7 +191,8 @@ public class BodyTests
         Destroy(RegionOf(b, "Head"));
         var c = Body.GetCapacities(b);
         Assert.Equal(0, c.Consciousness);
-        Assert.True(c.Moving < 0.1 && c.Manipulation < 0.1, c.ToString());
+        Assert.Equal(0, c.Moving); // unconscious, the limbs give nothing
+        Assert.Equal(0, c.Manipulation);
     }
 
     [Fact]
@@ -217,21 +216,21 @@ public class BodyTests
     }
 
     [Fact]
-    public void DestroyedLegs_LeaveOnlyACrawl()
+    public void DestroyedLegs_LeaveNoMoving()
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Left Leg"));
         Destroy(RegionOf(b, "Right Leg"));
-        Assert.True(Body.GetCapacities(b).Moving < 0.15);
+        Assert.Equal(0, Body.GetCapacities(b).Moving);
     }
 
     [Fact]
-    public void DestroyedArms_LeaveAlmostNoManipulation()
+    public void DestroyedArms_LeaveNoManipulation()
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Left Arm"));
         Destroy(RegionOf(b, "Right Arm"));
-        Assert.True(Body.GetCapacities(b).Manipulation < 0.15);
+        Assert.Equal(0, Body.GetCapacities(b).Manipulation);
     }
 
     [Fact]

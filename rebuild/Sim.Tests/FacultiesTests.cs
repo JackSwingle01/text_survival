@@ -111,6 +111,182 @@ public class FacultiesTests
         Assert.True(Body.IsAlive(b));
     }
 
+    // ---- zero means the part gives nothing ----
+
+    static Region RegionOf(BodyState b, string name) => b.Regions.Single(r => r.Name == name);
+    static Tissue OrganOf(BodyState b, string name) => b.Regions.SelectMany(r => r.Organs).Single(o => o.Name == name);
+
+    static void SetLayers(BodyState b, string region, double condition)
+    {
+        foreach (var layer in RegionOf(b, region).Layers) layer.Condition = condition;
+    }
+
+    [Fact]
+    public void NoWorkingLeg_IsSpeedAtZero_AndAnyWorkingLegIsAboveIt()
+    {
+        var legless = Whole();
+        Destroy(legless, "Left Leg");
+        Destroy(legless, "Right Leg");
+        Assert.Equal(0, Body.Speed(legless));
+
+        var oneWeakLeg = Whole();
+        Destroy(oneWeakLeg, "Left Leg");
+        SetLayers(oneWeakLeg, "Right Leg", 0.01);
+        Assert.True(Body.Speed(oneWeakLeg) > 0);
+    }
+
+    [Fact]
+    public void NoWorkingArm_IsDexterityAtZero_AndAnyWorkingArmIsAboveIt()
+    {
+        var armless = Whole();
+        Destroy(armless, "Left Arm");
+        Destroy(armless, "Right Arm");
+        Assert.Equal(0, Body.Dexterity(armless));
+
+        var oneWeakArm = Whole();
+        Destroy(oneWeakArm, "Left Arm");
+        SetLayers(oneWeakArm, "Right Arm", 0.01);
+        Assert.True(Body.Dexterity(oneWeakArm) > 0);
+    }
+
+    [Fact]
+    public void AWolfWithNoWorkingLeg_HasSpeedAtZero_AndAnyOneWorkingLegIsAboveIt()
+    {
+        var legs = SpeciesTable.Average(Species.Wolf).Regions.Where(r => r.Name.Contains("Leg")).Select(r => r.Name).ToList();
+        Assert.Equal(4, legs.Count);
+        var legless = SpeciesTable.Average(Species.Wolf);
+        foreach (var leg in legs) Destroy(legless, leg);
+        Assert.Equal(0, Body.Speed(legless));
+
+        foreach (var working in legs)
+        {
+            var wolf = SpeciesTable.Average(Species.Wolf);
+            foreach (var leg in legs.Where(l => l != working)) Destroy(wolf, leg);
+            Assert.True(Body.Speed(wolf) > 0, working);
+        }
+    }
+
+    /// Unconscious is consciousness at zero: the limbs give nothing, but a body keeps what its size gives it.
+    [Fact]
+    public void AnUnconsciousBody_HasSpeedDexterityAndPerceptionAtZero_AndStrengthAboveIt()
+    {
+        var knockedOut = BlowToTheHead(brain: 0);
+        Assert.Equal(0, Body.Speed(knockedOut));
+        Assert.Equal(0, Body.Dexterity(knockedOut));
+        Assert.Equal(0, Body.Perception(knockedOut));
+        Assert.True(Body.Strength(knockedOut) > 0);
+    }
+
+    /// No cut at a tenth of consciousness: a body barely awake keeps its limbs, so it walks as fast as a whole one.
+    [Fact]
+    public void ABodyBarelyConscious_HasNoFacultyAtZero_AndItsLimbsWhole()
+    {
+        var dim = BlowToTheHead(brain: 0.05);
+        foreach (var (name, faculty) in new[] { ("strength", Body.Strength(dim)), ("speed", Body.Speed(dim)), ("dexterity", Body.Dexterity(dim)), ("perception", Body.Perception(dim)) })
+            Assert.True(faculty > 0, name);
+        Assert.Equal(Body.Speed(Whole()), Body.Speed(dim), 12);
+        Assert.Equal(Body.Strength(Whole()), Body.Strength(dim), 12);
+    }
+
+    /// Lost blood scales consciousness, moving and manipulation; at half, circulation fails.
+    [Fact]
+    public void LostBlood_LowersStrengthSpeedAndDexterity()
+    {
+        foreach (double blood in new[] { 0.75, 0.5 })
+        {
+            var bled = Whole();
+            bled.BloodPct = blood;
+            Assert.True(Body.Strength(bled) < Body.Strength(Whole()), $"{blood}");
+            Assert.True(Body.Speed(bled) < Body.Speed(Whole()), $"{blood}");
+            Assert.True(Body.Dexterity(bled) < Body.Dexterity(Whole()), $"{blood}");
+        }
+        var half = Whole();
+        half.BloodPct = 0.5;
+        Assert.Equal(0, Body.Speed(half));
+        Assert.True(Body.Strength(half) > 0);
+    }
+
+    /// One lung is breath at a half, above the three tenths where breath starts to fog the head. With the other
+    /// failing too, perception and dexterity fall through consciousness, and the limbs are untouched.
+    [Fact]
+    public void ADestroyedLung_FogsTheHead_OnceBreathIsBelowThreeTenths()
+    {
+        var oneLung = Whole();
+        OrganOf(oneLung, "Left Lung").Condition = 0;
+        Assert.Equal(Body.Perception(Whole()), Body.Perception(oneLung), 12);
+        Assert.Equal(Body.Dexterity(Whole()), Body.Dexterity(oneLung), 12);
+
+        var breathless = Whole();
+        OrganOf(breathless, "Left Lung").Condition = 0;
+        OrganOf(breathless, "Right Lung").Condition = 0.4; // breath 0.2
+        Assert.Equal(Body.Perception(Whole()) * 2 / 3, Body.Perception(breathless), 12);
+        Assert.True(Body.Dexterity(breathless) < Body.Dexterity(Whole()));
+        Assert.Equal(Body.Speed(Whole()), Body.Speed(breathless), 12);
+    }
+
+    /// Wasted to nothing and worn out, a full pack is more than the body can carry: speed stops at zero.
+    [Fact]
+    public void AFullPack_OnABodyWithAlmostNoStrength_IsSpeedAtZero_NeverBelow()
+    {
+        var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
+        Effects.Add(weak, EffectKind.Tired, 1.0);
+        Assert.True(Body.Strength(weak) < 0.15);
+        Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 1.0)));
+        Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 3.0)));
+        Assert.True(Body.Speed(weak) > 0);
+    }
+
+    // ---- properties over any body ----
+
+    static readonly Gen<double> MostlyWhole = Gen.Frequency((1, Gen.Const(1.0)), (1, Condition), (1, Gen.Const(0.0)));
+
+    /// Any species and sex, any wounds, blood, effects, build and load, in the dark or the light.
+    static readonly Gen<(BodyState Body, AbilityContext Context)> AnyBody =
+        Gen.Select(
+            Gen.Select(Gen.Enum<Species>(), Gen.Enum<Sex>(), MostlyWhole.Array[48], Gen.Double[0, 1]),
+            Gen.Select(Gens.Kind, Gens.Severity).Array[0, 6],
+            Gen.Select(Gen.Double[0, 3], Gen.Double[0, 2]),
+            Gen.Select(Gen.Double[0, 5], Gen.Double[0, 1], Gen.Bool))
+        .Select((who, effects, build, around) =>
+        {
+            var (species, sex, conditions, blood) = who;
+            var b = SpeciesTable.Average(species, sex);
+            int i = 0;
+            foreach (var t in b.Regions.SelectMany(r => r.Layers.Concat(r.Organs))) t.Condition = conditions[i++ % conditions.Length];
+            b.BloodPct = blood;
+            foreach (var (kind, severity) in effects) Effects.Set(b, kind, severity);
+            b.FatKg *= build.Item1;
+            b.MuscleKg *= build.Item2;
+            return (b, new AbilityContext(around.Item1, around.Item2, around.Item3));
+        });
+
+    [Fact]
+    public void EveryFaculty_IsARealNumberAtOrAboveZero_ForAnyBody()
+    {
+        AnyBody.Check(t =>
+        {
+            var (b, context) = t;
+            foreach (var (name, faculty) in new[] { ("strength", Body.Strength(b)), ("speed", Body.Speed(b, context)),
+                ("dexterity", Body.Dexterity(b, context)), ("perception", Body.Perception(b, context)) })
+                Assert.True(double.IsFinite(faculty) && faculty >= 0, $"{name} {faculty}");
+        }, iter: 300);
+    }
+
+    /// So a faculty's share of a fresh body never divides by zero.
+    [Fact]
+    public void AFreshBody_HasEveryFacultyItsSpeciesHas_AboveZero()
+    {
+        foreach (var species in Enum.GetValues<Species>())
+            foreach (var sex in Enum.GetValues<Sex>())
+            {
+                var fresh = SpeciesTable.Average(species, sex);
+                Assert.True(Body.Strength(fresh) > 0, $"{species} {sex}");
+                Assert.True(Body.Speed(fresh) > 0, $"{species} {sex}");
+                Assert.True(Body.Perception(fresh) > 0, $"{species} {sex}");
+                Assert.Equal(fresh.Kind == BodyKind.Human, Body.Dexterity(fresh) > 0); // only a human body has hands
+            }
+    }
+
     // ---- the world's reads ----
 
     static Agent Me(World w) => w.Agent(AgentId.Player);
