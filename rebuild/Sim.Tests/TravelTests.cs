@@ -266,7 +266,7 @@ public class TravelTests
         Assert.Equal(0, Body.Speed(body));
         Assert.True(Body.IsAlive(body));
         var r = Sim.Step(world, new Travel(P, Direction.South), 60);
-        Assert.Equal((Traversal.CannotWalkReason + "no working leg", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal((Traversal.CannotWalkPrefix + "no working leg", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     /// A walker bled nearly white and still bleeding, setting out on the 34-minute careful crossing onto The Pass Proper.

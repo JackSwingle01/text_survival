@@ -53,10 +53,10 @@ public static class Traversal
     public static Refusal? CannotWalk(Agent agent)
     {
         var why = Body.SpeedCrippledBy(PaceBody(agent), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
-        return why.Count == 0 ? null : new(CannotWalkReason + string.Join(", ", why.Select(Phrase)), new MissingFaculty(Faculty.Speed, why));
+        return why.Count == 0 ? null : new(CannotWalkPrefix + string.Join(", ", why.Select(Phrase)), new MissingFaculty(Faculty.Speed, why));
     }
 
-    public const string CannotWalkReason = "you cannot walk: ";
+    public const string CannotWalkPrefix = "you cannot walk: ";
 
     static string Phrase(CrippledBy why) => why switch
     {
@@ -175,7 +175,7 @@ public static class Traversal
             : sky.Condition == WeatherCondition.LightSnow ? (Names.Title(sky.Condition), 0.15)
             : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {Names.Of(sky.Precipitation)}", 0.15)
             : (Names.Title(sky.Condition), 0.0);
-        double impaired = (1 - Math.Min(1, SpeciesTable.SpeedPct(Species.Human, body))) * 0.3; // only a person stumbles (Begin)
+        double impaired = (1 - SpeciesTable.SpeedPct(Species.Human, body)) * 0.3; // only a person stumbles (Begin)
         double ground = Math.Clamp(hazardLevel, 0, 1), weathered = Math.Min(1, ground * (1 + weather)), lame = Math.Min(1, ground * (1 + weather + impaired));
         return new Odds("Ground", FallPct(ground), Odds.Moving(
             OddsTerm.Add(weatherWhy, FallPct(weathered) - FallPct(ground)),

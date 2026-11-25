@@ -31,7 +31,7 @@ public class OddsTests
     {
         double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
             : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
-        double impaired = (1 - Math.Min(1, SpeciesTable.SpeedPct(Species.Human, body))) * 0.3;
+        double impaired = (1 - SpeciesTable.SpeedPct(Species.Human, body)) * 0.3;
         double footing = Math.Min(1, Traversal.EffectiveHazardLevel(world, tile) * (1 + weather + impaired));
         return Math.Pow(footing, Math.E) / 2 * (pace == Pace.Careful ? 0.25 : 1);
     }

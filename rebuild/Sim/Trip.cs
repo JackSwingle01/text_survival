@@ -151,12 +151,11 @@ public static class Trip
     {
         var agent = world.Agent(who);
         var body = Traversal.PaceBody(agent);
-        double encumbrancePct = Items.EncumbrancePct(agent), speed = Body.Speed(body);
+        double encumbrancePct = Items.EncumbrancePct(agent), speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
+        if (!(speed > 0)) throw new ArgumentException($"No crossing from {from} to {to}: {Traversal.CannotWalk(agent)?.Reason}");
         if (world.StepMinutesCache is not { } cache || cache.Minute != world.Minute) world.StepMinutesCache = cache = (world.Minute, []);
         if (cache.Minutes.TryGetValue((who, from, to, pace), out var kept) && kept.EncumbrancePct == encumbrancePct && kept.Speed == speed)
             return kept.Minutes;
-        // A kept price was made this minute at this speed and load, so by a body that could walk.
-        if (Traversal.CannotWalk(agent) is { } lame) throw new ArgumentException($"No crossing from {from} to {to}: {lame.Reason}");
         if (Traversal.Blocked(world, agent, from, to) is string blocked) throw new ArgumentException($"No crossing from {from} to {to}: {blocked}");
         int minutes = new Pricer(world, agent, pace, Weather.At(world, world.Minute)).Minutes(from, to);
         cache.Minutes[(who, from, to, pace)] = (minutes, encumbrancePct, speed);
@@ -195,7 +194,6 @@ public static class Trip
         bool walksSeenGround = agent.Mind is PersonMind;
         var explored = (agent.Mind as PersonMind)?.Memory.Explored;
         bool Open(TileId t) => !walksSeenGround || t == agent.Tile || explored?.Contains(t) == true;
-        // A lame body reaches only the origin, and no crossing is priced.
         bool lame = Traversal.CannotWalk(agent) != null;
         int start = scratch.Index(origin);
         (scratch.Minutes[start], scratch.ReachedStamp[start]) = (0, search);

@@ -132,7 +132,7 @@ public static class SpeciesTable
         }
     }
 
-    public static double SpeedPct(Species species, BodyState body) => Body.Speed(body) / FreshSpeed(species, body.Sex);
+    public static double SpeedPct(Species species, BodyState body) => Math.Min(1, Body.Speed(body) / FreshSpeed(species, body.Sex));
 
     static readonly Dictionary<(Species, Sex), double> FreshStrengths = [];
     static readonly Dictionary<(Species, Sex), double> FreshSpeeds = [];

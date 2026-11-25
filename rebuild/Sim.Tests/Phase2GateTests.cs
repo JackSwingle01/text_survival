@@ -298,7 +298,7 @@ public class Phase2GateTests(ITestOutputHelper output)
                 var r = S(w, leg, 180);
                 injuries += r.Events.OfType<Injured>().Count();
                 // Too hurt to walk: rest it off, and try again.
-                if (r.InterruptedReason?.StartsWith(Traversal.CannotWalkReason) == true) { S(w, new Rest(P), 120); continue; }
+                if (r.InterruptedReason?.StartsWith(Traversal.CannotWalkPrefix) == true) { S(w, new Rest(P), 120); continue; }
                 if (r.InterruptedReason is "arrived" or "died" || r.MinutesElapsed == 0) break;
             }
         }
