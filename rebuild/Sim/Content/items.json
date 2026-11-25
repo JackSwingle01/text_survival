@@ -23,6 +23,7 @@
 //   axe > knife > stone > staff > hands (reach counts as well as damage); the heavy and stone-tipped spears it
 //   does not tune keep their ratio to the wooden spear, the sharp rock to the knife.
 // slotCoverage: the fraction of body surface each slot covers (old Inventory.SlotCoverage). Sums to 1.
+// startingCamp: the pieces on the camp's pile at the start, by resource.
 // startingPack, startingClothes: the old starting kit (GameContext.CreateNewGame). Pack kilos are
 //   listed piece by piece: a discrete resource's pieces as listed, a continuous one's summed in order.
 {
@@ -30,10 +31,13 @@
   "Tinder": { "category": "Fuel", "form": "Continuous" },
   "BirchBark": { "category": "Fuel", "form": "Continuous" },
   "ResinTinder": { "category": "Fuel", "form": "Continuous" },
-  "Kindling": { "category": "Fuel", "form": "Discrete", "pieceKg": [0.05, 1] },
-  "Pine": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
-  "Birch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
-  "Oak": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "Stick": { "category": "Fuel", "form": "Discrete", "pieceKg": [0.05, 1] },
+  "PineBranch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "BirchBranch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "OakBranch": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "PineFirewood": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "BirchFirewood": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
+  "OakFirewood": { "category": "Fuel", "form": "Discrete", "pieceKg": [1, 4.4] },
   "Peat": { "category": "Fuel", "form": "Continuous" },
   "CookedMeat": { "category": "Food", "kcalPerKg": 2500, "scentLevel": 0.5, "form": "Discrete", "pieceKg": [0.05, 1] },
   "RawMeat": { "category": "Food", "kcalPerKg": 1500, "scentLevel": 0.6, "form": "Discrete", "pieceKg": [0.05, 1] },
@@ -141,9 +145,11 @@
 
  // A hand drill, 0.9 kg of sticks, four pinches of tinder.
  "startingPack": {
-  "kg": { "Kindling": [0.3, 0.25, 0.35], "Tinder": [0.05, 0.04, 0.05, 0.04] },
+  "kg": { "Stick": [0.3, 0.25, 0.35], "Tinder": [0.05, 0.04, 0.05, 0.04] },
   "gear": [ { "kind": "hand_drill" } ]
  },
+ // A few pieces of firewood lying at the starting camp, so the first night is not a scramble.
+ "startingCamp": { "PineFirewood": [2.4, 2.6], "BirchFirewood": [2.0, 2.2] },
  // Worn furs and boots; the leg wraps are part worn through.
  "startingClothes": [
   { "kind": "worn_fur_chest_wrap" },

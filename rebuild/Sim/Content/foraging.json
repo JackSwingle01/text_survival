@@ -47,12 +47,12 @@
   "Bone": "animal parts", "Hide": "animal parts", "ScrapedHide": "animal parts", "CuredHide": "animal parts", "Sinew": "animal parts",
   "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "ScrapedMammothHide": "animal parts", "CuredMammothHide": "animal parts", "HideStrip": "animal parts", "Feather": "animal parts",
   "Charcoal": "charcoal", "RawMeat": "meat", "CookedMeat": "meat", "DriedMeat": "meat", "Berries": "berries", "DriedBerries": "berries",
-  "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Kindling": "kindling", "Tinder": "kindling", "ResinTinder": "kindling", "Pine": "wood", "Birch": "wood",
-  "Oak": "wood", "BirchBark": "bark", "Peat": "peat", "RawFish": "fish", "CookedFish": "fish", "DriedFish": "fish", "Water": "water"
+  "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Stick": "sticks", "Tinder": "tinder", "ResinTinder": "tinder", "PineBranch": "branches", "BirchBranch": "branches",
+  "OakBranch": "branches", "PineFirewood": "firewood", "BirchFirewood": "firewood", "OakFirewood": "firewood", "BirchBark": "bark", "Peat": "peat", "RawFish": "fish", "CookedFish": "fish", "DriedFish": "fish", "Water": "water"
  },
  "clues": [
   { "text": "Woodpecker holes in dead birch", "kind": "Resource", "when": "Forest", "resources": ["BirchBark", "Amadou", "Chaga"], "yield": 1.2, "weight": 1.5 },
-  { "text": "Fresh deadfall from the wind", "kind": "Resource", "when": "Forest", "resources": ["Kindling", "Pine", "Birch"], "yield": 1.3, "weight": 1.5 },
+  { "text": "Fresh deadfall from the wind", "kind": "Resource", "when": "Forest", "resources": ["Stick", "PineBranch", "BirchBranch"], "yield": 1.3, "weight": 1.5 },
   { "text": "Shelf fungus on fallen logs", "kind": "Resource", "when": "Forest", "resources": ["BirchPolypore", "Amadou"], "yield": 1.2, "weight": 1.5 },
   { "text": "Resin bleeding from pine bark", "kind": "Resource", "when": "Forest", "resources": ["PineResin", "PineNeedles"], "yield": 1.2, "weight": 1.5 },
   { "text": "Lichen hanging from branches", "kind": "Resource", "when": "Forest", "resources": ["Usnea"], "yield": 1.3, "weight": 1.5 },
@@ -66,7 +66,7 @@
   { "text": "Reeds and fibrous plants", "kind": "Resource", "when": "Water", "resources": ["PlantFiber"], "yield": 1.3, "weight": 1.5 },
   { "text": "Willow growing near the bank", "kind": "Resource", "when": "Water", "resources": ["WillowBark"], "yield": 1.4, "weight": 1.5 },
   { "text": "Berry bushes along the shore", "kind": "Resource", "when": "Water", "resources": ["Berries", "RoseHip"], "yield": 1.2, "weight": 1.5 },
-  { "text": "Branches torn down by recent wind", "kind": "Resource", "when": "Wind", "resources": ["Kindling", "Pine", "Birch", "Oak"], "yield": 1.5, "weight": 1.3 },
+  { "text": "Branches torn down by recent wind", "kind": "Resource", "when": "Wind", "resources": ["Stick", "PineBranch", "BirchBranch", "OakBranch"], "yield": 1.5, "weight": 1.3 },
   { "text": "Bracket fungi swollen after the rain", "kind": "Resource", "when": "Rain", "resources": ["BirchPolypore", "Amadou"], "yield": 1.4, "weight": 1.4 },
   { "text": "Fresh tracks in the snow", "kind": "Game", "when": "Snow", "game": "Caribou", "weight": 1.0 },
   { "text": "Scat visible against the white", "kind": "Game", "when": "Snow", "game": "Hare", "weight": 1.0 },
@@ -77,7 +77,7 @@
   { "text": "Everything frozen solid", "kind": "Negative", "when": "Frozen", "yield": 0.7, "weight": 1.5 },
   { "text": "Trampled and grazed bare", "kind": "Negative", "when": "Grazed", "yield": 0.7, "weight": 2.0 },
   { "text": "Saturated and rotting", "kind": "Negative", "when": "Saturated", "yield": 0.7, "weight": 1.2 },
-  { "text": "Signs of past foraging here", "kind": "Resource", "when": "Always", "resources": ["Kindling", "Stone", "PlantFiber"], "yield": 1.0, "weight": 0.3 },
+  { "text": "Signs of past foraging here", "kind": "Resource", "when": "Always", "resources": ["Stick", "Stone", "PlantFiber"], "yield": 1.0, "weight": 0.3 },
   { "text": "Raptor pellets below a ledge", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
   { "text": "Old bones scattered, gnawed clean", "kind": "Scavenge", "when": "Always", "harvestedPct": [0.7, 0.9], "remains": "bone scraps", "weight": 0.1 },
   { "text": "Scattered fur and blood", "kind": "Scavenge", "when": "Always", "animals": [ { "animal": "Hare", "weight": 1.0 } ],

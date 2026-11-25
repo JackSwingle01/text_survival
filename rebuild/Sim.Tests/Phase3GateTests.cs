@@ -55,11 +55,11 @@ public class Phase3GateTests
                     if (!Burning())
                     {
                         if (Items.Have(pack, Resource.Tinder) < 0.05) TestKit.Give(pack, Resource.Tinder, 0.2);
-                        if (Items.Have(pack, Resource.Kindling) < 0.5) TestKit.Give(pack, Resource.Kindling, 1);
+                        if (Items.Have(pack, Resource.Stick) < 0.5) TestKit.Give(pack, Resource.Stick, 1);
                         S(new StartFire(P, ToolType.FireStriker, Resource.Tinder, 0.05, 0.3), 3);
                     }
                     if (Burning())
-                        foreach (var r in new[] { Resource.Kindling, Resource.Pine, Resource.Birch, Resource.Oak })
+                        foreach (var r in new[] { Resource.Stick, Resource.PineBranch, Resource.BirchBranch, Resource.OakBranch })
                         {
                             if (Items.Have(pack, r) <= 0) TestKit.Give(pack, r, 2);
                             S(new AddFuel(P, r, 1.0), 2);
@@ -96,9 +96,16 @@ public class Phase3GateTests
                 {
                     // Out to the wood east of camp and back on alternate visits, felling while there.
                     int trees = Pools.At(w, tile).ToList().FindIndex(p => p is TreePool);
-                    if (trees >= 0 && !Work.TooDarkToWork(w, me)) S(new Gather(P, trees), 120);
+                    // Back to the axe after an interruption, a few times, so the run fells what it is here to fell.
+                    for (int tries = 0; tries < 4 && trees >= 0 && !Work.TooDarkToWork(w, me) && Combat.EncounterOf(w, P) == null
+                        && Sim.Refusal(w, new Gather(P, trees)) == null; tries++)
+                    {
+                        int felledBefore = t.Felled;
+                        S(new Gather(P, trees), 120);
+                        if (t.Felled > felledBefore) break;
+                    }
                     foreach (var (r, kg) in Items.KgByResource(pack).ToList())
-                        if (r is not (Resource.Tinder or Resource.Kindling) && Items.Resources[r].Category != ResourceCategory.Food) S(new PutDown(P, r, kg), 1);
+                        if (r is not (Resource.Tinder or Resource.Stick) && Items.Resources[r].Category != ResourceCategory.Food) S(new PutDown(P, r, kg), 1);
                     var dir = tile == camp ? Direction.East : Direction.West;
                     for (int tries = 0; tries < 5 && w.Agent(P).Tile == tile && Combat.EncounterOf(w, P) == null; tries++)
                         S(new Travel(P, dir, Pace.Careful), 30);

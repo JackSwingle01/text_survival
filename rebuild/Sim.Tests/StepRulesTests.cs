@@ -37,7 +37,7 @@ public class StepRulesTests
 
         var empty = TestWorlds.Bare(1);
         before = Save.ToJson(empty);
-        r = Sim.Step(empty, new AddFuel(P, Resource.Kindling, 1), 1);
+        r = Sim.Step(empty, new AddFuel(P, Resource.Stick, 1), 1);
         Assert.Equal(("no fire here", 0), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(before, Save.ToJson(empty));
     }
@@ -111,7 +111,7 @@ public class StepRulesTests
         Assert.False(Body.IsAlive(world.Agent(P).Body));
         string before = Save.ToJson(world);
         Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new Wait(P), 10));
-        Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new AddFuel(P, Resource.Kindling, 1), 1));
+        Assert.Throws<InvalidOperationException>(() => Sim.Step(world, new AddFuel(P, Resource.Stick, 1), 1));
         Assert.Equal(before, Save.ToJson(world));
     }
 
@@ -160,7 +160,7 @@ public class StepRulesTests
     {
         var world = LitCamp();
         var f = world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value];
-        Fire.AddFuel(f, Resource.Kindling, 50);
+        Fire.AddFuel(f, Resource.Stick, 50);
         Assert.Equal(Fire.MaxFuelKg(f.Pit), Fire.TotalKg(f), 9);
         var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         Assert.Equal("the fire is full", r.InterruptedReason);

@@ -20,7 +20,7 @@ public class ItemsTests
     {
         foreach (var r in Enum.GetValues<Resource>()) Assert.True(Items.Resources.ContainsKey(r), $"{r} has no row");
         Assert.All(Fire.Props.Keys, r => Assert.True(Items.Resources.ContainsKey(r)));
-        Assert.True(Fire.IsFuel(Resource.Birch) && Fire.IsFuel(Resource.Bone) && !Fire.IsFuel(Resource.Berries));
+        Assert.True(Fire.IsFuel(Resource.BirchBranch) && Fire.IsFuel(Resource.Bone) && !Fire.IsFuel(Resource.Berries));
     }
 
     // ---- golden: the old starting kit (old GameContext.CreateNewGame) ----
@@ -137,14 +137,14 @@ public class ItemsTests
     {
         var w = New();
         // The sticks are 0.25, 0.3 and 0.35 kg: half a kilo puts down the lightest, since two would weigh more.
-        Assert.Null(Sim.Step(w, new PutDown(P, Resource.Kindling, 0.5), 1).InterruptedReason);
-        Assert.Equal([0.3, 0.35], Items.Pack(w, P).Pieces[Resource.Kindling]);
+        Assert.Null(Sim.Step(w, new PutDown(P, Resource.Stick, 0.5), 1).InterruptedReason);
+        Assert.Equal([0.3, 0.35], Items.Pack(w, P).Pieces[Resource.Stick]);
         var loaded = TestWorlds.Load(Save.ToJson(w));
-        Assert.Equal([0.25], loaded.Tiles[Map.Of(loaded).Camp].Pile!.Pieces[Resource.Kindling]);
-        Sim.Step(loaded, new PickUp(P, Resource.Kindling, 99), 1);
-        Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Kindling), 9);
-        var r = Sim.Step(loaded, new PickUp(P, Resource.Kindling, 1), 5);
-        Assert.Equal(("no kindling in the pile here", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal([0.25], loaded.Tiles[Map.Of(loaded).Camp].Pile!.Pieces[Resource.Stick]);
+        Sim.Step(loaded, new PickUp(P, Resource.Stick, 99), 1);
+        Assert.Equal(0.9, Items.Have(Items.Pack(loaded, P), Resource.Stick), 9);
+        var r = Sim.Step(loaded, new PickUp(P, Resource.Stick, 1), 5);
+        Assert.Equal(("no sticks in the pile here", 0), (r.InterruptedReason, r.MinutesElapsed));
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public class ItemsTests
         r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.BirchBark, 0.05, 0.3), 5);
         Assert.Equal(("not enough birch bark", 0), (r.InterruptedReason, r.MinutesElapsed));
         r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 5), 5);
-        Assert.Equal(("not enough kindling", 0), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(("not enough sticks", 0), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(before, Save.ToJson(w));
     }
 
@@ -197,11 +197,11 @@ public class ItemsTests
         int fails = 0;
         for (int i = 0; i < 30 && Fire.PitAt(w, Map.Of(w).Camp) == null; i++)
         {
-            double tinder = Items.Have(pack, Resource.Tinder), kindling = Items.Have(pack, Resource.Kindling), stick = Items.LightestKg(pack, Resource.Kindling)!.Value;
+            double tinder = Items.Have(pack, Resource.Tinder), kindling = Items.Have(pack, Resource.Stick), stick = Items.LightestKg(pack, Resource.Stick)!.Value;
             var r = Sim.Step(w, new StartFire(P, ToolType.HandDrill, Resource.Tinder, 0.05, 0.3), 1);
             Assert.Equal(tinder - 0.05, Items.Have(pack, Resource.Tinder), 9);
-            if (r.InterruptedReason == "fire did not catch") { fails++; Assert.Equal(kindling, Items.Have(pack, Resource.Kindling), 9); }
-            else Assert.Equal(kindling - stick, Items.Have(pack, Resource.Kindling), 9); // a whole stick, the lightest
+            if (r.InterruptedReason == "fire did not catch") { fails++; Assert.Equal(kindling, Items.Have(pack, Resource.Stick), 9); }
+            else Assert.Equal(kindling - stick, Items.Have(pack, Resource.Stick), 9); // a whole stick, the lightest
         }
         Assert.NotNull(Fire.PitAt(w, Map.Of(w).Camp));
         Assert.True(fails > 0, "a 50% hand drill never failed in a row of tries");
@@ -214,14 +214,14 @@ public class ItemsTests
         for (int i = 0; i < 20 && Fire.PitAt(w, Map.Of(w).Camp) == null; i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
         var pack = Items.Pack(w, P);
-        double birch = Items.Have(pack, Resource.Birch);
-        Sim.Step(w, new AddFuel(P, Resource.Kindling, 2), 30);
-        Sim.Step(w, new AddFuel(P, Resource.Birch, 99), 1); // more than the pack and more than the pit
+        double birch = Items.Have(pack, Resource.BirchBranch);
+        Sim.Step(w, new AddFuel(P, Resource.Stick, 2), 30);
+        Sim.Step(w, new AddFuel(P, Resource.BirchBranch, 99), 1); // more than the pack and more than the pit
         var pit = w.Fires[Fire.PitAt(w, Map.Of(w).Camp)!.Value];
-        Assert.True(Items.Have(pack, Resource.Birch) < birch);
-        Assert.Equal(birch - Items.Have(pack, Resource.Birch), pit.UnburnedKg.GetValueOrDefault(Resource.Birch) + pit.BurningKg.GetValueOrDefault(Resource.Birch), 1);
+        Assert.True(Items.Have(pack, Resource.BirchBranch) < birch);
+        Assert.Equal(birch - Items.Have(pack, Resource.BirchBranch), pit.UnburnedKg.GetValueOrDefault(Resource.BirchBranch) + pit.BurningKg.GetValueOrDefault(Resource.BirchBranch), 1);
         Assert.Equal("Berries does not burn", Sim.Step(w, new AddFuel(P, Resource.Berries, 1), 1).InterruptedReason);
-        Assert.Equal("no oak to add", Sim.Step(w, new AddFuel(P, Resource.Oak, 1), 1).InterruptedReason);
+        Assert.Equal("no oak branches to add", Sim.Step(w, new AddFuel(P, Resource.OakBranch, 1), 1).InterruptedReason);
     }
 
     [Fact]

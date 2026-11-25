@@ -282,7 +282,7 @@ public class BodyTests
             Effects.Add(b, kind, 1.0);
         foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed })
             Effects.Add(b, kind, 0.8);
-        Assert.Equal(0, Body.Vitality(b));
+        Assert.Equal(0, Body.Perception(b));
         Assert.Equal(0, Body.GetCapacities(b).Consciousness);
         Assert.True(Body.IsAlive(b));
     }
@@ -353,15 +353,16 @@ public class BodyTests
     [Fact]
     public void Vitality_HealthyIsOne_AndConsciousnessEffectsDragItDown()
     {
-        Assert.Equal(1.0, Body.Vitality(Baseline()), 2);
-        Assert.True(Body.Vitality(Custom(75, 0.20, 0.30)) > 0.9);
+        Assert.Equal(1.0, Body.Vitality(Baseline(), Species.Human), 2);
+        Assert.True(Body.Vitality(Custom(75, 0.20, 0.30), Species.Human) > 0.9);
 
         // The scenario from a playtest: Hypothermia 98%, Tired 65%, plus 0.088 more = -0.87 consciousness.
         var b = Baseline();
         Effects.Add(b, EffectKind.Hypothermia, 0.98);
         Effects.Add(b, EffectKind.Tired, 0.65);
         Effects.Add(b, EffectKind.Shock, 0.22); // stands in for the old Fever 22%: -0.4 consciousness each
-        Assert.True(Body.Vitality(b) < 0.20, $"Vitality {Body.Vitality(b):P0}");
+        // The mean of the faculties, not the least of them (#200): strength and speed keep their build.
+        Assert.True(Body.Vitality(b, Species.Human) < 0.40, $"Vitality {Body.Vitality(b, Species.Human):P0}");
     }
 
     /// Body review A3. Sight and hearing are half each, and darkness takes sight's half away. Old (pinned

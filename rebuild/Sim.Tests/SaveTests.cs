@@ -116,7 +116,7 @@ public class SaveFixtureTests
 
     /// A small world with a bit of most of what a save holds: a fire burning, a pile, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
-    /// streams, a journal, a made thing's parts and an unfinished one in the pack, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
+    /// streams, a journal, a made thing's parts and an unfinished one in the pack, meat half cooked at the fire, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
         var map = Map.Generate(17);
@@ -132,8 +132,8 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 5);
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
-        Sim.Step(w, new AddFuel(P, Resource.Birch, 2), 1);
-        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
+        Sim.Step(w, new AddFuel(P, Resource.BirchBranch, 2), 1);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 2), 1);
         Sim.Step(w, new Travel(P, Direction.East), 60);
         Sim.Step(w, new Wait(P), 30);
         Sim.Step(w, new Travel(P, Direction.West), 60);
@@ -142,6 +142,10 @@ public class SaveFixtureTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
         Sim.Step(w, new Make(P, "crude_spear"), 8);
+        // A piece of meat half cooked at the fire (Stations).
+        Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
+        Sim.Step(w, new PutOn(P, "cook_meat"), 1);
+        Sim.Step(w, new Wait(P), 6);
         // A good meal and a day without hunger behind it (Well fed), and the NPC asleep where it dropped.
         Body.Eat(w.Agent(P).Body, 2500);
         w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;

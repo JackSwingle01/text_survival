@@ -4,8 +4,9 @@
 // fuels: the resources that burn; a resource with no row here does not. peakTempF is how hot it can
 //   make a fire; minFireTempF is how hot the fire must already be before it catches; ignitionBonusPct
 //   is what it adds to the odds of starting a fire as tinder.
-// pits: every PitType. maxFuelKg is what it holds; windProtectionLevel how much wind it keeps off the
-//   flames; fuelEfficiencyFactor how much longer fuel lasts in it.
+// pits: every PitType. room is how many things it works at once as a station (Stations), fixed by the
+//   pit; maxFuelKg is what it holds; windProtectionLevel how much wind it keeps off the flames;
+//   fuelEfficiencyFactor how much longer fuel lasts in it.
 // deterrence: what flame does to an animal's nerve (Combat.FireDeterrence).
 //   fireFear is the one base value for every animal (people are not deterred): what a flame at full
 //   intensity, close by, takes off its resolve. torchIntensityPct is what a lit torch counts for against a
@@ -21,10 +22,14 @@
   "Chaga": { "peakTempF": 470, "burnRateKgPerHour": 2.2, "minFireTempF": 0, "ignitionBonusPct": 0.15 },
   // Tinder worked with a little pine resin (recipes.json resin_tinder): the surest catch, and it burns slower.
   "ResinTinder": { "peakTempF": 520, "burnRateKgPerHour": 2.0, "minFireTempF": 0, "ignitionBonusPct": 0.45 },
-  "Kindling": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
-  "Pine": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
-  "Birch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
-  "Oak": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
+  "Stick": { "peakTempF": 600, "burnRateKgPerHour": 1.5, "minFireTempF": 0, "ignitionBonusPct": 0 },
+  "PineBranch": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
+  "BirchBranch": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
+  "OakBranch": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
+  // Firewood burns as the branch of its wood does, kilo for kilo (FireTests holds them equal).
+  "PineFirewood": { "peakTempF": 800, "burnRateKgPerHour": 1.2, "minFireTempF": 150, "ignitionBonusPct": 0.05 },
+  "BirchFirewood": { "peakTempF": 850, "burnRateKgPerHour": 0.9, "minFireTempF": 250, "ignitionBonusPct": 0 },
+  "OakFirewood": { "peakTempF": 950, "burnRateKgPerHour": 0.6, "minFireTempF": 500, "ignitionBonusPct": 0 },
   "Bone": { "peakTempF": 650, "burnRateKgPerHour": 0.5, "minFireTempF": 600, "ignitionBonusPct": 0 },
   "Peat": { "peakTempF": 700, "burnRateKgPerHour": 0.8, "minFireTempF": 400, "ignitionBonusPct": 0 },
   // Old FireHandler fed charcoal to the fire as kindling.
@@ -32,9 +37,9 @@
  },
 
  "pits": {
-  "Open": { "maxFuelKg": 12, "windProtectionLevel": 0, "fuelEfficiencyFactor": 1.0 },
-  "Mound": { "maxFuelKg": 15, "windProtectionLevel": 0.4, "fuelEfficiencyFactor": 1.0 },
-  "Stone": { "maxFuelKg": 18, "windProtectionLevel": 0.7, "fuelEfficiencyFactor": 1.15 }
+  "Open": { "room": 2, "maxFuelKg": 12, "windProtectionLevel": 0, "fuelEfficiencyFactor": 1.0 },
+  "Mound": { "room": 3, "maxFuelKg": 15, "windProtectionLevel": 0.4, "fuelEfficiencyFactor": 1.0 },
+  "Stone": { "room": 4, "maxFuelKg": 18, "windProtectionLevel": 0.7, "fuelEfficiencyFactor": 1.15 }
  },
 
  "deterrence": { "fireFear": 2.0, "torchIntensityPct": 0.25, "fullIntensityHeatF": 30, "fullWithinM": 6 }

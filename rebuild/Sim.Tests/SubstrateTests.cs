@@ -46,7 +46,7 @@ public class SubstrateTests
         var w = Camp(out var camp);
         TestKit.Supply(w);
         PlayerKill(w, camp);
-        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 1), 1);
         Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
         var things = LocationFeatures.At(w, camp).ToList();
         Assert.Equal(things.OrderBy(t => t).ToList(), things);
@@ -139,13 +139,13 @@ public class SubstrateTests
         var npc = Npc.Spawn(w, away, away);
         Assert.Equal(new Cause(null, Cause.Natural), w.Shelters[camp].Cause);
 
-        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 1), 1);
         Assert.Equal(new Cause(P, "put down by the player"), w.Tiles[camp].PileCause);
         // The pile keeps its maker while it stands; emptied, it is gone with its cause.
-        TestKit.Give(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.Oak, 1);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.OakBranch, 1);
         Assert.Equal(P, w.Tiles[camp].PileCause!.Value.Who);
-        Items.MoveFromPile(w, camp, new Inventory(), Resource.Pine, 9);
-        Items.MoveFromPile(w, camp, new Inventory(), Resource.Oak, 9);
+        Items.MoveFromPile(w, camp, new Inventory(), Resource.PineBranch, 9);
+        Items.MoveFromPile(w, camp, new Inventory(), Resource.OakBranch, 9);
         Assert.Null(w.Tiles.GetValueOrDefault(camp)?.PileCause);
 
         for (int i = 0; i < 20 && Fire.PitAt(w, camp) == null; i++)
@@ -154,7 +154,7 @@ public class SubstrateTests
 
         var east = new TileId(camp.X + 1, camp.Y);
         w.Agent(P).Tile = east;
-        TestKit.Give(Items.Pack(w, P), Resource.Kindling, 10);
+        TestKit.Give(Items.Pack(w, P), Resource.Stick, 10);
         var r = Sim.Step(w, new Make(P, "branch_frame"), 60);
         Assert.True(w.Shelters.ContainsKey(east), $"{r.InterruptedReason} at {w.Minute}");
         Assert.Equal(new Cause(P, "built by the player"), w.Shelters[east].Cause);
@@ -388,7 +388,7 @@ public class SubstrateTests
         var pack = Items.Pack(w, P);
         pack.Gear.Add(Items.Make("flint_knife"));
         var c = PlayerKill(w, camp);
-        Sim.Step(w, new PutDown(P, Resource.Pine, 1), 1);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 1), 1);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3), 1);
         Midday(w);
@@ -402,13 +402,13 @@ public class SubstrateTests
         var refusals = new (string Name, Func<string?> Refusal)[]
         {
             ("butcher", () => Work.Refusal(w, new Butcher(npc, c.Id))?.Reason),
-            ("pick up", () => Work.Refusal(w, new PickUp(npc, Resource.Pine, 1))?.Reason),
-            ("put down", () => Work.Refusal(w, new PutDown(npc, Resource.Birch, 1))?.Reason),
+            ("pick up", () => Work.Refusal(w, new PickUp(npc, Resource.PineBranch, 1))?.Reason),
+            ("put down", () => Work.Refusal(w, new PutDown(npc, Resource.BirchBranch, 1))?.Reason),
             ("gather", () => Work.Refusal(w, new Gather(npc, 0))?.Reason),
-            ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.Birch, 1))?.Reason),
+            ("add fuel", () => Fire.Refusal(w, new AddFuel(npc, Resource.BirchBranch, 1))?.Reason),
             ("charcoal", () => Fire.Refusal(w, new GatherCharcoal(npc))?.Reason),
             ("start fire", () => Fire.Refusal(w, new StartFire(npc, ToolType.FireStriker, Resource.BirchBark, 0.05, 0.3))?.Reason),
-            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(npc, ShelterStat.Insulation, Resource.Pine))?.Reason),
+            ("improve shelter", () => Shelters.Refusal(w, new ImproveShelter(npc, ShelterStat.Insulation, Resource.PineBranch))?.Reason),
         };
         var unguarded = refusals.Select(r => r.Refusal()).ToList();
         var wolves = Herd(w, Species.Wolf, 3, camp);
@@ -437,7 +437,7 @@ public class SubstrateTests
         Assert.True(Tags.Of(w, t, P).HasFlag(Tag.Occupied), "someone else's kill, with a pack on it");
         Assert.True(Tags.Of(w, t, npc).HasFlag(Tag.Occupied), "the viewer's own kill: the wolves have taken it");
         var goods = Items.PileAt(w, camp, new Cause(npc, "put down by a person"));
-        TestKit.Give(goods, Resource.Pine, 1);
+        TestKit.Give(goods, Resource.PineBranch, 1);
         var pile = LocationFeatures.PileAt(w, camp)!.Value;
         Assert.False(Tags.Of(w, pile, npc).HasFlag(Tag.Occupied), "what the viewer made");
         Assert.True(Tags.Of(w, pile, P).HasFlag(Tag.Occupied), "what someone else made");
@@ -490,13 +490,13 @@ public class SubstrateTests
         w.AccessGates = Access.Gate.All; // nothing there to gate: the thing's own refusal answers
         Assert.Equal("no such carcass here", Work.Refusal(w, new Butcher(P, 99))?.Reason);
         Assert.Equal("nothing like that here", Work.Refusal(w, new Gather(P, 99))?.Reason);
-        Assert.Equal("no pine in the pile here", Work.Refusal(w, new PickUp(P, Resource.Pine, 1))?.Reason);
-        TestKit.Give(Items.Pack(w, P), Resource.Pine, 1);
-        Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.Pine, 1))?.Reason);
+        Assert.Equal("no pine branches in the pile here", Work.Refusal(w, new PickUp(P, Resource.PineBranch, 1))?.Reason);
+        TestKit.Give(Items.Pack(w, P), Resource.PineBranch, 1);
+        Assert.Equal("no fire here", Fire.Refusal(w, new AddFuel(P, Resource.PineBranch, 1))?.Reason);
         Assert.Equal("no charcoal here", Fire.Refusal(w, new GatherCharcoal(P))?.Reason);
         Assert.Equal("there's no tent to pack up here", Shelters.Refusal(w, new PackTent(P))?.Reason);
         w.Agent(P).Tile = new TileId(camp.X + 1, camp.Y);
-        Assert.Equal("there's no shelter here to improve", Shelters.Refusal(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.Pine))?.Reason);
+        Assert.Equal("there's no shelter here to improve", Shelters.Refusal(w, new ImproveShelter(P, ShelterStat.Insulation, Resource.PineBranch))?.Reason);
     }
 
     [Fact]

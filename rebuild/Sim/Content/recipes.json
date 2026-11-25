@@ -20,6 +20,10 @@
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
 //     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes;
+//   station and driver (optional): a recipe worked by a station (StationKind) rather than a person, and what
+//     drives it (StationDriver). It has one input, one piece of one discrete resource; its result is a count of 1
+//     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs; and it has no
+//     tools, faster tools, items, requirements or outcomes: nothing is rolled and nothing fails;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
 //     save_material:<input>:<share>, extra_product:<gear or resource>:<n> (of the recipe's own discrete result, n more
@@ -27,9 +31,9 @@
 //     break_tool:<capability>[:<uses lost>] (no amount breaks it outright). `|` in a parameter lists
 //     alternatives, the odds split evenly. An input of alternatives is named by any of them. Base odds
 //     add up to at most 0.5.
-// Counts are the kilos these recipes once took, in the nominal pieces they assumed: a stick 0.3, a log 2.0,
+// Counts are the kilos these recipes once took, in the nominal pieces they assumed: a stick 0.3, a branch 2.0,
 // a stone or flint 0.3, pyrite 0.2, bone 0.3, sinew 0.1, rope 0.2, a hide 1.0, scraped 0.8, cured 0.7 (rounded,
-// at least one). Wood is Pine|Birch|Oak, from the deadfall foraging finds.
+// at least one). Wood is PineBranch|BirchBranch|OakBranch, gathered by hand; firewood is only ever fuel.
 {
  // ---- cutting tools: a sharp rock needs nothing, a hammerstone knaps the rest ----
  "sharp_rock": { "name": "Sharp rock", "category": "CuttingTool",
@@ -41,12 +45,12 @@
   "result": { "gear": "hammerstone" },
   "outcomes": ["fail=.05"] },
  "stone_knife": { "name": "Stone knife", "category": "CuttingTool",
-  "inputs": [ { "of": "Stone", "count": 1 }, { "of": "Kindling", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
+  "inputs": [ { "of": "Stone", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
   "tools": ["Striking"], "requires": ["Light"], "minutes": 20,
   "result": { "gear": "stone_knife" },
   "outcomes": ["fail:waste_material:Stone:1=.10", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
  "flint_knife": { "name": "Flint knife", "category": "CuttingTool",
-  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Kindling", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
+  "inputs": [ { "of": "Flint", "count": 1 }, { "of": "Stick", "count": 1 }, { "of": "PlantFiber|Sinew", "count": 1, "g": 100 } ],
   "tools": ["Striking"], "faster": ["Cutting"], "requires": ["Light"], "minutes": 25,
   "result": { "gear": "flint_knife" },
   "outcomes": ["fail:waste_material:Flint:1=.10", "succeed:injury:LeftArm|RightArm:0.05=.05", "fail:break_tool:Striking=.02",
@@ -58,11 +62,11 @@
 
  // ---- fire-starting ----
  "hand_drill": { "name": "Hand drill", "category": "FireStarting",
-  "inputs": [ { "of": "Kindling", "count": 2 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 15,
+  "inputs": [ { "of": "Stick", "count": 2 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 15,
   "result": { "gear": "hand_drill" },
   "outcomes": ["fail=.05"] },
  "bow_drill": { "name": "Bow drill", "category": "FireStarting",
-  "inputs": [ { "of": "Kindling", "count": 3 }, { "of": "PlantFiber|Sinew|Rope", "count": 1, "g": 100 } ],
+  "inputs": [ { "of": "Stick", "count": 3 }, { "of": "PlantFiber|Sinew|Rope", "count": 1, "g": 100 } ],
   "tools": ["Cutting"], "requires": ["Light"], "minutes": 25,
   "result": { "gear": "bow_drill" },
   "outcomes": ["fail=.08"] },
@@ -119,28 +123,38 @@
   "result": { "resource": "HideStrip", "count": 2, "sharePct": 1 },
   "outcomes": ["succeed:extra_product:HideStrip:1=.5"] },
 
+ // ---- worked by a station: put on, left, taken when done (spec 2026-11-24 fire-and-rack-as-stations) ----
+ "cook_meat": { "name": "Cook meat", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawMeat", "count": 1 } ], "tools": [], "requires": [], "minutes": 15,
+  "result": { "resource": "CookedMeat", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+ "cook_fish": { "name": "Cook fish", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
+  "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+
  // ---- weapons ----
  "stone": { "name": "Stone", "category": "HuntingWeapon",
   "inputs": [ { "of": "Stone", "count": 1 } ], "tools": [], "requires": [], "minutes": 1,
   "result": { "gear": "stone" },
   "outcomes": [] },
  "staff": { "name": "Staff", "category": "HuntingWeapon",
-  "inputs": [ { "of": "Pine|Birch|Oak", "count": 1 } ], "tools": [], "faster": ["Cutting"], "requires": [], "minutes": 10,
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": [], "faster": ["Cutting"], "requires": [], "minutes": 10,
   "result": { "gear": "staff" },
   "outcomes": ["fail=.03"] },
  "crude_spear": { "name": "Crude spear", "category": "HuntingWeapon",
-  "inputs": [ { "of": "Pine|Birch|Oak", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 20,
   "result": { "gear": "crude_spear" },
-  "outcomes": ["fail:waste_material:Pine:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+  "outcomes": ["fail:waste_material:PineBranch:1=.05", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
  // The crude spear's point hardened in the fire.
  "wooden_spear": { "name": "Fire-hardened spear", "category": "HuntingWeapon",
   "inputs": [ { "item": "crude_spear" } ], "tools": [], "requires": ["Fire"], "minutes": 30,
   "result": { "gear": "wooden_spear" },
   "outcomes": ["fail=.10"] },
  "heavy_spear": { "name": "Heavy spear", "category": "HuntingWeapon",
-  "inputs": [ { "of": "Pine|Birch|Oak", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 35,
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 1 } ], "tools": ["Cutting"], "requires": ["Light"], "minutes": 35,
   "result": { "gear": "heavy_spear" },
-  "outcomes": ["fail:waste_material:Pine:1=.04", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
+  "outcomes": ["fail:waste_material:PineBranch:1=.04", "succeed:injury:LeftArm|RightArm:0.04=.04"] },
  // §3.7's own example; the injury is a cut, not the 0.2 written there.
  "stone_tipped_spear": { "name": "Stone-tipped spear", "category": "HuntingWeapon",
   "inputs": [ { "item": "wooden_spear" }, { "of": "Flint", "count": 1 }, { "of": "Sinew|Rope", "count": 1 } ],
@@ -151,11 +165,11 @@
 
  // ---- torches: a torch, and a resin torch that burns twice as long ----
  "torch": { "name": "Torch", "category": "Lighting",
-  "inputs": [ { "of": "Kindling", "count": 1 }, { "of": "BirchBark|Tinder", "g": 50 } ], "tools": [], "requires": [], "minutes": 5,
+  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "BirchBark|Tinder", "g": 50 } ], "tools": [], "requires": [], "minutes": 5,
   "result": { "gear": "torch" },
   "outcomes": ["fail:waste_material:Tinder:1=.05"] },
  "resin_torch": { "name": "Resin torch", "category": "Lighting",
-  "inputs": [ { "of": "Kindling", "count": 1 }, { "of": "PineResin", "g": 30 }, { "of": "Tinder", "g": 20 } ],
+  "inputs": [ { "of": "Stick", "count": 1 }, { "of": "PineResin", "g": 30 }, { "of": "Tinder", "g": 20 } ],
   "tools": [], "requires": [], "minutes": 10,
   "result": { "gear": "resin_torch" },
   "outcomes": ["succeed:save_material:PineResin:1=.10"] },
@@ -228,10 +242,10 @@
   "inputs": [ { "of": "CuredHide", "count": 6 }, { "of": "Sinew", "count": 6 } ], "tools": [], "requires": ["Light"], "minutes": 195,
   "result": { "bedding": "SleepingBag" }, "outcomes": [] },
  "branch_frame": { "name": "Branch frame shelter", "category": "Camp",
-  "inputs": [ { "of": "Kindling", "count": 4 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
+  "inputs": [ { "of": "Stick", "count": 4 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 30,
   "result": { "shelter": "BranchFrame", "shelterName": "Branch Frame Shelter" }, "outcomes": [] },
  "log_frame": { "name": "Log frame shelter", "category": "Camp",
-  "inputs": [ { "of": "Pine|Birch|Oak", "count": 3 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 3 } ], "tools": [], "requires": ["Light", "NoShelter"], "minutes": 45,
   "result": { "shelter": "LogFrame", "shelterName": "Log Frame Shelter" }, "outcomes": [] },
  // 15 minutes' setup and two hours' digging.
  "snow_shelter": { "name": "Snow shelter", "category": "Camp",

@@ -161,7 +161,12 @@ public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, S
 public sealed record Recipe(
     string Id, string Name, MakeCategory Category, IReadOnlyList<MaterialInput> Materials, IReadOnlyList<string> Items,
     IReadOnlyList<Capability> Tools, IReadOnlyList<Capability> Faster, IReadOnlyList<Requirement> Requires, int Minutes,
-    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor);
+    RecipeResult Result, IReadOnlyList<Outcome> Outcomes, double FasterFactor = Making.FasterToolFactor,
+    StationKind? Station = null, StationDriver? Driver = null)
+{
+    /// Worked by a person through Make, not by a station (Stations).
+    public bool ByHand => Station == null;
+}
 
 /// A placed recipe's unfinished work (GLOSSARY: Project), on its tile for anyone there to go on with.
 public sealed class TileProject
@@ -176,6 +181,9 @@ public static class Recipes
 {
     public static readonly IReadOnlyList<Recipe> All = Content.Tables.MakeRecipes;
     static readonly IReadOnlyDictionary<string, Recipe> ById = All.ToDictionary(r => r.Id);
+
+    /// The recipes a person works through Make, in menu order.
+    public static readonly IReadOnlyList<Recipe> ByHand = [.. All.Where(r => r.ByHand)];
 
     public static Recipe Get(string id) => ById.TryGetValue(id, out var r) ? r : throw new KeyNotFoundException($"No recipe '{id}'");
     public static bool Exists(string id) => ById.ContainsKey(id);
@@ -235,6 +243,7 @@ public static class Making
             case Make m:
                 {
                     var r = Recipes.Get(m.Recipe);
+                    if (r.Station is StationKind station) return new($"{Names.Lower(r.Name)} is not done by hand: put it on at a {Stations.Word(station)}");
                     if (r.Result.Placed) return PlacedRefusal(world, agent, pack, r);
                     bool begun = ProjectFor(pack, r.Id) != null;
                     if (!begun && MissingMaterial(pack, r) is { } material) return material;
@@ -347,17 +356,16 @@ public static class Making
     {
         var context = Fire.AbilityContextFor(world, agent);
         return Odds(r, Skills.Level(agent, Skill.Crafting), Body.Dexterity(agent.Body, context),
-            dazed: Body.GetCapacities(agent.Body).Consciousness < 0.5, handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
+            handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
     }
 
     /// Clumsy hands make failure-like outcomes up to twice as likely at no dexterity, and success
     /// bonuses rarer in proportion. Outcomes summing past certainty are scaled back to share it.
-    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, bool dazed = false, string handsWhy = "")
+    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, string handsWhy = "")
     {
         string hands = handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands";
         List<OddsTerm> Terms(Outcome o) => o.FailureLike
-            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)),
-                OddsTerm.Scale("Dazed", dazed ? 1.2 : 1))
+            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)))
             : Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 + SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, dexterityPct));
         var table = r.Outcomes.Select(o => new OutcomeOdds(o, new Survival.Odds("Base odds", o.BasePct, Terms(o)))).ToList();
         double sum = table.Sum(t => t.Odds.TotalPct);
@@ -506,7 +514,7 @@ public static class Making
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
         var c = Body.GetCapacities(agent.Body);
         if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
-        double slow = (c.Manipulation < 0.5 ? 1.25 : 1.0) * (c.Consciousness < 0.5 ? 1.25 : 1.0);
+        double slow = c.Manipulation < 0.5 ? 1.25 : 1.0;
         double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
         if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;
         return work / slow;
@@ -580,9 +588,8 @@ public static class Making
         }
         else
         {
-            // A resource result: its share of the actual weight that went in (a discrete one in whole pieces), or a
-            // fixed amount less in proportion to what was wasted. Saved material is a bonus over a full result (the
-            // loader keeps it from making mass).
+            // A resource result: its share of the weight that went in (discrete: whole pieces), or a fixed amount less
+            // what was wasted. Saved material is a bonus over a full result.
             foreach (var (res, kg) in Items.Totals(materials)) spent[res] = spent.GetValueOrDefault(res) + kg;
             var made = r.Result.Resource!.Value;
             double kgMade = r.Result.SharePct > 0 ? r.Result.SharePct * Math.Max(0, inputKg - wastedKg) : r.Result.Kg * Math.Clamp((inputKg - wastedKg) / inputKg, 0, 1);

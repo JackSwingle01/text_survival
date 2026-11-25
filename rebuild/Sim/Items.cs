@@ -1,9 +1,10 @@
 namespace Survival;
 
-/// Fuels are resources too (Fire.Props says how they burn): a log is one thing in a pack, on a pile or on the fire.
+/// Fuels are resources too (Fire.Props says how they burn): a branch is one thing in a pack, on a pile or on the fire.
+/// Firewood comes only from axe work (felling, and the axe items of a wood find), never from foraging or loot.
 public enum Resource
 {
-    Tinder, BirchBark, Amadou, Usnea, Chaga, Kindling, Pine, Birch, Oak, Bone, Peat,
+    Tinder, BirchBark, Amadou, Usnea, Chaga, Stick, PineBranch, BirchBranch, OakBranch, PineFirewood, BirchFirewood, OakFirewood, Bone, Peat,
     RawMeat, CookedMeat, DriedMeat, RawFish, CookedFish, DriedFish, Berries, DriedBerries, Nuts, Roots, Honey,
     Water,
     Stone, Hide, PlantFiber, Sinew, Shale, Flint, Pyrite, ScrapedHide, CuredHide, RawFat, Tallow, Charcoal, Rope,
@@ -402,4 +403,13 @@ public static class Items
     }
 
     static Gear Make(KitGear k) => Make(k.Kind, k.Durability);
+
+    /// The firewood lying at a new run's camp (items.json startingCamp), on the camp's pile.
+    internal static void LayStartingCamp(World world, TileId camp)
+    {
+        var pile = PileAt(world, camp, new Cause(null, StartingCampCause));
+        foreach (var (r, pieces) in Content.Tables.StartingCamp) AddPieces(pile, r, pieces);
+    }
+
+    public const string StartingCampCause = "left at camp";
 }

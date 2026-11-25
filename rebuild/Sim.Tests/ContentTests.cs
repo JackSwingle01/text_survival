@@ -93,7 +93,7 @@ public class ContentTests
     public void Loader_EnumTables_DoNotDependOnFileOrder()
     {
         var files = Content.EmbeddedFiles();
-        const string pine = "  \"Pine\": { \"peakTempF\": 800, \"burnRateKgPerHour\": 1.2, \"minFireTempF\": 150, \"ignitionBonusPct\": 0.05 },\n";
+        const string pine = "  \"PineBranch\": { \"peakTempF\": 800, \"burnRateKgPerHour\": 1.2, \"minFireTempF\": 150, \"ignitionBonusPct\": 0.05 },\n";
         // Pine moved from the middle of the fuels to the top.
         files["fire.json"] = Edit(Edit(files["fire.json"], pine, ""), "\"fuels\": {\n", "\"fuels\": {\n" + pine);
         var reordered = Content.Parse(files);
@@ -273,7 +273,7 @@ public class ContentTests
     [InlineData("species.json", "\"Fox\": {", "\"Fox, Wolf\": {", "no Species 'Fox, Wolf'")]
     [InlineData("effects.json", "\"Wet\":", "\"Soggy\":", "no EffectKind 'Soggy'")]
     // A kind the code has with no row.
-    [InlineData("fire.json", "  \"Mound\": { \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
+    [InlineData("fire.json", "  \"Mound\": { \"room\": 3, \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
     [InlineData("recipes.json", "\"shelter\": \"BranchFrame\"", "\"shelter\": \"BranchFrames\"", "no ShelterKind 'BranchFrames'")]
     [InlineData("effects.json", "\"Bloody\":", "\"Bloodied\":", "effects.json: no row for Bloody")]
     // A value that is no kind at all.

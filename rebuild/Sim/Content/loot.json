@@ -8,7 +8,7 @@
 // Kinds and resources must name real ones; ContentTests checks.
 {
  "AbandonedCamp": [
-  { "resource": "Kindling", "kg": [0.3, 0.3], "pieces": [2, 2] },
+  { "resource": "Stick", "kg": [0.3, 0.3], "pieces": [2, 2] },
   { "resource": "Tinder", "kg": [0.05, 0.05] },
   { "resource": "PlantFiber", "kg": [0.1, 0.1] },
   { "chance": 0.5, "gear": ["worn_knife"] }
@@ -66,7 +66,7 @@
  "HiddenCache": [
   { "gear": ["fire_striker", "flint_knife", "stone_axe"], "durabilityPct": [0.6, 1.0] },
   { "pick": [1, 1], "of": [
-   { "resource": "Pine", "kg": [2.0, 3.5] }, { "resource": "Birch", "kg": [2.0, 3.5] }, { "resource": "Oak", "kg": [2.0, 3.5] } ] },
+   { "resource": "PineBranch", "kg": [2.0, 3.5] }, { "resource": "BirchBranch", "kg": [2.0, 3.5] }, { "resource": "OakBranch", "kg": [2.0, 3.5] } ] },
   { "chance": 0.4, "resource": "Tinder", "kg": [0.2, 0.4] },
   { "chance": 0.25, "resource": "DriedMeat", "kg": [0.3, 0.5] }
  ],
@@ -74,7 +74,7 @@
  "OldCampsite": [
   { "gear": ["bone_knife", "stone_axe", "wooden_spear", "torch"], "durabilityPct": [0.3, 0.7] },
   { "resource": "Tinder", "kg": [0.15, 0.3] },
-  { "resource": "Kindling", "kg": [0.3, 0.5] },
+  { "resource": "Stick", "kg": [0.3, 0.5] },
   { "chance": 0.3, "resource": "Bone", "kg": [0.2, 0.4] }
  ],
  // Old RewardGenerator.GenerateSquirrelCache at the base amount: two to four of these.
@@ -84,11 +84,11 @@
    { "resource": "Berries", "kg": [0.2, 0.35] }, { "resource": "Nuts", "kg": [0.25, 0.4] } ] }
  ],
  // Old RewardGenerator pools the old discovery events gave (DiscoveryEventFactory), for their finds' outcomes.
- // Old Stick is kindling here.
+ // The old "Stick" is a stick here.
  "BasicSupplies": [
   { "pick": [2, 4], "of": [
-   { "resource": "Kindling", "kg": [0.4, 0.8] }, { "resource": "Tinder", "kg": [0.2, 0.5] }, { "resource": "Berries", "kg": [0.2, 0.4] },
-   { "pick": [1, 1], "of": [ { "resource": "Pine", "kg": [1.5, 2.5] }, { "resource": "Birch", "kg": [1.5, 2.5] }, { "resource": "Oak", "kg": [1.5, 2.5] } ] } ] }
+   { "resource": "Stick", "kg": [0.4, 0.8] }, { "resource": "Tinder", "kg": [0.2, 0.5] }, { "resource": "Berries", "kg": [0.2, 0.4] },
+   { "pick": [1, 1], "of": [ { "resource": "PineBranch", "kg": [1.5, 2.5] }, { "resource": "BirchBranch", "kg": [1.5, 2.5] }, { "resource": "OakBranch", "kg": [1.5, 2.5] } ] } ] }
  ],
  "BasicMeat": [
   { "resource": "RawMeat", "kg": [0.5, 0.9] }

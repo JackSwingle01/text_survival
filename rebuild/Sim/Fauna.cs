@@ -214,9 +214,9 @@ public static partial class Fauna
         return Math.Max(1, enc.Rounds);
     }
 
-    /// The animal of this one's herd a hunter singles out: the slowest and least alive, the lower id on a tie.
-    static Agent Weakest(World world, Agent prey) => Combat.Side(world, prey)
-        .OrderBy(a => Body.Speed(a.Body) * Body.Vitality(a.Body)).ThenBy(a => Body.Vitality(a.Body)).ThenBy(a => a.Id).First();
+    /// The animal of this one's herd a hunter singles out: the least vital, the lower id on a tie.
+    internal static Agent Weakest(World world, Agent prey) => Combat.Side(world, prey)
+        .OrderBy(a => Body.Vitality(a.Body, a.Species)).ThenBy(a => a.Id).First();
 
     internal static string? Minute(World world, Agent herd, Activity activity, List<WorldEvent> events)
     {

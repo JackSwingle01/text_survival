@@ -34,10 +34,11 @@ public class TestWorldsTests
     [Theory]
     [InlineData(17)]
     [InlineData(1)]
-    public void ABareWorld_IsTheSeedsWorld_WithEveryoneButThePlayerRemoved(int seed)
+    public void ABareWorld_IsTheSeedsWorld_WithEveryoneButThePlayerRemoved_AndTheCampEmpty(int seed)
     {
         var emptied = TestWorlds.New(seed);
         foreach (var id in emptied.Agents.Keys.Where(id => id != P).ToList()) Agents.Remove(emptied, id);
+        TestWorlds.EmptyCamp(emptied);
         var bare = TestWorlds.Bare(seed);
         Assert.Equal(Save.ToJson(emptied), Save.ToJson(bare));
         Assert.Equal([P], bare.Agents.Keys);
