@@ -17,3 +17,8 @@ Evidence:
   ... calls (allowed 0)"; restored.
 - `python3 .github/scripts/ratchets.py list` runs: comments 37 remaining, formatting 10 remaining.
 - Fast suite (`--filter "Category!=Slow"`, Release): 1967 passed, 2 skipped, 0 failed.
+
+Review: Spec clean. Standards: pass the list name as `nameof(MayCallDirectly)`, like the other single-list
+callers (fixed in its own commit).
+Follow-up: `WhereThingsGoTests.CountRatchet` now also serves permanent allow-lists; a neutral name
+(e.g. `CountAgainstList`) would fit. Shared helper, out of this ticket's scope.

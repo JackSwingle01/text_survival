@@ -44,7 +44,7 @@ public class TestWorldSourceTests
             .Where(f => !f.Contains($"{sep}obj{sep}") && !f.Contains($"{sep}bin{sep}"))
             .Order(StringComparer.Ordinal)
             .SelectMany(f => WhereThingsGoTests.Hits(Path.GetFileName(f), CommentHygieneTests.CodeOnly(File.ReadAllText(f)), DirectCall));
-        var problems = WhereThingsGoTests.CountRatchet(hits, MayCallDirectly, "MayCallDirectly",
+        var problems = WhereThingsGoTests.CountRatchet(hits, MayCallDirectly, nameof(MayCallDirectly),
             "direct World.New/Save.FromJson/Map.Generate calls",
             "Use TestWorlds.New, TestWorlds.Load or TestWorlds.Map; call the real one only where generation or loading is the subject, or the seeds don't repeat, and list the file in MayCallDirectly with why");
         Assert.True(problems.Count == 0, string.Join("\n", problems));
