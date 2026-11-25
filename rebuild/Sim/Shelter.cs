@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-public enum ShelterKind { BranchFrame, LogFrame, RockOverhang, Cave, DenseThicket, FallenTree, SnowShelter, HideTent, NaturalShelter }
+public enum ShelterKind { LeanTo, BranchHut, RockOverhang, Cave, DenseThicket, FallenTree, SnowShelter, HideTent, NaturalShelter }
 
 public enum ShelterStat { Insulation, Overhead, Wind }
 
@@ -32,6 +32,9 @@ public sealed class ShelterState
     /// Saved with the shelter, so a loaded tent can still be packed.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Gear? Tent { get; init; }
+    /// Built from pieces: those pieces, given back whole when it is taken down to build over it (Shelters.TakeDown).
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Inventory? Materials { get; init; }
     /// Snow only: clock hours before this one are already melted.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? MeltedToHour { get; set; }
@@ -64,6 +67,8 @@ public sealed record ShelterMaterial(double PieceKg, double Insulating, double W
 
 public sealed record ShelterCollapsed(long Minute, TileId Tile, string Name) : WorldEvent(Minute, Tile);
 
+public sealed record ShelterTakenDown(long Minute, AgentId Who, TileId Tile, string Name, SortedDictionary<Resource, double> Returned) : WorldEvent(Minute, Tile);
+
 public static class Shelters
 {
     public static readonly IReadOnlyDictionary<ShelterKind, ShelterKindProps> Kinds = Content.Tables.ShelterKinds;
@@ -78,10 +83,10 @@ public static class Shelters
 
     static readonly Cause NaturalCause = new(null, Cause.Natural);
 
-    internal static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent, Cause cause, int? fromFind = null)
+    internal static ShelterState Place(World world, TileId tile, ShelterDef def, Gear? tent, Cause cause, int? fromFind = null, Inventory? materials = null)
     {
         if (world.Shelters.ContainsKey(tile)) throw new InvalidOperationException($"{tile} already has a shelter");
-        var s = New(world, def, tent, cause, fromFind, world.NextShelterId++);
+        var s = New(world, def, tent, cause, fromFind, world.NextShelterId++, materials);
         world.Shelters[tile] = s;
         // A shelter here for good (a frame finished over a find): the find will never have the tile.
         if (!IsTemporary(s)) world.WaitingShelters.Remove(tile);
@@ -92,7 +97,7 @@ public static class Shelters
     static bool IsTemporary(ShelterState s) => s.Tent != null || Kinds[s.Kind].IsSnow;
 
     /// id: the shelter's own (World.NextShelterId), or Unplaced for one shown before it stands.
-    static ShelterState New(World world, ShelterDef def, Gear? tent, Cause cause, int? fromFind, int id)
+    static ShelterState New(World world, ShelterDef def, Gear? tent, Cause cause, int? fromFind, int id, Inventory? materials = null)
     {
         var k = Kinds[def.Kind];
         var levels = tent?.TentLevels ?? new ShelterCover(def.Insulation ?? k.Insulation, def.Overhead ?? k.Overhead, def.Wind ?? k.Wind);
@@ -102,6 +107,7 @@ public static class Shelters
             Name = def.Name,
             Kind = def.Kind,
             Tent = tent,
+            Materials = materials,
             FromFind = fromFind,
             Cause = cause,
             InsulationLevel = levels.InsulationLevel,
@@ -141,6 +147,7 @@ public static class Shelters
             Name = s.Name,
             Kind = s.Kind,
             Tent = s.Tent,
+            Materials = s.Materials,
             MeltedToHour = s.MeltedToHour,
             FromFind = s.FromFind,
             Cause = s.Cause,
@@ -162,6 +169,18 @@ public static class Shelters
         return s;
     }
 
+    public static bool ReplacedBy(ShelterState standing, ShelterKind? replaces) =>
+        standing.Kind == replaces && standing.FromFind == null && standing.Materials != null;
+
+    internal static void TakeDown(World world, Agent by, TileId tile, List<WorldEvent> events)
+    {
+        world.Shelters.Remove(tile, out var s);
+        var back = s?.Materials ?? throw new InvalidOperationException($"{tile}: no built shelter to take down");
+        var returned = Items.KgByResource(back);
+        Items.Receive(world, by, back, events);
+        events.Add(new ShelterTakenDown(world.Minute, by.Id, tile, s.Name, returned));
+    }
+
     /// One shelter to a tile, and nothing is pushed off it. Behind a tent, a snow shelter or one being
     /// built, the find waits (World.WaitingShelters) and stands once the tile is free. A half-built
     /// frame is finished, never stranded; finished, it stands for good, and so does a natural shelter:
@@ -172,7 +191,7 @@ public static class Shelters
         if (standing?.FromFind == id.Index) return;
         bool building = BuildingShelter(world, id.Tile);
         if (standing == null && !building) Place(world, id.Tile, find.Shelter, null, NaturalCause, id.Index);
-        else if (building || IsTemporary(standing!)) world.WaitingShelters.TryAdd(id.Tile, id.Index);
+        else if (standing == null || IsTemporary(standing)) world.WaitingShelters.TryAdd(id.Tile, id.Index);
     }
 
     static bool BuildingShelter(World world, TileId tile) =>

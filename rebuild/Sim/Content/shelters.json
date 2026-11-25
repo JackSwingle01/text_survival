@@ -5,15 +5,15 @@
 // kinds: every ShelterKind: its starting levels, how far work can take them (caps), whether it is
 //   found in the world (isNatural) and whether it melts (isSnow), both stated. Levels and caps are 0-1.
 // tents: pitched tents by gear kind (items.json); a cap left out is the kind's.
-// materials: old item counts become kilos through a nominal piece (pieceKg: a stick, a log, a hide);
+// materials: old item counts become kilos through a nominal piece (pieceKg: a stick, a branch, a hide);
 //   insulating, waterproof and structural say how much one does for each shelter stat. shelter false
 //   is a material recipes use that cannot be worked into a shelter.
 // beddings: every BeddingKind. qualityPct is sleep efficiency and keeps you off wet ground;
 //   warmthBonusF is felt asleep.
 {
  "kinds": {
-  "BranchFrame": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false, "isSnow": false },
-  "LogFrame": { "insulation": 0.25, "overhead": 0.35, "wind": 0.30, "insulationCap": 0.80, "overheadCap": 0.80, "windCap": 0.80, "isNatural": false, "isSnow": false },
+  "LeanTo": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false, "isSnow": false },
+  "BranchHut": { "insulation": 0.25, "overhead": 0.35, "wind": 0.30, "insulationCap": 0.80, "overheadCap": 0.80, "windCap": 0.80, "isNatural": false, "isSnow": false },
   "RockOverhang": { "insulation": 0.10, "overhead": 0.70, "wind": 0.30, "insulationCap": 0.40, "overheadCap": 0.80, "windCap": 0.40, "isNatural": true, "isSnow": false },
   "Cave": { "insulation": 0.25, "overhead": 0.90, "wind": 0.20, "insulationCap": 0.60, "overheadCap": 0.95, "windCap": 0.40, "isNatural": true, "isSnow": false },
   "DenseThicket": { "insulation": 0.15, "overhead": 0.50, "wind": 0.60, "insulationCap": 0.40, "overheadCap": 0.60, "windCap": 0.70, "isNatural": true, "isSnow": false },
@@ -49,7 +49,7 @@
   "Tallow": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.7, "structural": 0.1 },
   // Sewing only.
   "Sinew": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.1, "structural": 0.1, "shelter": false },
-  // Lashing a curing rack only.
+  // Lashing a curing rack, a branch hut or a tent only.
   "Rope": { "pieceKg": 0.2, "insulating": 0.1, "waterproof": 0.1, "structural": 0.3, "shelter": false }
  },
 

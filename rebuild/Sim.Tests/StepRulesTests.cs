@@ -133,14 +133,20 @@ public class StepRulesTests
 
     // ---- 7. StartFire on an existing pit ----
 
+    /// The pit named types only a new pit: struck in a pit already dug, the fire burns in that pit, whatever the strike
+    /// names (#151: NPCs strike naming none at a mound or stone pit).
     [Fact]
-    public void StartFire_OnAPitOfAnotherType_IsRefused()
+    public void StartFire_OnAPitOfAnotherType_BurnsInThePitThere()
     {
         var world = LitCamp();
-        var r = Sim.Step(world, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0, PitType.Stone), 1);
-        Assert.Equal("the pit here is open, not stone", r.InterruptedReason);
-        Assert.Equal(0, r.MinutesElapsed);
-        Assert.Equal(PitType.Open, world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value].Pit);
+        var pit = world.Fires[Fire.PitAt(world, Map.Of(world).Camp)!.Value];
+        pit.BurningKg.Clear();
+        pit.UnburnedKg.Clear();
+        var strike = new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0, PitType.Stone);
+        Assert.Null(Sim.Refusal(world, strike));
+        for (int i = 0; i < 20 && !Fire.IsActive(pit); i++) Sim.Step(world, strike, 1);
+        Assert.True(Fire.IsActive(pit));
+        Assert.Equal((PitType.Open, 1), (pit.Pit, world.Fires.Count));
     }
 
     [Fact]

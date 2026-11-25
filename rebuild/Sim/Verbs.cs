@@ -26,7 +26,7 @@ public sealed record MissingGear(IReadOnlyList<string> AnyOf) : Missing
 /// Need is the line and Have where it stands, in the unit the Lack names; both null for a state that is there or not.
 public sealed record MissingState(Lack Lack, double? Need = null, double? Have = null) : Missing;
 
-public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, FrostF, Shelter, Dry, StationRoom }
+public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, FrostF, Shelter, Dry, StationRoom, MoundPit }
 
 /// A faculty at zero (GLOSSARY: Crippled), and why: what would have to mend or be put down.
 public sealed record MissingFaculty(Faculty Faculty, IReadOnlyList<CrippledBy> Because) : Missing;
