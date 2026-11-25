@@ -30,7 +30,9 @@ public class CompanionInteractionTests
         npc.CurrentAction = new NPCRest(5);
         npc.Social.PendingNeed = new CompanionNeedRequest
         {
-            Recipient = world.Game.player, Need = NeedType.Water, ExpiresAtMinute = 10
+            Recipient = world.Game.player,
+            Need = NeedType.Water,
+            ExpiresAtMinute = 10
         };
         ((text_survival.Tests.Support.ScriptedUi)world.Game.Ui).Choices.Enqueue("go");
         await world.Game.Update(1, ActivityType.Eating);
