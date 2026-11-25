@@ -453,8 +453,8 @@ public static class Report
         return
         [
             FromRecipe("cordage", EverydayHours),
-            FromRecipe("simple_torch", EverydayHours), FromRecipe("birch_bark_torch", EverydayHours), FromRecipe("resin_torch", EverydayHours),
-            FromSpec("Birch-bark pouch", EverydayHours, new(Resource.BirchBark, 0.100, 0), new(Resource.PlantFiber, 0.050, 0)),
+            FromRecipe("torch", EverydayHours), FromRecipe("resin_torch", EverydayHours),
+            FromRecipe("small_pouch", EverydayHours),
             FromSpec("Simple snare", EverydayHours, new(Resource.Stick, 0, 1), new(Resource.PlantFiber, 0.030, 0)),
             FromSpec("Net", ComfortHours, new(Resource.PlantFiber, 0.200, 0), new(Resource.Stick, 0, 2)),
             FromRecipe("padded_bedding", ComfortHours), FromRecipe("moss_bedding", ComfortHours),
