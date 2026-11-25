@@ -1,99 +1,102 @@
-Cohesion gate: main at c70b3c2bd796d29a6e16672735f5cb4039eb0cd5, 2026-11-24, Release
+Cohesion gate: main at d5188a77017653799867b912bd9c95300f8a9d6a, 2026-11-25, Release
 CohesionGateSeed123Tests.SixtyDays_PassesTheCohesionGate: Passed
-seed 123: 327 MB a day allocated
-seed 123 Wolf: 3.0 living on average; alone 10.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.04/animal-day; moves 14.44/animal-day; busiest water tile 77.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 1]
-seed 123 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.04/animal-day; busiest water tile 39.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 123 CaveBear: 5.0 living on average; alone 99.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.10/animal-day; moves 6.54/animal-day; busiest water tile 17.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1 1]
-seed 123 SaberTooth: 1.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 6.21/animal-day; busiest water tile 37.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1]
-seed 123 Hyena: 5.0 living on average; alone 15.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 2.59/animal-day; moves 68.58/animal-day; busiest water tile 51.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [5]
-seed 123 Caribou: 9.6 living on average; alone 1.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.44/animal-day; moves 1.53/animal-day; busiest water tile 63.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [15 4]
-seed 123 Megaloceros: 8.6 living on average; alone 0.7 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.33/animal-day; moves 3.19/animal-day; busiest water tile 32.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2 2]
-seed 123 Bison: 22.3 living on average; alone 0.1 %; biggest herd 37 % (day 58, 3 tiles, water True; over 60 % at 0.0 % of looks); regroups 1.15/animal-day; moves 5.59/animal-day; busiest water tile 19.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [10 4 4 3 2 2 2]
-seed 123 Mammoth: 10.0 living on average; alone 1.8 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 27.10/animal-day; moves 56.49/animal-day; busiest water tile 13.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [4 4 2]
-seed 123 Fox: 4.0 living on average; alone 45.5 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.19/animal-day; moves 0.43/animal-day; busiest water tile 52.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 1]
-seed 123 Raven: 17.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.43/animal-day; moves 5.82/animal-day; busiest water tile 31.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [7 6 4]
-seed 123 Wolf pack of 3 on day 3: 3 living on day 60, still a pack
+seed 123: 345 MB a day allocated
+seed 123 Wolf: 2.8 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.05/animal-day; moves 22.51/animal-day; busiest water tile 77.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2]
+seed 123 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.83/animal-day; busiest water tile 38.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 123 CaveBear: 5.0 living on average; alone 98.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.13/animal-day; moves 6.36/animal-day; busiest water tile 18.6 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1 1]
+seed 123 SaberTooth: 1.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.90/animal-day; busiest water tile 40.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1]
+seed 123 Hyena: 5.0 living on average; alone 2.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 1.27/animal-day; moves 64.21/animal-day; busiest water tile 52.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2]
+seed 123 Caribou: 13.2 living on average; alone 0.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.76/animal-day; moves 2.01/animal-day; busiest water tile 50.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [15 3]
+seed 123 Megaloceros: 7.3 living on average; alone 2.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.23/animal-day; moves 2.10/animal-day; busiest water tile 36.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 2 2]
+seed 123 Bison: 21.7 living on average; alone 0.2 %; biggest herd 38 % (day 55, 2 tiles, water True; over 60 % at 0.0 % of looks); regroups 1.53/animal-day; moves 5.92/animal-day; busiest water tile 19.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [10 4 3 3 2 2 2]
+seed 123 Mammoth: 10.0 living on average; alone 1.6 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 12.28/animal-day; moves 26.60/animal-day; busiest water tile 19.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [4 2 2 2]
+seed 123 Fox: 4.0 living on average; alone 52.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.10/animal-day; moves 0.18/animal-day; busiest water tile 37.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 1 1]
+seed 123 Raven: 17.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.76/animal-day; moves 12.08/animal-day; busiest water tile 32.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 6 3]
+seed 123 Wolf pack of 3 on day 3: 2 living on day 60, still a pack
 seed 123 Hyena pack of 5 on day 3: 5 living on day 60, still a pack
-seed 123 Wolf: 1.1 kills a week; longest without prey in reach while hungry 7.4 days
-seed 123 Wolf: packs 1 at first, 1-1 over the run; rival packs within a tile at 0.00 % of looks
-seed 123 Hyena: 1.4 kills a week; longest without prey in reach while hungry 20.7 days
+seed 123 Wolf: 0.9 kills a week; longest without prey in reach while hungry 11.7 days
+seed 123 Wolf: packs 1 at first, 1-2 over the run; rival packs within a tile at 0.00 % of looks
+seed 123 Hyena: 1.8 kills a week; longest without prey in reach while hungry 11.7 days
 seed 123 Hyena: packs 1 at first, 1-1 over the run; rival packs within a tile at 0.00 % of looks
-seed 123 outside its band: Wolf 77.9 % on its busiest water tile
-seed 123 outside its band: Hyena 51.1 % on its busiest water tile
-seed 123 outside its band: Hyena moved 68.6 tiles an animal-day
-seed 123 outside its band: Caribou 63.3 % on its busiest water tile
-seed 123 outside its band: Caribou regrouped 0.44 times an animal-day
-seed 123 outside its band: Megaloceros regrouped 0.33 times an animal-day
-seed 123 outside its band: Mammoth moved 56.5 tiles an animal-day
-seed 123 outside its band: Fox 52.1 % on its busiest water tile
-seed 123 outside its band: Fox moved 0.4 tiles an animal-day
+seed 123 outside its band: Wolf 77.8 % on its busiest water tile
+seed 123 outside its band: Hyena 52.0 % on its busiest water tile
+seed 123 outside its band: Hyena moved 64.2 tiles an animal-day
+seed 123 outside its band: Caribou 50.1 % on its busiest water tile
+seed 123 outside its band: Megaloceros regrouped 0.23 times an animal-day
+seed 123 outside its band: Fox moved 0.2 tiles an animal-day
 CohesionGateSeed17Tests.SixtyDays_PassesTheCohesionGate: Passed
-seed 17: 232 MB a day allocated
-seed 17 Wolf: 6.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.01/animal-day; moves 10.23/animal-day; busiest water tile 90.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [5]
-seed 17 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 3.79/animal-day; busiest water tile 37.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 17 CaveBear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 6.04/animal-day; busiest water tile 36.7 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 17 SaberTooth: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 3.96/animal-day; busiest water tile 46.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 17 Hyena: 8.2 living on average; alone 22.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 3.02/animal-day; moves 69.42/animal-day; busiest water tile 25.4 %; hunger and thirst deaths 2 (0.24 a head); herds at the end [2 1 1 1 1]
-seed 17 Caribou: 20.1 living on average; alone 0.9 %; biggest herd 43 % (day 3, 1 tiles, water True; over 60 % at 0.0 % of looks); regroups 0.27/animal-day; moves 0.51/animal-day; busiest water tile 25.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6 3 3 2]
-seed 17 Megaloceros: 7.5 living on average; alone 2.4 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.08/animal-day; moves 2.56/animal-day; busiest water tile 35.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2 2]
-seed 17 Bison: 28.9 living on average; alone 0.1 %; biggest herd 38 % (day 31, 3 tiles, water True; over 60 % at 0.0 % of looks); regroups 2.00/animal-day; moves 6.70/animal-day; busiest water tile 18.7 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [9 4 3 3 3 2]
-seed 17 Fox: 4.5 living on average; alone 36.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.12/animal-day; moves 0.33/animal-day; busiest water tile 41.2 %; hunger and thirst deaths 2 (0.44 a head); herds at the end [1 1 1]
-seed 17 Raven: 11.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.19/animal-day; moves 1.43/animal-day; busiest water tile 54.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 3]
-seed 17 Wolf pack of 6 on day 3: 5 living on day 60, still a pack
-seed 17 Hyena pack of 6 on day 3: 4 living on day 60, still a pack
-seed 17 Hyena pack of 4 on day 3: 2 living on day 60, still a pack
-seed 17 Wolf: 1.0 kills a week; longest without prey in reach while hungry 4.6 days
+seed 17: 227 MB a day allocated
+seed 17 Wolf: 4.3 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.09/animal-day; moves 20.35/animal-day; busiest water tile 85.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3]
+seed 17 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 3.84/animal-day; busiest water tile 41.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 17 CaveBear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 6.94/animal-day; busiest water tile 35.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 17 SaberTooth: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.58/animal-day; busiest water tile 41.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 17 Hyena: 7.6 living on average; alone 30.6 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 3.77/animal-day; moves 89.08/animal-day; busiest water tile 22.9 %; hunger and thirst deaths 10 (1.31 a head); herds at the end [1]
+seed 17 Caribou: 23.0 living on average; alone 0.0 %; biggest herd 43 % (day 3, 1 tiles, water True; over 60 % at 0.0 % of looks); regroups 0.15/animal-day; moves 0.57/animal-day; busiest water tile 27.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [5 5 5 5 3]
+seed 17 Megaloceros: 7.9 living on average; alone 2.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.01/animal-day; moves 1.80/animal-day; busiest water tile 25.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 2 2 2]
+seed 17 Bison: 29.0 living on average; alone 0.1 %; biggest herd 57 % (day 27, 5 tiles, water True; over 60 % at 0.0 % of looks); regroups 3.50/animal-day; moves 6.32/animal-day; busiest water tile 19.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [9 8 3 3 3]
+seed 17 Fox: 4.5 living on average; alone 35.7 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.12/animal-day; moves 0.31/animal-day; busiest water tile 41.3 %; hunger and thirst deaths 2 (0.44 a head); herds at the end [1 1 1]
+seed 17 Raven: 11.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.06/animal-day; moves 0.34/animal-day; busiest water tile 51.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [4 4 3]
+seed 17 Wolf pack of 6 on day 3: 0 living on day 60, killed off
+seed 17 Hyena pack of 6 on day 3: 0 living on day 60, killed off
+seed 17 Hyena pack of 4 on day 3: 0 living on day 60, killed off
+seed 17 Wolf: 0.7 kills a week; longest without prey in reach while hungry 4.1 days
 seed 17 Wolf: packs 1 at first, 1-1 over the run; rival packs within a tile at 0.00 % of looks
-seed 17 Hyena: 0.9 kills a week; longest without prey in reach while hungry 38.4 days
-seed 17 Hyena: packs 2 at first, 2-2 over the run; rival packs within a tile at 0.94 % of looks
-seed 17 outside its band: Wolf 90.8 % on its busiest water tile
-seed 17 outside its band: Hyena moved 69.4 tiles an animal-day
-seed 17 outside its band: Caribou regrouped 0.27 times an animal-day
-seed 17 outside its band: Megaloceros regrouped 0.08 times an animal-day
+seed 17 Hyena: 0.1 kills a week; longest without prey in reach while hungry 44.0 days
+seed 17 Hyena: packs 2 at first, 0-2 over the run; rival packs within a tile at 0.67 % of looks
+seed 17 outside its band: Wolf 85.9 % on its busiest water tile
+seed 17 outside its band: Hyena lost 10 to hunger and thirst, 7.6 living on average
+seed 17 outside its band: Hyena moved 89.1 tiles an animal-day
+seed 17 outside its band: Caribou regrouped 0.15 times an animal-day
+seed 17 outside its band: Megaloceros regrouped 0.01 times an animal-day
 seed 17 outside its band: Fox moved 0.3 tiles an animal-day
-seed 17 outside its band: Raven 54.4 % on its busiest water tile
-seed 17 outside its band: Hyena went 38.4 days hungry with no prey in reach
+seed 17 outside its band: Raven 51.4 % on its busiest water tile
+seed 17 outside its band: Raven moved 0.3 tiles an animal-day
+seed 17 outside its band: Hyena made 0.1 kills a week
+seed 17 outside its band: Hyena went 44.0 days hungry with no prey in reach
 CohesionGateSeed23Tests.SixtyDays_PassesTheCohesionGate: Passed
-seed 23: 251 MB a day allocated
-seed 23 Wolf: 4.9 living on average; alone 16.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.59/animal-day; moves 38.81/animal-day; busiest water tile 45.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2]
-seed 23 Bear: 4.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 4.94/animal-day; busiest water tile 22.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1]
-seed 23 CaveBear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 7.45/animal-day; busiest water tile 34.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 23 SaberTooth: 1.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 2.67/animal-day; busiest water tile 27.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1]
-seed 23 Hyena: 5.8 living on average; alone 33.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 2.29/animal-day; moves 80.91/animal-day; busiest water tile 32.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1 1 1]
-seed 23 Caribou: 14.7 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.69/animal-day; moves 2.15/animal-day; busiest water tile 39.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 4]
-seed 23 Megaloceros: 5.9 living on average; alone 8.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.51/animal-day; moves 3.48/animal-day; busiest water tile 53.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 3 2]
-seed 23 Bison: 31.3 living on average; alone 0.1 %; biggest herd 53 % (day 14, 4 tiles, water True; over 60 % at 0.0 % of looks); regroups 2.43/animal-day; moves 7.20/animal-day; busiest water tile 16.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6 6 5 5 4 2 2]
-seed 23 Fox: 4.0 living on average; alone 93.8 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.12/animal-day; moves 0.46/animal-day; busiest water tile 25.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 1 1]
-seed 23 Raven: 13.0 living on average; alone 0.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 1.46/animal-day; moves 10.05/animal-day; busiest water tile 47.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 5]
-seed 23 Wolf pack of 2 on day 3: 0 living on day 60, killed off
+seed 23: 224 MB a day allocated
+seed 23 Wolf: 4.6 living on average; alone 5.8 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.20/animal-day; moves 18.72/animal-day; busiest water tile 42.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 2]
+seed 23 Bear: 4.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.04/animal-day; busiest water tile 23.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1]
+seed 23 CaveBear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 4.69/animal-day; busiest water tile 42.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 23 SaberTooth: 1.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 2.35/animal-day; busiest water tile 35.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1]
+seed 23 Hyena: 4.0 living on average; alone 8.6 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.48/animal-day; moves 47.77/animal-day; busiest water tile 66.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 1]
+seed 23 Caribou: 9.0 living on average; alone 1.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.33/animal-day; moves 1.17/animal-day; busiest water tile 57.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3]
+seed 23 Megaloceros: 5.3 living on average; alone 9.3 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.51/animal-day; moves 3.73/animal-day; busiest water tile 52.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 1]
+seed 23 Bison: 29.0 living on average; alone 0.1 %; biggest herd 39 % (day 38, 3 tiles, water False; over 60 % at 0.0 % of looks); regroups 1.76/animal-day; moves 5.02/animal-day; busiest water tile 19.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 4 3 3 3 2 2 2 1]
+seed 23 Fox: 4.0 living on average; alone 96.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.10/animal-day; moves 0.53/animal-day; busiest water tile 25.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1]
+seed 23 Raven: 13.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.26/animal-day; moves 6.29/animal-day; busiest water tile 41.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6 4 3]
+seed 23 Wolf pack of 2 on day 3: 2 living on day 60, still a pack
 seed 23 Wolf pack of 6 on day 3: 2 living on day 60, still a pack
 seed 23 Hyena pack of 4 on day 3: 4 living on day 60, still a pack
-seed 23 Wolf: 0.7 kills a week; longest without prey in reach while hungry 8.6 days
-seed 23 Wolf: packs 2 at first, 1-2 over the run; rival packs within a tile at 0.00 % of looks
-seed 23 Hyena: 0.7 kills a week; longest without prey in reach while hungry 7.4 days
-seed 23 Hyena: packs 1 at first, 1-2 over the run; rival packs within a tile at 0.00 % of looks
-seed 23 outside its band: Hyena moved 80.9 tiles an animal-day
-seed 23 outside its band: Megaloceros 53.2 % on its busiest water tile
-seed 23 outside its band: Fox moved 0.5 tiles an animal-day
+seed 23 Wolf: 2.8 kills a week; longest without prey in reach while hungry 13.4 days
+seed 23 Wolf: packs 2 at first, 2-2 over the run; rival packs within a tile at 0.00 % of looks
+seed 23 Hyena: 0.9 kills a week; longest without prey in reach while hungry 7.1 days
+seed 23 Hyena: packs 1 at first, 1-1 over the run; rival packs within a tile at 0.00 % of looks
+seed 23 outside its band: Hyena 66.8 % on its busiest water tile
+seed 23 outside its band: Hyena moved 47.8 tiles an animal-day
+seed 23 outside its band: Caribou 57.5 % on its busiest water tile
+seed 23 outside its band: Caribou regrouped 0.33 times an animal-day
+seed 23 outside its band: Megaloceros 52.5 % on its busiest water tile
 CohesionGateSeed42Tests.SixtyDays_PassesTheCohesionGate: Passed
-seed 42: 391 MB a day allocated
-seed 42 Wolf: 8.0 living on average; alone 1.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.50/animal-day; moves 17.48/animal-day; busiest water tile 76.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2 2 1]
-seed 42 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 3.80/animal-day; busiest water tile 43.7 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 42 CaveBear: 6.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 6.26/animal-day; busiest water tile 13.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1 1 1]
-seed 42 SaberTooth: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.39/animal-day; busiest water tile 42.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
-seed 42 Hyena: 5.0 living on average; alone 6.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 7.06/animal-day; moves 47.64/animal-day; busiest water tile 40.3 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 2]
-seed 42 Caribou: 18.3 living on average; alone 0.3 %; biggest herd 82 % (day 24, 5 tiles, water True; over 60 % at 35.2 % of looks); regroups 1.15/animal-day; moves 2.11/animal-day; busiest water tile 43.9 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [7]
-seed 42 Megaloceros: 16.6 living on average; alone 0.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.25/animal-day; moves 3.61/animal-day; busiest water tile 18.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 3 3 2 2 2]
-seed 42 Bison: 47.0 living on average; alone 0.1 %; biggest herd 47 % (day 15, 4 tiles, water True; over 60 % at 0.0 % of looks); regroups 4.79/animal-day; moves 10.77/animal-day; busiest water tile 12.4 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [8 6 6 4 4 4 3 3 3 2 2 2]
-seed 42 Fox: 4.0 living on average; alone 93.7 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.08/animal-day; moves 0.52/animal-day; busiest water tile 27.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1]
-seed 42 Raven: 17.2 living on average; alone 0.1 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 1.82/animal-day; moves 11.23/animal-day; busiest water tile 27.7 %; hunger and thirst deaths 1 (0.06 a head); herds at the end [6 6 5]
-seed 42 Wolf pack of 8 on day 3: 8 living on day 60, still a pack
+seed 42: 410 MB a day allocated
+seed 42 Wolf: 7.0 living on average; alone 0.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.23/animal-day; moves 7.04/animal-day; busiest water tile 84.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6]
+seed 42 Bear: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 4.06/animal-day; busiest water tile 43.6 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 42 CaveBear: 6.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 6.53/animal-day; busiest water tile 13.8 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1 1 1 1 1]
+seed 42 SaberTooth: 2.0 living on average; alone 100.0 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.00/animal-day; moves 5.53/animal-day; busiest water tile 41.2 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
+seed 42 Hyena: 5.0 living on average; alone 15.8 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 2.88/animal-day; moves 59.03/animal-day; busiest water tile 38.7 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 1 1]
+seed 42 Caribou: 23.0 living on average; alone 0.0 %; biggest herd 72 % (day 10, 4 tiles, water True; over 60 % at 17.2 % of looks); regroups 1.12/animal-day; moves 1.41/animal-day; busiest water tile 36.5 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6 3]
+seed 42 Megaloceros: 16.6 living on average; alone 0.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.17/animal-day; moves 2.63/animal-day; busiest water tile 18.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [3 3 3 3 2 2]
+seed 42 Bison: 42.4 living on average; alone 0.1 %; biggest herd 33 % (day 40, 3 tiles, water True; over 60 % at 0.0 % of looks); regroups 2.86/animal-day; moves 7.29/animal-day; busiest water tile 13.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [6 6 5 4 4 3 3 2 2 2 2]
+seed 42 Fox: 4.0 living on average; alone 68.5 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.21/animal-day; moves 1.41/animal-day; busiest water tile 38.0 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [2 1 1]
+seed 42 Raven: 17.2 living on average; alone 0.2 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 2.61/animal-day; moves 11.66/animal-day; busiest water tile 29.0 %; hunger and thirst deaths 1 (0.06 a head); herds at the end [6 6 5]
+seed 42 Wolf pack of 8 on day 3: 6 living on day 60, still a pack
 seed 42 Hyena pack of 3 on day 3: 3 living on day 60, still a pack
 seed 42 Hyena pack of 2 on day 3: 2 living on day 60, still a pack
-seed 42 Wolf: 1.0 kills a week; longest without prey in reach while hungry 5.5 days
+seed 42 Wolf: 2.1 kills a week; longest without prey in reach while hungry 1.9 days
 seed 42 Wolf: packs 1 at first, 1-1 over the run; rival packs within a tile at 0.00 % of looks
-seed 42 Hyena: 3.7 kills a week; longest without prey in reach while hungry 9.5 days
-seed 42 Hyena: packs 2 at first, 2-2 over the run; rival packs within a tile at 4.58 % of looks
-seed 42 outside its band: Wolf 76.5 % on its busiest water tile
-seed 42 outside its band: Hyena moved 47.6 tiles an animal-day
-seed 42 outside its band: Megaloceros regrouped 0.25 times an animal-day
+seed 42 Hyena: 2.0 kills a week; longest without prey in reach while hungry 14.9 days
+seed 42 Hyena: packs 2 at first, 2-2 over the run; rival packs within a tile at 3.38 % of looks
+seed 42 outside its band: 410 MB a day allocated, over 406
+seed 42 outside its band: Wolf 84.0 % on its busiest water tile
+seed 42 outside its band: Hyena moved 59.0 tiles an animal-day
+seed 42 outside its band: Megaloceros regrouped 0.17 times an animal-day
