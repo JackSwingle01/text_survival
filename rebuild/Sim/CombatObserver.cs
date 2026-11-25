@@ -54,7 +54,7 @@ public static partial class Combat
             return new FighterView(i, u.Agent, u.Member, u.Team, agent?.Species ?? enc.ObservedSpecies![u.Agent], u.Position,
                 body == null ? FighterState.Down : StateOf(world, u), u.RoundAction, u.RoundTarget,
                 targetReads ? Resolve(world, enc, u, target!) : null, reads ? UnitBoldness(world, enc, u) : null,
-                body == null ? null : Body.Vitality(body), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
+                body == null ? null : Body.Vitality(body, agent!.Species), body?.BloodPct, body == null ? null : Body.SprintReservePct(body),
                 body == null ? null : WoundLevel(body));
         }).ToList();
         foreach (var u in enc.Units) (u.RoundAction, u.RoundTarget) = (null, null);

@@ -37,8 +37,8 @@ weather type, animal, recipe, effect, condition, item, verb, terrain, discovery 
   `Vitality`, with `Alive` read beside the faculties. `Body`'s faculties, vitality and life are the
   interface over them; no tier reads `Body`. The screen's health panel reads a body's capacities,
   blood and breath through `BodyReadOut`, and nothing else calls it. Held by
-  `Architecture/BodyTierTests.cs`, which lists the breaches that exist today (the faculties still
-  read vitality).
+  `Architecture/BodyTierTests.cs`, whose list of breaches is empty and stays so. Vitality takes the
+  body's species, since a fresh body of it is what each faculty is a share of.
 - **An activity is declared once,** by its owning system, with every facet together: offer and
   refusal, minute, end, body profile and UI kind. `Sim.Step`, `Verbs`, the UI and the test
   generator read that one declaration, and a test enforces completeness. *Target state, not built.*

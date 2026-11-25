@@ -347,17 +347,16 @@ public static class Making
     {
         var context = Fire.AbilityContextFor(world, agent);
         return Odds(r, Skills.Level(agent, Skill.Crafting), Body.Dexterity(agent.Body, context),
-            dazed: Body.GetCapacities(agent.Body).Consciousness < 0.5, handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
+            handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
     }
 
     /// Clumsy hands make failure-like outcomes up to twice as likely at no dexterity, and success
     /// bonuses rarer in proportion. Outcomes summing past certainty are scaled back to share it.
-    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, bool dazed = false, string handsWhy = "")
+    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, string handsWhy = "")
     {
         string hands = handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands";
         List<OddsTerm> Terms(Outcome o) => o.FailureLike
-            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)),
-                OddsTerm.Scale("Dazed", dazed ? 1.2 : 1))
+            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)))
             : Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 + SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, dexterityPct));
         var table = r.Outcomes.Select(o => new OutcomeOdds(o, new Survival.Odds("Base odds", o.BasePct, Terms(o)))).ToList();
         double sum = table.Sum(t => t.Odds.TotalPct);
@@ -506,7 +505,7 @@ public static class Making
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
         var c = Body.GetCapacities(agent.Body);
         if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
-        double slow = (c.Manipulation < 0.5 ? 1.25 : 1.0) * (c.Consciousness < 0.5 ? 1.25 : 1.0);
+        double slow = c.Manipulation < 0.5 ? 1.25 : 1.0;
         double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
         if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;
         return work / slow;

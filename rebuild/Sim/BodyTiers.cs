@@ -59,15 +59,15 @@ internal static class TissueReads
         }
         c[moving] = legs == 0 ? allSum / regions.Count : legSum + otherSum;
 
-        // Manipulation: 90% arms, 2% each from the other human regions.
+        // Manipulation: 90% arms, 2% each from the other regions; a body without hands has none.
         double manip = 0;
         for (int r = 0; r < regions.Count; r++)
-            manip += caps[r * CapacityCount + manipulation] * regions[r].Name switch
+            manip += caps[r * CapacityCount + manipulation] * (body.Kind != BodyKind.Human ? 0 : regions[r].Name switch
             {
                 "Left Arm" or "Right Arm" => 0.45,
                 "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
                 _ => 0,
-            };
+            });
         c[manipulation] = manip;
 
         for (int cap = 0; cap < CapacityCount; cap++)
@@ -201,13 +201,14 @@ public readonly record struct Capacities(
     }
 }
 
-/// Each still scales by vitality, a tier above: BodyTierTests lists those reads.
+/// Each reads the capacities and the body's build: none reads vitality, the tier above.
 internal static class Faculties
 {
-    /// Power output from composition, scaled by vitality: dying is weak, whatever the muscles.
-    internal static double Strength(BodyState body)
+    internal static double Strength(BodyState body) => Strength(body, Capacities.Of(body));
+
+    /// Power output from composition, through working legs and hands.
+    internal static double Strength(BodyState body, in Capacities c)
     {
-        var c = Capacities.Of(body);
         double musclePct = body.MusclePct, fatPct = body.FatPct;
 
         double muscle = musclePct < 0.2 ? musclePct * 2.5
@@ -217,16 +218,17 @@ internal static class Faculties
 
         double fat = body.FatKg / 50 / 100 - (fatPct < 0.05 ? (0.05 - fatPct) * 3.0 : 0);
 
-        return (0.30 + muscle + fat) * (0.50 + 0.50 * c.Moving) * (0.80 + 0.20 * c.Manipulation) * Vitality.Of(c);
+        return (0.30 + muscle + fat) * (0.50 + 0.50 * c.Moving) * (0.80 + 0.20 * c.Manipulation);
     }
 
     /// The build Speed's numbers were tuned around; not the baseline man, so moving that does not re-tune it.
     const double SpeedReferenceWeightKg = 75, SpeedReferenceFatPct = 0.15, SpeedReferenceMusclePct = 0.30;
 
+    internal static double Speed(BodyState body, AbilityContext context = default) => Speed(body, Capacities.Of(body), context);
+
     /// Movement rate. Strength modulates load: a strong person feels 30kg less than a weak one.
-    internal static double Speed(BodyState body, AbilityContext context = default)
+    internal static double Speed(BodyState body, in Capacities c, AbilityContext context)
     {
-        var c = Capacities.Of(body);
         double fatPct = body.FatPct;
 
         double muscleModifier = (body.MusclePct - SpeedReferenceMusclePct) / 1.5 + body.MuscleKg / 20 / 100;
@@ -242,29 +244,31 @@ internal static class Faculties
 
         double baseSpeed = c.Moving * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
 
-        double vitalityFactor = 0.5 + Vitality.Of(c) * 0.5;
-        double effectiveLoad = context.EncumbrancePct / (0.5 + Strength(body) * 0.5);
+        double effectiveLoad = context.EncumbrancePct / (0.5 + Strength(body, c) * 0.5);
         double loadPenalty = Math.Max(0, (effectiveLoad - 0.5) * 0.8);
-        return baseSpeed * vitalityFactor * (1 - loadPenalty);
+        return baseSpeed * (1 - loadPenalty);
     }
 
-    /// Consciousness counts twice, once through vitality: being dazed tanks it. Sight and hearing are
-    /// half each, so the healthy perceive half as much in pitch dark as at noon.
-    internal static double Perception(BodyState body, AbilityContext context = default)
+    internal static double Perception(BodyState body, AbilityContext context = default) => Perception(Capacities.Of(body), context);
+
+    /// Sight and hearing are half each, so the healthy perceive half as much in pitch dark as at noon; a
+    /// foggy head takes from both.
+    internal static double Perception(in Capacities c, AbilityContext context)
     {
-        var c = Capacities.Of(body);
         double darkness = context.HasLightSource ? 0 : context.DarknessLevel;
         double perceived = c.Sight * 0.5 * (1 - darkness) + c.Hearing * 0.5;
-        return perceived * c.Consciousness * (0.7 + Vitality.Of(c) * 0.3);
+        return perceived * c.Consciousness;
     }
 
-    /// Fine motor control: can't see your hands in the dark, wet hands slip, the dying shake.
-    internal static double Dexterity(BodyState body, AbilityContext context = default)
+    internal static double Dexterity(BodyState body, AbilityContext context = default) =>
+        Dexterity(Capacities.Of(body), context, Effects.Severity(body, EffectKind.Wet));
+
+    /// Fine motor control: a foggy head fumbles, you can't see your hands in the dark, wet hands slip.
+    internal static double Dexterity(in Capacities c, AbilityContext context, double wetSeverity)
     {
-        var c = Capacities.Of(body);
         double darknessPenalty = context.HasLightSource ? 0 : context.DarknessLevel * 0.5;
-        double wetnessPenalty = Math.Max(0, (Effects.Severity(body, EffectKind.Wet) - 0.3) * 0.3);
-        return c.Manipulation * (1 - darknessPenalty) * (1 - wetnessPenalty) * (0.7 + Vitality.Of(c) * 0.3);
+        double wetnessPenalty = Math.Max(0, (wetSeverity - 0.3) * 0.3);
+        return c.Manipulation * (0.5 + 0.5 * c.Consciousness) * (1 - darknessPenalty) * (1 - wetnessPenalty);
     }
 
     internal static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default)
@@ -272,18 +276,52 @@ internal static class Faculties
         var c = Capacities.Of(body);
         var costs = new List<string>();
         if (c.Manipulation < 1) costs.Add("hurt or cold hands");
+        if (c.Consciousness < 1) costs.Add("foggy head");
         if (!context.HasLightSource && context.DarknessLevel > 0) costs.Add("dark");
         if (Effects.Severity(body, EffectKind.Wet) > 0.3) costs.Add("wet");
-        if (Vitality.Of(c) < 1) costs.Add("weak");
         return costs;
     }
 }
 
-/// The least of breathing, blood pumping and consciousness.
+/// The mean of the faculties, each as its share of a fresh body of the species and sex, read with no
+/// surroundings (no dark, wet or load). One a fresh body lacks (a wolf's dexterity) is left out.
 internal static class Vitality
 {
-    internal static double Of(BodyState body) => Of(Capacities.Of(body));
-    internal static double Of(Capacities c) => c.WeakestVital;
+    readonly record struct Four(double Strength, double Speed, double Dexterity, double Perception);
+
+    static Four Read(BodyState body, in Capacities c) =>
+        new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, 0), Faculties.Perception(c, default));
+
+    static readonly int SexCount = Enum.GetValues<Sex>().Length;
+
+    /// Built once on first use, by the type initializer: thread-safe.
+    static readonly Four[] Fresh = [.. Enum.GetValues<Species>().SelectMany(s => Enum.GetValues<Sex>().Select(sex =>
+    {
+        var body = SpeciesTable.Average(s, sex);
+        return Read(body, Capacities.Of(body));
+    }))];
+
+    static Four FreshOf(Species species, Sex sex) =>
+        Fresh[(int)species * SexCount + (int)(species == Species.Human ? sex : Sex.Male)];
+
+    internal static double Of(BodyState body, Species species)
+    {
+        var now = Read(body, Capacities.Of(body));
+        var fresh = FreshOf(species, body.Sex);
+        double sum = 0;
+        int counted = 0;
+        void Add(double faculty, double whole)
+        {
+            if (whole <= 0) return;
+            sum += TissueReads.Clamp01(faculty / whole);
+            counted++;
+        }
+        Add(now.Strength, fresh.Strength);
+        Add(now.Speed, fresh.Speed);
+        Add(now.Dexterity, fresh.Dexterity);
+        Add(now.Perception, fresh.Perception);
+        return sum / counted;
+    }
 }
 
 /// Effects disable (consciousness can fall to nothing) but never kill: life is tissue and blood alone.
