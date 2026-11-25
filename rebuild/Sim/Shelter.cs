@@ -169,13 +169,13 @@ public static class Shelters
         return s;
     }
 
-    public static bool Replaces(ShelterState standing, ShelterKind? replaces) =>
+    public static bool ReplacedBy(ShelterState standing, ShelterKind? replaces) =>
         standing.Kind == replaces && standing.FromFind == null && standing.Materials != null;
 
     internal static void TakeDown(World world, Agent by, TileId tile, List<WorldEvent> events)
     {
         world.Shelters.Remove(tile, out var s);
-        var back = s!.Materials!;
+        var back = s?.Materials ?? throw new InvalidOperationException($"{tile}: no built shelter to take down");
         var returned = Items.KgByResource(back);
         Items.Receive(world, by, back, events);
         events.Add(new ShelterTakenDown(world.Minute, by.Id, tile, s.Name, returned));

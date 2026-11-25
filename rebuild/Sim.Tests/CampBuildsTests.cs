@@ -153,6 +153,19 @@ public class CampBuildsTests
         Assert.Single(w.Fires);
     }
 
+    /// A fire lit in the pit while it is being dug stops the digging: the pit's type never changes under flames.
+    [Fact]
+    public void MoundPit_StopsWhenAFireIsLitInItMidWork()
+    {
+        var w = Builder(out var tile, out var pack);
+        pack.Gear.Add(Items.Make("bone_shovel"));
+        Assert.Null(Sim.Step(w, new Make(P, "mound_fire_pit"), 30).InterruptedReason);
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute, Pit = PitType.Open, BurningKg = { [Resource.BirchFirewood] = 3 } };
+        var r = Sim.Step(w, new Make(P, "mound_fire_pit"), 240);
+        Assert.Equal((0, "put the fire out first"), (r.MinutesElapsed, r.InterruptedReason));
+        Assert.Equal(PitType.Open, PitHere(w, tile)!.Pit);
+    }
+
     [Fact]
     public void StoneRing_TakesTenStones_OnAMoundPit_FasterWithDigging()
     {
@@ -170,6 +183,7 @@ public class CampBuildsTests
         Assert.Equal(("built", 100), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal((PitType.Stone, 0), (PitHere(w, tile)!.Pit, Items.Count(pack, Resource.Stone)));
         Assert.Contains("already as good", Sim.Step(w, new Make(P, "stone_ring"), 10).InterruptedReason);
+        pack.Gear.Add(Items.Make("bone_shovel"));
         Assert.Contains("already as good", Sim.Step(w, new Make(P, "mound_fire_pit"), 10).InterruptedReason);
 
         // With a shovel the ring goes faster.

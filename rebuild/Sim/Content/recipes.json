@@ -20,7 +20,7 @@
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one), with "replaces": a ShelterKind
 //     whose built shelter it takes down when it goes up, its pieces given back whole, or
 //     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile) or { "pit": PitType } (the fire
-//     pit here raised to Mound or Stone, or dug cold; refused where one is as good or burns). A placed result's project stays on the tile for anyone there to
+//     pit here raised to Mound or Stone, or dug cold; refused where one is as good, burns, or is someone else's). A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
 //     { "repairs": [gear kinds], "restoresPct": s }: worked on one held piece of those kinds (taken off, if worn, and
 //     put back on), restoring s of its missing condition, the materials joining its parts record; its name is the
