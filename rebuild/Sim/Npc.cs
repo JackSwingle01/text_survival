@@ -238,12 +238,10 @@ public static class Npc
         }
 
         FireForecast? fireHere;
-        /// The fire to be had here from the pack and the pile here.
         FireForecast FireHere() => fireHere ??= Fire.Forecast(new FireAsk(PitHere, PitType.Open, WithPile(PileHere), Starter, 0));
 
         ToolType? Starter => Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
 
-        /// The pack with the pile here.
         Inventory WithPile(Inventory? pile)
         {
             var all = Items.CopyResources(pack);
@@ -332,8 +330,7 @@ public static class Npc
             return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
         }
 
-        /// A strike it can make whose fire, by the fire forecast, burns longer on what it carries and left on the pile
-        /// here than the strike's own flame.
+        /// A strike it can make whose fire, by the fire forecast, outlasts the strike's own flame.
         bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && FireHere().Hours > Fire.ForecastLight(world, s).FlameHours;
 
         /// The fire's site is a one of: the camp, here, or one of the nearest places it remembers trees, by the walk

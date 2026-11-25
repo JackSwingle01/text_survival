@@ -292,7 +292,9 @@ _Avoid_: hint, tip
 
 **Forecast**:
 A system's rough, probabilistic expectation of how its own part of the world goes on, assuming
-everything else stays as it is now; the same for the player and every other person.
+everything else stays as it is now; the same for the player and every other person. A forecast
+may assume its own agent goes on tending what it started (a fire fed in the order it catches),
+and still assumes everything else stays as it is.
 _Avoid_: prediction, simulation, estimate
 
 **Agent**:

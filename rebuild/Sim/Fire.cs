@@ -13,8 +13,7 @@ public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, doubl
 /// have, the fuel on offer (pieces included), the starter a strike would use (null: none), and the hours wanted.
 public sealed record FireAsk(FireState? Pit, PitType NewPit, Inventory Fuel, ToolType? Starter, double HoursWanted, int FirecraftLevel = 0, double DexterityPct = 1.0);
 
-/// Starter: no fire starter, so no fuel is named. Tinder: a strike is needed and none is on offer. Bridge: fuel on offer
-/// never gets hot enough to catch. Hours: everything catches, and it is not enough.
+/// Bridge: fuel on offer never gets hot enough to catch. Hours: everything catches, and it is not enough.
 public enum FireNeedKind { Starter, Tinder, Bridge, Hours }
 
 /// What a fire forecast says must be added: any one of AnyOf, Kg of the first (as Items.AddKg puts it in pieces).
@@ -25,9 +24,8 @@ public readonly record struct FuelToAdd(Resource Fuel, double Kg);
 /// The strike a fire forecast assumes for a cold pit: TinderKg of Tinder and up to KindlingKg of sticks.
 public sealed record FireStrike(Resource Tinder, double TinderKg, double KindlingKg);
 
-/// StrikePct: 0 when no strike can be made, 1 when the pit already burns or glows. Hours: how long the fire burns, tended
-/// with the fuel on offer. LeastHeatF: the least Fire.HeatOutputF over them, against 0 °F air. Missing: empty when the
-/// hours reach those wanted. Next: what to put on now, null for a cold pit. Strike: the strike assumed, for a cold pit.
+/// StrikePct is 1 when the pit burns or glows. LeastHeatF: the least Fire.HeatOutputF over the hours, against 0 °F air.
+/// Missing is empty when the hours reach those wanted. Next is null for a cold pit, which has the Strike assumed.
 public sealed record FireForecast(double StrikePct, double Hours, double LeastHeatF, IReadOnlyList<FireNeed> Missing, FuelToAdd? Next, FireStrike? Strike);
 
 public sealed record PitProps(int Room, double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
@@ -776,9 +774,8 @@ public static class Fire
     /// The surest catch the pack holds enough of; plain tinder, the one a person plans to find, if none.
     public static Resource TinderToStrike(Inventory pack, double kg) => Tinders.FirstOrDefault(r => Items.Have(pack, r) >= kg, Resource.Tinder);
 
-    /// The one fire forecast (GLOSSARY: Forecast): what fire can be had from a pit and the fuel on offer. It assumes
-    /// whoever asks strikes when the pit is cold and then tends the fire, each minute putting on NextFuel, and that
-    /// nothing else changes. Needs no body and no mind: a strike's odds are read from the level and dexterity given.
+    /// The one fire forecast: what fire can be had, if whoever asks strikes a cold pit and then puts on NextFuel each
+    /// minute. Needs no body and no mind: a strike's odds are read from the level and dexterity given.
     public static FireForecast Forecast(FireAsk ask)
     {
         bool burns = ask.Pit is { } pit && (IsActive(pit) || pit.HasEmbers);
@@ -790,7 +787,6 @@ public static class Fire
         var missing = new List<FireNeed>();
         if (burned.Hours < ask.HoursWanted)
         {
-            // What is named is searched with everything named before it added.
             var offer = ask.Fuel;
             var toSearch = burned;
             if (!burns && strike == null)
@@ -806,17 +802,14 @@ public static class Fire
         return new FireForecast(strikePct, burned.Hours, burned.LeastHeatF, missing, burns ? burned.First : null, burns ? null : StrikeFrom(ask.Fuel));
     }
 
-    /// Tinder first, then the forecast must name a bridge or more hours; a weight is found by burning, never reckoned alone.
     const double MostFuelSearchedKg = 200;
 
-    /// The strike a forecast assumes: the surest tinder on offer, a strike's worth of it, and a strike's kindling of the
-    /// sticks (as Verbs offers it). Null without enough of any tinder.
+    /// The surest tinder on offer and a strike's kindling, as Verbs offers them. Null without a strike's worth of tinder.
     static FireStrike? StrikeFrom(Inventory fuel) =>
         Tinders.Where(r => Items.Have(fuel, r) >= Verbs.TinderKg - 1e-9).Cast<Resource?>().FirstOrDefault() is Resource tinder
             ? new FireStrike(tinder, Verbs.TinderKg, Items.WouldMoveKg(fuel, Resource.Stick, Verbs.KindlingKg))
             : null;
 
-    /// Hours wanted not reached: a bridge when fuel on offer never went on, else more of what catches at the heat reached.
     /// One entry at most, weighed so that adding it alone reaches the hours wanted.
     static FireNeed? FuelNeed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned)
     {
@@ -833,7 +826,6 @@ public static class Fire
     static List<Resource> ByHoursPerKg(Func<Resource, bool> which) =>
         [.. Props.Keys.Where(which).OrderBy(r => Props[r].BurnRateKgPerHour).ThenBy(r => r)];
 
-    /// The first of the candidates the burn proves will do, at the weight it needs, the rest named after it.
     static FireNeed? Weighed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned, List<Resource> candidates, Resource? mustTake)
     {
         foreach (var fuel in candidates)
@@ -852,9 +844,7 @@ public static class Fire
         return null;
     }
 
-    /// One burn of a copy: Hours are the minutes it burned, LeastHeatF the least HeatOutputF (0 °F air) over them,
-    /// HeatReachedF the hottest CatchTemperatureF, Stranded the fuels on offer or in the pit that never caught, First
-    /// what was put on before the first minute. stopAtHours ends it early once mustTake has gone on.
+    /// One burn of a copy. Stranded: fuel on offer or in the pit that never caught. First: put on before the first minute.
     sealed record Burned(double Hours, double LeastHeatF, double HeatReachedF, IReadOnlySet<Resource> Stranded, FuelToAdd? First)
     {
         public static readonly Burned None = new(0, 0, 0, new HashSet<Resource>(), null);
