@@ -114,11 +114,14 @@ public class MakeTests
     [InlineData("\"fail:break_tool:Cutting=.02\"", "\"fail:break_tool:Digging=.02\"", "stone_tipped_spear: Digging is not a tool it uses")]
     [InlineData("\"fail=.05\", \"fail:waste", "\"fail=.3\", \"fail:waste", "stone_tipped_spear: outcomes' odds add up to")]
     // Camp work placed on the tile.
-    [InlineData("\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 30", "\"requires\": [\"Light\"], \"minutes\": 30", "branch_frame: a shelter needs NoShelter")]
+    [InlineData("\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 30", "\"requires\": [\"Light\"], \"minutes\": 30", "lean_to: a shelter needs NoShelter")]
     [InlineData("\"result\": { \"shelter\": \"HideTent\" }", "\"result\": { \"shelter\": \"HideTent\", \"shelterName\": \"Tent\" }", "tent: a shelter is named, unless it is the tent carried")]
     [InlineData("\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": []", "\"result\": { \"bedding\": \"Makeshift\" }, \"outcomes\": [\"fail=.1\"]", "makeshift_bedding: a placed result has no outcomes")]
     [InlineData("\"fasterFactor\": 2, \"requires\": []", "\"fasterFactor\": 1, \"requires\": []", "makeshift_bedding: fasterFactor 1")]
-    [InlineData("\"requires\": [\"Light\"], \"minutes\": 40", "\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 40", "stone_tipped_spear: NoShelter and Tent are for a placed result")]
+    [InlineData("\"requires\": [\"Light\"], \"minutes\": 40", "\"requires\": [\"Light\", \"NoShelter\"], \"minutes\": 40", "stone_tipped_spear: NoShelter, Tent and MoundPit are for a placed result")]
+    [InlineData("\"replaces\": \"LeanTo\"", "\"replaces\": \"BranchHut\"", "branch_hut: only a built shelter replaces another kind")]
+    [InlineData("\"result\": { \"pit\": \"Mound\" }", "\"result\": { \"pit\": \"Open\" }", "mound_fire_pit: a pit result is Mound or Stone")]
+    [InlineData("\"requires\": [\"MoundPit\"]", "\"requires\": []", "stone_ring: a stone ring needs a mound pit")]
     public void ABrokenRecipe_DoesNotLoad(string from, string to, string why) =>
         Assert.Contains(why, Broken(from, to));
 
@@ -784,9 +787,10 @@ public class MakeTests
                 if (!MakeOne(r, 0)) continue;
                 made.Add(r.Id);
                 progress = true;
-                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile,
-                // and what the land gives goes back to it.
-                foreach (var g in pack.Gear.Where(g => !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
+                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile, but a bag stays on
+                // (the mammoth hide tent's hides and poles are more than the bare pack holds), and what the land gives goes back to it.
+                foreach (var g in pack.Gear.Where(g => Items.Def(g).CapacityBonusKg == 0
+                    && !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
                 {
                     pack.Gear.Remove(g);
                     Items.PileAt(w, camp).Gear.Add(g);

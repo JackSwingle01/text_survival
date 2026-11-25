@@ -137,8 +137,9 @@ public static class Outcomes
 public enum MakeCategory { FireStarting, CuttingTool, HuntingWeapon, Lighting, Processing, Clothing, Camp, Carrying }
 
 /// What the place must have for the work to start, and to go on: a closed list. Wet or cold hands
-/// and impairment never block; they slow the work and worsen the odds. Tent: one carried, to start.
-public enum Requirement { Light, Fire, Frost, Shelter, Dry, NoShelter, Tent }
+/// and impairment never block; they slow the work and worsen the odds. Tent: one carried, to start. MoundPit: a
+/// mound fire pit here, its fire out.
+public enum Requirement { Light, Fire, Frost, Shelter, Dry, NoShelter, Tent, MoundPit }
 
 /// Count pieces of the discrete alternatives (any piece of the kind will do), or Kg of the continuous ones, taken in
 /// the order listed: the first alternative's form is tried first.
@@ -149,11 +150,12 @@ public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int
 }
 
 /// A gear kind; Kg of a continuous resource, or SharePct of the inputs' actual weight; Count pieces of a discrete one,
-/// together SharePct of that weight; placed on the tile: a shelter (ShelterName, or the tent), a bedding or a rack; or a repair of one held piece.
+/// together SharePct of that weight; placed on the tile: a shelter (ShelterName, or the tent; Replaces, a built one of that
+/// kind it takes down), a bedding, a rack or the fire pit's type; or a repair of one held piece.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
-    int Count = 0, double SharePct = 0, double CapKg = 0, RepairResult? Repair = null, StationKind? Station = null)
+    int Count = 0, double SharePct = 0, double CapKg = 0, RepairResult? Repair = null, StationKind? Station = null, ShelterKind? Replaces = null, PitType? Pit = null)
 {
-    public bool Placed => Shelter != null || Bedding != null || Station != null;
+    public bool Placed => Shelter != null || Bedding != null || Station != null || Pit != null;
 }
 
 /// Works on one held piece of any of Kinds, restoring RestoresPct of its missing condition.
@@ -299,7 +301,8 @@ public static class Making
         var tile = agent.Tile;
         if (r.Requires.Contains(Requirement.Light) && Work.TooDarkToWork(world, agent)) return Work.Dark;
         if (world.Projects.TryGetValue(tile, out var other) && other.Recipe != r.Id) return new($"a {Names.Lower(Recipes.Get(other.Recipe).Name)} is half-built here");
-        if (r.Requires.Contains(Requirement.NoShelter) && Shelters.Peek(world, tile) is { } s) return new($"there is already a shelter here ({s.Name})");
+        if (r.Requires.Contains(Requirement.NoShelter) && Standing(world, tile, r) is { } s) return new($"there is already a shelter here ({s.Name})");
+        if (r.Result.Pit is PitType dug && Fire.PitRefusal(world, agent, dug) is { } pitRefused) return pitRefused;
         if (r.Result.Bedding is BeddingKind bed && Shelters.BeddingAt(world, tile) is { } there
             && there.QualityPct >= Shelters.Beddings[bed].QualityPct && there.WarmthBonusF >= Shelters.Beddings[bed].WarmthBonusF)
             return new($"the {there.Name.ToLowerInvariant()} here is as good as a {Shelters.Beddings[bed].Name.ToLowerInvariant()}");
@@ -357,7 +360,9 @@ public static class Making
                 case Requirement.Shelter when Shelters.Peek(world, tile) == null: return new("you need shelter here", new MissingState(Lack.Shelter));
                 case Requirement.Dry when Falling(world, tile) && !(Shelters.Peek(world, tile)?.OverheadLevel >= DryRoofLevel):
                     return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
-                case Requirement.NoShelter when Shelters.Peek(world, tile) is { } s: return new($"there is already a shelter here ({s.Name})");
+                case Requirement.NoShelter when Standing(world, tile, r) is { } s: return new($"there is already a shelter here ({s.Name})");
+                case Requirement.MoundPit when !(Fire.PitAt(world, tile) is FireId pit && world.Fires[pit].Pit == PitType.Mound):
+                    return new("you need a mound fire pit here", new MissingState(Lack.MoundPit));
                 case Requirement.Tent when TileProjectFor(world, agent, r) == null && !(Items.PackOf(agent) is { } pack && Shelters.CarriedTent(pack) != null):
                     return new("you have no tent", new MissingGear([.. Shelters.Tents.Keys]));
             }
@@ -365,6 +370,9 @@ public static class Making
     }
 
     const double DryRoofLevel = 0.5;
+
+    static ShelterState? Standing(World world, TileId tile, Recipe r) =>
+        Shelters.Peek(world, tile) is { } s && !Shelters.Replaces(s, r.Result.Replaces) ? s : null;
 
     static bool Falling(World world, TileId tile)
     {
@@ -544,9 +552,15 @@ public static class Making
             Stations.Build(world, tile);
         }
         else if (r.Result.Bedding is BeddingKind bed) Shelters.PlaceBedding(world, tile, bed);
+        else if (r.Result.Pit is PitType pit) Fire.Dig(world, agent, pit);
         else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
             Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
-        else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));
+        else
+        {
+            if (Shelters.At(world, tile, events) is { } standing && Shelters.Replaces(standing, r.Result.Replaces)) Shelters.TakeDown(world, agent, tile, events);
+            var kept = Items.HasResources(p.Materials) ? Items.CopyResources(p.Materials) : null;
+            Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"), materials: kept);
+        }
         events.Add(new Built(world.Minute, agent.Id, tile, r.Id, Items.KgByResource(p.Materials)));
         return Shelters.BuiltReason;
     }

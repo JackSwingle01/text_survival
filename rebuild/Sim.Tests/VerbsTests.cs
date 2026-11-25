@@ -328,7 +328,7 @@ public class VerbsTests
         Sim.Step(w, new Wait(P), 1);
         var builds = Verbs.At(w, P).Make.Where(v => v.Activity is Make m && Recipes.Get(m.Recipe).Result.Placed).ToList();
         Assert.Equal(Recipes.All.Where(r => r.Result.Placed).Select(r => r.Id), builds.Select(v => ((Make)v.Activity).Recipe));
-        Assert.Equal("Build a branch frame shelter", builds.Single(v => v.Activity == new Make(P, "branch_frame")).Label);
+        Assert.Equal("Build a lean-to", builds.Single(v => v.Activity == new Make(P, "lean_to")).Label);
         Assert.Equal("there is already a shelter here (Overhang)", builds.Single(v => v.Activity == new Make(P, "tent")).Refused?.Reason); // the camp's overhang
         AssertEveryVerbIsTrue(w, P);
     }

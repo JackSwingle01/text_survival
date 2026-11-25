@@ -819,7 +819,8 @@
             },
             "7,44": {
               "SeenMinute": 187,
-              "Trees": true
+              "Trees": true,
+              "Shelter": "Lean-to"
             },
             "7,45": {
               "SeenMinute": 187,
@@ -1537,7 +1538,8 @@
             },
             "7,44": {
               "SeenMinute": 180,
-              "Trees": true
+              "Trees": true,
+              "Shelter": "Lean-to"
             },
             "7,45": {
               "SeenMinute": 180,
@@ -2738,7 +2740,7 @@
   "TracksSweptHour": 3,
   "NextCarcassId": 0,
   "NextPileId": 2,
-  "NextShelterId": 1,
+  "NextShelterId": 2,
   "Shelters": {
     "7,42": {
       "Id": 0,
@@ -2756,6 +2758,35 @@
       "WorkingPiece": 27,
       "WorkingPieceLeftPct": 0.5,
       "WorkingPieceStat": 0
+    },
+    "7,44": {
+      "Id": 1,
+      "Name": "Lean-to",
+      "Kind": 0,
+      "InsulationLevel": 0.15,
+      "OverheadLevel": 0.25,
+      "WindLevel": 0.2,
+      "InsulationCap": 0.5,
+      "OverheadCap": 0.5,
+      "WindCap": 0.5,
+      "Materials": {
+        "Amounts": {},
+        "Pieces": {
+          "PineBranch": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        "Gear": []
+      },
+      "Cause": {
+        "Who": 0,
+        "What": "built by the player"
+      }
     }
   },
   "Beddings": {

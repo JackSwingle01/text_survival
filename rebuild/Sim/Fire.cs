@@ -19,7 +19,7 @@ public sealed class FireState
 {
     public required TileId Tile { get; set; }
     public required long LastUpdatedMinute { get; set; }
-    public PitType Pit { get; init; }
+    public PitType Pit { get; set; }
     // Two masses: fuel waiting to catch, and fuel burning. Sorted, so the sums add up in one order however
     // the fuels came and went (see World.Tiles).
     public SortedDictionary<Resource, double> UnburnedKg { get; init; } = [];
@@ -36,7 +36,7 @@ public sealed class FireState
     /// Who struck this fire, until it is sure to take a log or goes out; Fire.PayLighter pays their Firecraft then.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public AgentId? LitBy { get; set; }
-    /// A pit: who made it, by lighting the first fire in it. Null on a carried torch.
+    /// A pit: who made it, by lighting the first fire in it or digging it. Null on a carried torch.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public Cause? Cause { get; init; }
 }
@@ -494,7 +494,6 @@ public static class Fire
                 if (pit != null)
                 {
                     if (Reach() is { } barred) return barred;
-                    if (pit.Pit != a.Pit) return new($"the pit here is {Names.Of(pit.Pit)}, not {Names.Of(a.Pit)}");
                     if (!CanAddFuel(pit, a.Tinder)) return Full(pit, a.TinderKg);
                     if (Items.LightestKg(pack, a.Tinder) is double tinderPieceKg && tinderPieceKg > RoomKg(pit) + 1e-9)
                         return new($"the fire has no room for a whole {Names.PieceWord(a.Tinder)}", new MissingState(Lack.FireRoomKg, tinderPieceKg, RoomKg(pit)));
@@ -811,6 +810,28 @@ public static class Fire
         Items.Receive(world, agent, gained, events);
         events.Add(new Gathered(world.Minute, a.Who, agent.Tile, Items.Describe(gained)));
         return null;
+    }
+
+    /// Refused where the pit here is already as good, burns, or is someone else's.
+    public static Refusal? PitRefusal(World world, Agent agent, PitType dug)
+    {
+        if (PitAt(world, agent.Tile) is not FireId id) return null;
+        var pit = world.Fires[id];
+        if (Access.Refusal(world, agent.Id, new LocationFeature(LocationFeatureKind.Fire, agent.Tile, id.Value)) is { } barred) return barred;
+        if (pit.Pit >= dug) return new($"the fire pit here is already as good ({Names.Of(pit.Pit)})");
+        return IsActive(pit) ? new("put the fire out first") : null;
+    }
+
+    internal static void Dig(World world, Agent agent, PitType dug)
+    {
+        if (PitAt(world, agent.Tile) is FireId id) world.Fires[id].Pit = dug;
+        else NewFire(world, new FireState
+        {
+            Tile = agent.Tile,
+            LastUpdatedMinute = world.Minute,
+            Pit = dug,
+            Cause = new Cause(agent.Id, $"dug by {Cause.Describe(world, agent.Id)}"),
+        });
     }
 
     static FireId NewFire(World world, FireState f)

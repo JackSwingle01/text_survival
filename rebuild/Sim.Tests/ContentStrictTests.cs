@@ -243,7 +243,7 @@ public class ContentStrictTests
         Assert.False(Content.Tables.StartingClothes is List<KitGear>);
         Assert.False(Content.Tables.Sightings.Alert is List<double>);
         Assert.False(Content.Loot["AbandonedCamp"] is List<LootRoll>);
-        var materials = Recipes.Get("log_frame").Materials;
+        var materials = Recipes.Get("branch_hut").Materials;
         Assert.Throws<NotSupportedException>(() => ((IList)materials)[0] = materials[0]);
         Assert.Throws<NotSupportedException>(() => ((IDictionary<Resource, double>)Carcasses.ModeProps(ButcherMode.QuickStrip).YieldFactor).Clear());
     }
