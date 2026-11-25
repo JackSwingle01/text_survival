@@ -29,3 +29,6 @@ Checks: `TestWorldSourceTests` and `MapTests` pass; fast suite (`Category!=Slow`
 
 Follow-up: the "When empty" step for `test-worlds` (delete `NotYetOnTestWorlds`, drop the ratchet's
 section), which the ratchet run files next.
+
+Revised: reviewed the diff by hand instead of the two-agent code review: 11 one-token call swaps and two
+list entries, each checked against the job's exemptions above. No review fixes.
