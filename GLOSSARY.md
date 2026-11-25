@@ -110,8 +110,8 @@ Worked out each time, never stored.
 _Avoid_: unprotected, unguarded
 
 **Scent**:
-What a source gives off to an animal's nose: a strength (per food, for blood and bleeding, for a
-carcass, grime on a person: Dirty) scaled by a cache's scent multiplier, carried further downwind than upwind and read through
+What a source gives off to an animal's nose: a strength (per food, for blood, bleeding and Dirty, for a
+carcass) scaled by a cache's scent multiplier, carried further downwind than upwind and read through
 the species' sense of smell. Piles and caches are found only by scent or by standing on their tile.
 _Avoid_: smell radius, signal (signal is the wider set: noise, scent, fire light)
 
