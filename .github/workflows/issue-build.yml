@@ -39,6 +39,10 @@ name: Issue build
 # Outcomes. A PR: the label comes off and the PR's `Closes #N` keeps the issue out of both queues. No
 # PR (the build needs a person, or failed): a comment, `needs-user`, and the label comes off.
 #
+# Red main. While ci.yml's `main-red` issue is open, a run builds that issue or nothing: it is a ticket
+# like any other (its body carries the rule: fix a small, obvious break, else needs_user), and the rest
+# of the queue waits for main to be green.
+#
 # Publishing. The build pushes and opens its own PR, and also writes the PR's title and body to
 # files. A build longer than an hour outlives the Claude app token it started with (GitHub App
 # tokens last 60 minutes), so when no PR exists after a finished build, the "Open the PR" step
@@ -113,12 +117,12 @@ jobs:
             gh issue edit "$n" --remove-label agent-working || true
           done
           # A build branches from main, so while main's CI is red (ci.yml keeps a `main-red` issue open)
-          # its PR would carry the red check: nothing is built. The hourly run resumes once it is closed.
+          # its PR would carry the red check: only that issue is built, when triage found its fix small
+          # and obvious. The hourly run resumes the rest once it is closed.
           red=$(gh issue list --state open --label main-red --limit 1 --json number --jq '.[0].number // empty')
           if [ -n "$red" ]; then
-            echo "main's CI is red (#$red): no build starts until that issue is closed." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "issues=[]" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "main's CI is red (#$red): only that issue is built until it is closed." | tee -a "$GITHUB_STEP_SUMMARY"
+            ONLY=$red
           fi
           # shellcheck disable=SC2086
           queue=$(python3 .github/scripts/issue_queue.py ready $ONLY 2> reasons.txt)
@@ -149,6 +153,8 @@ jobs:
         issue: ${{ fromJSON(needs.select.outputs.issues) }}
     timeout-minutes: 330
     permissions:
+      # Read, for the brief of a `main-red` issue: the failed jobs' log.
+      actions: read
       # Write, for "Open the PR": the fallback when the build's own token has expired.
       contents: write
       issues: write
