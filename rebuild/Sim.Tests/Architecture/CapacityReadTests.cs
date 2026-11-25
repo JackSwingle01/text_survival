@@ -133,9 +133,6 @@ public class CapacityReadTests
     static readonly string[] CapacityReadsToday =
     [
         // The sim.
-        "Combat.Boldness: Moving",
-        "Combat.IsDown: Consciousness",
-        "Making.WorkPerMinute: Manipulation, Moving",
         "Senses.Now: Sight",
         "Sight.ViewOf: Sight",
         // The tests.

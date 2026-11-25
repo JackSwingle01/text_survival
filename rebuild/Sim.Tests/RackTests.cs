@@ -464,6 +464,10 @@ public class RackTests
         Sim.Step(w, take.Activity, take.Minutes);
         Assert.Equal(2.16, Assert.Single(Pack(w).Pieces[Resource.CuredHide]), 9);
 
+        // The sleep, food and water of the two days' wait, which this test is not about.
+        var body = w.Agent(P).Body;
+        (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+        body.Effects.Clear();
         Assert.Null(Sim.Step(w, new Make(P, "hide_strips"), 1).InterruptedReason);
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("hide_strips"), null, []));
         Assert.Equal(0, Items.Count(Pack(w), Resource.CuredHide));
