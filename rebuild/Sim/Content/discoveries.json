@@ -29,12 +29,12 @@
   "Cattails": { "name": "Cattail Stand", "found": ["Cattails! Good for fiber and tinder both.", "A stand of cattails. Useful plants, if you know how.", "Cattail reeds - their fluff catches sparks easily."], "work": "Harvest", "minutes": 10, "items": [
    { "resource": "PlantFiber", "units": 10, "kgPerUnit": 0.1, "respawnHoursPerUnit": 168 },
    { "resource": "Tinder", "units": 6, "kgPerUnit": 0.03, "respawnHoursPerUnit": 168 } ] },
-  "MixedDeadfall": { "name": "Fallen Tree", "found": ["You find a fallen tree. Dry wood, ready to use.", "A fallen tree - nature's kindling pile.", "Wind-felled timber. This fallen tree could fuel a fire for days."], "work": "Harvest", "minutes": 10, "items": [
+  "MixedDeadfall": { "name": "Fallen Tree", "found": ["You find a fallen tree. Dry wood, ready to use.", "A fallen tree - nature's woodpile.", "Wind-felled timber. This fallen tree could fuel a fire for days."], "work": "Harvest", "minutes": 10, "items": [
    { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
    { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
    { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
    { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 } ] },
-  "MassiveDeadfall": { "name": "Massive Fallen Pine", "found": ["You find a massive fallen pine. Dry wood, ready to use.", "A massive fallen pine - nature's kindling pile.", "Wind-felled timber. This massive fallen pine could fuel a fire for days."], "work": "Harvest", "minutes": 20, "items": [
+  "MassiveDeadfall": { "name": "Massive Fallen Pine", "found": ["You find a massive fallen pine. Dry wood, ready to use.", "A massive fallen pine - nature's woodpile.", "Wind-felled timber. This massive fallen pine could fuel a fire for days."], "work": "Harvest", "minutes": 20, "items": [
    { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
    { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
    { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },

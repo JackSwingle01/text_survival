@@ -190,7 +190,7 @@ public static class Npc
         {
             Stat.Warmth => AtCamp && Cold ? Light(Tree.None, now: true) ?? (BurningHere ? Stoke(HoursToSunrise()) : null) : null,
             Stat.Water => Sim.Refusal(world, new Drink(Id)) == null ? new(new Drink(Id), Work.DrinkMinutes, Work.DrinkMinutes)
-                : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water))
+                : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water), [])
                 : BurningHere && Sim.Refusal(world, new MeltSnow(Id)) == null ? new(new MeltSnow(Id), Work.MeltSnowMinutes, Work.MeltSnowMinutes) : null,
             Stat.Food => EatToHand(),
             _ => null,
@@ -504,7 +504,7 @@ public static class Npc
             }
             if (ReadyFood(pack) is Resource food)
                 return new(new Eat(Id, food, Math.Min(Items.Have(pack, food), MealKcal() / Items.Resources[food].KcalPerKg)), Work.EatMinutes, Work.EatMinutes);
-            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled));
+            if (PileHere is { } s && ReadyFood(s) is Resource piled) return Take(piled, Items.Have(s, piled), []);
             return null;
         }
 
@@ -685,13 +685,13 @@ public static class Npc
 
         static bool IsLog(Resource r) => FuelResources.Contains(r) && Fire.Props[r].MinFireTempF > 0;
 
-        /// A full pack makes room first: the heaviest thing that is not makings, water or food goes down.
-        Next? Take(Resource r, double kg)
+        /// A full pack makes room first: the heaviest thing that is not makings, water, food or what the same requirement wants goes down.
+        Next? Take(Resource r, double kg, IEnumerable<Resource> wanted)
         {
             var take = new PickUp(Id, r, kg);
             if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
             {
-                var keep = Fire.Tinders.Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).Append(r).ToHashSet();
+                var keep = Fire.Tinders.Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).Append(r).Concat(wanted).ToHashSet();
                 var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
                 return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
             }
@@ -701,7 +701,7 @@ public static class Npc
         Next? Do(Leaf leaf)
         {
             var act = ActivityFor(leaf);
-            if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource))) : null;
+            if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource)), leaf.For.AnyOf) : null;
             if (Sim.Refusal(world, act) != null) return null;
             int minutes = act is Butcher ? Verbs.UntilDoneMinutes : Math.Clamp(leaf.WorkMinutes, 1, StintMinutes);
             return new(act, minutes, minutes);

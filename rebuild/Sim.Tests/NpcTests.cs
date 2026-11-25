@@ -39,6 +39,18 @@ public class NpcTests(ITestOutputHelper output)
 
     /// Freezing beside a fire that is burning low, and parched with nothing to drink: warmth comes first, so it feeds
     /// the fire before it sees to water.
+    /// A pile of firewood at camp (a new run's) once had the NPC take one wood and put the other down, minute after minute,
+    /// for hours: both are the fire's wants, so neither goes down to make room for the other.
+    [Fact]
+    public void AnNpcAtACampPile_DoesNotSwapItsFuelBackAndForth()
+    {
+        var w = TestWorlds.New(17);
+        var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
+        var events = new List<WorldEvent>();
+        for (int m = 0; m < 30; m++) events.AddRange(Sim.Advance(w, 1));
+        Assert.True(events.OfType<PutOnPile>().Count(e => e.Who == npc) <= 2, $"{events.OfType<PutOnPile>().Count(e => e.Who == npc)} put-downs in half an hour");
+    }
+
     [Fact]
     public void Freezing_WithAFireOnHand_TendsItBeforeFetchingWater()
     {

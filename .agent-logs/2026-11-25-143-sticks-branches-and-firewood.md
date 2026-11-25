@@ -24,3 +24,10 @@ Revised: Phase3GateTests' mixed run no longer felled a tree (seed 17's run now m
 Revised: stick and tinder forage hints said "kindling" → "sticks" and "tinder"; branches "branches", firewood "firewood".
 Revised: TreePool.Wood and the felling table are keyed by firewood resources (PineFirewood...), not by a species enum.
 Follow-up: Npc.Offers still treats a tree as coming down whole (no trimming to the want), and does not plan for a trunk piece too big for its pack room (Do returns null on the PackFull refusal and it moves on); worth a look if the NPC bench shows idle chopping.
+Revised: the fallen_log detail is renamed "Deadwood" (its lines said log and kindling), and the Fallen Tree's lines say "woodpile", not "kindling pile"; the CLI takes the new names (`fuel birchbranch 3` in Phase2GateTests).
+Revised (review): Chop could cut more pieces in one call than the pack takes, spilling them → Chop takes the cutter's room and leaves a piece over it on the trunk.
+Revised (review): the pack-room sum was written twice in Work, and the per-item stock loops three times in Pools → Work.RoomKg and Pools.ItemsLeft.
+Revised (review): Content.Tables still named the felling weights logKg → firewoodKg; the architecture doc's forecast row names Pools.ExpectedChop.
+Revised: the NPC bench showed an NPC at a camp pile of firewood swapping birch and pine back and forth for hours (Take made room by putting down the other wood its fire wanted) → Take keeps what the same requirement wants; NpcTests.AnNpcAtACampPile_DoesNotSwapItsFuelBackAndForth (red without the fix: 14 put-downs in 30 min).
+Follow-up: the NPC bench (seeds 1, 17, 42, 303, 60 days) has the NPC dying on all four on this branch, and on origin/main 0d98680d too (thirst and cold, days 9-36), against the baselines branch's all-alive (main at c70b3c2b). The regression predates this branch; worth its own diagnosis ticket.
+Follow-up: the sticks and tinder that fall with a tree go into the pack unchecked, so a nearly full pack spills them onto the ground (a kilo or two).

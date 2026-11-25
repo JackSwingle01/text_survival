@@ -216,8 +216,8 @@ public static class Work
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
                         StockPool when Pools.MissingTool(world, id, pack) is ToolType t => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
                         TreePool when ToolRefusal(def, pack) is { } noAxe => noAxe,
-                        TreePool when Pools.NextPieceKg(world, id) is double kg && kg > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9 =>
-                            new(PackFull, new MissingState(Lack.PackRoomKg, kg, Items.CapacityKg(pack) - Items.CarriedKg(agent))),
+                        TreePool when Pools.NextPieceKg(world, id) is double kg && kg > RoomKg(agent, pack) + 1e-9 =>
+                            new(PackFull, new MissingState(Lack.PackRoomKg, kg, RoomKg(agent, pack))),
                         _ => ToolRefusal(def, pack),
                     };
                 }
@@ -282,6 +282,8 @@ public static class Work
                 throw new NotSupportedException($"{activity.GetType().Name} is not work");
         }
     }
+
+    static double RoomKg(Agent agent, Inventory pack) => Items.CapacityKg(pack) - Items.CarriedKg(agent);
 
     public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
 
@@ -512,9 +514,9 @@ public static class Work
                             {
                                 if (Items.Tool(pack, ToolType.Axe) is not { } axe) return "your axe is broken";
                                 // A piece the pack can't take stays on the trunk for the next trip.
-                                if (Pools.NextPieceKg(world, id) is double next && next > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9) return PackFull;
+                                if (Pools.NextPieceKg(world, id) is double next && next > RoomKg(agent, pack) + 1e-9) return PackFull;
                                 Items.UseFor(axe, 1, ChopMinutesPerAxeUse);
-                                var chop = Pools.Chop(world, id, effective, world.Rng("work", agent.Id));
+                                var chop = Pools.Chop(world, id, effective, world.Rng("work", agent.Id), RoomKg(agent, pack));
                                 Keep(world, agent, s, chop.Got, events);
                                 if (chop.CameDown) events.Add(new TreeFelled(world.Minute, agent.Id, id));
                                 return chop.CutUp ? TreeCutUp : null;

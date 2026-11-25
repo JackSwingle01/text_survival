@@ -669,7 +669,8 @@ public static class Pools
     public sealed record ChopResult(Inventory Got, bool CameDown, bool CutUp);
 
     /// Down at FellPct of its minutes with its sticks and tinder, the tree lies here as a trunk, cut a piece at a time over as many trips as it takes.
-    public static ChopResult Chop(World world, PoolId id, double minutes, Rng rng)
+    /// roomKg: what the cutter can still carry; a piece over it stays on the trunk.
+    public static ChopResult Chop(World world, PoolId id, double minutes, Rng rng, double roomKg = double.PositiveInfinity)
     {
         var def = (TreePool)Def(world, id);
         var s = StateFor(world, id, () => new TreeState());
@@ -688,6 +689,7 @@ public static class Pools
         double perPiece = MinutesPerPiece(def, s.TrunkPieces);
         while (trunk.Count > 0 && s.MinutesWorked >= perPiece - 1e-9)
         {
+            if (trunk[^1] > roomKg - Items.WeightKg(got) + 1e-9) { s.MinutesWorked = perPiece; break; }
             s.MinutesWorked -= perPiece;
             Items.AddPiece(got, s.TrunkWood!.Value, trunk[^1]);
             trunk.RemoveAt(trunk.Count - 1);
@@ -747,32 +749,22 @@ public static class Pools
     public static bool HasStock(World world, PoolId id) => UnitsNow(world, id).Any(u => u > 0);
 
     /// Units left that this worker can take: an item needing no tool, or one whose tool is in the pack.
-    public static bool HasStock(World world, PoolId id, Inventory pack)
-    {
-        var def = (StockPool)Def(world, id);
-        var units = UnitsNow(world, id);
-        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && CanWork(def.Items[i], pack)) return true;
-        return false;
-    }
+    public static bool HasStock(World world, PoolId id, Inventory pack) => ItemsLeft(world, id).Any(i => CanWork(i, pack));
 
     public static bool CanWork(StockItem item, Inventory? pack) => item.RequiresTool is not ToolType t || pack != null && Items.Tool(pack, t) != null;
 
     /// The tool this worker lacks, when only items needing it are left.
-    public static ToolType? MissingTool(World world, PoolId id, Inventory pack)
-    {
-        if (HasStock(world, id, pack)) return null;
-        var def = (StockPool)Def(world, id);
-        var units = UnitsNow(world, id);
-        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && def.Items[i].RequiresTool is ToolType t) return t;
-        return null;
-    }
+    public static ToolType? MissingTool(World world, PoolId id, Inventory pack) =>
+        HasStock(world, id, pack) ? null : ItemsLeft(world, id).Select(i => i.RequiresTool).FirstOrDefault(t => t != null);
 
-    public static bool WorksWith(World world, PoolId id, Inventory pack, ToolType tool)
+    public static bool WorksWith(World world, PoolId id, Inventory pack, ToolType tool) =>
+        ItemsLeft(world, id).Any(i => i.RequiresTool == tool && CanWork(i, pack));
+
+    static IEnumerable<StockItem> ItemsLeft(World world, PoolId id)
     {
         var def = (StockPool)Def(world, id);
         var units = UnitsNow(world, id);
-        for (int i = 0; i < units.Length; i++) if (units[i] > 0 && def.Items[i].RequiresTool == tool && CanWork(def.Items[i], pack)) return true;
-        return false;
+        return def.Items.Where((_, i) => units[i] > 0);
     }
 
     /// Gear in a salvage comes with the first cycle. Each cycle gives a unit of every item the worker can take.

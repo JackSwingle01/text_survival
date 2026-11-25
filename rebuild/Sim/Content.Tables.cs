@@ -755,7 +755,7 @@ public static partial class Content
     /// A named place may be windier than any terrain (the Wind Gap funnels it).
     /// Every wood a tree can be has a firewood weight and burns; a mixed stand's shares are fractions that make
     /// a whole; every count is [min, max] and every weight above 0.
-    static IEnumerable<string> FellingProblems(FellingFile f, Dictionary<Resource, double> logKg, Dictionary<Resource, double> mixedWood,
+    static IEnumerable<string> FellingProblems(FellingFile f, Dictionary<Resource, double> firewoodKg, Dictionary<Resource, double> mixedWood,
         Dictionary<Resource, FuelProps> fuels, IReadOnlyList<LocationDef> locations)
     {
         const string at = "terrain.json felling";
@@ -766,7 +766,7 @@ public static partial class Content
             if (p.Kg != null && (p.Kg is not [> 0 and var klo, var khi] || khi < klo)) yield return $"{at} {name}: kg is [min, max] above 0";
         }
         if (f.FirewoodKgSpreadPct is < 0 or >= 1) yield return $"{at}: firewoodKgSpreadPct {f.FirewoodKgSpreadPct} is not in 0-1";
-        foreach (var (r, kg) in logKg)
+        foreach (var (r, kg) in firewoodKg)
         {
             if (kg <= 0) yield return $"{at} firewoodKg {r}: {kg}";
             if (!fuels.ContainsKey(r)) yield return $"{at} firewoodKg {r}: does not burn (fire.json fuels)";
@@ -774,7 +774,7 @@ public static partial class Content
         if (mixedWood.Count == 0 || mixedWood.Values.Any(s => s <= 0) || Math.Abs(mixedWood.Values.Sum() - 1) > 1e-9)
             yield return $"{at}: mixedWood shares above 0 that sum to 1";
         var woods = mixedWood.Keys.Concat(locations.SelectMany(l => l.All.OfType<SiteTrees>()).Select(t => t.Wood).OfType<Resource>());
-        foreach (var r in woods.Distinct()) if (!logKg.ContainsKey(r)) yield return $"{at}: no firewoodKg for {r}, which trees can be";
+        foreach (var r in woods.Distinct()) if (!firewoodKg.ContainsKey(r)) yield return $"{at}: no firewoodKg for {r}, which trees can be";
     }
 
     static string? Ground(double hazard, double wind, double cover, double visibility, double maxWind = 2) =>
@@ -793,7 +793,7 @@ public static partial class Content
     /// Every table that yields a discrete resource yields whole pieces inside its kind's range.
     static IEnumerable<string> PieceProblems(IReadOnlyDictionary<Resource, ResourceDef> resources, IReadOnlyDictionary<string, IReadOnlyList<ForageItem>> forage,
         IReadOnlyList<LocationDef> locations, DiscoveriesFile discoveries, IReadOnlyDictionary<string, IReadOnlyList<LootRoll>> loot, FellingFile felling,
-        Dictionary<Resource, double> logKg, Dictionary<Resource, IReadOnlyList<double>> packKg, Dictionary<Resource, IReadOnlyList<double>> campKg)
+        Dictionary<Resource, double> firewoodKg, Dictionary<Resource, IReadOnlyList<double>> packKg, Dictionary<Resource, IReadOnlyList<double>> campKg)
     {
         IEnumerable<string> Range(string at, Resource r, double lo, double hi) =>
             resources[r] is { Discrete: true } d && (lo < d.MinPieceKg - 1e-9 || hi > d.MaxPieceKg + 1e-9)
@@ -816,7 +816,7 @@ public static partial class Content
         foreach (var (name, rolls) in loot)
             foreach (var x in Rolls(rolls))
                 if (x.Resource is Resource r && x.Kg is [var lo, var hi]) foreach (var p in Range($"loot.json {name}", r, lo, hi)) yield return p;
-        foreach (var (wood, kg) in logKg) foreach (var p in Range("terrain.json felling firewoodKg", wood, kg * (1 - felling.FirewoodKgSpreadPct), kg * (1 + felling.FirewoodKgSpreadPct))) yield return p;
+        foreach (var (wood, kg) in firewoodKg) foreach (var p in Range("terrain.json felling firewoodKg", wood, kg * (1 - felling.FirewoodKgSpreadPct), kg * (1 + felling.FirewoodKgSpreadPct))) yield return p;
         foreach (var (r, pieces) in new[] { (Resource.Stick, felling.Sticks), (Resource.Tinder, felling.Tinder) })
             if (pieces.Kg is [var lo, var hi]) foreach (var p in Range($"terrain.json felling {r}", r, lo, hi)) yield return p;
         foreach (var (r, pieces) in packKg)
