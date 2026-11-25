@@ -6,7 +6,7 @@ public static class Scent
     /// A full scent to a nose of 1 in calm air, in tiles: a wolf (2.5) smells a fresh carcass 24 tiles (2.4 km)
     /// straight downwind, as Isle Royale wolves scented moose (Mech 1966, R).
     public const double FullReachTiles = 6;
-    public const double BleedingLevel = 0.9, BloodyLevel = 0.8, ScentSourceLevel = 0.5;
+    public const double BleedingLevel = 0.9, BloodyLevel = 0.8, ScentSourceLevel = 0.5, DirtyLevel = 0.2;
 
     /// x2 straight downwind, x0.5 upwind, x1 across and in calm air; a wind is named for where it comes from.
     public static double WindFactor(WindDirection wind, TileId source, TileId nose)
@@ -26,13 +26,14 @@ public static class Scent
 
     public static double OfFood(Resource r) => Items.Resources[r].ScentLevel ?? 0;
 
-    /// An animal: its species' base. A person: that, blood, and the strongest food carried (x its kilos up to one).
+    /// An animal: its species' base. A person: that, blood, grime (Dirty), and the strongest food carried (x its kilos up to one).
     public static double Of(World world, Agent agent)
     {
         double level = SpeciesTable.Of(agent.Species).ScentLevel;
         if (agent.Mind is not PersonMind person) return level;
         if (Effects.Has(agent.Body, EffectKind.Bleeding)) level += BleedingLevel;
         level += BloodyLevel * Effects.Severity(agent.Body, EffectKind.Bloody);
+        level += DirtyLevel * Effects.Severity(agent.Body, EffectKind.Dirty);
         double food = 0;
         foreach (var (r, kg) in Items.Totals(person.Pack))
             if (kg > 0) food = Math.Max(food, OfFood(r) * Math.Min(1, kg));

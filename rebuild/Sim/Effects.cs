@@ -8,7 +8,7 @@ public enum EffectKind
     Wet, Bloody,
     Bleeding, Pain, Dazed, Shock,
     // Appended: saves write the kind as its number.
-    Asleep, WellFed,
+    Asleep, WellFed, Dirty,
 }
 
 /// An ongoing process on a body. Distinct from tissue damage: stopping a bleed does not mend the leg.

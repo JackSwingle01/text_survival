@@ -42,8 +42,11 @@ public class CraftingOverhaulTests
         Supply(inv, Resource.Pine, 1);
         var option = new CraftOption
         {
-            Name = "Overlapping", Description = "", Category = NeedCategory.Processing,
-            CraftingTimeMinutes = 1, Durability = 0,
+            Name = "Overlapping",
+            Description = "",
+            Category = NeedCategory.Processing,
+            CraftingTimeMinutes = 1,
+            Durability = 0,
             Requirements = [new(ResourceCategory.Log, 1), new(Resource.Pine, 1)]
         };
         var inputs = CraftInputs.Resolve(option, inv);

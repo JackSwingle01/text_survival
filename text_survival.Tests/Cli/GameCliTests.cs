@@ -289,7 +289,7 @@ public class GameCliTests
         foreach (var r in Enum.GetValues<Resource>()) ctx.Inventory.Add(r, 5);
         var knapping = new text_survival.Crafting.NeedCraftingSystem().AllOptions.Single(o => o.Id == "knapping-stone");
         ctx.Inventory.Tools.Add(knapping.GearFactory!(knapping.Durability));
-        var ready = ui.Render().Controls.First(c => c.Enabled && c.Label.StartsWith("Make" ) && !c.Id.Contains("Actions"));
+        var ready = ui.Render().Controls.First(c => c.Enabled && c.Label.StartsWith("Make") && !c.Id.Contains("Actions"));
         ui.Render(ready.Id);
         Assert.True(crafting.IsCompleted);
         Assert.NotNull(await crafting);
