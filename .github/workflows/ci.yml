@@ -143,13 +143,16 @@ jobs:
   # A red main reaches nobody by itself, and every PR branched from it inherits the red check (a report
   # test at 5.05 s against the 5 s limit did this on 2026-11-24). So each push to main keeps one issue,
   # labelled `main-red`, open while a check fails and closes it when all pass (.github/scripts/main_red.sh).
-  # The issue build starts nothing while it is open (issue-build.yml, the select job).
+  # While it is open the issue build builds nothing else (issue-build.yml, the select job). The issue
+  # is itself a ticket: the script dispatches triage for it, hence `actions: write`, and the issue agent
+  # fixes a small, obvious break or parks it as `needs-user`.
   main-red:
     name: main is red
     needs: [quick, long-run, old-game, actionlint]
     if: always() && !cancelled() && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: read
       issues: write
     env:
