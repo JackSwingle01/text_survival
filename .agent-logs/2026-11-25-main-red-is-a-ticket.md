@@ -38,3 +38,12 @@ Not checked: on a runner. All of it runs from main. Unproven there: that the job
 with `actions: read` while the CI run's last job is still going, and how Sonnet applies the body's rule.
 Watch: the first red main after the merge: the issue's body, the triage run it dispatches (its brief's
 log section and its verdict), and the build's select step.
+
+Revised (first run on main, #250): triage parked the issue, "log could not be fetched (escape
+sequences)". The runner's `gh api` refuses to print a response with terminal escape sequences, and a
+job's log has its colour codes; the local `gh` (2.89) has no such check, and the stub printed no
+colour codes → `job_log` asks the API itself, follows the redirect to the signed URL without the
+token, and `log_excerpt` strips the colour codes. Checked against a local server that redirects,
+refuses a token on the second request and serves a log with a BOM and colour codes.
+What the first run did prove: the queue let the bot's issue through, the dispatch input worked, the
+brief reported the failed fetch, and triage parked on it rather than guess.
