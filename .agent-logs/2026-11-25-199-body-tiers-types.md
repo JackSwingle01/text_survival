@@ -31,3 +31,11 @@ Revised (review): compiler-made nested types (lambdas' closures) and by-ref stru
 Revised: CapacityReadTests changed (a pre-existing test, following the moved code): the body's own code is now the tier types and the read-out, reads of `TissueReads` and `BloodAndBreath` count as capacity reads, the rule's scan leaves out BodyTierTests (it names the types), and the two screen entries come off.
 Revised: the comment-share ratchet failed both Body.cs (11%) and BodyTiers.cs (15%) → comments trimmed to 10% and under; the forwarders carry none.
 Revised: the probe compared bit for bit (R format) every faculty, vitality, life, cost list and capacity record for the 13 reference bodies and 3,000 random bodies under three contexts: identical before and after, and again after the comment trim.
+Revised (review): `BloodAndBreath.Breathing` was carried and never read → dropped; breathing stays among the capacities, which the issue keeps.
+Revised (review): vitality and life each wrote out the least of breathing, pumping and consciousness → one `Capacities.WeakestVital`, a tier both may read.
+Revised (review): comments named the tickets that will change them, which goes stale → the ticket numbers come off the sim's comments; the ratchet list keeps its pointer.
+Revised (review): the tier-order rule read member dependencies only, so a field or base type of a higher tier would slip past → it reads type-level dependencies too, through one walk shared with the cycle rule.
+Revised (review): `TissueReads.WithEffects` filled a span but read like a builder → `TissueReads.Fill`.
+Revised (review): `Alerts` names its chips with `Capacity.ToString()` where `BodyOf` uses `Names.Title` → kept: the chip ids and labels must stay what they were, and ToString gives exactly the old literals.
+Follow-up: the tier rules see only direct dependencies, not consts (inlined) or a reach through a non-tier helper such as `Effects`; none exists today. A transitive walk over the sim's types would close it.
+Follow-up: `Body`'s faculty forwarders are pass-throughs (principles-code.md, "Different layer, different abstraction"), kept because the issue says callers keep working; moving the callers to the tier types, or hiding the tiers, is a later ticket's choice.

@@ -31,32 +31,34 @@ public class BodyTierTests
 
     static string Short(Type t) => t.Name;
 
-    /// Every dependency of a tier type on a tier of its rank or above, as "Tier.Member -> Tier".
-    internal static IEnumerable<string> Breaches(IEnumerable<IType> types, IReadOnlyList<(Type Tier, int Rank)> tiers)
+    static Type? TierOf(IType t, IReadOnlyList<(Type Tier, int Rank)> tiers) => tiers.Select(x => x.Tier).FirstOrDefault(x => IsOrIsIn(t, x));
+
+    /// Every dependency of one tier on another, as (from, the member it is in or "(type)", to).
+    static IEnumerable<(Type From, string Member, Type To)> TierDependencies(IEnumerable<IType> types, IReadOnlyList<(Type Tier, int Rank)> tiers)
     {
-        int? RankOf(Type? tier) => tier is null ? null : tiers.First(x => x.Tier == tier).Rank;
-        Type? TierOf(IType t) => tiers.Select(x => x.Tier).FirstOrDefault(x => IsOrIsIn(t, x));
         foreach (var type in types)
         {
-            if (TierOf(type) is not Type from) continue;
+            if (TierOf(type, tiers) is not Type from) continue;
+            foreach (var d in type.Dependencies)
+                if (TierOf(d.Target, tiers) is Type to && to != from)
+                    yield return (from, (d as IMemberTypeDependency)?.OriginMember.Name.Split('(')[0] ?? "(type)", to);
             foreach (var member in type.Members)
-                foreach (var d in member.MemberDependencies.Cast<ITypeDependency>().Concat(member.Dependencies))
-                    if (TierOf(d.Target) is Type to && to != from && RankOf(to) >= RankOf(from))
-                        yield return $"{Short(from)}.{member.Name.Split('(')[0]} -> {Short(to)}";
+                foreach (var d in member.MemberDependencies)
+                    if (TierOf(d.Target, tiers) is Type to && to != from) yield return (from, member.Name.Split('(')[0], to);
         }
     }
 
-    /// The tier-to-tier edges, every dependency counted, listed or not.
-    static IEnumerable<(string From, string To)> Edges(IEnumerable<IType> types, IReadOnlyList<(Type Tier, int Rank)> tiers)
+    /// Every dependency of a tier type on a tier of its rank or above, as "Tier.Member -> Tier".
+    internal static IEnumerable<string> Breaches(IEnumerable<IType> types, IReadOnlyList<(Type Tier, int Rank)> tiers)
     {
-        Type? TierOf(IType t) => tiers.Select(x => x.Tier).FirstOrDefault(x => IsOrIsIn(t, x));
-        foreach (var type in types)
-        {
-            if (TierOf(type) is not Type from) continue;
-            foreach (var d in type.Dependencies.Concat(type.Members.SelectMany(m => m.MemberDependencies.Cast<ITypeDependency>())))
-                if (TierOf(d.Target) is Type to && to != from) yield return (Short(from), Short(to));
-        }
+        int RankOf(Type tier) => tiers.First(x => x.Tier == tier).Rank;
+        return TierDependencies(types, tiers).Where(d => RankOf(d.To) >= RankOf(d.From))
+            .Select(d => $"{Short(d.From)}.{d.Member} -> {Short(d.To)}");
     }
+
+    /// The tier-to-tier edges, every dependency counted, listed or not.
+    static IEnumerable<(string From, string To)> Edges(IEnumerable<IType> types, IReadOnlyList<(Type Tier, int Rank)> tiers) =>
+        TierDependencies(types, tiers).Select(d => (Short(d.From), Short(d.To)));
 
     /// Each cycle as "A -> B -> A", from a depth-first walk over the edges.
     internal static List<string> Cycles(IEnumerable<(string From, string To)> edges)
@@ -100,7 +102,7 @@ public class BodyTierTests
         Assert.True(cycles.Count == 0, string.Join("\n", cycles));
     }
 
-    /// What reads a tier of its rank or above today. Only shrinks: the faculties' vitality goes in #200.
+    /// What reads a tier of its rank or above today. Only shrinks: the faculties' vitality goes next (#200).
     static readonly string[] TierBreachesToday =
     [
         "Faculties.DexterityCosts -> Vitality",

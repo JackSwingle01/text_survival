@@ -9,7 +9,7 @@ internal static class TissueReads
     internal const int CapacityCount = 8;
 
     /// On the stack: every animal's life and legs are read every minute (Sim.IsAlive, Fauna's minds).
-    internal static void WithEffects(BodyState body, ReadOnlySpan<double> effectDeltas, Span<double> c)
+    internal static void Fill(BodyState body, ReadOnlySpan<double> effectDeltas, Span<double> c)
     {
         if (IsWhole(body)) WholeTissueCapacities[(int)body.Kind].CopyTo(c);
         else TissueCapacities(body, c);
@@ -147,8 +147,8 @@ internal static class TissueReads
 }
 
 /// What lost blood takes from consciousness, moving and manipulation, and short breath from consciousness: 1
-/// when nothing. Breathing and blood pumping stay among the capacities too until #201.
-internal readonly record struct BloodAndBreath(double BloodPumping, double Breathing, double CirculationPct, double BreathPct)
+/// when nothing.
+internal readonly record struct BloodAndBreath(double BloodPumping, double CirculationPct, double BreathPct)
 {
     internal const double CirculationFailsBloodPct = 0.5;
     const double BreathShortBelow = 0.3;
@@ -156,7 +156,6 @@ internal readonly record struct BloodAndBreath(double BloodPumping, double Breat
     /// Only real blood loss collapses circulation, not cold-slowed pumping.
     internal static BloodAndBreath Of(BodyState body, double tissueBreathing, double tissueBloodPumping) => new(
         tissueBloodPumping * body.BloodPct,
-        tissueBreathing,
         body.BloodPct < 1.0 ? Math.Max(0, (body.BloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct)) : 1,
         tissueBreathing < BreathShortBelow ? tissueBreathing / BreathShortBelow : 1);
 }
@@ -178,10 +177,12 @@ public readonly record struct Capacities(
 
     static readonly double[] NoEffectDeltas = new double[TissueReads.CapacityCount];
 
+    internal double WeakestVital => Math.Min(Breathing, Math.Min(BloodPumping, Consciousness));
+
     static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas)
     {
         Span<double> c = stackalloc double[TissueReads.CapacityCount];
-        TissueReads.WithEffects(body, effectDeltas, c);
+        TissueReads.Fill(body, effectDeltas, c);
         const int consciousness = (int)Capacity.Consciousness, moving = (int)Capacity.Moving, manipulation = (int)Capacity.Manipulation;
 
         var feed = BloodAndBreath.Of(body, c[(int)Capacity.Breathing], c[(int)Capacity.BloodPumping]);
@@ -200,7 +201,7 @@ public readonly record struct Capacities(
     }
 }
 
-/// Each still scales by vitality, a tier above: BodyTierTests lists those reads until #200.
+/// Each still scales by vitality, a tier above: BodyTierTests lists those reads.
 internal static class Faculties
 {
     /// Power output from composition, scaled by vitality: dying is weak, whatever the muscles.
@@ -278,11 +279,11 @@ internal static class Faculties
     }
 }
 
-/// Still the least of breathing, blood pumping and consciousness, until #200 reads it from the faculties.
+/// The least of breathing, blood pumping and consciousness.
 internal static class Vitality
 {
     internal static double Of(BodyState body) => Of(Capacities.Of(body));
-    internal static double Of(Capacities c) => Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
+    internal static double Of(Capacities c) => c.WeakestVital;
 }
 
 /// Effects disable (consciousness can fall to nothing) but never kill: life is tissue and blood alone.
@@ -290,11 +291,7 @@ internal static class Alive
 {
     internal static bool Is(BodyState body) => TissueVitality(body) > 0;
 
-    internal static double TissueVitality(BodyState body)
-    {
-        var c = Capacities.WithoutEffects(body);
-        return Math.Min(c.Breathing, Math.Min(c.BloodPumping, c.Consciousness));
-    }
+    internal static double TissueVitality(BodyState body) => Capacities.WithoutEffects(body).WeakestVital;
 }
 
 /// The screen's one read of a body's capacities, blood and breath, in the health panel's order (BodyTierTests).
