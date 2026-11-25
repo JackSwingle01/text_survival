@@ -32,7 +32,7 @@ public static class Priorities
     public const double HungryPct = 0.3;
     public const double SpareFireHours = 12;
 
-    /// Tonight's fire is warmth, not a stockpile. usableFireHours is fire the person can have (Fire.UsableHours), not raw wood.
+    /// Tonight's fire is warmth, not a stockpile. usableFireHours is fire the person can have (Fire.Forecast's hours), not raw wood.
     public static Priority WarmthPriority(double coreAtHomeF, bool seeingTo, double usableFireHours, double tonightHours)
     {
         var core = CorePriority(coreAtHomeF, seeingTo);

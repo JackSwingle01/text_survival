@@ -54,10 +54,6 @@ public class ForecastTests
         var little = Fire.ForecastLight(w, Strike(0.05, 0));
         var more = Fire.ForecastLight(w, Strike(2.5, 0));
         Assert.True(more.FlameHours > little.FlameHours);
-        Assert.False(little.Takes(Resource.OakBranch));
-        Assert.True(more.Takes(Resource.OakBranch));
-        Assert.Equal(0, little.KeepsGoingPct);
-        Assert.True(more.KeepsGoingPct > 0);
     }
 
     [Fact]
@@ -78,10 +74,10 @@ public class ForecastTests
     {
         var w = At();
         Give(w, (Resource.BirchBark, 1));
-        Assert.Equal(new Fire.LightForecast(0, 0, 0, 0), Fire.ForecastLight(w, Strike(0.05, 0)));
+        Assert.Equal(new Fire.LightForecast(0, 0), Fire.ForecastLight(w, Strike(0.05, 0)));
     }
 
-    /// The flame lasts the minutes forecast, and a log goes on the minute after exactly when the forecast says it takes.
+    /// The flame lasts the minutes forecast.
     [Fact]
     public void TheLightForecast_AgreesWithTheFireStruck()
     {
@@ -99,7 +95,6 @@ public class ForecastTests
                 forecast = Fire.ForecastLight(w, Strike(tinderKg, kindlingKg));
             }
             var pit = w.Fires[Fire.PitAt(w, Camp(w))!.Value];
-            Assert.Equal(forecast.Takes(fuel), Sim.Refusal(w, new AddFuel(P, fuel, 1)) == null);
             int burned = 1;
             while (Fire.IsActive(pit)) { Sim.Advance(w, 1); burned++; }
             Assert.Equal((int)Math.Round(forecast.FlameHours * 60), burned);
@@ -135,19 +130,29 @@ public class ForecastTests
 
     // ---- Fire: warmth ----
 
+    static Inventory Fuel(params (Resource Resource, double Kg)[] kgs)
+    {
+        var inv = new Inventory();
+        foreach (var (r, kg) in kgs) TestKit.Give(inv, r, kg);
+        return inv;
+    }
+
+    static double FireHours(FireState? pit, Inventory fuel, ToolType? starter) =>
+        Fire.Forecast(new FireAsk(pit, PitType.Open, fuel, starter, 0)).Hours;
+
     [Fact]
     public void WoodWithNoWayToLightIt_IsNoWarmth()
     {
-        var oak = new Dictionary<Resource, double> { [Resource.OakBranch] = 8 };
-        var oakAndTinder = new Dictionary<Resource, double> { [Resource.OakBranch] = 8, [Resource.BirchBark] = 0.05 };
-        var oakTinderKindling = new Dictionary<Resource, double> { [Resource.OakBranch] = 8, [Resource.BirchBark] = 0.05, [Resource.Stick] = 1 };
-        Assert.Equal(0, Fire.UsableHours(null, PitType.Open, oak, canStrike: true));
-        Assert.Equal(0, Fire.UsableHours(null, PitType.Open, oakTinderKindling, canStrike: false));
-        double tinderOnly = Fire.UsableHours(null, PitType.Open, oakAndTinder, canStrike: true);
-        double withKindling = Fire.UsableHours(null, PitType.Open, oakTinderKindling, canStrike: true);
+        var oak = Fuel((Resource.OakBranch, 8));
+        var oakAndTinder = Fuel((Resource.OakBranch, 8), (Resource.BirchBark, 0.05));
+        var oakTinderKindling = Fuel((Resource.OakBranch, 8), (Resource.BirchBark, 0.05), (Resource.Stick, 1));
+        Assert.Equal(0, FireHours(null, oak, ToolType.FireStriker));
+        Assert.Equal(0, FireHours(null, oakTinderKindling, starter: null));
+        double tinderOnly = FireHours(null, oakAndTinder, ToolType.FireStriker);
+        double withKindling = FireHours(null, oakTinderKindling, ToolType.FireStriker);
         Assert.True(tinderOnly > 0);
         Assert.True(withKindling > tinderOnly + Fire.FuelHours(Resource.Stick, 1)); // the kindling brings the oak in
-        Assert.Equal(Priority.Need, Priorities.WarmthPriority(98.6, false, Fire.UsableHours(null, PitType.Open, oak, canStrike: true), tonightHours: 12));
+        Assert.Equal(Priority.Need, Priorities.WarmthPriority(98.6, false, FireHours(null, oak, ToolType.FireStriker), tonightHours: 12));
         Assert.Equal(Priority.None, Priorities.WarmthPriority(98.6, false, Fire.FuelHours(Resource.OakBranch, 8) * 3, tonightHours: 2)); // raw hours would read warm
     }
 
@@ -156,11 +161,26 @@ public class ForecastTests
     {
         var w = At();
         var pit = w.Fires[PitWith(w, Resource.BirchBranch, 3)];
-        var oak = new Dictionary<Resource, double> { [Resource.OakBranch] = 4 };
-        Assert.True(Fire.UsableHours(pit, PitType.Open, oak, canStrike: false) > Fire.HoursItWillBurn(pit));
+        var oak = Fuel((Resource.OakBranch, 4));
+        Assert.True(FireHours(pit, oak, starter: null) > Fire.HoursItWillBurn(pit));
         var embersOnly = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute };
-        Assert.Equal(0, Fire.UsableHours(embersOnly, PitType.Open, oak, canStrike: false));
+        Assert.Equal(0, FireHours(embersOnly, oak, starter: null));
     }
+
+    /// The fire forecast's hours are the minutes a fire struck and fed its Next each minute then burns.
+    [Fact]
+    public void TheFireForecast_AgreesWithTheFireStruckAndFed()
+    {
+        var ask = new FireAsk(null, PitType.Open, Fuel((Resource.BirchBark, 0.1), (Resource.Stick, 4.7), (Resource.OakBranch, 8)), ToolType.FireStriker, 8);
+        var forecast = Fire.Forecast(ask);
+        Assert.Equal((int)Math.Round(forecast.Hours * 60), FireForecastTests.Stepped(ask, forecast));
+        var burning = new FireState { Tile = default, LastUpdatedMinute = 0, BurningKg = { [Resource.PineBranch] = 2 } };
+        var fed = new FireAsk(burning, PitType.Open, Fuel((Resource.Stick, 2), (Resource.Bone, 3)), null, 8);
+        var fedForecast = Fire.Forecast(fed);
+        Assert.Equal((int)Math.Round(fedForecast.Hours * 60), FireForecastTests.Stepped(fed with { Pit = Clone(burning) }, fedForecast));
+    }
+
+    static FireState Clone(FireState f) => new() { Tile = f.Tile, LastUpdatedMinute = f.LastUpdatedMinute, Pit = f.Pit, BurningKg = new(f.BurningKg), UnburnedKg = new(f.UnburnedKg) };
 
     /// A piece of tinder goes into the pit whole, so a strike is held to the pit's room as a top-up is (#142 review).
     [Fact]
