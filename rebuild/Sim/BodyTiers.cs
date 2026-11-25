@@ -216,7 +216,8 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
 public enum Faculty { Strength, Speed, Dexterity, Perception }
 
 /// Why a faculty is at zero (GLOSSARY: Crippled). NoWorkingLimb: its limbs give nothing, wounded or cold.
-public enum CrippledBy { NoWorkingLimb, LostBlood, Unconscious, Load, Build }
+/// BlindAndDeaf: no hearing, and sight gives nothing, for want of eyes or of light.
+public enum CrippledBy { NoWorkingLimb, LostBlood, Unconscious, Load, Build, BlindAndDeaf }
 
 /// Each reads the capacities and the body's build: none reads vitality, the tier above.
 internal static class Faculties
@@ -283,10 +284,38 @@ internal static class Faculties
         var c = Capacities.Scaled(unscaled, feed);
         var why = new List<CrippledBy>();
         if (unscaled.Moving <= 0) why.Add(CrippledBy.NoWorkingLimb);
-        if (feed.LostBloodScale <= 0) why.Add(CrippledBy.LostBlood);
-        else if (unscaled.Consciousness * feed.ShortBreathScale <= 0) why.Add(CrippledBy.Unconscious);
+        AddOut(why, unscaled, feed);
         if (Build(body) is var (shape, size) && (shape <= 0 || size <= 0)) why.Add(CrippledBy.Build);
         if (LoadScale(body, c, context) <= 0) why.Add(CrippledBy.Load);
+        return why;
+    }
+
+    /// Lost blood or no consciousness: what takes every faculty but strength, and the limbs with it (Capacities.Scaled).
+    static void AddOut(List<CrippledBy> why, in Capacities unscaled, in BloodAndBreath feed)
+    {
+        if (feed.LostBloodScale <= 0) why.Add(CrippledBy.LostBlood);
+        else if (unscaled.Consciousness * feed.ShortBreathScale <= 0) why.Add(CrippledBy.Unconscious);
+    }
+
+    /// Empty exactly when Dexterity is above zero: darkness and wet hands only ever take part of it.
+    internal static IReadOnlyList<CrippledBy> DexterityCrippledBy(BodyState body)
+    {
+        var unscaled = Capacities.Unscaled(body, out var feed);
+        var why = new List<CrippledBy>();
+        if (unscaled.Manipulation <= 0) why.Add(CrippledBy.NoWorkingLimb);
+        AddOut(why, unscaled, feed);
+        return why;
+    }
+
+    /// Empty exactly when Perception is above zero.
+    internal static IReadOnlyList<CrippledBy> PerceptionCrippledBy(BodyState body, AbilityContext context = default)
+    {
+        var unscaled = Capacities.Unscaled(body, out var feed);
+        var c = Capacities.Scaled(unscaled, feed);
+        var why = new List<CrippledBy>();
+        double darkness = context.HasLightSource ? 0 : context.DarknessLevel;
+        if (c.Hearing <= 0 && c.Sight * (1 - darkness) <= 0) why.Add(CrippledBy.BlindAndDeaf);
+        AddOut(why, unscaled, feed);
         return why;
     }
 

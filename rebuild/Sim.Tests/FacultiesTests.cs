@@ -312,6 +312,38 @@ public class FacultiesTests
         }, iter: 300);
     }
 
+    /// The same for dexterity and perception, the other faculties a verb needs above zero (Body.CrippledBy).
+    [Fact]
+    public void DexterityAndPerception_AreAtZero_ExactlyWhenTheyNameAReason_ForAnyBody()
+    {
+        AnyBody.Check(t =>
+        {
+            var (b, context) = t;
+            Assert.Equal(Body.Dexterity(b, context) == 0, Body.CrippledBy(b, Faculty.Dexterity, context).Count > 0);
+            Assert.Equal(Body.Perception(b, context) == 0, Body.CrippledBy(b, Faculty.Perception, context).Count > 0);
+        }, iter: 300);
+    }
+
+    /// A chase's numbers, over any body that can run, as any species runs: real numbers, the floor held. A body at
+    /// speed zero has none (Combat.RunningOf is null for it, and nothing about running is computed).
+    [Fact]
+    public void RunningSpeedAndBurstCost_AreRealNumbers_ForAnyBodyThatCanRun_AndNoneAtSpeedZero()
+    {
+        AnyBody.Check(t =>
+        {
+            var (b, context) = t;
+            foreach (var species in Enum.GetValues<Species>())
+            {
+                var running = SpeciesTable.RunningIfAble(species, b, context);
+                Assert.Equal(Body.Speed(b, context) <= 0, running == null);
+                if (running is not { } r) continue;
+                Assert.True(r.SpeedPct >= SpeciesTable.MinSpeedPct && double.IsFinite(r.SpeedPct), $"{species}: {r.SpeedPct}");
+                foreach (var (name, v) in new[] { ("burst cost", Body.BurstCostPct(r)), ("top speed", Body.TopSpeedMps(b, r)), ("endurance", Body.EnduranceSpeedMps(r)) })
+                    Assert.True(double.IsFinite(v) && v > 0, $"{species} {name}: {v}");
+            }
+        }, iter: 100);
+    }
+
     /// So a faculty's share of a fresh body never divides by zero.
     [Fact]
     public void AFreshBody_HasEveryFacultyItsSpeciesHas_AboveZero()

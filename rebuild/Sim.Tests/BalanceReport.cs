@@ -52,7 +52,7 @@ public static class ReferenceBodies
         var fresh = SpeciesTable.Average(species, species == Species.Human ? body.Sex : Sex.Male);
         return new(
             SpeciesTable.StrengthPct(species, body),
-            SpeciesTable.Running(species, body).SpeedPct,
+            SpeciesTable.RunningIfAble(species, body)?.SpeedPct ?? 0,
             Body.Dexterity(body) / Body.Dexterity(fresh),
             Body.Perception(body) / Body.Perception(fresh),
             Body.Vitality(body, species),

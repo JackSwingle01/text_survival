@@ -166,7 +166,8 @@ public static partial class Combat
     /// Dead, or too far gone to know where it is.
     static bool IsDown(World world, CombatUnit u) => IsDown(BodyOf(world, u));
 
-    internal static bool IsDown(BodyState body) => !Body.IsAlive(body) || Body.GetCapacities(body).Consciousness < 0.1;
+    /// Out of the fight: dead, or with neither speed nor dexterity, so it can neither move nor strike.
+    internal static bool IsDown(BodyState body) => !Body.IsAlive(body) || Body.Speed(body) <= 0 && Body.Dexterity(body) <= 0;
 
     static bool IsAware(FighterState s) => s is FighterState.Pressing or FighterState.Standoff or FighterState.GivingGround or FighterState.Fleeing;
 
@@ -382,8 +383,8 @@ public static partial class Combat
     /// the species' own.
     public static int Allowance(World world, CombatUnit u)
     {
-        double speedPct = Math.Clamp(RunningOf(world, u).SpeedPct, 0, 1);
-        return Math.Max(1, (int)Math.Round(StatsOf(world, u).MoveAllowanceM * speedPct));
+        if (RunningOf(world, u) is not { } running) return 0;
+        return Math.Max(1, (int)Math.Round(StatsOf(world, u).MoveAllowanceM * Math.Clamp(running.SpeedPct, 0, 1)));
     }
 
     /// The reachable cell closest to the target within the allowance, never through an occupied

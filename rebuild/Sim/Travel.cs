@@ -50,23 +50,10 @@ public static class Traversal
         : Body.BurnKcalPerMinute(agent.Body, Sim.ActivityFactor(world, agent.Tile, new Travel(agent.Id, Direction.North)));
 
     /// Lame (GLOSSARY), under the load: asked before any crossing time, and every minute (Advance), so a crossing stops at the same minute however stepped.
-    public static Refusal? CannotWalk(Agent agent)
-    {
-        var why = Body.SpeedCrippledBy(PaceBody(agent), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
-        return why.Count == 0 ? null : new(CannotWalkPrefix + string.Join(", ", why.Select(Phrase)), new MissingFaculty(Faculty.Speed, why));
-    }
+    public static Refusal? CannotWalk(Agent agent) =>
+        Crippled.Refusal(PaceBody(agent), Faculty.Speed, new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
 
     public const string CannotWalkPrefix = "you cannot walk: ";
-
-    static string Phrase(CrippledBy why) => why switch
-    {
-        CrippledBy.NoWorkingLimb => "no working leg",
-        CrippledBy.LostBlood => "lost blood",
-        CrippledBy.Unconscious => "unconscious",
-        CrippledBy.Load => "the load",
-        CrippledBy.Build => "too frail a build",
-        _ => throw new ArgumentOutOfRangeException(nameof(why), why, null),
-    };
 
     /// A crossing in another direction, at another pace, or from a tile the agent is no longer on, is abandoned.
     public static Crossing Begin(World world, Travel t)

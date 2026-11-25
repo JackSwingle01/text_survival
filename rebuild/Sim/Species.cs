@@ -36,7 +36,8 @@ public sealed record SpeciesStats(
     double ScentLevel,
     int? FlightMinutesPerTile = null,
     double PerceptionFactor = 1,
-    double StealthFactor = 1)
+    double StealthFactor = 1,
+    bool Hands = false)
 {
     public bool IsAnimal => Role != Role.Human;
     public bool IsSkittish => Role == Role.Prey || (Role == Role.Scavenger && IsSmall);
@@ -108,13 +109,20 @@ public static class SpeciesTable
 
     /// A share of a fresh member's speed, not Body.Speed itself: Speed's kilogram terms are a person's,
     /// and against its own kind they cancel.
-    public static Running Running(Species species, BodyState body, AbilityContext context = default, double carriedKg = 0)
+    public static Running Running(Species species, BodyState body, AbilityContext context = default, double carriedKg = 0) =>
+        RunningIfAble(species, body, context, carriedKg)
+        ?? throw new InvalidOperationException($"A {species} at speed zero cannot run: ask RunningIfAble");
+
+    /// Null for a body at speed zero: it cannot run, and nothing about running is computed for it. Above zero, held at MinSpeedPct.
+    public static Running? RunningIfAble(Species species, BodyState body, AbilityContext context = default, double carriedKg = 0)
     {
+        double speed = Body.Speed(body, context);
+        if (speed <= 0) return null;
         var row = Of(species);
         var motion = species == Species.Human && body.Sex == Sex.Female && row.Female is PersonBuild f
             ? row.Motion with { TopSpeedMps = f.TopSpeedMps, EnduranceSpeedMps = f.EnduranceSpeedMps }
             : row.Motion;
-        return new Running(motion, Math.Max(MinSpeedPct, Body.Speed(body, context) / FreshSpeed(species, body.Sex)), carriedKg);
+        return new Running(motion, Math.Max(MinSpeedPct, speed / FreshSpeed(species, body.Sex)), carriedKg);
     }
 
     public const double MinSpeedPct = 0.1;

@@ -47,11 +47,12 @@ public class CombatTests
     static CombatUnit B(Encounter e, int i = 0) => e.Units.Where(u => u.Team == 1).ElementAt(i);
     static CombatUnit Me(Encounter e) => Combat.UnitOf(e, AgentId.Player);
 
+    /// Every leg barely working: above zero, since a body whose legs give nothing cannot move at all.
     static void Cripple(BodyState body)
     {
         foreach (var leg in body.Regions.Where(r => r.Name.Contains("Leg")))
         {
-            leg.Muscle.Condition = 0;
+            leg.Muscle.Condition = 0.1;
             leg.Bone.Condition = 0.2;
         }
     }

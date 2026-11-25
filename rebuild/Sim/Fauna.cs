@@ -180,6 +180,7 @@ public static partial class Fauna
         var agent = world.Agent(activity.Who);
         if (activity is Hunt hunt && agent.Mind is PersonMind) return PersonHuntRefusal(world, agent, hunt);
         if (agent.Mind is not HerdMind) return new("only a herd does that");
+        if (activity is Graze or Feed or Raid or Watering && MouthRefusal(world, agent) is { } crippled) return crippled;
         if (activity is Graze) return GrazeRefusal(world, agent);
         if (activity is Feed) return CanFeed(world, agent) ? null : new("nothing here it can reach to eat");
         if (activity is Raid) return RaidRefusal(world, agent);
@@ -191,6 +192,9 @@ public static partial class Fauna
         if (Combat.EncounterOf(world, h.Prey) != null || Combat.EncounterOf(world, h.Who) != null) return new("already fighting");
         return null;
     }
+
+    /// Eating and drinking as any body does (Crippled.ToEat): an animal at speed zero, lame or unconscious, does neither.
+    static Refusal? MouthRefusal(World world, Agent animal) => Crippled.Refusal(world, animal, Crippled.ToEat(animal.Species));
 
     internal static int? Begin(World world, Activity activity, List<WorldEvent> events) => activity is not Hunt h ? null
         : world.Agent(h.Who).Mind is PersonMind ? PersonHunt(world, h, events)
@@ -520,6 +524,7 @@ public static partial class Fauna
             : Needs(world, herd, mind, events) ?? Cohere(world, herd, mind) ?? ComeForPeople(world, herd, mind, events)
                 ?? Scavenge(world, herd, mind, events) ?? Idle(world, herd, mind);
         if (choice.Item1 is Travel t && !fleeing && HeldOff(world, herd, Map.Step(herd.Tile, t.Dir), events)) choice = Wait(herd);
+        if (choice.Item1 is Graze or Feed or Raid or Watering && MouthRefusal(world, herd) != null) choice = Rest(herd);
         mind.Choice = choice.Item1 with { };
         return choice;
     }
