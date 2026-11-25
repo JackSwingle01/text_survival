@@ -142,6 +142,9 @@ public class SaveFixtureTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
         Sim.Step(w, new Make(P, "crude_spear"), 8);
+        // Snow melting at the fire: a litre waiting and half of the next done (Stations.Ongoing).
+        Sim.Step(w, new PutOn(P, "melt_snow"), 1);
+        Sim.Step(w, new Wait(P), 8);
         // Worn gloves taken off to be mended, begun without a minute passing: a repair's project and its piece.
         var gloves = Items.Make("hide_gloves");
         gloves.Durability = 40;

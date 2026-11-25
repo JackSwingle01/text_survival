@@ -353,7 +353,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     static World NewWorld(int seed, int? salt = null)
     {
         var w = TestWorlds.New(seed);
-        Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+        Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
         if (salt is int s)
             foreach (var sys in PlayerStreams) w.Rngs[StreamName.Of(sys, P)] = Rng.ForSystem(s * 1000003 + seed, sys + ":salt");
         return w;

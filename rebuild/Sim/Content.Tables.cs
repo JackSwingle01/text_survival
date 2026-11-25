@@ -79,7 +79,7 @@ public static partial class Content
     sealed record FellingFile(Pieces Firewood, Dictionary<string, double> FirewoodKg, double FirewoodKgSpreadPct, Dictionary<string, double> MixedWood,
         Pieces Sticks, Pieces Tinder);
     sealed record DiscoveriesFile(Dictionary<string, FindDef> Finds, Dictionary<string, FindDef> Details,
-        Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave,
+        Dictionary<string, IReadOnlyList<DiscoveryDraw>> Terrains, IReadOnlyList<DiscoveryDraw> Cave, IReadOnlyList<DealtFind> CavePerMap,
         Dictionary<string, IReadOnlyList<string>> DetailDraws, IReadOnlyList<string> ExamineOnly);
     sealed record ForagingFile(IReadOnlyList<QualityRow> Quality, IReadOnlyList<FailureRow> Failures, Dictionary<string, string> Luck,
         Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
@@ -89,14 +89,14 @@ public static partial class Content
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
-        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0,
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, double CapG = 0, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0,
         StationKind? Station = null);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
         CodeForage = ["MixedForest"],
         CodeAccidents = ["TripStumble", "SharpHazards", "IceSlip", "RockyTerrain", "FallImpact", "Sprains"],
-        CodeGear = ["stone_axe", "flint_knife"], CodeLocations = ["wolf_den", "bear_cave", "bone_hollow"];
+        CodeGear = ["ground_stone_axe", "flint_knife"], CodeLocations = ["wolf_den", "bear_cave", "bone_hollow"];
 
     /// Reads and checks every table; any problem throws InvalidDataException naming it. The game
     /// loads the embedded files through here; tests hand it broken ones.
@@ -206,7 +206,7 @@ public static partial class Content
             terrain.WaterIce,
             new ReadOnlyDictionary<string, IReadOnlyList<ForageItem>>(forage),
             new DiscoveryTables(new ReadOnlyDictionary<string, FindDef>(discoveries.Finds), new ReadOnlyDictionary<string, FindDef>(discoveries.Details),
-                ReadOnly(draws), discoveries.Cave, ReadOnly(detailDraws), discoveries.ExamineOnly),
+                ReadOnly(draws), discoveries.Cave, discoveries.CavePerMap, ReadOnly(detailDraws), discoveries.ExamineOnly),
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
             makeRecipes, ReadOnly(names), ReadOnly(pieceWords),
             new ForagingTables(foraging.Quality, foraging.Failures, ReadOnly(luck), ReadOnly(hints), foraging.Clues, ReadOnly(tutorials), foraging.SearchBands));
@@ -410,8 +410,9 @@ public static partial class Content
             else if (stationWorked) { } // StationProblems checks its result
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
-            else if (r.Resource is Resource made2 && !resources[made2].Discrete && (r.G <= 0 || r.Count != 0 || r.SharePct != 0 || r.Kg != 0))
-                problems.Add($"{at}: a continuous result {made2} is grams (g)");
+            else if (r.Resource is Resource made2 && !resources[made2].Discrete
+                && (!((r.G > 0 && r.SharePct == 0) || (r.G == 0 && r.SharePct is > 0 and <= 1)) || r.Count != 0 || r.Kg != 0))
+                problems.Add($"{at}: a continuous result {made2} is grams (g) or a sharePct (0-1] of the inputs' weight");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
             if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
@@ -440,20 +441,23 @@ public static partial class Content
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
+            bool fromNothing = row.Station != null && materials.Count == 0 && items.Count == 0; // Stations.FromNothing, before the Recipe exists
+            if (r.CapG != 0 && !fromNothing) problems.Add($"{at}: capG is for a station-worked recipe with no input");
             if (stationWorked) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
-            if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
+            if (problems.Count == before && !fromNothing) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct,
+                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct, r.CapG / 1000,
                     r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null, r.Station), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
     }
 
-    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on.
+    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on, or
+    /// nothing goes on and grams of a continuous resource come off, until its cap waits (melting snow).
     static IEnumerable<string> StationProblems(string at, RecipeFileRow row, List<MaterialInput> materials, List<string> items,
         IReadOnlyList<Capability> faster, List<Outcome> outcomes, IReadOnlyDictionary<Resource, ResourceDef> resources)
     {
@@ -462,7 +466,13 @@ public static partial class Content
         if (row.Tools.Count > 0 || faster.Count > 0) yield return $"{at}: a station-worked recipe uses no tools";
         if (outcomes.Count > 0) yield return $"{at}: a station-worked recipe has no outcome table";
         if (row.Requires.Count > 0) yield return $"{at}: a station-worked recipe has no requirements: its station's exposure sets its rate";
-        if (items.Count > 0 || materials.Count != 1) yield return $"{at}: a station-worked recipe has one input";
+        if (items.Count > 0 || materials.Count > 1) yield return $"{at}: a station-worked recipe has one input";
+        else if (materials.Count == 0)
+        {
+            if (row.Result.Resource is not Resource result || resources[result].Discrete || row.Result.G <= 0 || row.Result.CapG < row.Result.G)
+                yield return $"{at}: a station-worked recipe with no input makes grams of a continuous resource, up to a capG of at least its g";
+            yield break;
+        }
         else if (materials[0] is not { AnyOf.Count: 1 } m || (resources[m.AnyOf[0]].Discrete ? m.Count != 1 : m.Kg <= 0))
             yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource, or up to some grams of one continuous one";
         else if (row.Result.Resource is not Resource made || resources[made].Discrete != resources[m.AnyOf[0]].Discrete
@@ -512,8 +522,9 @@ public static partial class Content
                 double light = lo * r.SharePct / pieces, heavy = hi * r.SharePct / pieces;
                 if (light < resources[made].MinPieceKg - 1e-9 || heavy > resources[made].MaxPieceKg + 1e-9)
                     yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
-                if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             }
+            if (r.SharePct * lightest > lightest - saved + 1e-9)
+                yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             else if (r.G / 1000 > lightest - saved + 1e-9)
                 yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";
         }
@@ -592,10 +603,13 @@ public static partial class Content
             foreach (var (name, v) in new[] { ("insulation", g.Insulation), ("cushioning", g.Cushioning), ("toughness", g.Toughness), ("waterproofLevel", g.WaterproofLevel) })
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
+            if ((g.Tool == ToolType.Torch) != (g.BurnMinutes > 0) || g.BurnMinutes < 0) yield return $"{at}: a torch, and only a torch, burns (burnMinutes)";
             if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1 || w.ReachM <= 0))
                 yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
             if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))
                 yield return $"{at}: thrown rangeM {t.RangeM}, accuracy {t.Accuracy} and damage {t.Damage} (above 0)";
+            if ((g.Tool == ToolType.Axe) != (g.ChopFactor != null)) yield return $"{at}: axes, and only axes, state their chopFactor";
+            if (g.ChopFactor is <= 0) yield return $"{at}: chopFactor {g.ChopFactor} (above 0)";
             if (g.Capabilities.Contains(Capability.None)) yield return $"{at}: capabilities names None (an empty list is nothing)";
             if (g.Capabilities.Distinct().Count() != g.Capabilities.Count) yield return $"{at}: a capability listed twice";
         }
@@ -953,6 +967,11 @@ public static partial class Content
                 if (d.Find != null && !f.Finds.ContainsKey(d.Find)) yield return $"discoveries.json {where}: no find '{d.Find}'";
                 if (d.SpawnChance is <= 0 or > 1 || d.ExpectedHours <= 0) yield return $"discoveries.json {where}: {d.Find ?? d.WaitsFor} chance or hours";
             }
+        foreach (var d in f.CavePerMap)
+        {
+            if (!f.Finds.ContainsKey(d.Find)) yield return $"discoveries.json cavePerMap: no find '{d.Find}'";
+            if (d.AtLeast < 1 || d.ExpectedHours <= 0) yield return $"discoveries.json cavePerMap: {d.Find} atLeast or hours";
+        }
         foreach (var (t, ids) in detailDraws)
             foreach (var id in ids)
                 if (!f.Details.ContainsKey(id) && !f.ExamineOnly.Contains(id)) yield return $"discoveries.json detailDraws {t}: no detail '{id}'";
@@ -1072,7 +1091,7 @@ public static partial class Content
     {
         var forageUsed = terrain.Terrains.Values.Select(t => t.Forage?.Table).Concat(terrain.Caves.Values.Select(c => c.Forage.Table)).Concat(CodeForage).ToHashSet();
         foreach (var name in forage.Keys) if (!forageUsed.Contains(name)) yield return $"forage.json {name}: no terrain or cave forages it";
-        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find)
+        var findsUsed = discoveries.Terrains.Values.SelectMany(d => d).Concat(discoveries.Cave).Select(d => d.Find).Concat(discoveries.CavePerMap.Select(d => d.Find))
             .Concat(locations.SelectMany(l => l.All.OfType<SiteFind>()).Select(s => s.Find)).ToHashSet();
         foreach (var id in discoveries.Finds.Keys) if (!findsUsed.Contains(id)) yield return $"discoveries.json finds {id}: no draw finds it";
         var detailsUsed = discoveries.DetailDraws.Values.SelectMany(d => d).ToHashSet();

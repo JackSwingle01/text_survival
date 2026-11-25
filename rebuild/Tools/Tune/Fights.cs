@@ -87,7 +87,8 @@ public sealed class Fights
         "two_people_vs_wolves4", "one_person_vs_wolves4"];
     public static readonly string[] Policies = ["ai", "aggressive", "cautious", "stand_intimidate", "run",
         "careful_melee", "careful_throw", "quick_melee", "quick_throw"];
-    public static readonly string[] Weapons = ["none", "flint_knife", "wooden_spear", "stone_axe", "crude_spear", "staff", "stone"];
+    public static readonly string[] Weapons = ["none", "flint_knife", "wooden_spear", "ground_stone_axe", "crude_spear", "staff", "stone",
+        "flint_axe", "obsidian_knife", "bone_knife"];
     public static readonly string[] Conds = ["healthy", "tired", "hungry", "cold95", "cold92", "leg", "arm", "bleeding", "meat"];
     public static readonly string[] Fires = ["none", "campfire", "torch"];
 
@@ -189,7 +190,7 @@ public sealed class Fights
                 Tile = tile,
                 LastUpdatedMinute = w.Minute,
                 CarriedBy = person,
-                TorchMinutesLeft = Fire.TorchBurnMinutes,
+                TorchMinutesLeft = Items.GearKinds["torch"].BurnMinutes,
             };
         }
 

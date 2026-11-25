@@ -44,7 +44,7 @@ public class ItemsTests
         Assert.Equal(1.3125, Items.WeightKg(g), 12); // old Gear.Weight at half condition
         Assert.Equal(1.0, Items.CloValue(g), 12);
         Assert.False(Items.Use(Items.Make("torch")));
-        var unbreakable = Items.Make("stone_axe");
+        var unbreakable = Items.Make("ground_stone_axe");
         Assert.True(Items.Use(unbreakable));
         Assert.Equal(-1, unbreakable.Durability);
     }
@@ -68,7 +68,28 @@ public class ItemsTests
         pack.Gear.Add(Items.Make("large_bag"));
         pack.Gear.Add(Items.Make("rope_belt"));
         Assert.Equal(28, Items.CapacityKg(pack), 12);                // old: max 28
-        Assert.Equal(5.63 - 0.2, Items.CarriedKg(w.Agent(P)), 9);   // old: carried 5.63, less the hand drill's 0.2 kg (#142)
+        // old: carried 5.63, less the hand drill's 0.2 kg (#142), the bag's 0.29 and the belt's 0.2 (#150: no heavier than their inputs)
+        Assert.Equal(5.63 - 0.2 - 0.29 - 0.2, Items.CarriedKg(w.Agent(P)), 9);
+    }
+
+    /// Each made carrying thing adds what the spec says it does, and all of them together add up (#150).
+    [Theory]
+    [InlineData("small_pouch", 0.5)]
+    [InlineData("rope_belt", 3)]
+    [InlineData("hide_belt", 4)]
+    [InlineData("large_bag", 10)]
+    [InlineData("mammoth_hide_pack", 15)]
+    public void EachCarryingThing_AddsItsCapacity(string kind, double kg)
+    {
+        var pack = new Inventory { Gear = [Items.Make(kind)] };
+        Assert.Equal(Items.BaseCapacityKg + kg, Items.CapacityKg(pack), 12);
+    }
+
+    [Fact]
+    public void TheCarryingThings_Stack()
+    {
+        var pack = new Inventory { Gear = [.. new[] { "small_pouch", "rope_belt", "hide_belt", "large_bag", "mammoth_hide_pack" }.Select(k => Items.Make(k))] };
+        Assert.Equal(Items.BaseCapacityKg + 0.5 + 3 + 4 + 10 + 15, Items.CapacityKg(pack), 12);
     }
 
     // ---- golden: encumbrance reaches speed exactly as the old AbilityCalculator ----

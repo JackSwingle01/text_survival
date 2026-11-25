@@ -278,7 +278,7 @@ public static class Verbs
         menu.AddRange(StationVerbs(world, who, StationKind.Fire, Stations.At(world, new FireId(t.Index)), null, pack));
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
             if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
-        menu.Add(("Melt snow", new MeltSnow(who), Work.MeltSnowMinutes));
+        menu.Add(("Melt snow by hand", new MeltSnow(who), Work.MeltSnowMinutes));
         return menu;
     }
 
@@ -287,11 +287,14 @@ public static class Verbs
     {
         var menu = new List<(string, Activity, int)>();
         foreach (var r in Stations.RecipesOf(kind))
-            if (pack != null && Items.Have(pack, Stations.InputOf(r)) > Items.SliverKg)
+            if (Stations.FromNothing(r)) menu.Add((r.Name, new PutOn(who, r.Id, rack), Stations.HandlingMinutes));
+            else if (pack != null && Items.Have(pack, Stations.InputOf(r)) > Items.SliverKg)
                 menu.Add(($"Put on {Names.Of(Stations.InputOf(r))}", new PutOn(who, r.Id, rack), Stations.HandlingMinutes));
         if (Items.HasResources(station.Ready)) menu.Add(($"Take {Items.Describe(station.Ready)}", new TakeFinished(who, rack), Stations.HandlingMinutes));
         foreach (var x in station.Working)
             menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg, rack), Stations.HandlingMinutes));
+        foreach (var o in station.Ongoing)
+            menu.Add((Stations.StopLabel(o.Recipe), new StopWork(who, o.Recipe), Stations.HandlingMinutes));
         return menu;
     }
 

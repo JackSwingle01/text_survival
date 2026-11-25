@@ -14,9 +14,19 @@ public sealed class Transformation
     public double DonePct { get; set; }
 }
 
+/// GLOSSARY: Transformation, one with no input (melting snow): each full share of the work adds its result.
+public sealed class Ongoing
+{
+    public required string Recipe { get; init; }
+    public required AgentId SetBy { get; init; }
+    /// Of the unit under way.
+    public double DonePct { get; set; }
+}
+
 public sealed class StationState
 {
     public List<Transformation> Working { get; init; } = [];
+    public List<Ongoing> Ongoing { get; init; } = [];
     public Inventory Ready { get; set; } = new();
     /// The places finished amounts (dried berries) hold: amounts merge in Ready, and each still takes its place.
     public int ReadyAmounts { get; set; }
@@ -64,12 +74,18 @@ public static class Stations
 
     public const string NoFire = "no fire here", NoRack = "no such rack here";
 
-    public static bool Handles(Activity a) => a is PutOn or TakeFinished or TakeBack;
+    public static bool Handles(Activity a) => a is PutOn or TakeFinished or TakeBack or StopWork;
 
     /// A station-worked recipe's one input: one piece of it, or up to InputCapKg of it (the loader's rule).
     public static Resource InputOf(Recipe r) => r.Materials[0].AnyOf[0];
 
     public static double InputCapKg(Recipe r) => r.Materials[0].Kg;
+
+    /// Takes nothing: set going, it works until its Result.CapKg waits at the station (the loader's rule).
+    public static bool FromNothing(Recipe r) => r.Materials.Count == 0;
+    public static bool FromNothing(string recipe) => FromNothing(Recipes.Get(recipe));
+    static string Lower(string recipe) => Recipes.Get(recipe).Name.ToLowerInvariant();
+    public static string StopLabel(string recipe) => $"Stop: {Lower(recipe)}";
 
     public static string Word(StationKind kind) => kind switch { StationKind.Fire => "fire", StationKind.Rack => "rack" };
 
@@ -87,8 +103,10 @@ public static class Stations
 
     public static int Room(World world, FireId pit) => Fire.Room(world.Fires[pit].Pit);
 
-    /// Finished results take a place too: there is no queue.
-    public static int Used(StationState s) => s.Working.Count + s.Ready.Pieces.Values.Sum(p => p.Count) + s.ReadyAmounts;
+    /// Finished results take a place too: there is no queue. What a recipe with no input made waits in its own place.
+    public static int Used(StationState s) => s.Working.Count + s.Ongoing.Count + s.Ready.Pieces.Values.Sum(p => p.Count) + s.ReadyAmounts;
+
+    static bool Empty(StationState s) => s.Working.Count == 0 && s.Ongoing.Count == 0 && !Items.HasResources(s.Ready);
 
     internal static RackId Build(World world, TileId tile)
     {
@@ -191,18 +209,21 @@ public static class Stations
                 {
                     var r = Recipes.Get(a.Recipe);
                     if (r.Station != site.Kind) throw new ArgumentException($"{a.Recipe} is not worked at a {word}", nameof(activity));
-                    var input = InputOf(r);
-                    if (Items.IsDiscrete(input) ? Items.Count(pack, input) == 0 : Items.Have(pack, input) <= Items.SliverKg)
+                    if (!FromNothing(r) && InputOf(r) is var input
+                        && (Items.IsDiscrete(input) ? Items.Count(pack, input) == 0 : Items.Have(pack, input) <= Items.SliverKg))
                         return new($"no {Names.Of(input)} to put on", Items.IsDiscrete(input)
                             ? new MissingResource([input], Items.Resources[input].MinPieceKg, 1) : new MissingResource([input], InputCapKg(r), 0));
                     if (Used(s) >= site.Room)
                         return new($"the {word} has room for {site.Room}, and all of it is taken", new MissingState(Lack.StationRoom, site.Room + 1, Used(s)));
+                    if (s.Ongoing.Any(o => o.Recipe == a.Recipe)) return new($"the {word} is already set to {Lower(a.Recipe)}");
                     return null;
                 }
             case TakeFinished:
                 return Items.HasResources(s.Ready) ? null : new($"nothing at the {word} is done");
             case TakeBack a:
                 return Piece(s, a) != null ? null : new("nothing there to take back");
+            case StopWork a:
+                return s.Ongoing.Any(o => o.Recipe == a.Recipe) ? null : new($"the fire is not set to {Lower(a.Recipe)}");
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a station activity");
         }
@@ -218,6 +239,9 @@ public static class Stations
         if (site.Pit is FireId id && !world.Stations.ContainsKey(id)) world.Stations[id] = s;
         switch (activity)
         {
+            case PutOn a when FromNothing(a.Recipe):
+                s.Ongoing.Add(new Ongoing { Recipe = a.Recipe, SetBy = agent.Id });
+                break;
             case PutOn a:
                 {
                     var r = Recipes.Get(a.Recipe);
@@ -244,8 +268,11 @@ public static class Stations
                     Items.Receive(world, agent, back, events);
                     break;
                 }
+            case StopWork a:
+                s.Ongoing.RemoveAll(o => o.Recipe == a.Recipe);
+                break;
         }
-        if (site.Pit is FireId emptied && Used(s) == 0) world.Stations.Remove(emptied);
+        if (site.Pit is FireId emptied && Empty(s)) world.Stations.Remove(emptied);
         return null;
     }
 
@@ -262,7 +289,7 @@ public static class Stations
     {
         foreach (var (id, s) in world.Stations)
         {
-            if (s.Working.Count == 0) continue;
+            if (s.Working.Count == 0 && s.Ongoing.Count == 0) continue;
             // Only this catches a working fire up, so heat at the last minute and none at this one is the stop.
             bool wasWorking = HeatRatePct(world.Fires[id]) > 0;
             Fire.CatchUp(world, id, events);
@@ -270,7 +297,7 @@ public static class Stations
             double rate = HeatRatePct(fire);
             if (rate <= 0)
             {
-                if (wasWorking) events.Add(new TransformationStopped(world.Minute, fire.Tile, id, [.. s.Working.Select(t => t.Input)], StopReason.FireOut));
+                if (wasWorking && s.Working.Count > 0) events.Add(new TransformationStopped(world.Minute, fire.Tile, id, [.. s.Working.Select(t => t.Input)], StopReason.FireOut));
                 continue;
             }
             Work(world, s, new LocationFeature(LocationFeatureKind.Fire, fire.Tile, id.Value), rate, events);
@@ -297,6 +324,17 @@ public static class Stations
             bool cooked = r.Driver == StationDriver.Heat && Items.Resources[made].Category == ResourceCategory.Food;
             if (cooked && world.Agents.TryGetValue(t.SetBy, out var setter) && Sim.IsAlive(setter))
                 Skills.Award(world, setter, Skill.Cooking, kg * Skills.CookXpPerKg, events);
+        }
+        foreach (var o in s.Ongoing)
+        {
+            var r = Recipes.Get(o.Recipe);
+            var made = r.Result.Resource!.Value;
+            if (Items.Have(s.Ready, made) >= r.Result.CapKg - DoneSlack) continue; // stopped while its cap waits
+            o.DonePct += rate / r.Minutes;
+            if (o.DonePct < 1 - DoneSlack) continue;
+            o.DonePct = Math.Max(0, o.DonePct - 1);
+            Items.Add(s.Ready, made, r.Result.Kg);
+            events.Add(new TransformationFinished(world.Minute, at.Tile, at, o.SetBy, o.Recipe, made, r.Result.Kg));
         }
     }
 }
