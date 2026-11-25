@@ -89,6 +89,18 @@ public class ContentStrictTests
     public void Loader_RefusesAStationRecipe_ThatIsNotOnePieceRolledNothing_AndAPitWithNoRoom(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
+    // ---- 1d. the rack: an amount up to a cap goes on, and a rack is built (#187) ----
+
+    [Theory]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedBerries\", \"g\": 150 }", "as a sharePct (0-1] of its input")]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 1.3 }", "as a sharePct (0-1] of its input")]
+    [InlineData("\"result\": { \"resource\": \"DriedBerries\", \"sharePct\": 0.3 }", "\"result\": { \"resource\": \"DriedMeat\", \"count\": 1, \"sharePct\": 0.3 }", "an amount from an amount")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }", "\"result\": { \"station\": \"Fire\" }", "a placed station is a Rack")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }", "\"result\": { \"station\": \"Rack\", \"bedding\": \"Makeshift\" }", "exactly one")]
+    [InlineData("\"result\": { \"station\": \"Rack\" }, \"outcomes\": []", "\"result\": { \"station\": \"Rack\" }, \"outcomes\": [\"fail=.1\"]", "a placed result has no outcomes")]
+    public void Loader_RefusesADryingRecipe_OrARack_ThatCannotWork(string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn("recipes.json", from, to));
+
     // ---- 2. a row's fields are required, whatever kind of row it is ----
 
     [Theory]

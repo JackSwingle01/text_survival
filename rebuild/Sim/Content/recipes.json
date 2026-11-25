@@ -18,14 +18,15 @@
 //     weight that went in (less what an outcome wastes), each in r's range; { "resource": r, "g": n } for a
 //     continuous r; or, placed on the tile,
 //     { "shelter": ShelterKind, "shelterName": its name } (the tent carried, if it needs one) or
-//     { "bedding": BeddingKind }. A placed result's project stays on the tile for anyone there to
+//     { "bedding": BeddingKind } or { "station": "Rack" } (a curing rack, any number to a tile). A placed result's project stays on the tile for anyone there to
 //     go on with; its materials are used up when the work starts, and it has no outcomes. Or a repair,
 //     { "repairs": [gear kinds], "restoresPct": s }: worked on one held piece of those kinds (taken off, if worn, and
 //     put back on), restoring s of its missing condition, the materials joining its parts record; its name is the
 //     verb ("Mend"), and each kind is repaired by one recipe;
 //   station and driver (optional): a recipe worked by a station (StationKind) rather than a person, and what
-//     drives it (StationDriver). It has one input, one piece of one discrete resource; its result is a count of 1
-//     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs; and it has no
+//     drives it (StationDriver). It has one input: one piece of one discrete resource, its result a count of 1 and a
+//     sharePct of that piece; or up to g grams (a place's cap) of one continuous resource, its result an amount, a
+//     sharePct of what went on. Minutes are its time at full rate, whatever the input weighs; and it has no
 //     tools, faster tools, items, requirements or outcomes: nothing is rolled and nothing fails;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
@@ -129,6 +130,19 @@
  "cook_fish": { "name": "Cook fish", "category": "Processing", "station": "Fire", "driver": "Heat",
   "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
   "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+ // On a curing rack; the minutes are a dry, still day's.
+ "dry_meat": { "name": "Dry meat", "category": "Processing", "station": "Rack", "driver": "Drying",
+  "inputs": [ { "of": "RawMeat", "count": 1 } ], "tools": [], "requires": [], "minutes": 1440,
+  "result": { "resource": "DriedMeat", "count": 1, "sharePct": 0.4 },
+  "outcomes": [] },
+ "dry_fish": { "name": "Dry fish", "category": "Processing", "station": "Rack", "driver": "Drying",
+  "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 960,
+  "result": { "resource": "DriedFish", "count": 1, "sharePct": 0.25 },
+  "outcomes": [] },
+ "dry_berries": { "name": "Dry berries", "category": "Processing", "station": "Rack", "driver": "Drying",
+  "inputs": [ { "of": "Berries", "g": 500 } ], "tools": [], "requires": [], "minutes": 720,
+  "result": { "resource": "DriedBerries", "sharePct": 0.3 },
   "outcomes": [] },
 
  // ---- weapons ----
@@ -243,6 +257,11 @@
  "snow_shelter": { "name": "Snow shelter", "category": "Camp",
   "inputs": [], "tools": ["Digging"], "faster": ["Digging"], "fasterFactor": 2, "requires": ["Light", "NoShelter", "Frost"], "minutes": 135,
   "result": { "shelter": "SnowShelter", "shelterName": "Snow shelter" }, "outcomes": [] },
+ // Four branches for the frame, four sticks across it, a rope to lash it. Room for four things (Stations.RackRoom).
+ "curing_rack": { "name": "Curing rack", "category": "Camp",
+  "inputs": [ { "of": "PineBranch|BirchBranch|OakBranch", "count": 4 }, { "of": "Stick", "count": 4 }, { "of": "Rope", "count": 1 } ],
+  "tools": [], "requires": [], "minutes": 45,
+  "result": { "station": "Rack" }, "outcomes": [] },
  // The tent carried is the one pitched, with whatever work was put into it.
  "tent": { "name": "Tent", "category": "Camp",
   "inputs": [], "tools": [], "requires": ["NoShelter", "Tent"], "minutes": 10,

@@ -89,7 +89,8 @@ public static partial class Content
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
-        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0);
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0,
+        StationKind? Station = null);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -397,14 +398,16 @@ public static partial class Content
             if (inputResources.Distinct().Count() != inputResources.Count) problems.Add($"{at}: a resource in two inputs");
             if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
             var r = row.Result;
-            bool placed = r.Shelter != null || r.Bedding != null;
-            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null }.Count(x => x) != 1)
-                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding or a repair, exactly one");
+            bool placed = r.Shelter != null || r.Bedding != null || r.Station != null;
+            bool stationWorked = row.Station != null || row.Driver != null;
+            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null, r.Station != null }.Count(x => x) != 1)
+                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding, a station or a repair, exactly one");
             else if (r.Repairs != null) problems.AddRange(RepairProblems(at, row, items, gear, repaired));
             else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
             else if (r.Gear != null && (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0)) problems.Add($"{at}: a gear result is one piece, with no amount");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
+            else if (stationWorked) { } // StationProblems checks its result
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
             else if (r.Resource is Resource made2 && !resources[made2].Discrete && (r.G <= 0 || r.Count != 0 || r.SharePct != 0 || r.Kg != 0))
@@ -437,14 +440,14 @@ public static partial class Content
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
-            if (row.Station != null || row.Driver != null) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
+            if (stationWorked) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
             if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
                 new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct,
-                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null), outcomes.AsReadOnly(),
+                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null, r.Station), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
@@ -460,10 +463,11 @@ public static partial class Content
         if (outcomes.Count > 0) yield return $"{at}: a station-worked recipe has no outcome table";
         if (row.Requires.Count > 0) yield return $"{at}: a station-worked recipe has no requirements: its station's exposure sets its rate";
         if (items.Count > 0 || materials.Count != 1) yield return $"{at}: a station-worked recipe has one input";
-        else if (materials[0] is not { AnyOf.Count: 1, Count: 1 } m || !resources[m.AnyOf[0]].Discrete)
-            yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource";
-        if (row.Result.Resource is not Resource made || !resources[made].Discrete || row.Result.Count != 1)
-            yield return $"{at}: a station-worked recipe makes one piece of a discrete resource";
+        else if (materials[0] is not { AnyOf.Count: 1 } m || (resources[m.AnyOf[0]].Discrete ? m.Count != 1 : m.Kg <= 0))
+            yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource, or up to some grams of one continuous one";
+        else if (row.Result.Resource is not Resource made || resources[made].Discrete != resources[m.AnyOf[0]].Discrete
+            || row.Result.Count != (resources[made].Discrete ? 1 : 0) || row.Result.SharePct is <= 0 or > 1 || row.Result.G != 0 || row.Result.Kg != 0)
+            yield return $"{at}: a station-worked recipe makes, as a sharePct (0-1] of its input, one piece of a discrete resource from a piece, or an amount from an amount";
     }
 
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
@@ -546,6 +550,9 @@ public static partial class Content
         bool tent = row.Requires.Contains(Requirement.Tent);
         if (r.Bedding != null && (r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter))) yield return $"{at}: a bedding is not named, needs no tent and goes beside a shelter";
         if (r.Shelter != null && !row.Requires.Contains(Requirement.NoShelter)) yield return $"{at}: a shelter needs NoShelter";
+        if (r.Station != null && (r.Station != StationKind.Rack || r.ShelterName != null || tent || row.Requires.Contains(Requirement.NoShelter)))
+            yield return $"{at}: a placed station is a Rack, not named, needing no tent and standing beside a shelter";
+        if (r.Station != null && row.Station != null) yield return $"{at}: a station is built by hand, not worked by a station";
         if (r.Shelter != null && tent != (r.Shelter == ShelterKind.HideTent)) yield return $"{at}: a tent's shelter is HideTent, and only a tent's";
         if (r.Shelter != null && tent == (r.ShelterName != null)) yield return $"{at}: a shelter is named, unless it is the tent carried";
     }

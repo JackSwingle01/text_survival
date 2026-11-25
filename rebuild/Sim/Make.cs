@@ -149,11 +149,11 @@ public sealed record MaterialInput(IReadOnlyList<Resource> AnyOf, double Kg, int
 }
 
 /// A gear kind; Kg of a continuous resource; Count pieces of a discrete one, together SharePct of the inputs' actual
-/// weight; placed on the tile: a shelter (ShelterName, or the tent) or a bedding; or a repair of one held piece.
+/// weight; placed on the tile: a shelter (ShelterName, or the tent), a bedding or a rack; or a repair of one held piece.
 public sealed record RecipeResult(string? Gear, Resource? Resource, double Kg, ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null,
-    int Count = 0, double SharePct = 0, RepairResult? Repair = null)
+    int Count = 0, double SharePct = 0, RepairResult? Repair = null, StationKind? Station = null)
 {
-    public bool Placed => Shelter != null || Bedding != null;
+    public bool Placed => Shelter != null || Bedding != null || Station != null;
 }
 
 /// Works on one held piece of any of Kinds, restoring RestoresPct of its missing condition.
@@ -538,7 +538,12 @@ public static class Making
         var tile = agent.Tile;
         world.Projects.Remove(tile);
         foreach (var tool in r.Tools.Select(c => ToolFor(pack, c)).OfType<Gear>().Distinct().ToList()) Items.Use(tool);
-        if (r.Result.Bedding is BeddingKind bed) Shelters.PlaceBedding(world, tile, bed);
+        if (r.Result.Station is StationKind station)
+        {
+            if (station != StationKind.Rack) throw new InvalidOperationException($"{r.Id} places a {station}: only a rack is built");
+            Stations.Build(world, tile);
+        }
+        else if (r.Result.Bedding is BeddingKind bed) Shelters.PlaceBedding(world, tile, bed);
         else if (p.Materials.Gear.FirstOrDefault(g => Shelters.Tents.ContainsKey(g.Kind)) is Gear tent)
             Shelters.Place(world, tile, Shelters.Tents[tent.Kind], tent, new Cause(agent.Id, $"pitched by {Cause.Describe(world, agent.Id)}"));
         else Shelters.Place(world, tile, new ShelterDef(r.Result.ShelterName!, r.Result.Shelter!.Value), null, new Cause(agent.Id, $"built by {Cause.Describe(world, agent.Id)}"));

@@ -48,7 +48,9 @@
   "PineResin": { "pieceKg": 0.05, "insulating": 0.1, "waterproof": 0.9, "structural": 0.1 },
   "Tallow": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.7, "structural": 0.1 },
   // Sewing only.
-  "Sinew": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.1, "structural": 0.1, "shelter": false }
+  "Sinew": { "pieceKg": 0.1, "insulating": 0.1, "waterproof": 0.1, "structural": 0.1, "shelter": false },
+  // Lashing a curing rack only.
+  "Rope": { "pieceKg": 0.2, "insulating": 0.1, "waterproof": 0.1, "structural": 0.3, "shelter": false }
  },
 
  "beddings": {

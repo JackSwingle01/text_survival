@@ -38,7 +38,7 @@ static class ConservationWorlds
             if (ts.Pile is { } pile) Add(Items.KgByResource(pile));
             foreach (var c in ts.Carcasses ?? []) Add(c.Pending);
         }
-        foreach (var s in w.Stations.Values)
+        foreach (var s in w.Stations.Values.Concat(w.Racks.Values.Select(r => r.Work)))
         {
             Add(Items.KgByResource(s.Ready));
             foreach (var x in s.Working) Add([new(x.Input, x.InputKg)]);
@@ -64,11 +64,13 @@ static class ConservationWorlds
         }
         foreach (var ts in w.Tiles.Values) if (ts.Pile is { } pile) With(pile);
         foreach (var p in w.Projects.Values) With(p.Materials);
-        foreach (var s in w.Stations.Values)
+        foreach (var s in w.Stations.Values.Concat(w.Racks.Values.Select(r => r.Work)))
         {
             With(s.Ready);
             var working = new Inventory();
-            foreach (var x in s.Working) Items.AddPiece(working, x.Input, x.InputKg); // throws on a piece out of its range
+            foreach (var x in s.Working)
+                if (Items.IsDiscrete(x.Input)) Items.AddPiece(working, x.Input, x.InputKg); // throws on a piece out of its range
+                else Items.Add(working, x.Input, x.InputKg);
             With(working);
         }
         return all;

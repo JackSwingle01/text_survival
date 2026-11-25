@@ -163,8 +163,8 @@ public sealed class Observer
         foreach (var (_, f) in w.Fires)
             if (f.CarriedBy == null) // a torch goes with its carrier
                 marks[f.Tile] = At(f.Tile) with { Fire = Names.Title(Fire.Phase(f)), FireHoursLeft = Fire.IsActive(f) ? Math.Round(Fire.FuelHours(f), 1) : null };
-        foreach (var (id, s) in w.Stations)
-            if (Stations.Mark(s) is { } mark) marks[w.Fires[id].Tile] = At(w.Fires[id].Tile) with { Station = Words.Code(mark) };
+        foreach (var t in w.Stations.Keys.Select(id => w.Fires[id].Tile).Concat(w.Racks.Values.Select(r => r.Tile)).Distinct())
+            if (Stations.MarkAt(w, t) is { } mark) marks[t] = At(t) with { Station = Words.Code(mark) };
         foreach (var (t, s) in w.Shelters) marks[t] = At(t) with { Shelter = s.Name };
         foreach (var (t, s) in w.Tiles)
         {
