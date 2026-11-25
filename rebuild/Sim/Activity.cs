@@ -38,6 +38,7 @@ namespace Survival;
 [JsonDerivedType(typeof(PutOn), "puton")]
 [JsonDerivedType(typeof(TakeFinished), "takefinished")]
 [JsonDerivedType(typeof(TakeBack), "takeback")]
+[JsonDerivedType(typeof(StopWork), "stopwork")]
 public abstract record Activity(AgentId Who);
 
 public sealed record Wait(AgentId Who) : Activity(Who);
@@ -76,7 +77,8 @@ public sealed record PackTent(AgentId Who) : Activity(Who);
 public sealed record Make(AgentId Who, string Recipe, string? Target = null) : Activity(Who);
 public sealed record Abandon(AgentId Who, string Recipe, string? Target = null) : Activity(Who);
 
-/// At the fire here (Stations). TakeBack names the very piece put on: its input and kilos.
+/// At the fire here (Stations). TakeBack names the very piece put on: its input and kilos; StopWork, a recipe with no input.
 public sealed record PutOn(AgentId Who, string Recipe) : Activity(Who);
 public sealed record TakeFinished(AgentId Who) : Activity(Who);
 public sealed record TakeBack(AgentId Who, Resource Input, double Kg) : Activity(Who);
+public sealed record StopWork(AgentId Who, string Recipe) : Activity(Who);

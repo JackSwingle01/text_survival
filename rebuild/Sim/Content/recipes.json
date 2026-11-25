@@ -25,8 +25,10 @@
 //     verb ("Mend"), and each kind is repaired by one recipe;
 //   station and driver (optional): a recipe worked by a station (StationKind) rather than a person, and what
 //     drives it (StationDriver). It has one input, one piece of one discrete resource; its result is a count of 1
-//     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs; and it has no
-//     tools, faster tools, items, requirements or outcomes: nothing is rolled and nothing fails;
+//     and a sharePct of that piece; minutes are its time at full rate, whatever the piece weighs. Or it has no
+//     input and makes grams of a continuous resource each `minutes`, going on until capG of it waits at the
+//     station (above its g). Either way it has no tools, faster tools, items, requirements or outcomes: nothing
+//     is rolled and nothing fails;
 //   outcomes: `succeed|fail[:effect:params...]=<base odds>`, one rolled per finished piece; the odds
 //     left over are the plain result. Effects: waste_material:<input>:<share>,
 //     save_material:<input>:<share>, extra_product:<gear or resource>:<n> (of the recipe's own discrete result, n more
@@ -160,6 +162,11 @@
  "cook_fish": { "name": "Cook fish", "category": "Processing", "station": "Fire", "driver": "Heat",
   "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
   "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+ // Snow is assumed to be there (an existing gap) and needs no vessel: a litre at a time, until 4 L waits.
+ "melt_snow": { "name": "Melt snow", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [], "tools": [], "requires": [], "minutes": 10,
+  "result": { "resource": "Water", "g": 1000, "capG": 4000 },
   "outcomes": [] },
 
  // ---- weapons ----
