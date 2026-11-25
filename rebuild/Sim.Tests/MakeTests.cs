@@ -603,6 +603,82 @@ public class MakeTests
         Assert.Equal(7.2, Assert.Single(pack.Pieces[Resource.CuredMammothHide]), 9);
     }
 
+    // ---- processing, lighting and carrying (#150) ----
+
+    /// Each recipe from the spec's inputs, written "Resource=pieces" or "Resource=grams g": made with its tool or fire, refused
+    /// without it, its inputs all used.
+    [Theory]
+    [InlineData("render_fat", "RawFat=1", null, true, "Tallow", 20)]
+    [InlineData("willow_fibre", "WillowBark=100g", null, false, "PlantFiber", 10)]
+    [InlineData("cordage", "PlantFiber=300g", null, false, "Rope", 15)]
+    [InlineData("torch", "Kindling=1 BirchBark=50g", null, false, "torch", 5)]
+    [InlineData("torch", "Kindling=1 Tinder=50g", null, false, "torch", 5)]
+    [InlineData("resin_torch", "Kindling=1 PineResin=30g Tinder=20g", null, false, "resin_torch", 10)]
+    [InlineData("small_pouch", "BirchBark=100g PlantFiber=50g", "flint_knife", false, "small_pouch", 15)]
+    [InlineData("rope_belt", "Rope=2", null, false, "rope_belt", 20)]
+    [InlineData("hide_belt", "HideStrip=2", "flint_knife", false, "hide_belt", 30)]
+    [InlineData("large_bag", "CuredHide=3 Sinew=2 Rope=2", "bone_needle", false, "large_bag", 60)]
+    [InlineData("mammoth_hide_pack", "CuredMammothHide=1 Sinew=2 Rope=1", "bone_needle", false, "mammoth_hide_pack", 120)]
+    public void EachRecipe_IsMadeFromWhatItLists_AndRefusedWithoutItsToolOrFire(string recipe, string inputs, string? tool, bool fire, string result, int minutes)
+    {
+        var w = Noon(out var pack);
+        w.Minute = 14 * 60; // eleven at night: none of these needs light
+        var given = inputs.Split(' ').Select(s => s.Split('=')).Select(p => (R: Enum.Parse<Resource>(p[0]), Amount: p[1])).ToList();
+        foreach (var (r, amount) in given)
+            if (amount.EndsWith('g')) Items.Add(pack, r, double.Parse(amount[..^1]) / 1000);
+            else TestKit.GivePieces(pack, r, int.Parse(amount));
+        Assert.Equal(minutes, Recipes.Get(recipe).Minutes);
+
+        if (tool != null)
+        {
+            Assert.Equal(tool == "bone_needle" ? "you need something for sewing" : "you need something for cutting", Sim.Refusal(w, new Make(P, recipe))?.Reason);
+            pack.Gear.Add(Items.Make(tool));
+        }
+        if (fire)
+        {
+            Assert.Equal("you need a fire burning here", Sim.Refusal(w, new Make(P, recipe))?.Reason);
+            Burning(w);
+        }
+        Assert.Null(Sim.Refusal(w, new Make(P, recipe)));
+        Assert.Null(Sim.Step(w, new Make(P, recipe), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get(recipe), null, []));
+
+        if (Enum.TryParse<Resource>(result, out var made)) Assert.True(Items.Have(pack, made) > 0, $"no {made}");
+        else Assert.Single(pack.Gear, g => g.Kind == result);
+        foreach (var (r, _) in given.Where(x => x.R.ToString() != result)) Assert.Equal(0, Items.Have(pack, r), 9);
+    }
+
+    [Fact]
+    public void AHalfKiloOfRawFat_RendersToThreeHundredGramsOfTallow()
+    {
+        var w = Noon(out var pack);
+        Burning(w);
+        Items.AddPieces(pack, Resource.RawFat, [0.5]);
+        Assert.Null(Sim.Step(w, new Make(P, "render_fat"), 1).InterruptedReason);
+        var events = new List<WorldEvent>();
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("render_fat"), null, events));
+        Assert.Equal(0.3, Items.Have(pack, Resource.Tallow), 9);
+        Assert.Equal(0.3, Assert.Single(events.OfType<Made>()).Produced[Resource.Tallow], 9);
+    }
+
+    [Fact]
+    public void WillowBark_TwistsToEightTenthsItsWeightInFibre()
+    {
+        var w = Begun("willow_fibre", pack => Items.Add(pack, Resource.WillowBark, 0.25));
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("willow_fibre"), null, []));
+        // A hundred grams go in; the rest of the bark stays.
+        Assert.Equal(0.08, Items.Have(Items.Pack(w, P), Resource.PlantFiber), 9);
+        Assert.Equal(0.15, Items.Have(Items.Pack(w, P), Resource.WillowBark), 9);
+    }
+
+    /// The three torch recipes that made one torch are two, making two kinds.
+    [Fact]
+    public void TwoTorchRecipes_MakeTwoKindsOfTorch()
+    {
+        Assert.Equal(["torch", "resin_torch"], Recipes.All.Where(r => r.Category == MakeCategory.Lighting).Select(r => r.Id));
+        Assert.Equal(["torch", "resin_torch"], Recipes.All.Where(r => r.Category == MakeCategory.Lighting).Select(r => r.Result.Gear));
+    }
+
     // ---- what the player sees ----
 
     [Fact]
@@ -666,20 +742,21 @@ public class MakeTests
 
         // Makes the recipe once, fetching raw materials from the land and making the rest first.
         // False if it cannot be started with what the land, the kill and earlier recipes give.
-        bool MakeOne(Recipe r, int depth)
+        bool MakeOne(Recipe r, int depth, IReadOnlySet<Resource>? keep = null)
         {
+            var uses = r.Materials.SelectMany(m => m.AnyOf).Concat(keep ?? new HashSet<Resource>()).ToHashSet();
             Assert.True(depth < 10, $"{r.Id}: its inputs go round in a circle");
             for (int tries = 0; tries < 100; tries++)
             {
-                // What the land gives and this recipe does not use goes back to it: the pack stays light.
-                foreach (var res in Items.KgByResource(pack).Keys.Where(x => land.Contains(x) && !r.Materials.Any(m => m.AnyOf.Contains(x))).ToList()) TestKit.Remove(pack, res);
+                // What the land gives and neither this recipe nor the ones it is made for use goes back to it: the pack stays light.
+                foreach (var res in Items.KgByResource(pack).Keys.Where(x => land.Contains(x) && !uses.Contains(x)).ToList()) TestKit.Remove(pack, res);
                 if (Making.ProjectFor(pack, r.Id) == null)
                     foreach (var m in r.Materials)
                         for (int fetched = 0; !TestKit.Enough(pack, m); fetched++)
                         {
                             Assert.True(fetched < 20, $"{r.Id}: {string.Join("|", m.AnyOf)} never reaches the pack ({Items.Describe(pack)})");
                             if (m.AnyOf.Where(land.Contains).Select(x => (Resource?)x).FirstOrDefault() is Resource raw) TestKit.GiveFor(pack, raw, m);
-                            else if (producers.TryGetValue(m.AnyOf[0], out var from)) { if (!MakeOne(from, depth + 1)) return false; }
+                            else if (producers.TryGetValue(m.AnyOf[0], out var from)) { if (!MakeOne(from, depth + 1, uses)) return false; }
                             else return false;
                         }
                 KeepTheFireUp(w, pack);
@@ -690,7 +767,7 @@ public class MakeTests
                 // A tool worn out on earlier work is made again, as a player would.
                 foreach (var cap in r.Tools.Where(c => !pack.Gear.Any(g => Items.Works(g) && Items.Def(g).Capabilities.Contains(c))).ToList())
                     if (Recipes.All.FirstOrDefault(x => made.Contains(x.Id) && x.Result.Gear is string k && Items.GearKinds[k].Capabilities.Contains(cap)) is Recipe maker
-                        && !MakeOne(maker, depth + 1)) return false;
+                        && !MakeOne(maker, depth + 1, uses)) return false;
                 if (Sim.Refusal(w, new Make(P, r.Id)) != null) return false;
                 var step = Sim.Step(w, new Make(P, r.Id), 30);
                 Assert.True(step.InterruptedReason is Making.MadeIt or Making.Spoiled or null, $"{r.Id}: {step.InterruptedReason}");

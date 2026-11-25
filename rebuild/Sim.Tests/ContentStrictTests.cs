@@ -57,6 +57,10 @@ public class ContentStrictTests
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:HideStrip:1.5=.5\"", "extra_product HideStrip is whole pieces")]
     [InlineData("recipes.json", "\"succeed:extra_product:HideStrip:1=.5\"", "\"succeed:extra_product:HideStrip:2=.5\"", "a piece of HideStrip would weigh")]
     [InlineData("recipes.json", "\"result\": { \"resource\": \"ScrapedHide\", \"count\": 1, \"sharePct\": 0.8 }", "\"result\": { \"resource\": \"ScrapedHide\", \"g\": 800 }", "a discrete result ScrapedHide is a count of pieces")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 0.6 }", "\"result\": { \"resource\": \"Tallow\", \"g\": 300, \"sharePct\": 0.6 }", "a continuous result Tallow is grams (g) or a sharePct")]
+    [InlineData("recipes.json", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 0.6 }", "\"result\": { \"resource\": \"Tallow\", \"sharePct\": 1.5 }", "a continuous result Tallow is grams (g) or a sharePct")]
+    [InlineData("items.json", "\"tool\": \"Torch\", \"burnMinutes\": 60", "\"tool\": \"Torch\"", "a torch, and only a torch, burns (burnMinutes)")]
+    [InlineData("items.json", "\"capacityBonusKg\": 0.5", "\"capacityBonusKg\": 0.5, \"burnMinutes\": 60", "a torch, and only a torch, burns (burnMinutes)")]
     [InlineData("items.json", "\"baseWeightKg\": 0.1, \"maxDurability\": 1, \"capabilities\": []", "\"baseWeightKg\": 0.5, \"maxDurability\": 1, \"capabilities\": []", "torch weighs 0.5 kg, above its lightest possible inputs")]
     [InlineData("forage.json", "{ \"resource\": \"Stone\", \"abundance\": 0.3, \"minKg\": 0.2, \"maxKg\": 0.4 }", "{ \"resource\": \"Stone\", \"abundance\": 0.3, \"minKg\": 0.2, \"maxKg\": 2.4 }", "a piece of Stone at 0.2-2.4 kg is outside its range")]
     public void Loader_RefusesAResource_NotCountedAsItsForm(string file, string from, string to, string named) =>

@@ -394,8 +394,9 @@ public static partial class Content
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
-            else if (r.Resource is Resource made2 && !resources[made2].Discrete && (r.G <= 0 || r.Count != 0 || r.SharePct != 0 || r.Kg != 0))
-                problems.Add($"{at}: a continuous result {made2} is grams (g)");
+            else if (r.Resource is Resource made2 && !resources[made2].Discrete
+                && (!(r.G > 0 && r.SharePct == 0 || r.G == 0 && r.SharePct is > 0 and <= 1) || r.Count != 0 || r.Kg != 0))
+                problems.Add($"{at}: a continuous result {made2} is grams (g) or a sharePct (0-1] of the inputs' weight");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
             if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
@@ -479,6 +480,8 @@ public static partial class Content
                     yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
                 if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             }
+            else if (r.SharePct * lightest > lightest - saved + 1e-9)
+                yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             else if (r.G / 1000 > lightest - saved + 1e-9)
                 yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";
         }
@@ -533,6 +536,7 @@ public static partial class Content
             foreach (var (name, v) in new[] { ("insulation", g.Insulation), ("cushioning", g.Cushioning), ("toughness", g.Toughness), ("waterproofLevel", g.WaterproofLevel) })
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
+            if ((g.Tool == ToolType.Torch) != (g.BurnMinutes > 0) || g.BurnMinutes < 0) yield return $"{at}: a torch, and only a torch, burns (burnMinutes)";
             if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1 || w.ReachM <= 0))
                 yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
             if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))

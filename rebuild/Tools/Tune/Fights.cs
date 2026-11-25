@@ -189,7 +189,7 @@ public sealed class Fights
                 Tile = tile,
                 LastUpdatedMinute = w.Minute,
                 CarriedBy = person,
-                TorchMinutesLeft = Fire.TorchBurnMinutes,
+                TorchMinutesLeft = Items.GearKinds["torch"].BurnMinutes,
             };
         }
 

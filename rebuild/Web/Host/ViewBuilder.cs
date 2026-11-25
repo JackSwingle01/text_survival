@@ -155,7 +155,7 @@ sealed class ViewBuilder(World world, int gen)
         double? progress = Making.MinutesDone(world, _player, r) / r.Minutes;
         var materials = r.Materials.Select(Making.Words)
             .Concat(r.Items.Select(Names.GearWords)).ToList();
-        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}") : r.Name;
+        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : r.Result.Kg > 0 ? $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}" : Names.Of(res)) : r.Name;
         return new MakeDto(r.Id, r.Name, Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
