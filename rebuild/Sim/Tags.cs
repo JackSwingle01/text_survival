@@ -70,12 +70,13 @@ public static class Tags
             LocationFeatureKind.Sign => Tag.None,
             LocationFeatureKind.Item => Tag.None,
             LocationFeatureKind.Trodden => Tag.None,
+            LocationFeatureKind.Rack => Tag.None,
         };
         bool holdable = t.Kind switch
         {
             LocationFeatureKind.Agent => false, // an agent is met, not held: Hostile says what it means to you
             LocationFeatureKind.Body or LocationFeatureKind.Carcass or LocationFeatureKind.Pool or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter => true,
-            LocationFeatureKind.Track or LocationFeatureKind.Trodden => false,
+            LocationFeatureKind.Track or LocationFeatureKind.Trodden or LocationFeatureKind.Rack => false,
             LocationFeatureKind.Sign => true,
             LocationFeatureKind.Item => false,
         };
@@ -165,7 +166,7 @@ public static class Tags
         LocationFeatureKind.Pile => world.Tiles.GetValueOrDefault(t.Tile)?.PileCause?.Who,
         LocationFeatureKind.Fire => world.Fires.GetValueOrDefault(new FireId(t.Index))?.Cause?.Who,
         LocationFeatureKind.Shelter => Shelters.Peek(world, t.Tile)?.Cause?.Who,
-        LocationFeatureKind.Track or LocationFeatureKind.Trodden => null,
+        LocationFeatureKind.Track or LocationFeatureKind.Trodden or LocationFeatureKind.Rack => null,
         LocationFeatureKind.Sign => null,
         LocationFeatureKind.Item => null,
     };

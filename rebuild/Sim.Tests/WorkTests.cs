@@ -20,7 +20,7 @@ public class WorkTests
     static StockPool Bush() => new("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0);
 
     static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
-    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
     /// Room for a whole tree's trunk in one go (a pack alone takes it in loads).
     static void RoomForATree(World w) { Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); Items.Pack(w, P).Gear.Add(Items.Make("large_bag")); }
     static void FastForwardTo(World w, int hour) { while (Weather.MinuteOfDay(w.Minute) / 60 != hour) w.Minute++; }
@@ -59,8 +59,8 @@ public class WorkTests
     {
         var one = WithPools(Trees);
         var quarters = WithPools(Trees);
-        Items.Pack(one, P).Gear.Add(Items.Make("stone_axe", durability: 10)); // stone axes never wear; this one does
-        Items.Pack(quarters, P).Gear.Add(Items.Make("stone_axe", durability: 10));
+        Items.Pack(one, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10)); // a ground stone axe never wears; this one does
+        Items.Pack(quarters, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10));
         RoomForATree(one);
         RoomForATree(quarters);
         var r = Sim.Step(one, new Gather(P, 0), 300);

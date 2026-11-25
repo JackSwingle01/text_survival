@@ -44,7 +44,7 @@ public class ItemsTests
         Assert.Equal(1.3125, Items.WeightKg(g), 12); // old Gear.Weight at half condition
         Assert.Equal(1.0, Items.CloValue(g), 12);
         Assert.False(Items.Use(Items.Make("torch")));
-        var unbreakable = Items.Make("stone_axe");
+        var unbreakable = Items.Make("ground_stone_axe");
         Assert.True(Items.Use(unbreakable));
         Assert.Equal(-1, unbreakable.Durability);
     }

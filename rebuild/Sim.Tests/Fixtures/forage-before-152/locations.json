@@ -1403,8 +1403,8 @@
    ]
   },
   {
-   "id": "shale_outcrop",
-   "name": "Shale Outcrop",
+   "id": "obsidian_outcrop",
+   "name": "Obsidian Outcrop",
    "placement": "Named",
    "weight": 3,
    "terrain": [ "Rock" ],
@@ -1419,7 +1419,6 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Shale", "abundance": 1.2, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Stone", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 }
      ]
     }
@@ -2554,8 +2553,7 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Shale", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 }
+      { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 }
      ]
     }
    ]
@@ -2989,7 +2987,6 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
@@ -3016,7 +3013,6 @@
      "density": 0.52,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
@@ -3043,7 +3039,6 @@
      "density": 0.6,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }
@@ -3052,11 +3047,11 @@
     {
      "kind": "stock",
      "work": "Harvest",
-     "name": "Loose Shale",
-     "description": "Thin plates of shale have split from the cave wall. Usable pieces lie beneath the dust.",
+     "name": "Loose Rubble",
+     "description": "Stones have fallen from the cave roof. Fist-sized pieces lie among the slabs.",
      "minutes": 5,
      "items": [
-      { "resource": "Shale", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
+      { "resource": "Stone", "units": 4, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
      ]
     }
    ]
@@ -3079,7 +3074,6 @@
      "density": 0.8,
      "items": [
       { "resource": "Stone", "abundance": 1, "minKg": 0.15, "maxKg": 0.45 },
-      { "resource": "Shale", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.35 },
       { "resource": "Flint", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Pyrite", "abundance": 0.03, "minKg": 0.02, "maxKg": 0.08 }

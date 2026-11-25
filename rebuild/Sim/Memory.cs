@@ -62,7 +62,7 @@ public sealed class TileMemory
     /// sees whether it burns, not how much is on it: a fire seen out has none left (null), and a fire seen
     /// burning keeps the reckoning from beside it, which whoever reads it ages from VisitedMinute.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? FireHours { get; set; }
-    /// What was at the fire as a station, as of VisitedMinute (Stations.Mark): seen beside it, never from afar.
+    /// What was at the tile's stations (its fire and racks), as of VisitedMinute (Stations.MarkAt): seen beside them, never from afar.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public StationMark? Station { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public List<SeenCarcass>? Carcasses { get; set; }
     /// The pile by resource, to a tenth of a kilo.
@@ -454,7 +454,7 @@ public static class Memories
         mem.ForageDensity = pools.Count > 0 && pools[0] is ForagePool ? Pools.ForageDensity(world, new PoolId(tile, 0)) : 0;
         mem.Fire = fire;
         mem.FireHours = pit != null && Fire.IsActive(pit) ? Math.Round(Fire.FuelHours(pit), 1) : null;
-        mem.Station = pitId is FireId sid ? Stations.MarkAt(world, sid) : null;
+        mem.Station = Stations.MarkAt(world, tile);
         mem.Carcasses = carcasses;
         mem.Pile = pile;
         mem.Shelter = shelter;

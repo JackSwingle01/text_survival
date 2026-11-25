@@ -211,7 +211,7 @@ public class OddsTests
                 foreach (double perception in new[] { 0.0, 0.42, 0.97, 1.0, 1.3 })
                 {
                     var pack = new Inventory();
-                    if (axe) pack.Gear.Add(Items.Make("stone_axe"));
+                    if (axe) pack.Gear.Add(Items.Make("ground_stone_axe"));
                     if (shovel) pack.Gear.Add(Items.Make("bone_shovel"));
                     double old = Math.Min(perception, 1.0) * (axe ? 1.10 : 1.0) * (shovel ? 1.10 : 1.0);
                     var odds = Work.ForageYield(me, pack, perception);

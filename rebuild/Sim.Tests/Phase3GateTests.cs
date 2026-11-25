@@ -130,7 +130,7 @@ public class Phase3GateTests
         // An NPC living on its own mind beside all this: its mind, memory and work in hand are saved state too.
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
-        foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
+        foreach (var g in new[] { "ground_stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
         var t = new Tally();
         for (int i = 0; i < steps; i++)
         {
@@ -146,7 +146,7 @@ public class Phase3GateTests
         var w = TestWorlds.New(17);
         NpcBench.Spawn(w, Map.Of(w).Camp);
         var pack = Items.Pack(w, P);
-        foreach (var g in new[] { "stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
+        foreach (var g in new[] { "ground_stone_axe", "wooden_spear", "fire_striker", "flint_knife", "large_bag", "large_bag" }) pack.Gear.Add(Items.Make(g));
         var t = new Tally();
         for (int i = 0; i < steps; i++) Play(w, i, t);
         return t.Events;

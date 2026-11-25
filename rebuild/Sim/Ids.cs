@@ -62,6 +62,23 @@ sealed class FireIdConverter : JsonConverter<FireId>
         w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
 }
 
+/// A curing rack (Stations): never reused (World.NextRackId).
+[JsonConverter(typeof(RackIdConverter))]
+public readonly record struct RackId(int Value) : IComparable<RackId>
+{
+    public int CompareTo(RackId o) => Value.CompareTo(o.Value);
+}
+
+sealed class RackIdConverter : JsonConverter<RackId>
+{
+    public override RackId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetInt32());
+    public override void Write(Utf8JsonWriter w, RackId id, JsonSerializerOptions o) => w.WriteNumberValue(id.Value);
+    public override RackId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) =>
+        new(int.Parse(r.GetString() ?? throw new JsonException("RackId key is null")));
+    public override void WriteAsPropertyName(Utf8JsonWriter w, RackId id, JsonSerializerOptions o) =>
+        w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+}
+
 /// The unordered edge between two adjacent tiles: both directions of travel are one edge.
 [JsonConverter(typeof(EdgeIdConverter))]
 public readonly record struct EdgeId : IComparable<EdgeId>
