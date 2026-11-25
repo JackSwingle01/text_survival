@@ -122,7 +122,7 @@ public class MapTests
     [Fact]
     public void ANamedSite_SetsItsTilesGroundAndAir()
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var (t, site) = m.Sites.First(s => s.Value.Placement == Placement.Named && s.Value.Water == null && !m.BesideRiver(s.Key));
         Assert.Equal(site.Name, Map.Describe(m, t));
         Assert.Equal(site.Hazard, Map.TerrainHazardLevel(m, t));
@@ -146,7 +146,7 @@ public class MapTests
         Assert.Equal(0, Content.ById["spring_seep"].Water!.HazardDelta);
         foreach (int seed in new[] { 1, 17, 2048, 91237, 42 })
         {
-            var m = Map.Generate(seed);
+            var m = TestWorlds.Map(seed);
             foreach (var (t, site) in m.Sites.Where(s => s.Value.Water != null))
             {
                 Assert.Equal(Math.Min(1, site.Hazard + site.Water!.HazardDelta), Map.TravelHazardLevel(m, t, TestKit.JanuaryMinute), 12);
@@ -307,7 +307,7 @@ public class MapTests
     [Theory, MemberData(nameof(OldTiles))]
     public void TileGround_MatchesOldTerrainLocation(int x, int y, int baseMinutes, double modifier, double hazard)
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var t = new TileId(x, y);
         Assert.Equal(modifier, Map.TraversalModifier(m, t), 12);
         Assert.Equal(baseMinutes, Map.BaseTraversalMinutes(m, t));
@@ -317,7 +317,7 @@ public class MapTests
     [Fact]
     public void PassStagesAndCamp_UseTheirOwnGround()
     {
-        var m = Map.Generate(17);
+        var m = TestWorlds.Map(17);
         var proper = m.PassStageIndex.Single(s => s.Value == 2).Key;
         Assert.Equal(1.0, Map.TravelHazardLevel(m, proper, 0));
         Assert.Equal(7, Map.BaseTraversalMinutes(m, proper)); // old: (Rock 2 + floor(1.0 * 5)) x 1.0
@@ -332,11 +332,11 @@ public class MapTests
     [Fact]
     public void Save_HoldsNoTerrain_AndLoadRegeneratesTheSameMap()
     {
-        var world = World.New(17);
+        var world = TestWorlds.New(17);
         string json = Save.ToJson(world);
         Assert.True(json.Length < 1_000_000, $"Save is {json.Length} bytes");
         // The valley's herds are real state (their bodies and land); everything else must be tiny.
-        var bare = Save.FromJson(json);
+        var bare = TestWorlds.Load(json);
         foreach (var id in bare.Agents.Keys.Where(id => id != AgentId.Player).ToList()) bare.Agents.Remove(id);
         // The player's first look is in it (World.New): what they have explored and the places noted, about 13 kB.
         Assert.True(Save.ToJson(bare).Length < 20_000, $"Save is {Save.ToJson(bare).Length} bytes without its herds: generated terrain leaked into it?");
@@ -353,10 +353,10 @@ public class MapTests
     [Fact]
     public void Save_HoldsNoCampTile_AndClothingBelongsToEachBody()
     {
-        var world = World.New(17);
+        var world = TestWorlds.New(17);
         string json = Save.ToJson(world);
         Assert.DoesNotContain("CampTile", json); // derived from the seed's map, as terrain is
-        Assert.Equal(Map.Generate(17).Camp, Map.Of(Save.FromJson(json)).Camp);
+        Assert.Equal(TestWorlds.Map(17).Camp, Map.Of(Save.FromJson(json)).Camp);
         // Agent carries no human-only fields: a herd's members wear nothing, a person wears their own.
         Assert.Null(typeof(Agent).GetProperty("ClothingClo"));
         Assert.Null(typeof(Agent).GetProperty("ClothingWeightKg"));
@@ -372,7 +372,7 @@ public class MapTests
     [Fact]
     public void TileIdKeys_RoundTrip()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         world.Tiles[new TileId(3, -4)] = new TileState();
         string json = Save.ToJson(world);
         Assert.Contains("\"3,-4\":{}", json);
@@ -384,7 +384,7 @@ public class MapTests
     [Fact]
     public void Agent_IsMembersAndAMind_BodyDerivedForOneBodyAgents()
     {
-        var world = World.New(1);
+        var world = TestWorlds.New(1);
         var player = world.Agent(AgentId.Player);
         Assert.Same(player.Members.Single(), player.Body);
         Assert.IsType<PlayerMind>(player.Mind);
@@ -393,7 +393,7 @@ public class MapTests
         string json = Save.ToJson(world);
         Assert.Contains("\"Mind\":{\"kind\":\"player\",\"Pack\":", json);
         Assert.DoesNotContain("\"Body\":", json); // derived, never saved twice
-        Assert.IsType<PlayerMind>(Save.FromJson(json).Agent(AgentId.Player).Mind);
+        Assert.IsType<PlayerMind>(TestWorlds.Load(json).Agent(AgentId.Player).Mind);
 
         var herd = new Agent { Id = new AgentId(5), Tile = Map.Of(world).Camp, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
         Assert.Throws<InvalidOperationException>(() => herd.Body);
