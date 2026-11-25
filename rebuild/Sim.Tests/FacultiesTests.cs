@@ -114,6 +114,7 @@ public class FacultiesTests
     // ---- zero means the part gives nothing ----
 
     static Region RegionOf(BodyState b, string name) => b.Regions.Single(r => r.Name == name);
+    static Tissue OrganOf(BodyState b, string name) => b.Regions.SelectMany(r => r.Organs).Single(o => o.Name == name);
 
     static void SetLayers(BodyState b, string region, double condition)
     {
@@ -169,11 +170,11 @@ public class FacultiesTests
     [Fact]
     public void AnUnconsciousBody_HasSpeedDexterityAndPerceptionAtZero_AndStrengthAboveIt()
     {
-        var out_ = BlowToTheHead(brain: 0);
-        Assert.Equal(0, Body.Speed(out_));
-        Assert.Equal(0, Body.Dexterity(out_));
-        Assert.Equal(0, Body.Perception(out_));
-        Assert.True(Body.Strength(out_) > 0);
+        var knockedOut = BlowToTheHead(brain: 0);
+        Assert.Equal(0, Body.Speed(knockedOut));
+        Assert.Equal(0, Body.Dexterity(knockedOut));
+        Assert.Equal(0, Body.Perception(knockedOut));
+        Assert.True(Body.Strength(knockedOut) > 0);
     }
 
     /// No cut at a tenth of consciousness: a body barely awake keeps its limbs, so it walks as fast as a whole one.
@@ -211,16 +212,16 @@ public class FacultiesTests
     public void ADestroyedLung_FogsTheHead_OnceBreathIsBelowThreeTenths()
     {
         var oneLung = Whole();
-        oneLung.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Left Lung").Condition = 0;
+        OrganOf(oneLung, "Left Lung").Condition = 0;
         Assert.Equal(Body.Perception(Whole()), Body.Perception(oneLung), 12);
         Assert.Equal(Body.Dexterity(Whole()), Body.Dexterity(oneLung), 12);
 
-        var short_ = Whole();
-        short_.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Left Lung").Condition = 0;
-        short_.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Right Lung").Condition = 0.4; // breath 0.2
-        Assert.Equal(Body.Perception(Whole()) * 2 / 3, Body.Perception(short_), 12);
-        Assert.True(Body.Dexterity(short_) < Body.Dexterity(Whole()));
-        Assert.Equal(Body.Speed(Whole()), Body.Speed(short_), 12);
+        var breathless = Whole();
+        OrganOf(breathless, "Left Lung").Condition = 0;
+        OrganOf(breathless, "Right Lung").Condition = 0.4; // breath 0.2
+        Assert.Equal(Body.Perception(Whole()) * 2 / 3, Body.Perception(breathless), 12);
+        Assert.True(Body.Dexterity(breathless) < Body.Dexterity(Whole()));
+        Assert.Equal(Body.Speed(Whole()), Body.Speed(breathless), 12);
     }
 
     /// Wasted to nothing and worn out, a full pack is more than the body can carry: speed stops at zero.

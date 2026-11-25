@@ -59,7 +59,7 @@ internal static class TissueReads
     }
 
     /// The limbs' mean times (0.9 + 0.1 × the rest's mean): the rest scales them and adds nothing, so no working limb is zero.
-    static double LimbsScaledByTheRest(List<Region> regions, ReadOnlySpan<double> caps, int cap, Func<Region, bool> isLimb, Func<Region, bool> counts)
+    static double LimbsScaledByTheRest(List<Region> regions, ReadOnlySpan<double> caps, int cap, Func<Region, bool> isLimb, Func<Region, bool> isRest)
     {
         double limbSum = 0, restSum = 0;
         int limbs = 0, rest = 0;
@@ -67,7 +67,7 @@ internal static class TissueReads
         {
             double v = caps[r * CapacityCount + cap];
             if (isLimb(regions[r])) { limbSum += v; limbs++; }
-            else if (counts(regions[r])) { restSum += v; rest++; }
+            else if (isRest(regions[r])) { restSum += v; rest++; }
         }
         if (limbs == 0) return 0;
         return limbSum / limbs * (0.9 + 0.1 * (rest == 0 ? 1 : restSum / rest));
@@ -84,7 +84,8 @@ internal static class TissueReads
         return c[(int)Capacity.Digestion];
     }
 
-    internal static readonly double[] NoEffects = new double[CapacityCount];
+    static readonly double[] NoEffectDeltas = new double[CapacityCount];
+    internal static ReadOnlySpan<double> NoEffects => NoEffectDeltas;
 
     /// Organs supply in proportion to their condition, plus the muscle's work, limited by the region's
     /// weakest layer. Not an average over tissues: that leaves two-thirds of breathing with both lungs destroyed.
@@ -153,7 +154,7 @@ internal static class TissueReads
 }
 
 /// Blood and breath, and their scales (1 when whole): lost blood on consciousness and the limbs, short breath on consciousness.
-internal readonly record struct BloodAndBreath(double Blood, double Breath, double CirculationPct, double BreathPct)
+internal readonly record struct BloodAndBreath(double Blood, double Breath, double LostBloodScale, double ShortBreathScale)
 {
     internal const double CirculationFailsBloodPct = 0.5;
     const double BreathShortBelow = 0.3;
@@ -191,8 +192,8 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
         TissueReads.Fill(body, effectDeltas, c);
         feed = BloodAndBreath.Of(body, c);
 
-        double consciousness = c[(int)Capacity.Consciousness] * feed.CirculationPct * feed.BreathPct;
-        double limbs = consciousness > 0 ? feed.CirculationPct : 0; // unconscious, the limbs give nothing
+        double consciousness = c[(int)Capacity.Consciousness] * feed.LostBloodScale * feed.ShortBreathScale;
+        double limbs = consciousness > 0 ? feed.LostBloodScale : 0; // unconscious, the limbs give nothing
         return new Capacities(c[(int)Capacity.Moving] * limbs, c[(int)Capacity.Manipulation] * limbs, consciousness,
             c[(int)Capacity.Sight], c[(int)Capacity.Hearing]);
     }
