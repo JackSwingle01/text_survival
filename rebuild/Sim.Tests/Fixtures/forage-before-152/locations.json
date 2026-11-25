@@ -1403,8 +1403,8 @@
    ]
   },
   {
-   "id": "shale_outcrop",
-   "name": "Shale Outcrop",
+   "id": "obsidian_outcrop",
+   "name": "Obsidian Outcrop",
    "placement": "Named",
    "weight": 3,
    "terrain": [ "Rock" ],
