@@ -134,7 +134,9 @@ public class CapacityReadTests
     [
         // The sim.
         "Making.WorkPerMinute: Manipulation, Moving",
+        "Senses.Now: Sight",
         "Shelters.ImpairmentFactor: Manipulation, Moving",
+        "Sight.ViewOf: Sight",
         "Work.ImpairmentFactor: Manipulation, Moving",
         // The tests.
         "EffectsPropertyTests.Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",

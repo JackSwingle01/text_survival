@@ -184,7 +184,7 @@ public class CombatStateTests
         Assert.NotEqual(FighterState.Down, Combat.StateOf(w, Me(e)));
         Assert.Null(Combat.RunningOf(w, Me(e)));
         Assert.Equal(0, Combat.Allowance(w, Me(e)));
-        foreach (var action in new[] { CombatAction.Flee, CombatAction.Advance, CombatAction.Retreat })
+        foreach (var action in new[] { CombatAction.Flee, CombatAction.Advance, CombatAction.Retreat, CombatAction.Move })
         {
             var refused = Combat.Refusal(w, e, Me(e), action);
             Assert.True(refused?.Missing is MissingFaculty { Faculty: Faculty.Speed }, $"{action}: {refused}");

@@ -501,7 +501,7 @@ public static partial class Combat
         {
             case CombatAction.Flee: return unit.RunDown ? new("You were run down.") : CannotRun(world, unit);
             case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? new("Nobody is running from you.") : CannotRun(world, unit);
-            case CombatAction.Advance or CombatAction.Retreat when CannotRun(world, unit) is { } lame: return lame;
+            case CombatAction.Advance or CombatAction.Retreat or CombatAction.Move when CannotRun(world, unit) is { } lame: return lame;
             case CombatAction.Wait: return null;
             case CombatAction.PickUp:
                 return unit.Weapon != null ? new("Your hands are full.") : DroppedNear(enc, unit) == null ? new("Nothing to pick up within reach.") : null;

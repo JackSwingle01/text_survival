@@ -685,9 +685,10 @@ public static class Npc
         }
 
         // What the body refuses here it refuses on any tile: no leaf it would walk to and be refused.
-        bool? gathers, butchers;
-        bool Gathers => gathers ??= Crippled.Refusal(world, world.Agent(Id), Faculty.Speed, Faculty.Dexterity) == null;
-        bool Butchers => butchers ??= Crippled.Refusal(world, world.Agent(Id), Faculty.Dexterity) == null;
+        bool? forages, gathers, butchers;
+        bool Able(Activity a, PoolDef? pool) => Crippled.Refusal(world, world.Agent(Id), Work.Needs(a, pool, Species.Human)) == null;
+        bool Gathers(PoolDef pool) => pool is ForagePool ? forages ??= Able(new Gather(Id, 0), pool) : gathers ??= Able(new Gather(Id, 0), pool);
+        bool Butchers => butchers ??= Able(new Butcher(Id, 0), null);
 
         IEnumerable<Leaf> Offers(TileId t, Req req, double want, int startIn, TileId? site)
         {
@@ -701,8 +702,9 @@ public static class Npc
                     yield return new Leaf(Via.PickUp, t, (int)r, req, kg * req.PerKg(r), kg, 1);
                 }
             var pools = Pools.At(world, t);
-            for (int i = 0; i < pools.Count && Gathers; i++)
+            for (int i = 0; i < pools.Count; i++)
             {
+                if (!Gathers(pools[i])) continue;
                 var id = new PoolId(t, i);
                 if (!Pools.Knows(world, Id, id)) continue;
                 int minutes = pools[i] switch

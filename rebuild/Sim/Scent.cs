@@ -60,7 +60,7 @@ public readonly record struct Senses(TileId From, double SightBudgetTiles, doubl
     public static Senses Now(World world, Agent animal)
     {
         var row = SpeciesTable.Of(animal.Species);
-        double sight = Sight.BudgetTiles(world, animal.Tile, Sight.SensesPct(animal.Body)) * row.PerceptionFactor;
+        double sight = Sight.BudgetTiles(world, animal.Tile, Body.GetCapacities(animal.Body).Sight) * row.PerceptionFactor;
         return new Senses(animal.Tile, sight, row.SmellFactor, Weather.At(world, world.Minute).WindDirection);
     }
 
