@@ -24,6 +24,8 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
 REPO = os.environ["GITHUB_REPOSITORY"]
 NEEDS_USER = "needs-user"
@@ -32,11 +34,12 @@ WORKING = "agent-working"
 # Only people who can already push may spend the plan; the repo is public.
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 # Issues this repo's workflows file with its GITHUB_TOKEN: the daily ratchet run's batches
-# (.github/workflows/ratchet.yml) and the one issue open while main's CI is red (ci.yml's main-red job).
+# (.github/workflows/ratchet.yml), the one issue open while main's CI is red (ci.yml's main-red job),
+# and a failing nightly run's one issue (.github/workflows/nightly.yml).
 # Only this repo's workflows act as that bot here, and no workflow runs untrusted code with write
 # access, so its issues carrying one of these labels are as trusted as the main they came from.
 WORKFLOW_BOT, MAIN_RED = "github-actions[bot]", "main-red"
-WORKFLOW_LABELS = {"ratchet", MAIN_RED}
+WORKFLOW_LABELS = {"ratchet", MAIN_RED, "nightly"}
 
 
 def api(path):
@@ -195,6 +198,7 @@ def log_excerpt(log):
     """The lines of a job's log that say what failed: each line that reads as a failure with the lines
     around it (the assertion and the top of the stack trace follow the test's name), and the log's end.
     Cut to LOG_CHARS from the front, so a log that fails everywhere still shows its first failures."""
+    log = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", log)  # colour codes
     lines = [re.sub(r"^\S*\d{4}-\d\d-\d\dT[\d:.]+Z ", "", line) for line in log.splitlines()]
     keep = set(range(max(0, len(lines) - LOG_TAIL_LINES), len(lines)))
     for i, line in enumerate(lines):
@@ -208,6 +212,27 @@ def log_excerpt(log):
         last = i
     text = "\n".join(out)
     return text if len(text) <= LOG_CHARS else text[:LOG_CHARS] + f"\n(cut at {LOG_CHARS} characters)"
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+def job_log(job_id):
+    """A job's log as text. Not through gh: `gh api` refuses to print a response that has terminal
+    escape sequences, and a log has its colour codes (#250's first triage was parked for this). The
+    API answers with a redirect to a signed URL, which is fetched without the token."""
+    api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+    ask = urllib.request.Request(f"{api_url}/repos/{REPO}/actions/jobs/{job_id}/logs",
+                                 headers={"Authorization": f"Bearer {os.environ['GH_TOKEN']}"})
+    try:
+        answer = urllib.request.build_opener(NoRedirect).open(ask, timeout=60)
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308):
+            raise
+        answer = urllib.request.urlopen(e.headers["Location"], timeout=60)
+    return answer.read().decode("utf-8", errors="replace")
 
 
 def failed_run_logs(text):
@@ -226,15 +251,11 @@ def failed_run_logs(text):
             continue
         steps = ", ".join(s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure")
         out.append(f"### {job['name']} (failed step: {steps or 'not recorded'})")
-        # A log is text, not JSON, so it is fetched without api().
-        got = subprocess.run(["gh", "api", f"repos/{REPO}/actions/jobs/{job['id']}/logs"],
-                             capture_output=True, text=True, errors="replace")
-        if got.returncode != 0:
-            why = got.stderr.strip()[:200]
-            out.append(f"(log could not be fetched: {why})")
-            print(f"brief: log of job {job['id']} could not be fetched: {why}", file=sys.stderr)
-        else:
-            out.append("```\n" + log_excerpt(got.stdout).replace("```", "~~~") + "\n```")
+        try:
+            out.append("```\n" + log_excerpt(job_log(job["id"])).replace("```", "~~~") + "\n```")
+        except OSError as e:
+            out.append(f"(log could not be fetched: {str(e)[:200]})")
+            print(f"brief: log of job {job['id']} could not be fetched: {e}", file=sys.stderr)
     return f"Run {run}.\n\n" + ("\n\n".join(out) if out else "No job of it failed.")
 
 

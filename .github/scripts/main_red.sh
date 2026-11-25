@@ -9,7 +9,8 @@
 # While the issue is open, issue-build.yml builds nothing but that issue: any other build branches from
 # main, so its PR would carry main's red check.
 # The issue is a ticket for the issue agent, and its body is the agent's rule: fix it when the fix is
-# small and obvious, else park it as `needs-user`. An issue opened with GITHUB_TOKEN starts no
+# small and obvious, else park it as `needs-user` (nightly_report.py's AGENT_RULE is the same rule for
+# the nightly issue). An issue opened with GITHUB_TOKEN starts no
 # workflows, so this dispatches triage for it; the hourly triage covers a dispatch that fails.
 set -euo pipefail
 failed=$(jq -r '[to_entries[] | select(.value.result == "failure") | .key] | join(", ")' <<< "$NEEDS")
