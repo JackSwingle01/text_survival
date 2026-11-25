@@ -2,8 +2,8 @@ using Survival;
 using Xunit;
 using Xunit.Abstractions;
 
-/// Measures species.json's killChances again (KillOdds.Measure, 200 hunts a cell, about two minutes) and prints the
-/// section to paste over it. It runs only with KILL_CHANCES set:
+/// Measures species.json's killChances and injuryChances again (KillOdds.Measure, 200 hunts a cell, one run for both) and
+/// prints the two sections to paste over them. It runs only with KILL_CHANCES set:
 /// KILL_CHANCES=1 dotnet test rebuild/Sim.Tests -c Release --filter KillChanceTableReport
 public class KillChanceTableReport(ITestOutputHelper output)
 {
@@ -11,16 +11,28 @@ public class KillChanceTableReport(ITestOutputHelper output)
     [ReportFact("KILL_CHANCES")]
     public void Measure()
     {
+        var kill = new List<string>();
+        var injury = new List<string>();
         foreach (var (predator, quarries) in Content.Tables.KillChances)
         {
-            output.WriteLine($"  \"{predator}\": {{");
+            kill.Add($"  \"{predator}\": {{");
+            injury.Add($"  \"{predator}\": {{");
             foreach (var quarry in quarries.Keys)
             {
-                var rows = Enumerable.Range(1, Fauna.MaxHunters).Select(n => "[" + string.Join(", ", Enumerable.Range(1, Combat.KillChanceHerds)
-                    .Select(k => $"{KillOdds.Measure(predator, n, quarry, k, 200, 1):0.00}")) + "]");
-                output.WriteLine($"   \"{quarry}\": [{string.Join(", ", rows)}],");
+                var cells = Enumerable.Range(1, Fauna.MaxHunters).Select(n => Enumerable.Range(1, Combat.KillChanceHerds)
+                    .Select(k => KillOdds.Measure(predator, n, quarry, k, 200, 1)).ToList()).ToList();
+                kill.Add($"   \"{quarry}\": [{Rows(cells, c => c.Kill)}],");
+                injury.Add($"   \"{quarry}\": [{Rows(cells, c => c.Injury)}],");
             }
-            output.WriteLine("  },");
+            kill.Add("  },");
+            injury.Add("  },");
         }
+        output.WriteLine(" \"killChances\": {");
+        foreach (var line in kill) output.WriteLine(line);
+        output.WriteLine(" \"injuryChances\": {");
+        foreach (var line in injury) output.WriteLine(line);
     }
+
+    static string Rows(List<List<(double Kill, double Injury)>> cells, Func<(double Kill, double Injury), double> pick) =>
+        string.Join(", ", cells.Select(row => "[" + string.Join(", ", row.Select(c => $"{pick(c):0.00}")) + "]"));
 }

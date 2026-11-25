@@ -70,11 +70,15 @@ public sealed class BackgroundCli(string root)
         Directory.CreateDirectory(runPath);
         Write(Path.Combine(runPath, "options.json"), options);
         Write(Path.Combine(runPath, "state.json"), new { status = "starting", revision = 0, snapshotCurrent = false });
-        var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet") {
-            UseShellExecute = false, CreateNoWindow = true,
+        var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
             // Separate handles let the launching tool return without waiting for the child.
             // The worker immediately redirects its diagnostics to its own log file.
-            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
             WorkingDirectory = Directory.GetCurrentDirectory()
         };
         start.ArgumentList.Add(typeof(BackgroundCli).Assembly.Location);
@@ -106,8 +110,16 @@ public sealed class BackgroundCli(string root)
         var state = Read<CliWorkerState>(Path.Combine(RunPath(worker), "state.json"));
         bool alive = IsAlive(worker);
         string status = !alive && state.Status is not "stopped" and not "failed" ? "interrupted" : state.Status;
-        return new { worker.Session, worker.Run, worker.Pid, alive, status,
-            state = state with { Status = status, SnapshotCurrent = status is "ready" or "stopped" }, logPath = Path.Combine(RunPath(worker), "worker.log") };
+        return new
+        {
+            worker.Session,
+            worker.Run,
+            worker.Pid,
+            alive,
+            status,
+            state = state with { Status = status, SnapshotCurrent = status is "ready" or "stopped" },
+            logPath = Path.Combine(RunPath(worker), "worker.log")
+        };
     }
 
     public object Send(string session, string command, string? value = null, string? requestId = null, long? revision = null)
@@ -149,8 +161,14 @@ public sealed class BackgroundCli(string root)
         var state = Read<JsonElement>(Path.Combine(directory, "state.json"));
         bool running = state.TryGetProperty("requestId", out var current) && current.GetString() == requestId;
         bool ended = !IsAlive(worker) || state.GetProperty("status").GetString() is "stopped" or "failed";
-        return new { worker.Session, worker.Run, requestId, status = ended ? "interrupted" : running ? "running" : "queued",
-            outcomeUnknown = ended && running };
+        return new
+        {
+            worker.Session,
+            worker.Run,
+            requestId,
+            status = ended ? "interrupted" : running ? "running" : "queued",
+            outcomeUnknown = ended && running
+        };
     }
 
     /// <summary>Queue each command in turn and wait for it; stops at the first rejected one.
@@ -201,8 +219,14 @@ public sealed class BackgroundCli(string root)
         long revision = 0;
         CliRequest? active = null;
         var completed = new HashSet<string>();
-        void State(string status, string? error = null) => Write(statePath, new {
-            status, revision, requestId = active?.Id, snapshotCurrent = status is "ready" or "stopped", snapshot, error
+        void State(string status, string? error = null) => Write(statePath, new
+        {
+            status,
+            revision,
+            requestId = active?.Id,
+            snapshotCurrent = status is "ready" or "stopped",
+            snapshot,
+            error
         });
         try
         {
@@ -237,8 +261,14 @@ public sealed class BackgroundCli(string root)
                 var serialized = JsonSerializer.SerializeToElement(response, CliProtocol.Json);
                 revision++;
                 snapshot = JsonSerializer.SerializeToElement(session.Look(), CliProtocol.Json);
-                Write(Path.Combine(directory, active.Id + ".result.json"), new {
-                    session = sessionId, run, requestId = active.Id, status = "completed", revision, response = serialized
+                Write(Path.Combine(directory, active.Id + ".result.json"), new
+                {
+                    session = sessionId,
+                    run,
+                    requestId = active.Id,
+                    status = "completed",
+                    revision,
+                    response = serialized
                 });
                 completed.Add(active.Id + ".request.json");
                 active = null;
@@ -250,8 +280,13 @@ public sealed class BackgroundCli(string root)
         {
             Console.Error.WriteLine(ex);
             if (active != null)
-                Write(Path.Combine(directory, active.Id + ".result.json"), new {
-                    session = sessionId, run, requestId = active.Id, status = "failed", revision,
+                Write(Path.Combine(directory, active.Id + ".result.json"), new
+                {
+                    session = sessionId,
+                    run,
+                    requestId = active.Id,
+                    status = "failed",
+                    revision,
                     response = new { ok = false, fatal = true, error = ex.Message }
                 });
             State("failed", ex.Message);

@@ -70,25 +70,3 @@ suite; others: `dotnet build` and `dotnet test`).
 When empty: change the `format` job in `.github/workflows/ci.yml` to check every C# file in the
 repository (`dotnet format whitespace . --folder --verify-no-changes`), not only the ones a PR
 touches, and drop its "Ratchet" comment.
-
-## test-worlds
-
-- **batch:** 1
-
-```bash
-awk '/NotYetOnTestWorlds = new\(\)/{f=1;next} f&&/^ *};/{exit} f' rebuild/Sim.Tests/Architecture/TestWorldSourceTests.cs |
-  { grep -oP '\["\K[^"]+' || true; } |
-  while read -r f; do find rebuild/Sim.Tests -name "$f" -not -path '*/obj/*' -not -path '*/bin/*'; done
-```
-
-In each file, change every direct `World.New(`, `Save.FromJson(` and `Map.Generate(` call to
-`TestWorlds.New`, `TestWorlds.Load` or `TestWorlds.Map` (`rebuild/Sim.Tests/TestWorlds.cs`), except in a
-test whose subject is world generation or loading (it compares generated maps, checks a save's bytes, or
-loads a save to compare with a straight run), or a search over 20 or more seeds. Then take the file off
-`NotYetOnTestWorlds` in `rebuild/Sim.Tests/Architecture/TestWorldSourceTests.cs`; if any direct calls
-are left, list the file in `MayCallDirectly` with their count and which of those reasons holds. Change no
-`rebuild/Sim` code. Check: `TestWorldSourceTests` passes, and so does the fast suite
-(`dotnet test rebuild/Sim.Tests -c Release --filter "Category!=Slow"`).
-
-When empty: delete `NotYetOnTestWorlds` and pass `MayCallDirectly` alone to `CountRatchet` in
-`TestsGetTheirWorlds_FromTestWorlds`.

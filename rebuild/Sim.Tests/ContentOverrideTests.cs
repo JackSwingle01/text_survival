@@ -52,6 +52,35 @@ public class ContentOverrideTests
     public void AnOverrideStillMeetsTheTablesChecks() =>
         Assert.Throws<InvalidDataException>(() => With(("species.json:species.Wolf.fatPct", 0.9), ("species.json:species.Wolf.musclePct", 0.9)));
 
+    [Theory]
+    [InlineData(1.2)]
+    [InlineData(-0.1)]
+    public void AnInjuryChanceOutsideZeroToOne_FailsTheTablesChecks(double chance) =>
+        Assert.Throws<InvalidDataException>(() => With(("species.json:injuryChances.Wolf.Bison.2.3", chance)));
+
+    [Theory]
+    [InlineData("[0.00, 0.00, 0.00, 0.00], [0.00, 0.00, 0.00, 0.00]]", "[0.00, 0.00, 0.00, 0.00]]")] // a row short
+    [InlineData("[0.00, 0.00, 0.00, 0.00], [0.00, 0.00, 0.00, 0.00]]", "[0.00, 0.00, 0.00, 0.00], [0.00, 0.00, 0.00]]")] // a herd short
+    public void AnInjuryTableOfTheWrongShape_FailsTheTablesChecks(string tail, string replacement)
+    {
+        var files = Content.EmbeddedFiles();
+        var species = files["species.json"];
+        int injury = species.IndexOf("\"injuryChances\"", StringComparison.Ordinal), at = species.IndexOf(tail, injury, StringComparison.Ordinal);
+        Assert.True(at > injury);
+        files["species.json"] = species[..at] + replacement + species[(at + tail.Length)..];
+        Assert.Throws<InvalidDataException>(() => Content.Parse(files));
+    }
+
+    [Fact]
+    public void AHuntWithAKillChanceButNoInjuryChance_FailsTheTablesChecks()
+    {
+        var files = Content.EmbeddedFiles();
+        var species = files["species.json"];
+        int injury = species.IndexOf("\"injuryChances\"", StringComparison.Ordinal);
+        files["species.json"] = species[..injury] + species[injury..].Replace("\"Caribou\"", "\"Bear\"");
+        Assert.Throws<InvalidDataException>(() => Content.Parse(files));
+    }
+
     [Fact]
     public void SettingOverridesAfterContentHasLoaded_Throws()
     {

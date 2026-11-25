@@ -4,13 +4,12 @@ namespace Survival.Tests;
 
 /// Tests get their worlds, loads and maps from TestWorlds, which builds each seed once. A direct call
 /// to World.New, Save.FromJson or Map.Generate is counted per test file and must be listed: in
-/// MayCallDirectly when generation or loading is the subject or the seeds don't repeat, or in
-/// NotYetOnTestWorlds, a ratchet (dev/ratchets.md, "test-worlds") that only shrinks.
+/// MayCallDirectly, with why: generation or loading is the subject, or the seeds don't repeat.
 public class TestWorldSourceTests
 {
     static readonly Regex DirectCall = new(@"\b(World\.New|Save\.FromJson|Map\.Generate)\(", RegexOptions.Compiled);
 
-    /// Files that call the real thing on purpose, with how many calls. Not a ratchet.
+    /// Files that call the real thing on purpose, with how many calls.
     static readonly Dictionary<string, (int Count, string Why)> MayCallDirectly = new()
     {
         ["TestWorlds.cs"] = (2, "the source itself: it builds and loads"),
@@ -35,11 +34,6 @@ public class TestWorldSourceTests
         ["MapTests.cs"] = (18, "the generator against the old one and against itself, and a save's bytes and loading, are the subject"),
     };
 
-    /// Files still to move onto TestWorlds. Only shrinks.
-    static readonly Dictionary<string, (int Count, string Why)> NotYetOnTestWorlds = new()
-    {
-    };
-
     static string TestsDir => Path.Combine(Path.GetDirectoryName(ArchitectureTests.SimSourceDir())!, "Sim.Tests");
 
     [Fact]
@@ -50,11 +44,9 @@ public class TestWorldSourceTests
             .Where(f => !f.Contains($"{sep}obj{sep}") && !f.Contains($"{sep}bin{sep}"))
             .Order(StringComparer.Ordinal)
             .SelectMany(f => WhereThingsGoTests.Hits(Path.GetFileName(f), CommentHygieneTests.CodeOnly(File.ReadAllText(f)), DirectCall));
-        var known = MayCallDirectly.Concat(NotYetOnTestWorlds).ToDictionary(kv => kv.Key, kv => kv.Value);
-        var problems = WhereThingsGoTests.CountRatchet(hits, known, "MayCallDirectly or NotYetOnTestWorlds",
+        var problems = WhereThingsGoTests.CountRatchet(hits, MayCallDirectly, nameof(MayCallDirectly),
             "direct World.New/Save.FromJson/Map.Generate calls",
             "Use TestWorlds.New, TestWorlds.Load or TestWorlds.Map; call the real one only where generation or loading is the subject, or the seeds don't repeat, and list the file in MayCallDirectly with why");
         Assert.True(problems.Count == 0, string.Join("\n", problems));
-        Assert.Empty(MayCallDirectly.Keys.Intersect(NotYetOnTestWorlds.Keys));
     }
 }

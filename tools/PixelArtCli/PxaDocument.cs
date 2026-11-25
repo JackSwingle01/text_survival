@@ -127,8 +127,13 @@ public class PxaDocument
                         ParseChecks();
                         break;
 
-                    case "PIXEL": case "RECT": case "LINE": case "CIRCLE": case "FILL":
-                    case "MIRRORX": case "MIRRORY":
+                    case "PIXEL":
+                    case "RECT":
+                    case "LINE":
+                    case "CIRCLE":
+                    case "FILL":
+                    case "MIRRORX":
+                    case "MIRRORY":
                         ConsumeLine();
                         RequireOutput();
                         ExecuteDrawCommand(_output!, tokens);

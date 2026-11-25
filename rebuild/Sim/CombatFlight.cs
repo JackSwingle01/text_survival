@@ -24,21 +24,25 @@ public static partial class Combat
     /// A fighter standing off or giving ground this far from every enemy has broken off.
     public const double BreakOffM = 30;
 
+    /// The metres it runs in these seconds (all its reserve, at most), or none for a body that cannot run.
+    static double Sprint(World world, CombatUnit u, double seconds) => RunningOf(world, u) is not { } running ? 0
+        : double.IsPositiveInfinity(seconds) ? Body.SprintUntilSpent(BodyOf(world, u), running) : Body.Sprint(BodyOf(world, u), running, seconds);
+
     /// The chance this pursuer catches this fleer if both run now, and when. Reads only. The gain is checked
     /// every second up to the pursuer's chase limit, because speeds fall smoothly as each reserve drains
     /// (Body.SprintPlan) and the best moment can fall anywhere in it.
     /// Seconds is when the gap would close (or the chase limit, if it never would at the expected speeds).
     public static CatchOdds CatchOdds(World world, CombatUnit pursuer, CombatUnit fleer)
     {
-        var (bp, rp) = (BodyOf(world, pursuer), RunningOf(world, pursuer));
-        var (bf, rf) = (BodyOf(world, fleer), RunningOf(world, fleer));
         double limit = StatsOf(world, pursuer).ChaseLimitSeconds;
+        if (RunningOf(world, pursuer) is not { } rp) return new CatchOdds(0, limit, 0);
+        var (bp, bf, rf) = (BodyOf(world, pursuer), BodyOf(world, fleer), RunningOf(world, fleer));
         double need = pursuer.Position.DistanceTo(fleer.Position) - ContactM;
         double best = 0, closes = double.NaN;
         for (int t = 1; t <= Math.Ceiling(limit); t++)
         {
             double seconds = Math.Min(t, limit);
-            double dp = Body.SprintPlan(bp, rp, seconds).Metres, df = Body.SprintPlan(bf, rf, seconds).Metres;
+            double dp = Body.SprintPlan(bp, rp, seconds).Metres, df = rf is { } r ? Body.SprintPlan(bf, r, seconds).Metres : 0;
             double gain = dp - df - need, spread = SpeedSpreadSd * Math.Sqrt(dp * dp + df * df);
             best = Math.Max(best, spread <= 0 ? (gain >= 0 ? 1 : 0) : NormalCdf(gain / spread));
             if (double.IsNaN(closes) && gain >= 0) closes = seconds;
@@ -48,7 +52,7 @@ public static partial class Combat
     }
 
     static List<CombatUnit> Pursuers(World world, Encounter enc, CombatUnit fleer) =>
-        Enemies(enc, fleer).Where(e => StateOf(world, e) == FighterState.Pressing && TargetOf(enc, e) == fleer).ToList();
+        Enemies(enc, fleer).Where(e => StateOf(world, e) == FighterState.Pressing && TargetOf(enc, e) == fleer && RunningOf(world, e) != null).ToList();
 
     static double BestCatchPct(World world, Encounter enc, CombatUnit fleer) =>
         Pursuers(world, enc, fleer).Select(p => CatchOdds(world, p, fleer).Pct).DefaultIfEmpty(0).Max();
@@ -57,6 +61,7 @@ public static partial class Combat
     /// take the chase instinct into their bands, so a wolf standing off can be set running by the turn to run.
     static void Flight(World world, Encounter enc, CombatUnit fleer, List<WorldEvent> events)
     {
+        if (RunningOf(world, fleer) == null) return;
         Enter(world, enc, fleer, FighterState.Fleeing);
         foreach (var e in Enemies(enc, fleer).Where(e => !IsPlayer(e) && TargetOf(enc, e) == fleer).ToList()) UpdateState(world, enc, e);
         var odds = Pursuers(world, enc, fleer).Select(p => (Pursuer: p, Odds: CatchOdds(world, p, fleer))).ToList();
@@ -87,8 +92,8 @@ public static partial class Combat
         if (caught)
         {
             var (catcher, odds) = chasers.OrderBy(c => c.Odds.Seconds).ThenByDescending(c => c.Odds.Pct).ThenBy(c => enc.Units.IndexOf(c.Pursuer)).First();
-            foreach (var (c, _) in chasers) Body.Sprint(BodyOf(world, c), RunningOf(world, c), odds.Seconds);
-            Body.Sprint(BodyOf(world, fleer), RunningOf(world, fleer), odds.Seconds);
+            foreach (var (c, _) in chasers) Sprint(world, c, odds.Seconds);
+            Sprint(world, fleer, odds.Seconds);
             catcher.Position = ResolveDestination(world, enc, fleer.Position.Toward(catcher.Position, 1), catcher);
             fleer.RunDown = true;
             ChargeChase(enc, odds.Seconds);
@@ -97,8 +102,8 @@ public static partial class Combat
         var heading = HeadingAway(enc, fleer);
         double longest = chasers.Max(c => StatsOf(world, c.Pursuer).ChaseLimitSeconds);
         foreach (var (c, _) in chasers)
-            Gone(world, enc, c, heading, Body.Sprint(BodyOf(world, c), RunningOf(world, c), StatsOf(world, c).ChaseLimitSeconds), chasing: true);
-        Gone(world, enc, fleer, heading, Body.Sprint(BodyOf(world, fleer), RunningOf(world, fleer), longest));
+            Gone(world, enc, c, heading, Sprint(world, c, StatsOf(world, c).ChaseLimitSeconds), chasing: true);
+        Gone(world, enc, fleer, heading, Sprint(world, fleer, longest));
         ChargeChase(enc, longest);
     }
 
@@ -109,7 +114,7 @@ public static partial class Combat
     /// Nobody gives chase (or nobody could catch it): it runs until its reserve is spent, and is gone.
     static void GetAway(World world, Encounter enc, CombatUnit fleer)
     {
-        double metres = Body.SprintUntilSpent(BodyOf(world, fleer), RunningOf(world, fleer));
+        double metres = Sprint(world, fleer, double.PositiveInfinity);
         Gone(world, enc, fleer, HeadingAway(enc, fleer), metres);
         enc.PendingFlight = null;
     }

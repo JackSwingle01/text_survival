@@ -31,196 +31,198 @@ var world = new WorldRenderer(hud.State);
 world.RecenterOnPlayer(ctx);
 if (!args.Contains("--phase5-only"))
 {
-for (int scenario = 0; scenario < 8; scenario++)
-{
-    if (scenario == 1)
+    for (int scenario = 0; scenario < 8; scenario++)
     {
-        var pos = ctx.Map!.CurrentPosition;
-        var adjacent = pos.GetCardinalNeighbors().First(p => ctx.Map.CanMoveTo(p.X, p.Y));
-        ctx.Map.GetLocationAt(adjacent.X, adjacent.Y)!.Visibility = TileVisibility.Visible;
-        hud.State.Select(ctx, adjacent.X, adjacent.Y);
-    }
-    if (scenario == 2)
-    {
-        hud.State.ClearSelection();
-        ctx.player.Body.BodyTemperature = 94.5;
-        ctx.player.Body.Energy = 50;
-        ctx.player.Body.Hydration = 100;
-        ctx.player.Body.CalorieStore = 100;
-        ctx.player.Body.Parts.Single(p => p.Name == "Left Arm").Skin.Condition = .7;
-        ctx.player.Body.Parts.Single(p => p.Name == "Right Leg").Skin.Condition = .3;
-        hud.State.ShowFeedback("Cannot move there.");
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Bleeding(.3));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(.5));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(.7));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Hypothermia(.6));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(.4));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(.3));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Nauseous(.2));
-        ctx.player.EffectRegistry.AddEffect(EffectFactory.Shivering(.2));
-        for (int i = 0; i < 30; i++) ctx.Log.Add($"A long event {i}: you collect branches and return to your shelter before the weather worsens.", LogLevel.Warning, "2:35");
-        hud.State.HistoryExpanded = true;
-    }
-    if (scenario == 3) { Raylib.SetWindowSize(1280, 720); hud.State.HistoryExpanded = false; }
-    if (scenario == 4) { UiStyle.Apply(new UiSettings(UiScale.Large)); }
-    if (scenario == 5)
-    {
-        ctx = GameContext.CreateNewGame(seed: 1234);
-        UiStyle.Apply(new UiSettings());
-        Raylib.SetWindowSize(1600, 900);
-        ctx.CurrentLocation.AddFeature(new CuringRackFeature());
-        if (ctx.CurrentLocation.GetFeature<ForageFeature>() is { } oldForage) ctx.CurrentLocation.RemoveFeature(oldForage);
-        ctx.CurrentLocation.AddFeature(new ForageFeature().AddSticks().AddTinder().AddBerries());
-        ctx.CurrentLocation.AddFeature(new WaterFeature("stream", "Stream").AsOpenWater().WithFishAbundance(.8));
-        var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
-        fire.AddFuel(.2, FuelType.Tinder);
-        fire.AddFuel(1, FuelType.Kindling);
-        fire.IgniteAll();
-        if (!ctx.CurrentLocation.Features.Contains(fire)) ctx.CurrentLocation.AddFeature(fire);
-    }
-    if (scenario == 6)
-    {
-        var wolf = AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!;
-        ctx.ActiveCombat = CombatScenario.Create([ctx.player], [wolf], ctx.CurrentLocation, 5,
-            AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
-    }
-    if (scenario == 7)
-    {
-        ctx = GameContext.CreateNewGame(seed: 1234);
-        ctx.Herds.Clear();
-        var wolves = Herd.Create(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!, [ctx.Map!.CurrentPosition]);
-        for (int i = 0; i < 3; i++) wolves.AddMember(AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map)!);
-        wolves.Hunger = 0.8;
-        ctx.Herds.Add(wolves);
-        PredatorInteractions.Update(wolves, 1, ctx);
-        PredatorInteractions.Observe(ctx);
-    }
-    for (int frame = 0; frame < 15; frame++)
-    {
-        hud.Update(ctx, world, 1f/60);
-        world.Update(ctx, 1f/60);
-        Raylib.BeginDrawing();
-        Raylib.ClearBackground(new Color(20,25,30,255));
-        world.Render(ctx);
-        rlImGui.Begin();
-        hud.Render(ctx, world, scenario != 6, scenario == 6);
-        rlImGui.End();
-        Raylib.EndDrawing();
-    }
-    var screenshot = Raylib.LoadImageFromScreen();
-    Raylib.ExportImage(screenshot, Path.Combine(output, $"hud-{scenario}.png"));
-    Raylib.UnloadImage(screenshot);
-    if (scenario is 0 or 1 or 2 or 5 or 6)
-    {
-        foreach (var preset in Enum.GetValues<UiScale>())
+        if (scenario == 1)
         {
-            Raylib.SetWindowSize(1280, 720);
-            UiStyle.Apply(new UiSettings(preset));
-            for (int frame = 0; frame < 15; frame++)
-            {
-                hud.Update(ctx, world, 1f / 60);
-                world.Update(ctx, 1f / 60);
-                Raylib.BeginDrawing();
-                Raylib.ClearBackground(new Color(20,25,30,255));
-                world.Render(ctx);
-                rlImGui.Begin();
-                hud.Render(ctx, world, scenario != 6, scenario == 6);
-                rlImGui.End();
-                Raylib.EndDrawing();
-            }
-            var small = Raylib.LoadImageFromScreen();
-            Raylib.ExportImage(small, Path.Combine(output, $"hud-{scenario}-720-{preset}.png"));
-            Raylib.UnloadImage(small);
+            var pos = ctx.Map!.CurrentPosition;
+            var adjacent = pos.GetCardinalNeighbors().First(p => ctx.Map.CanMoveTo(p.X, p.Y));
+            ctx.Map.GetLocationAt(adjacent.X, adjacent.Y)!.Visibility = TileVisibility.Visible;
+            hud.State.Select(ctx, adjacent.X, adjacent.Y);
         }
-        Raylib.SetWindowSize(1600, 900);
-        UiStyle.Apply(new UiSettings());
-    }
-}
-world.Dispose();
-ctx.ActiveCombat = null;
-var scheduler = new FrameScheduler();
-using (var ui = new DesktopUi(ctx, scheduler))
-{
-    ctx.Ui = ui;
-    _ = ui.WaitForPlayerAction();
-    _ = ui.Confirm("HUD check: background actions must remain disabled while this dialog is open.");
-    for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
-    var screenshot = Raylib.LoadImageFromScreen();
-    Raylib.ExportImage(screenshot, Path.Combine(output, "hud-7-modal.png"));
-    Raylib.UnloadImage(screenshot);
-}
-foreach (var scale in Enum.GetValues<UiScale>())
-{
-    UiStyle.Apply(new UiSettings(scale));
-    using var settingsUi = new DesktopUi(ctx, new FrameScheduler());
-    _ = settingsUi.WaitForPlayerAction();
-    UiSettingsDialog.Requested = true;
-    for (int frame = 0; frame < 15; frame++) settingsUi.Frame(ctx, 1f/60);
-    var capture = Raylib.LoadImageFromScreen();
-    Raylib.ExportImage(capture, Path.Combine(output, $"settings-{scale}.png"));
-    Raylib.UnloadImage(capture);
-}
-UiStyle.Apply(new UiSettings());
-var predatorScheduler = new FrameScheduler();
-using (var ui = new DesktopUi(ctx, predatorScheduler))
-{
-    ctx.Ui = ui;
-    var evt = text_survival.Actions.Events.PredatorEventFactory.Create(ctx, ctx.Herds[0]);
-    _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
-        evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
-    for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
-    var screenshot = Raylib.LoadImageFromScreen();
-    Raylib.ExportImage(screenshot, Path.Combine(output, "predator-response.png"));
-    Raylib.UnloadImage(screenshot);
-}
-// Authored scenes use their own decisions over the same live herd.
-ctx.Inventory.Add(Resource.RawMeat, 1);
-foreach (var title in new[] { "Rustle at Camp Edge", "Wolves Smell Blood" })
-{
-    if (title == "Wolves Smell Blood")
-    {
-        ctx.CurrentLocation.AddFeature(new CarcassFeature(AnimalFactory.FromType(AnimalType.Mammoth, ctx.CurrentLocation, ctx.Map!)!));
-        ctx.UpdateWithoutEvents(0, ActivityType.Butchering);
-    }
-    using var ui = new DesktopUi(ctx, new FrameScheduler());
-    ctx.Ui = ui;
-    var evt = GameEventRegistry.AllEventFactories.Select(f => f(ctx)).First(e => e.Name == title);
-    evt.BindPredatorEncounters(ctx);
-    _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
-        evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
-    for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f/60);
-    var screenshot = Raylib.LoadImageFromScreen();
-    Raylib.ExportImage(screenshot, Path.Combine(output, title == "Wolves Smell Blood" ? "authored-carcass.png" : "authored-camp.png"));
-    Raylib.UnloadImage(screenshot);
-}
-// Phase 3: production everyday overlays at two practical sizes.
-ctx = GameContext.CreateNewGame(42);
-ctx.Inventory.Add(Resource.CookedMeat, 1);
-ctx.Inventory.Add(Resource.Water, 1);
-ctx.Inventory.Add(Resource.Stone, 1);
-var cache = new Inventory(); cache.Add(Resource.Stick, 1);
-foreach (var (width, height, preset) in new[] { (1600, 900, UiScale.Comfortable), (1280, 720, UiScale.Large) })
-{
-    Raylib.SetWindowSize(width, height);
-    UiStyle.Apply(new UiSettings(preset));
-    foreach (string screen in new[] { "food", "fire", "inventory", "crafting", "transfer", "amount", "confirm" })
-    {
-        using var ui = new DesktopUi(ctx, new FrameScheduler());
-        ctx.Ui = ui;
-        _ = screen switch
+        if (scenario == 2)
         {
-            "food" => (Task)ui.ShowFood(), "fire" => ui.ShowFire(null),
-            "inventory" => ui.ShowInventory(), "crafting" => ui.ShowCrafting(),
-            "transfer" => ui.ShowTransfer(cache, "Camp cache"),
-            "amount" => ui.ReadInt("How many minutes would you like to rest?", 1, 480, true),
-            _ => ui.Confirm("Set up camp here? This takes 30 minutes.")
-        };
+            hud.State.ClearSelection();
+            ctx.player.Body.BodyTemperature = 94.5;
+            ctx.player.Body.Energy = 50;
+            ctx.player.Body.Hydration = 100;
+            ctx.player.Body.CalorieStore = 100;
+            ctx.player.Body.Parts.Single(p => p.Name == "Left Arm").Skin.Condition = .7;
+            ctx.player.Body.Parts.Single(p => p.Name == "Right Leg").Skin.Condition = .3;
+            hud.State.ShowFeedback("Cannot move there.");
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Bleeding(.3));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Pain(.5));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Fear(.7));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Hypothermia(.6));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Wet(.4));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.SprainedAnkle(.3));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Nauseous(.2));
+            ctx.player.EffectRegistry.AddEffect(EffectFactory.Shivering(.2));
+            for (int i = 0; i < 30; i++) ctx.Log.Add($"A long event {i}: you collect branches and return to your shelter before the weather worsens.", LogLevel.Warning, "2:35");
+            hud.State.HistoryExpanded = true;
+        }
+        if (scenario == 3) { Raylib.SetWindowSize(1280, 720); hud.State.HistoryExpanded = false; }
+        if (scenario == 4) { UiStyle.Apply(new UiSettings(UiScale.Large)); }
+        if (scenario == 5)
+        {
+            ctx = GameContext.CreateNewGame(seed: 1234);
+            UiStyle.Apply(new UiSettings());
+            Raylib.SetWindowSize(1600, 900);
+            ctx.CurrentLocation.AddFeature(new CuringRackFeature());
+            if (ctx.CurrentLocation.GetFeature<ForageFeature>() is { } oldForage) ctx.CurrentLocation.RemoveFeature(oldForage);
+            ctx.CurrentLocation.AddFeature(new ForageFeature().AddSticks().AddTinder().AddBerries());
+            ctx.CurrentLocation.AddFeature(new WaterFeature("stream", "Stream").AsOpenWater().WithFishAbundance(.8));
+            var fire = ctx.CurrentLocation.GetFeature<HeatSourceFeature>() ?? new HeatSourceFeature();
+            fire.AddFuel(.2, FuelType.Tinder);
+            fire.AddFuel(1, FuelType.Kindling);
+            fire.IgniteAll();
+            if (!ctx.CurrentLocation.Features.Contains(fire)) ctx.CurrentLocation.AddFeature(fire);
+        }
+        if (scenario == 6)
+        {
+            var wolf = AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!)!;
+            ctx.ActiveCombat = CombatScenario.Create([ctx.player], [wolf], ctx.CurrentLocation, 5,
+                AwarenessState.Engaged, AwarenessState.Engaged, ctx.player);
+        }
+        if (scenario == 7)
+        {
+            ctx = GameContext.CreateNewGame(seed: 1234);
+            ctx.Herds.Clear();
+            var wolves = Herd.Create(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map!, [ctx.Map!.CurrentPosition]);
+            for (int i = 0; i < 3; i++) wolves.AddMember(AnimalFactory.FromType(AnimalType.Wolf, ctx.CurrentLocation, ctx.Map)!);
+            wolves.Hunger = 0.8;
+            ctx.Herds.Add(wolves);
+            PredatorInteractions.Update(wolves, 1, ctx);
+            PredatorInteractions.Observe(ctx);
+        }
+        for (int frame = 0; frame < 15; frame++)
+        {
+            hud.Update(ctx, world, 1f / 60);
+            world.Update(ctx, 1f / 60);
+            Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(20, 25, 30, 255));
+            world.Render(ctx);
+            rlImGui.Begin();
+            hud.Render(ctx, world, scenario != 6, scenario == 6);
+            rlImGui.End();
+            Raylib.EndDrawing();
+        }
+        var screenshot = Raylib.LoadImageFromScreen();
+        Raylib.ExportImage(screenshot, Path.Combine(output, $"hud-{scenario}.png"));
+        Raylib.UnloadImage(screenshot);
+        if (scenario is 0 or 1 or 2 or 5 or 6)
+        {
+            foreach (var preset in Enum.GetValues<UiScale>())
+            {
+                Raylib.SetWindowSize(1280, 720);
+                UiStyle.Apply(new UiSettings(preset));
+                for (int frame = 0; frame < 15; frame++)
+                {
+                    hud.Update(ctx, world, 1f / 60);
+                    world.Update(ctx, 1f / 60);
+                    Raylib.BeginDrawing();
+                    Raylib.ClearBackground(new Color(20, 25, 30, 255));
+                    world.Render(ctx);
+                    rlImGui.Begin();
+                    hud.Render(ctx, world, scenario != 6, scenario == 6);
+                    rlImGui.End();
+                    Raylib.EndDrawing();
+                }
+                var small = Raylib.LoadImageFromScreen();
+                Raylib.ExportImage(small, Path.Combine(output, $"hud-{scenario}-720-{preset}.png"));
+                Raylib.UnloadImage(small);
+            }
+            Raylib.SetWindowSize(1600, 900);
+            UiStyle.Apply(new UiSettings());
+        }
+    }
+    world.Dispose();
+    ctx.ActiveCombat = null;
+    var scheduler = new FrameScheduler();
+    using (var ui = new DesktopUi(ctx, scheduler))
+    {
+        ctx.Ui = ui;
+        _ = ui.WaitForPlayerAction();
+        _ = ui.Confirm("HUD check: background actions must remain disabled while this dialog is open.");
         for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+        var screenshot = Raylib.LoadImageFromScreen();
+        Raylib.ExportImage(screenshot, Path.Combine(output, "hud-7-modal.png"));
+        Raylib.UnloadImage(screenshot);
+    }
+    foreach (var scale in Enum.GetValues<UiScale>())
+    {
+        UiStyle.Apply(new UiSettings(scale));
+        using var settingsUi = new DesktopUi(ctx, new FrameScheduler());
+        _ = settingsUi.WaitForPlayerAction();
+        UiSettingsDialog.Requested = true;
+        for (int frame = 0; frame < 15; frame++) settingsUi.Frame(ctx, 1f / 60);
         var capture = Raylib.LoadImageFromScreen();
-        Raylib.ExportImage(capture, Path.Combine(output, $"phase3-{screen}-{width}.png"));
+        Raylib.ExportImage(capture, Path.Combine(output, $"settings-{scale}.png"));
         Raylib.UnloadImage(capture);
     }
-}
+    UiStyle.Apply(new UiSettings());
+    var predatorScheduler = new FrameScheduler();
+    using (var ui = new DesktopUi(ctx, predatorScheduler))
+    {
+        ctx.Ui = ui;
+        var evt = text_survival.Actions.Events.PredatorEventFactory.Create(ctx, ctx.Herds[0]);
+        _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
+            evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
+        for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+        var screenshot = Raylib.LoadImageFromScreen();
+        Raylib.ExportImage(screenshot, Path.Combine(output, "predator-response.png"));
+        Raylib.UnloadImage(screenshot);
+    }
+    // Authored scenes use their own decisions over the same live herd.
+    ctx.Inventory.Add(Resource.RawMeat, 1);
+    foreach (var title in new[] { "Rustle at Camp Edge", "Wolves Smell Blood" })
+    {
+        if (title == "Wolves Smell Blood")
+        {
+            ctx.CurrentLocation.AddFeature(new CarcassFeature(AnimalFactory.FromType(AnimalType.Mammoth, ctx.CurrentLocation, ctx.Map!)!));
+            ctx.UpdateWithoutEvents(0, ActivityType.Butchering);
+        }
+        using var ui = new DesktopUi(ctx, new FrameScheduler());
+        ctx.Ui = ui;
+        var evt = GameEventRegistry.AllEventFactories.Select(f => f(ctx)).First(e => e.Name == title);
+        evt.BindPredatorEncounters(ctx);
+        _ = ui.ShowEventChoices(new EventDto(evt.Name, evt.Description,
+            evt.GetAvailableChoices(ctx).Select((c, i) => new EventChoiceDto(i.ToString(), c.Label, c.Description, true, null)).ToList()));
+        for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+        var screenshot = Raylib.LoadImageFromScreen();
+        Raylib.ExportImage(screenshot, Path.Combine(output, title == "Wolves Smell Blood" ? "authored-carcass.png" : "authored-camp.png"));
+        Raylib.UnloadImage(screenshot);
+    }
+    // Phase 3: production everyday overlays at two practical sizes.
+    ctx = GameContext.CreateNewGame(42);
+    ctx.Inventory.Add(Resource.CookedMeat, 1);
+    ctx.Inventory.Add(Resource.Water, 1);
+    ctx.Inventory.Add(Resource.Stone, 1);
+    var cache = new Inventory(); cache.Add(Resource.Stick, 1);
+    foreach (var (width, height, preset) in new[] { (1600, 900, UiScale.Comfortable), (1280, 720, UiScale.Large) })
+    {
+        Raylib.SetWindowSize(width, height);
+        UiStyle.Apply(new UiSettings(preset));
+        foreach (string screen in new[] { "food", "fire", "inventory", "crafting", "transfer", "amount", "confirm" })
+        {
+            using var ui = new DesktopUi(ctx, new FrameScheduler());
+            ctx.Ui = ui;
+            _ = screen switch
+            {
+                "food" => (Task)ui.ShowFood(),
+                "fire" => ui.ShowFire(null),
+                "inventory" => ui.ShowInventory(),
+                "crafting" => ui.ShowCrafting(),
+                "transfer" => ui.ShowTransfer(cache, "Camp cache"),
+                "amount" => ui.ReadInt("How many minutes would you like to rest?", 1, 480, true),
+                _ => ui.Confirm("Set up camp here? This takes 30 minutes.")
+            };
+            for (int frame = 0; frame < 15; frame++) ui.Frame(ctx, 1f / 60);
+            var capture = Raylib.LoadImageFromScreen();
+            Raylib.ExportImage(capture, Path.Combine(output, $"phase3-{screen}-{width}.png"));
+            Raylib.UnloadImage(capture);
+        }
+    }
 }
 // Phase 5: remaining production overlays; fixtures do not advance the world.
 ctx = GameContext.CreateNewGame(42);
@@ -235,7 +237,8 @@ foreach (var (width, height, preset) in new[] { (1600, 900, UiScale.Comfortable)
         using var ui = new DesktopUi(ctx, new FrameScheduler()); ctx.Ui = ui;
         _ = screen switch
         {
-            "people" => (Task)ui.ShowNPCs(), "discoveries" => ui.ShowDiscoveryLog(),
+            "people" => (Task)ui.ShowNPCs(),
+            "discoveries" => ui.ShowDiscoveryLog(),
             "amount" => ui.ReadInt("Choose a duration", 1, 480, true),
             "event" => ui.ShowEventChoices(new("A crossing", "Choose how to approach the crossing.", [new("careful", "Move carefully", "Take time to find secure footing.", true, "10 minutes"), new("quick", "Hurry across", "Risk injury on uneven ground.", true, "5 minutes")])),
             _ => ui.ShowWorkResult(new("Gathering", "You return to camp.", ["Three sticks"], ["Snow drifts around the trees."], ["Your hands are getting cold."]))

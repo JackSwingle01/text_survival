@@ -310,12 +310,21 @@ public static partial class Combat
 
     /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters kills, against a herd of the quarry this big,
     /// measured from headless hunts (species.json killChances); 0 for a quarry the predator has no row for.
-    public static double KillChance(Species predator, int hunters, Species quarry, int herd)
+    public static double KillChance(Species predator, int hunters, Species quarry, int herd) =>
+        Chance(Content.Tables.KillChances, predator, hunters, quarry, herd);
+
+    static double Chance(IReadOnlyDictionary<Species, IReadOnlyDictionary<Species, IReadOnlyList<IReadOnlyList<double>>>> table,
+        Species predator, int hunters, Species quarry, int herd)
     {
-        if (hunters < 1 || herd < 1 || !Content.Tables.KillChances.TryGetValue(predator, out var quarries)
+        if (hunters < 1 || herd < 1 || !table.TryGetValue(predator, out var quarries)
             || !quarries.TryGetValue(quarry, out var rows)) return 0;
         return rows[Math.Min(hunters, rows.Count) - 1][Math.Min(herd, KillChanceHerds) - 1];
     }
+
+    /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters wounds at least one of them, against a herd of
+    /// the quarry this big, measured from the same headless hunts (species.json injuryChances); 0 for a quarry with no row.
+    public static double InjuryChance(Species predator, int hunters, Species quarry, int herd) =>
+        Chance(Content.Tables.InjuryChances, predator, hunters, quarry, herd);
 
     /// Whether the predator has a kill chance for anything: what makes a meat-eater hunt.
     public static bool Hunts(Species predator) => Content.Tables.KillChances.ContainsKey(predator);
@@ -337,7 +346,7 @@ public static partial class Combat
         if (hunger > t.StarvingAt) bold += t.HungerBonus;
         if (defending) bold += t.DefendBonus;
         if (Effects.Has(target, EffectKind.Bleeding) || Effects.Severity(target, EffectKind.Bloody) > 0.3) bold += 0.15;
-        if (Body.GetCapacities(target).Moving < 0.5) bold += 0.2;
+        if (SpeciesTable.SpeedPct(targetSpecies, target) < 0.5) bold += 0.2;
         if (Body.Vitality(target, targetSpecies) < 0.7) bold += 0.1;
         if (Fauna.ActiveNow(world, agent.Species)) bold += ActiveHoursBoldnessDelta;
         if (fear > 0) bold *= 1.0 - fear;
@@ -433,12 +442,19 @@ public static partial class Combat
     static Species SpeciesOf(World world, CombatUnit u) => world.Agent(u.Agent).Species;
     static SpeciesStats StatsOf(World world, CombatUnit u) => SpeciesTable.Of(SpeciesOf(world, u));
 
-    /// How this fighter runs now: its kind's running, cut by its wounds, tiredness and what it carries.
-    public static Running RunningOf(World world, CombatUnit u)
+    /// How this fighter runs now: its kind's running, cut by its wounds, tiredness and what it carries. Null at speed
+    /// zero: it cannot run, dodge, give chase or get away, and moves nowhere.
+    public static Running? RunningOf(World world, CombatUnit u)
     {
         var agent = world.Agent(u.Agent);
-        return SpeciesTable.Running(agent.Species, BodyOf(world, u), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)), Items.CarriedKg(agent));
+        return SpeciesTable.RunningIfAble(agent.Species, BodyOf(world, u), LoadOf(agent), Items.CarriedKg(agent));
     }
+
+    static AbilityContext LoadOf(Agent agent) => new(EncumbrancePct: Items.EncumbrancePct(agent));
+
+    /// Why this fighter cannot run, or null: its speed under its load, at zero.
+    static Refusal? CannotRun(World world, CombatUnit u) =>
+        RunningOf(world, u) == null ? Crippled.Refusal(BodyOf(world, u), Faculty.Speed, LoadOf(world.Agent(u.Agent))) : null;
     static bool Alive(World world, CombatUnit u) => Body.IsAlive(BodyOf(world, u));
 
     public static Zone ZoneOf(double distanceM) => distanceM switch
@@ -492,8 +508,9 @@ public static partial class Combat
         if (target != null && target != current) return new("Turn to face them first.");
         switch (action)
         {
-            case CombatAction.Flee: return unit.RunDown ? new("You were run down.") : null;
-            case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? new("Nobody is running from you.") : null;
+            case CombatAction.Flee: return unit.RunDown ? new("You were run down.") : CannotRun(world, unit);
+            case CombatAction.Chase: return ChaseOffer(world, enc, unit) == null ? new("Nobody is running from you.") : CannotRun(world, unit);
+            case CombatAction.Advance or CombatAction.Retreat or CombatAction.Move when CannotRun(world, unit) is { } lame: return lame;
             case CombatAction.Wait: return null;
             case CombatAction.PickUp:
                 return unit.Weapon != null ? new("Your hands are full.") : DroppedNear(enc, unit) == null ? new("Nothing to pick up within reach.") : null;
@@ -714,7 +731,7 @@ public static partial class Combat
     {
         var from = unit.Position;
         Move(world, enc, unit, destination);
-        Body.Cover(BodyOf(world, unit), RunningOf(world, unit), from.DistanceTo(unit.Position));
+        if (RunningOf(world, unit) is { } running) Body.Cover(BodyOf(world, unit), running, from.DistanceTo(unit.Position));
         MeetBraced(world, enc, unit, from, events);
     }
 
@@ -774,7 +791,10 @@ public static partial class Combat
     }
 
     /// A strike, throw, shove or dodge: its slice of the sprint reserve and its seconds of hard work.
-    static void Exert(World world, CombatUnit u) => Body.Burst(BodyOf(world, u), RunningOf(world, u));
+    static void Exert(World world, CombatUnit u)
+    {
+        if (RunningOf(world, u) is { } running) Body.Burst(BodyOf(world, u), running);
+    }
 
     /// A thrown weapon: closer is surer, small targets are harder, and the weapon lands where the target
     /// stands, to be picked up again (PickUp); the aftermath piles it if nobody does.
@@ -824,7 +844,7 @@ public static partial class Combat
     {
         if (DefenceChance(world, enc, defender, attacker) is double defence and > 0 && world.Rng("combat", defender.Agent).NextDouble() < defence)
         {
-            Body.Burst(BodyOf(world, defender), RunningOf(world, defender));
+            if (RunningOf(world, defender) is { } running) Body.Burst(BodyOf(world, defender), running);
             if (defender.Weapon is Gear weapon) Items.Use(weapon);
             Move(world, enc, defender, OnTheGrid(defender.Position.Move(attacker.Position.DirectionTo(defender.Position), 1.0f)));
             return new ActionResult(Dodged: defender.Weapon == null, Blocked: defender.Weapon != null);
@@ -911,8 +931,7 @@ public static partial class Combat
             FighterState.Pressing => PressingDefenceFactor,
             _ => 0,
         };
-        var running = RunningOf(world, defender);
-        if (stance <= 0 || !Body.CanBurst(BodyOf(world, defender), running)) return 0;
+        if (stance <= 0 || RunningOf(world, defender) is not { } running || !Body.CanBurst(BodyOf(world, defender), running)) return 0;
         return Math.Min(MaxDefencePct, DefenceBasePct * stance * running.SpeedPct);
     }
 
@@ -924,7 +943,10 @@ public static partial class Combat
     {
         Exert(world, attacker);
         var rng = world.Rng("combat", attacker.Agent);
-        var (chance, pushM) = ShoveOdds(BodyOf(world, attacker), RunningOf(world, attacker), BodyOf(world, target), RunningOf(world, target));
+        // Nothing behind a shove from a body that cannot stand to it; a body that cannot stand braces against nothing.
+        if (RunningOf(world, attacker) is not { } pushing) return new ActionResult();
+        var (chance, pushM) = RunningOf(world, target) is { } bracing
+            ? ShoveOdds(BodyOf(world, attacker), pushing, BodyOf(world, target), bracing) : (MaxShovePct, MaxShoveM);
         if (StateOf(world, target) is FighterState.Standoff or FighterState.GivingGround) chance /= 2;
         if (rng.NextDouble() >= chance) return new ActionResult();
         Move(world, enc, target, OnTheGrid(target.Position.Move(attacker.Position.DirectionTo(target.Position), (float)pushM)));
