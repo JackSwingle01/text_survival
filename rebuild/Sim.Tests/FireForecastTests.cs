@@ -152,6 +152,20 @@ public class FireForecastTests
         }, iter: 60);
     }
 
+    /// A cold pit with room left, but less than the lightest piece of the only tinder on offer: no strike, as StartFire
+    /// refuses it ("no room for a whole ...").
+    [Fact]
+    public void ATinderWhosePieceDoesNotFit_IsNoStrike()
+    {
+        var pit = new FireState { Tile = default, LastUpdatedMinute = 0, Pit = PitType.Open };
+        pit.UnburnedKg[Resource.Stick] = Fire.MaxFuelKg(PitType.Open) - 0.02;
+        var offer = new Inventory();
+        Items.AddPiece(offer, Resource.Chaga, 0.1);
+        var f = Ask(offer, hoursWanted: 1, pit: pit);
+        Assert.Equal((0.0, 0.0), (f.StrikePct, f.Hours));
+        Assert.Null(f.Strike);
+    }
+
     /// Adding the first fuel of each entry at the weight given leaves nothing missing; while something is, the hours fall
     /// short. A missing starter names no fuel, so once it is added the forecast may name fuel, but never a starter again.
     [Fact]

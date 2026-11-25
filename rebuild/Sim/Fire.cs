@@ -780,7 +780,8 @@ public static class Fire
         bool burns = ask.Pit is { } pit && (IsActive(pit) || pit.HasEmbers);
         if (!burns && ask.Starter == null) return new(0, 0, 0, [new FireNeed(FireNeedKind.Starter, [], 0)], null, null);
         if (!burns && ask.Pit != null && TotalKg(ask.Pit) >= MaxFuelKg(ask.Pit.Pit)) return new(0, 0, 0, [], null, null); // no room to strike in
-        var struck = burns ? null : StrikeFrom(ask.Fuel);
+        double roomKg = ask.Pit != null ? RoomKg(ask.Pit) : MaxFuelKg(ask.NewPit);
+        var struck = burns ? null : StrikeFrom(ask.Fuel, roomKg);
         var strike = struck;
         var burned = burns || strike != null ? Burn(ask.Pit, ask.NewPit, ask.Fuel, strike) : Burned.None;
         double strikePct = burns ? 1 : strike != null ? StartOdds(ask.Starter!.Value, strike.Tinder, ask.FirecraftLevel, ask.DexterityPct).TotalPct : 0;
@@ -794,7 +795,7 @@ public static class Fire
                 offer = Items.CopyResources(ask.Fuel);
                 Items.AddKg(offer, Tinders[0], Verbs.TinderKg);
                 missing.Add(new FireNeed(FireNeedKind.Tinder, Tinders, Verbs.TinderKg));
-                strike = StrikeFrom(offer);
+                strike = StrikeFrom(offer, roomKg);
                 toSearch = Burn(ask.Pit, ask.NewPit, offer, strike);
             }
             if (toSearch.Hours < ask.HoursWanted && FuelNeed(ask, offer, strike, toSearch) is { } need) missing.Add(need);
@@ -804,9 +805,9 @@ public static class Fire
 
     const double MostFuelSearchedKg = 200;
 
-    /// The surest tinder on offer and a strike's kindling, as Verbs offers them. Null without a strike's worth of tinder.
-    static FireStrike? StrikeFrom(Inventory fuel) =>
-        Tinders.Where(r => Items.Have(fuel, r) >= Verbs.TinderKg - 1e-9).Cast<Resource?>().FirstOrDefault() is Resource tinder
+    /// The surest tinder on offer whose lightest piece fits the pit (Refusal's rule), and a strike's kindling. Null without one.
+    static FireStrike? StrikeFrom(Inventory fuel, double roomKg) =>
+        Tinders.Where(r => Items.Have(fuel, r) >= Verbs.TinderKg - 1e-9 && !(Items.LightestKg(fuel, r) > roomKg + 1e-9)).Cast<Resource?>().FirstOrDefault() is Resource tinder
             ? new FireStrike(tinder, Verbs.TinderKg, Items.WouldMoveKg(fuel, Resource.Stick, Verbs.KindlingKg))
             : null;
 
