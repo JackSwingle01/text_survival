@@ -30,7 +30,7 @@ public class ContentStrictTests
     [InlineData("species.json", "\"Grazer\": [ \"Tinder\" ]", "\"Grazer\": [ \"SphagnumMoss, Usnea\" ]", "no Resource 'SphagnumMoss, Usnea'")]
     // Case: the stock reader matches names ignoring it.
     [InlineData("items.json", "\"slot\": \"Chest\"", "\"slot\": \"chest\"", "no EquipSlot 'chest'")]
-    [InlineData("recipes.json", "\"of\": \"Kindling\", \"count\": 4", "\"of\": \"kindling\", \"count\": 4", "no Resource 'kindling'")]
+    [InlineData("recipes.json", "\"of\": \"Stick\", \"count\": 4", "\"of\": \"stick\", \"count\": 4", "no Resource 'stick'")]
     [InlineData("forage.json", "\"resource\": \"Usnea\"", "\"resource\": \"usnea\"", "no Resource 'usnea'")]
     [InlineData("accidents.json", "\"effect\": \"Dazed\"", "\"effect\": \"dazed\"", "no EffectKind 'dazed'")]
     [InlineData("discoveries.json", "\"work\": \"Salvage\"", "\"work\": \"salvage\"", "no StockKind 'salvage'")]
@@ -83,9 +83,9 @@ public class ContentStrictTests
     // ---- 2. a row's fields are required, whatever kind of row it is ----
 
     [Theory]
-    // Oak would catch on any fire at all.
-    [InlineData("fire.json", "\"Oak\": { \"peakTempF\": 950, \"burnRateKgPerHour\": 0.6, \"minFireTempF\": 500, \"ignitionBonusPct\": 0 }",
-        "\"Oak\": { \"peakTempF\": 950, \"burnRateKgPerHour\": 0.6 }", "minFireTempF")]
+    // Oak branches would catch on any fire at all.
+    [InlineData("fire.json", "\"OakBranch\": { \"peakTempF\": 950, \"burnRateKgPerHour\": 0.6, \"minFireTempF\": 500, \"ignitionBonusPct\": 0 }",
+        "\"OakBranch\": { \"peakTempF\": 950, \"burnRateKgPerHour\": 0.6 }", "minFireTempF")]
     [InlineData("fire.json", "\"minFireTempF\": 500, ", "", "minFireTempF")]
     // A fall with no target or kind of hit would land on a random part as blunt.
     [InlineData("accidents.json", "{ \"target\": \"Chest\", \"type\": \"Blunt\", \"amount\": 0.10 }", "{ \"amount\": 0.10 }", "target")]

@@ -75,7 +75,7 @@ public class ConservationButcheringTests
         ((PersonMind)w.Agent(P).Mind).Skills[Skill.Butchering] = new SkillProgress { Level = s.Skill };
         if (s.WetPct > 0) Effects.Set(w.Agent(P).Body, EffectKind.Wet, s.WetPct);
         // Light to work by however long it takes: a stone pit of oak, topped up between chunks.
-        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Stone, BurningKg = { [Resource.Oak] = 10 } };
+        w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, Pit = PitType.Stone, BurningKg = { [Resource.OakBranch] = 10 } };
         return new Run
         {
             W = w,
@@ -101,7 +101,7 @@ public class ConservationButcheringTests
         var pit = w.Fires.Values.Single(f => f.CarriedBy == null);
         Fire.CatchUpAround(w, w.Agent(P), []);
         if (pit.BurningKg.Count == 0) pit.HasEmbers = false;
-        pit.BurningKg[Resource.Oak] = 10; // light, not fuel: no item moves
+        pit.BurningKg[Resource.OakBranch] = 10; // light, not fuel: no item moves
         pit.UnburnedKg.Clear();
     }
 

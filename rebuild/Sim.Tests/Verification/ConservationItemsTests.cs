@@ -20,9 +20,9 @@ namespace Survival.Tests.Verification;
 public class ConservationItemsTests
 {
     static readonly Resource[] PackResources =
-        [Resource.RawMeat, Resource.RawFish, Resource.Berries, Resource.Water, Resource.Birch, Resource.Pine, Resource.Kindling, Resource.Tinder, Resource.Stone, Resource.Hide];
+        [Resource.RawMeat, Resource.RawFish, Resource.Berries, Resource.Water, Resource.BirchBranch, Resource.PineBranch, Resource.Stick, Resource.Tinder, Resource.Stone, Resource.Hide];
     static readonly Resource[] Foods = [Resource.RawMeat, Resource.RawFish, Resource.Berries];
-    static readonly Resource[] Fuels = [Resource.Birch, Resource.Pine, Resource.Kindling, Resource.Tinder];
+    static readonly Resource[] Fuels = [Resource.BirchBranch, Resource.PineBranch, Resource.Stick, Resource.Tinder];
     static readonly Species[] Prey = [Species.Caribou, Species.Hare, Species.Fox, Species.Wolf, Species.Bison];
 
     public enum OpKind { PutDown, PickUp, Eat, Drink, Cook, Butcher, AddFuel, StartFire, Wear, Wait, MeltSnow, GatherCharcoal }
@@ -82,7 +82,7 @@ public class ConservationItemsTests
                 w.Minute - s.CarcassAgeMinutes);
         }
         if (s.PitBirchKg > 0)
-            w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.Birch] = s.PitBirchKg } };
+            w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute, BurningKg = { [Resource.BirchBranch] = s.PitBirchKg } };
         return w;
     }
 
@@ -128,9 +128,9 @@ public class ConservationItemsTests
             double max = Fire.MaxFuelKg(start.Pit), t0 = before.PitTotalKg;
             double tinder = t0 < max ? Math.Min(start.TinderKg, max - t0) : 0;
             // Kindling in whole sticks, as many as the pit has room for (Items.Move).
-            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Items.WouldMoveKg(before.Pack, Resource.Kindling, start.KindlingKg, max - t0 - tinder) : 0;
+            double kindling = start.KindlingKg > 0 && t0 + tinder < max ? Items.WouldMoveKg(before.Pack, Resource.Stick, start.KindlingKg, max - t0 - tinder) : 0;
             AddTo(d, start.Tinder, -tinder);
-            AddTo(d, Resource.Kindling, -kindling);
+            AddTo(d, Resource.Stick, -kindling);
         }
         if (a is GatherCharcoal && step.MinutesElapsed > 0) AddTo(d, Resource.Charcoal, before.PitCharcoalKg);
         if (step.InterruptedReason == "melted") AddTo(d, Resource.Water, Work.MeltSnowLiters);
@@ -224,7 +224,7 @@ public class ConservationItemsTests
     public sealed record RaidScene(int Members, double[] PileKg, int Minutes);
 
     static readonly Resource[] RaidPile =
-        [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat, Resource.Berries, Resource.Birch, Resource.Hide];
+        [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat, Resource.Berries, Resource.BirchBranch, Resource.Hide];
 
     static readonly Gen<RaidScene> RaidScenes = Gen.Select(Gen.Int[1, 8],
         Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[RaidPile.Length], Gen.Int[60, 3000],
@@ -279,7 +279,7 @@ public class ConservationItemsTests
         PoolDef pool = s.PoolKind switch
         {
             0 => new ForagePool("forage", 1.0, Pools.MixedForest),
-            1 => new TreePool("Trees", Resource.Birch, 100),
+            1 => new TreePool("Trees", Resource.BirchFirewood, 100),
             _ => new StockPool("Bush", StockKind.Harvest, 5, [new StockItem(Resource.Berries, 5, 0.4, 168)], RevealAtHours: 0),
         };
         w.PoolCache = new() { [camp] = [pool] };

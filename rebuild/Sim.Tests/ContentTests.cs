@@ -93,7 +93,7 @@ public class ContentTests
     public void Loader_EnumTables_DoNotDependOnFileOrder()
     {
         var files = Content.EmbeddedFiles();
-        const string pine = "  \"Pine\": { \"peakTempF\": 800, \"burnRateKgPerHour\": 1.2, \"minFireTempF\": 150, \"ignitionBonusPct\": 0.05 },\n";
+        const string pine = "  \"PineBranch\": { \"peakTempF\": 800, \"burnRateKgPerHour\": 1.2, \"minFireTempF\": 150, \"ignitionBonusPct\": 0.05 },\n";
         // Pine moved from the middle of the fuels to the top.
         files["fire.json"] = Edit(Edit(files["fire.json"], pine, ""), "\"fuels\": {\n", "\"fuels\": {\n" + pine);
         var reordered = Content.Parse(files);

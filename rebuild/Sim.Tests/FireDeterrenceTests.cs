@@ -73,9 +73,9 @@ public class FireDeterrenceTests(ITestOutputHelper output)
     {
         const int LitMinutesBefore = 30;
         var f = new FireState { Tile = tile, LastUpdatedMinute = minute - LitMinutesBefore, Pit = PitType.Open };
-        Fire.AddFuel(f, Resource.Kindling, kindlingKg);
+        Fire.AddFuel(f, Resource.Stick, kindlingKg);
         Fire.IgniteAll(f);
-        if (pineKg > 0) Fire.AddFuel(f, Resource.Pine, pineKg);
+        if (pineKg > 0) Fire.AddFuel(f, Resource.PineBranch, pineKg);
         while (f.LastUpdatedMinute < minute) Fire.Tick(f, new FireId(0), ++f.LastUpdatedMinute, []);
         return f;
     }

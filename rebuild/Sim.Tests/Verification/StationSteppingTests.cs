@@ -24,8 +24,8 @@ public class StationSteppingTests
         var w = ConservationWorlds.Bare(-5);
         var camp = Map.Of(w).Camp;
         var f = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
-        if (s.BirchKg > 0.01) f.BurningKg[Resource.Birch] = s.BirchKg;
-        if (s.PineKg > 0.01) f.UnburnedKg[Resource.Pine] = s.PineKg;
+        if (s.BirchKg > 0.01) f.BurningKg[Resource.BirchFirewood] = s.BirchKg;
+        if (s.PineKg > 0.01) f.UnburnedKg[Resource.PineFirewood] = s.PineKg;
         w.Fires[new FireId(w.NextFireId++)] = f;
         Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
         Assert.Equal(1, Sim.Step(w, new PutOn(P, "cook_meat"), 1).MinutesElapsed);

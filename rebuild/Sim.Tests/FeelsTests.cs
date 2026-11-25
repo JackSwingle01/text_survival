@@ -72,7 +72,7 @@ public class FeelsTests
         Sim.Step(w, new Wait(P), 1);
         var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
         for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) Sim.Step(w, light.Activity, 1);
-        Sim.Step(w, new AddFuel(P, Resource.Birch, 1), 1);
+        Sim.Step(w, new AddFuel(P, Resource.BirchBranch, 1), 1);
         Sim.Step(w, new Wait(P), 20);
         Assert.Contains(Sim.Feels(w, P, new Wait(P)).Terms, t => t.Factor == "Fire" && t.DeltaF > 1);
     }

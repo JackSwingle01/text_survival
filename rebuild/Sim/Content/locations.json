@@ -27,10 +27,10 @@
      "kind": "forage",
      "density": 2,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -72,8 +72,9 @@
      "minutes": 10,
      "chance": 0.2,
      "items": [
-      { "resource": "Pine", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 720 },
-      { "resource": "Kindling", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 168 },
+      { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
       { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 }
      ]
     },
@@ -97,9 +98,9 @@
      "kind": "forage",
      "density": 3,
      "items": [
-      { "resource": "Pine", "abundance": 2.5, "minKg": 1.5, "maxKg": 4 },
-      { "resource": "Birch", "abundance": 0.5, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 4, "minKg": 0.2, "maxKg": 0.7 },
+      { "resource": "PineBranch", "abundance": 2.5, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "BirchBranch", "abundance": 0.5, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 4, "minKg": 0.2, "maxKg": 0.7 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.1 },
       { "resource": "Amadou", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "BirchPolypore", "abundance": 0.2, "minKg": 0.05, "maxKg": 0.15 }
@@ -112,8 +113,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
       { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
@@ -157,9 +159,9 @@
      "name": "Ancient Hardwood",
      "description": "Massive oak and ash. Dense, long-burning wood — if you can cut it.",
      "minutes": 20,
-     "requiresTool": "Axe",
      "items": [
-      { "resource": "Oak", "units": 8, "kgPerUnit": 4, "respawnHoursPerUnit": 168 }
+      { "resource": "OakBranch", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
+      { "resource": "OakFirewood", "units": 8, "kgPerUnit": 4, "respawnHoursPerUnit": 0, "requiresTool": "Axe" }
      ]
     },
     {
@@ -195,7 +197,7 @@
      "density": 1.2,
      "items": [
       { "resource": "PlantFiber", "abundance": 1.5, "minKg": 0.1, "maxKg": 0.25 },
-      { "resource": "Kindling", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Berries", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.6 }
      ]
     },
@@ -227,7 +229,7 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Kindling", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
      ]
     }
@@ -252,8 +254,8 @@
      "items": [
       { "resource": "Charcoal", "abundance": 0.8, "minKg": 0.05, "maxKg": 0.2 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.02, "maxKg": 0.08 },
-      { "resource": "Kindling", "abundance": 2.5, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Pine", "abundance": 1.5, "minKg": 1, "maxKg": 2.5 }
+      { "resource": "Stick", "abundance": 2.5, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "PineBranch", "abundance": 1.5, "minKg": 1, "maxKg": 2.5 }
      ]
     },
     {
@@ -283,10 +285,10 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -308,8 +310,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
       { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
@@ -341,10 +344,10 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -368,7 +371,7 @@
       { "animal": "Ptarmigan", "weight": 1 }
      ]
     },
-    { "kind": "trees", "name": "Old Oak", "wood": "Oak", "minutesToFell": 60 }
+    { "kind": "trees", "name": "Old Oak", "wood": "OakFirewood", "minutesToFell": 60 }
    ]
   },
   {
@@ -401,8 +404,9 @@
      "description": "A wind-felled tree with dry, harvestable wood.",
      "minutes": 10,
      "items": [
-      { "resource": "Pine", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 720 },
-      { "resource": "Kindling", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 168 },
+      { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
       { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 }
      ]
     },
@@ -434,11 +438,11 @@
      "density": 1.4,
      "items": [
       { "resource": "BirchBark", "abundance": 0.8, "minKg": 0.08, "maxKg": 0.2 },
-      { "resource": "Kindling", "abundance": 0.6, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.6, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Tinder", "abundance": 0.4, "minKg": 0.03, "maxKg": 0.08 }
      ]
     },
-    { "kind": "trees", "name": "Birch Stand", "wood": "Birch", "minutesToFell": 120 },
+    { "kind": "trees", "name": "Birch Stand", "wood": "BirchFirewood", "minutesToFell": 120 },
     {
      "kind": "smallGame",
      "density": 0.7,
@@ -468,7 +472,7 @@
      "items": [
       { "resource": "PlantFiber", "abundance": 0.5, "minKg": 0.05, "maxKg": 0.12 },
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.05 },
-      { "resource": "Kindling", "abundance": 0.4, "minKg": 0.08, "maxKg": 0.2 }
+      { "resource": "Stick", "abundance": 0.4, "minKg": 0.08, "maxKg": 0.2 }
      ]
     },
     {
@@ -501,7 +505,7 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Kindling", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.04, "maxKg": 0.1 },
       { "resource": "Bone", "abundance": 0.1, "minKg": 0.05, "maxKg": 0.15 }
      ]
@@ -532,10 +536,10 @@
      "kind": "forage",
      "density": 1.4,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -578,7 +582,7 @@
      "density": 0.52,
      "items": [
       { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Kindling", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
@@ -613,7 +617,7 @@
      "density": 0.6,
      "items": [
       { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Kindling", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
@@ -649,10 +653,10 @@
      "kind": "forage",
      "density": 1.6,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -676,7 +680,7 @@
      ]
     },
     { "kind": "cache", "name": "Rock Cleft", "capacityKg": 40, "protectsFromWeather": true },
-    { "kind": "trees", "name": "Hardwood Stand", "wood": "Oak", "minutesToFell": 180 }
+    { "kind": "trees", "name": "Hardwood Stand", "wood": "OakFirewood", "minutesToFell": 180 }
    ]
   },
   {
@@ -697,7 +701,7 @@
      "kind": "forage",
      "density": 0.4,
      "items": [
-      { "resource": "Kindling", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.4, "minKg": 0.05, "maxKg": 0.12 },
       { "resource": "Bone", "abundance": 0.15, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Tinder", "abundance": 0.2, "minKg": 0.01, "maxKg": 0.04 }
@@ -733,7 +737,7 @@
      "kind": "forage",
      "density": 0.4,
      "items": [
-      { "resource": "Kindling", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
      ]
     },
@@ -760,7 +764,7 @@
      "kind": "forage",
      "density": 0.32,
      "items": [
-      { "resource": "Kindling", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.01, "maxKg": 0.04 }
      ]
     },
@@ -788,7 +792,7 @@
      "density": 0.4,
      "items": [
       { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Kindling", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
@@ -880,7 +884,7 @@
      "density": 0.52,
      "items": [
       { "resource": "Tinder", "abundance": 0.7, "minKg": 0.03, "maxKg": 0.1 },
-      { "resource": "Kindling", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.2, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
       { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
       { "resource": "PlantFiber", "abundance": 0.6, "minKg": 0.05, "maxKg": 0.12 }
@@ -1164,7 +1168,7 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Kindling", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stick", "abundance": 1, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Tinder", "abundance": 0.5, "minKg": 0.02, "maxKg": 0.06 },
       { "resource": "PineNeedles", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.1 },
       { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 }
@@ -1463,8 +1467,8 @@
      "kind": "forage",
      "density": 1.2,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1501,7 +1505,7 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Kindling", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 }
      ]
     },
@@ -1569,8 +1573,8 @@
      "kind": "forage",
      "density": 2.52,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1594,8 +1598,9 @@
      "description": "Woven branches packed with mud. Easy fuel — if you don't mind the consequences.",
      "minutes": 15,
      "items": [
-      { "resource": "Birch", "units": 12, "kgPerUnit": 2, "respawnHoursPerUnit": 0 },
-      { "resource": "Kindling", "units": 20, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
+      { "resource": "BirchBranch", "units": 12, "kgPerUnit": 2, "respawnHoursPerUnit": 0 },
+      { "resource": "BirchFirewood", "units": 4, "kgPerUnit": 2, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 20, "kgPerUnit": 0.25, "respawnHoursPerUnit": 0 }
      ]
     },
     {
@@ -1697,8 +1702,8 @@
      "kind": "forage",
      "density": 0.8,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1734,8 +1739,8 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1772,8 +1777,8 @@
      "kind": "forage",
      "density": 1.8,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1831,8 +1836,8 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1921,8 +1926,8 @@
      "kind": "forage",
      "density": 1,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -1967,10 +1972,10 @@
      "kind": "forage",
      "density": 0.92,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -2012,10 +2017,10 @@
      "kind": "forage",
      "density": 0.72,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -2066,10 +2071,10 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -2144,8 +2149,8 @@
      "kind": "forage",
      "density": 0.72,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -2183,13 +2188,13 @@
      "kind": "forage",
      "density": 0.92,
      "items": [
-      { "resource": "Kindling", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
+      { "resource": "Stick", "abundance": 0.5, "minKg": 0.1, "maxKg": 0.3 },
       { "resource": "PineNeedles", "abundance": 0.4, "minKg": 0.02, "maxKg": 0.1 },
       { "resource": "PineResin", "abundance": 0.15, "minKg": 0.02, "maxKg": 0.1 },
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.02, "maxKg": 0.06 }
      ]
     },
-    { "kind": "trees", "name": "Pine Stand", "wood": "Pine", "minutesToFell": 140 },
+    { "kind": "trees", "name": "Pine Stand", "wood": "PineFirewood", "minutesToFell": 140 },
     {
      "kind": "smallGame",
      "density": 1.1,
@@ -2219,7 +2224,7 @@
      "kind": "forage",
      "density": 0.52,
      "items": [
-      { "resource": "Kindling", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 },
+      { "resource": "Stick", "abundance": 0.3, "minKg": 0.05, "maxKg": 0.15 },
       { "resource": "PlantFiber", "abundance": 0.3, "minKg": 0.03, "maxKg": 0.08 }
      ]
     },
@@ -2275,10 +2280,10 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -2353,10 +2358,10 @@
      "kind": "forage",
      "density": 0.72,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
@@ -2445,8 +2450,8 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Birch", "abundance": 1, "minKg": 1, "maxKg": 2 },
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
       { "resource": "WillowBark", "abundance": 0.25, "minKg": 0.02, "maxKg": 0.1 },
@@ -2573,7 +2578,7 @@
      "kind": "forage",
      "density": 2,
      "items": [
-      { "resource": "Kindling", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
+      { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
       { "resource": "Tinder", "abundance": 0.5, "minKg": 0.03, "maxKg": 0.08 }
      ]
     },
@@ -2793,10 +2798,10 @@
      "kind": "forage",
      "density": 3,
      "items": [
-      { "resource": "Kindling", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 4 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 4 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 4 }
+      { "resource": "Stick", "abundance": 2, "minKg": 0.2, "maxKg": 0.5 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 4 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 4 }
      ]
     },
     {
@@ -2806,8 +2811,9 @@
      "description": "A huge pine, wind-felled and bone dry. Enough fuel to last days.",
      "minutes": 20,
      "items": [
-      { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
-      { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+      { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+      { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+      { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
       { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 }
      ]
     },
@@ -2839,10 +2845,10 @@
      "kind": "forage",
      "density": 0.6,
      "items": [
-      { "resource": "Pine", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Birch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Oak", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
-      { "resource": "Kindling", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
+      { "resource": "PineBranch", "abundance": 0.6, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "BirchBranch", "abundance": 0.525, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
+      { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 2, "minKg": 0.02, "maxKg": 0.08 },
       { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },

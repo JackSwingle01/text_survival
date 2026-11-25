@@ -280,11 +280,11 @@ public class RenewalTests
         var camp = Map.Of(w).Camp;
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         var kill = Caribou(w, camp, new Cause(P, "the player's wooden spear"));
-        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.Pine, 2);
+        TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.PineBranch, 2);
         Animals.Spawn(w, Species.Wolf, camp, 3);
         w.AccessGates = Access.Gate.All;
         Assert.Equal("a wolf pack guards it", Work.Refusal(w, new Butcher(P, kill.Id))?.Reason);
-        Assert.Null(Work.Refusal(w, new PickUp(P, Resource.Pine, 1)));
+        Assert.Null(Work.Refusal(w, new PickUp(P, Resource.PineBranch, 1)));
     }
 
     /// Review: an NPC that died holding a lit torch left it burning in the world's fires for good.

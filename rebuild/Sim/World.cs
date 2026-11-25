@@ -89,6 +89,7 @@ public sealed class World
         };
         Survival.Shelters.Place(world, map.Camp, Survival.Shelters.CampOverhang);
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
+        Items.LayStartingCamp(world, map.Camp);
         Map.PlaceSiteShelters(world);
         Fauna.Populate(world);
         // The map opens on what is in view, not on nothing. A burning fire placed by generation would report events here, and this throws to say so.

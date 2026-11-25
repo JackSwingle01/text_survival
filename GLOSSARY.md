@@ -152,6 +152,16 @@ _Avoid_: scrap, patch, leather
 Wood cut to burn, only ever made with an axe, from a felled tree or big deadfall.
 _Avoid_: log, chopped wood, split wood
 
+**Trunk**:
+A felled tree lying where it fell: the firewood still to cut from it, a piece at a time, over as many
+trips as it takes.
+_Avoid_: log, felled log
+
+**Deadfall**:
+A common find of dead, wind-thrown wood: branches and sticks by hand, firewood with an axe. Like every
+wood find, it runs out.
+_Avoid_: fallen log, windfall
+
 **Gear**:
 A tool, weapon, garment or accessory, held one at a time, with its own condition that wears down.
 _Avoid_: equipment, kit

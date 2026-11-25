@@ -35,11 +35,11 @@
   "PlantFiber": { "pieceKg": 0.1, "insulating": 0.6, "waterproof": 0.2, "structural": 0.1 },
   "Tinder": { "pieceKg": 0.05, "insulating": 0.5, "waterproof": 0.1, "structural": 0.1 },
   "BirchBark": { "pieceKg": 0.05, "insulating": 0.3, "waterproof": 0.8, "structural": 0.2 },
-  // Old Stick.
-  "Kindling": { "pieceKg": 0.3, "insulating": 0.2, "waterproof": 0.3, "structural": 0.7 },
-  "Pine": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
-  "Birch": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
-  "Oak": { "pieceKg": 2.0, "insulating": 0.4, "waterproof": 0.5, "structural": 0.95 },
+  // Old Stick. Firewood is only ever fuel, never a material.
+  "Stick": { "pieceKg": 0.3, "insulating": 0.2, "waterproof": 0.3, "structural": 0.7 },
+  "PineBranch": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
+  "BirchBranch": { "pieceKg": 2.0, "insulating": 0.3, "waterproof": 0.5, "structural": 0.9 },
+  "OakBranch": { "pieceKg": 2.0, "insulating": 0.4, "waterproof": 0.5, "structural": 0.95 },
   "Hide": { "pieceKg": 1.0, "insulating": 0.9, "waterproof": 0.7, "structural": 0.4 },
   "CuredHide": { "pieceKg": 1.0, "insulating": 0.85, "waterproof": 0.75, "structural": 0.45 },
   "MammothHide": { "pieceKg": 5.0, "insulating": 0.95, "waterproof": 0.8, "structural": 0.5 },

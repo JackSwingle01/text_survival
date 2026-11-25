@@ -288,12 +288,17 @@ public static class Report
                     break;
                 case StockPool s when s.Items.Any(x => Fire.IsFuel(x.Resource)):
                     var units = Pools.UnitsNow(w, id);
-                    double fire = 0;
+                    double byHand = 0, withAxe = 0;
                     for (int k = 0; k < s.Items.Count; k++)
-                        if (Fire.IsFuel(s.Items[k].Resource)) fire += units[k] * s.Items[k].KgPerUnit / Fire.Props[s.Items[k].Resource].BurnRateKgPerHour;
-                    fire /= Math.Max(1, s.Items.Max(x => x.Units) * s.MinutesPerUnit / 60.0); // a small stock gives all it has
-                    if (s.RequiresTool == null) hours += fire;
-                    else felled += fire;
+                        if (Fire.IsFuel(s.Items[k].Resource))
+                        {
+                            double fire = units[k] * s.Items[k].KgPerUnit / Fire.Props[s.Items[k].Resource].BurnRateKgPerHour;
+                            if (s.Items[k].RequiresTool == null) byHand += fire;
+                            else withAxe += fire;
+                        }
+                    double stockHours = Math.Max(1, s.Items.Max(x => x.Units) * s.MinutesPerUnit / 60.0); // a small stock gives all it has
+                    hours += byHand / stockHours;
+                    felled += withAxe / stockHours;
                     break;
             }
         }
@@ -311,9 +316,9 @@ public static class Report
     internal static double TreeFireHours(Resource? wood)
     {
         var f = Pools.Felled;
-        double Logs(Resource r) => f.Logs.MiddleCount() * f.LogKg[r] / Fire.Props[r].BurnRateKgPerHour;
-        double logs = wood is Resource r ? Logs(r) : f.MixedWood.Sum(m => m.Share * Logs(m.Wood));
-        return logs + f.Kindling.MiddleCount() * f.Kindling.MiddleKg() / Fire.Props[Resource.Kindling].BurnRateKgPerHour
+        IReadOnlyList<(Resource Wood, double Share)> woods = wood is Resource r ? [(r, 1.0)] : f.MixedWood;
+        double firewood = woods.Sum(m => m.Share * f.Firewood.MiddleCount() * f.FirewoodKg[m.Wood] / Fire.Props[m.Wood].BurnRateKgPerHour);
+        return firewood + f.Sticks.MiddleCount() * f.Sticks.MiddleKg() / Fire.Props[Resource.Stick].BurnRateKgPerHour
             + f.Tinder.MiddleCount() * f.Tinder.MiddleKg() / Fire.Props[Resource.Tinder].BurnRateKgPerHour;
     }
 

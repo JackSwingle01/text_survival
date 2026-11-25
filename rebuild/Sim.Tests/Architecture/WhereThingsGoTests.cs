@@ -350,7 +350,6 @@ public class WhereThingsGoTests
     {
         ["Report.cs:FireHoursPerDensity"] = "the distribution report turns forage into fire hours by burn rate",
         ["Report.cs:FuelFireHoursPerWorkHour"] = "the same, for a tile's stock",
-        ["Report.cs:Logs"] = "the same, for a felled tree's logs (in TreeFireHours)",
         ["Report.cs:TreeFireHours"] = "the same, for a felled tree",
     };
 
