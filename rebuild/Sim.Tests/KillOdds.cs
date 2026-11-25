@@ -1,12 +1,13 @@
 using Survival;
 
 /// Headless pack hunts on a bare strip, each by the real hunt (Fauna.PackHunt): hungry hunters, all of whose food is due,
-/// beside a herd of the quarry. What the kill-chance table in species.json is measured from, and what ForecastTests checks it by.
+/// beside a herd of the quarry. What the kill-chance and injury-chance tables in species.json are measured from, and what
+/// ForecastTests checks them by. Kill: the share of hunts that kill one of the herd; Injury: the share in which a hunter is wounded.
 static class KillOdds
 {
-    public static double Measure(Species predator, int hunters, Species quarry, int herd, int trials, int firstSeed)
+    public static (double Kill, double Injury) Measure(Species predator, int hunters, Species quarry, int herd, int trials, int firstSeed)
     {
-        int kills = 0;
+        int kills = 0, injuries = 0;
         var w = PlannerTests.Strip();
         var tile = new TileId(20, 2);
         // Spawned ids differ every trial, so each trial draws its own streams: firstSeed skips that many trials' ids.
@@ -19,9 +20,10 @@ static class KillOdds
             var events = new List<WorldEvent>();
             Fauna.PackHunt(w, w.Agent(pack[0]), w.Agent(prey[0]), events);
             if (events.OfType<Killed>().Any(k => prey.Contains(k.Agent))) kills++;
+            if (events.OfType<Injured>().Any(i => pack.Contains(i.Who))) injuries++;
             foreach (var a in w.Agents.Values.Where(a => a.Mind is HerdMind).ToList()) Agents.Remove(w, a.Id);
             foreach (var t in w.Tiles.Values) t.Carcasses?.Clear();
         }
-        return (double)kills / trials;
+        return ((double)kills / trials, (double)injuries / trials);
     }
 }

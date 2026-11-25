@@ -310,12 +310,21 @@ public static partial class Combat
 
     /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters kills, against a herd of the quarry this big,
     /// measured from headless hunts (species.json killChances); 0 for a quarry the predator has no row for.
-    public static double KillChance(Species predator, int hunters, Species quarry, int herd)
+    public static double KillChance(Species predator, int hunters, Species quarry, int herd) =>
+        Chance(Content.Tables.KillChances, predator, hunters, quarry, herd);
+
+    static double Chance(IReadOnlyDictionary<Species, IReadOnlyDictionary<Species, IReadOnlyList<IReadOnlyList<double>>>> table,
+        Species predator, int hunters, Species quarry, int herd)
     {
-        if (hunters < 1 || herd < 1 || !Content.Tables.KillChances.TryGetValue(predator, out var quarries)
+        if (hunters < 1 || herd < 1 || !table.TryGetValue(predator, out var quarries)
             || !quarries.TryGetValue(quarry, out var rows)) return 0;
         return rows[Math.Min(hunters, rows.Count) - 1][Math.Min(herd, KillChanceHerds) - 1];
     }
+
+    /// A forecast: the chance a pack hunt (Fauna.PackHunt) of this many hunters wounds at least one of them, against a herd of
+    /// the quarry this big, measured from the same headless hunts (species.json injuryChances); 0 for a quarry with no row.
+    public static double InjuryChance(Species predator, int hunters, Species quarry, int herd) =>
+        Chance(Content.Tables.InjuryChances, predator, hunters, quarry, herd);
 
     /// Whether the predator has a kill chance for anything: what makes a meat-eater hunt.
     public static bool Hunts(Species predator) => Content.Tables.KillChances.ContainsKey(predator);
