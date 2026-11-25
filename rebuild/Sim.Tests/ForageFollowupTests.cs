@@ -25,11 +25,11 @@ public class ForageFollowupTests
     {
         int deadfall = ClueIndex(c => c.Text == "Fresh deadfall from the wind");
         int torn = ClueIndex(c => c.Text == "Branches torn down by recent wind");
-        double one = Clues.YieldFactor([deadfall], ForageFocus.Fuel, Resource.Kindling);
-        double both = Clues.YieldFactor([deadfall, torn], ForageFocus.Fuel, Resource.Kindling);
+        double one = Clues.YieldFactor([deadfall], ForageFocus.Fuel, Resource.Stick);
+        double both = Clues.YieldFactor([deadfall, torn], ForageFocus.Fuel, Resource.Stick);
         Assert.True(one > 1);
         Assert.True(both > one, $"two clues naming kindling pay {both}, one {one}");
-        Assert.True(Clues.YieldFactor([torn, deadfall], ForageFocus.Fuel, Resource.Kindling) > Clues.YieldFactor([torn], ForageFocus.Fuel, Resource.Kindling));
+        Assert.True(Clues.YieldFactor([torn, deadfall], ForageFocus.Fuel, Resource.Stick) > Clues.YieldFactor([torn], ForageFocus.Fuel, Resource.Stick));
     }
 
     [Fact]

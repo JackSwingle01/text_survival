@@ -132,8 +132,8 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 5);
         for (int i = 0; i < 10 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++)
             Sim.Step(w, new StartFire(P, ToolType.FireStriker, Resource.BirchBark, 0.05, 1.0), 1);
-        Sim.Step(w, new AddFuel(P, Resource.Birch, 2), 1);
-        Sim.Step(w, new PutDown(P, Resource.Pine, 2), 1);
+        Sim.Step(w, new AddFuel(P, Resource.BirchBranch, 2), 1);
+        Sim.Step(w, new PutDown(P, Resource.PineBranch, 2), 1);
         Sim.Step(w, new Travel(P, Direction.East), 60);
         Sim.Step(w, new Wait(P), 30);
         Sim.Step(w, new Travel(P, Direction.West), 60);

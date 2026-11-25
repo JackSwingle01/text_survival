@@ -157,7 +157,7 @@
   "Carnivore": [],
   "Omnivore": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
   // Old Stick: twigs.
-  "Browser": [ "Usnea", "Kindling", "BirchPolypore" ],
+  "Browser": [ "Usnea", "Stick", "BirchPolypore" ],
   // Grass, as dried plant matter.
   "Grazer": [ "Tinder" ]
  },

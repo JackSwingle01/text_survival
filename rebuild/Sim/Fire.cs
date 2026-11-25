@@ -503,8 +503,8 @@ public static class Fire
                 if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
                 if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9)
                     return new($"not enough {Names.Of(a.Tinder)}", new MissingResource(a.Tinder, a.TinderKg - Items.Have(pack, a.Tinder)));
-                if (Items.Have(pack, Resource.Kindling) < a.KindlingKg - 1e-9)
-                    return new("not enough kindling", new MissingResource(Resource.Kindling, a.KindlingKg - Items.Have(pack, Resource.Kindling)));
+                if (Items.Have(pack, Resource.Stick) < a.KindlingKg - 1e-9)
+                    return new("not enough sticks", new MissingResource(Resource.Stick, a.KindlingKg - Items.Have(pack, Resource.Stick)));
                 return null;
             case AddFuel a:
                 if (!IsFuel(a.Fuel)) return new($"{Names.Cap(Names.Of(a.Fuel))} does not burn");
@@ -587,7 +587,7 @@ public static class Fire
         double tinderIn = AddFuel(f, a.Tinder, tinderKg);
         if (Items.IsDiscrete(a.Tinder)) f.UnburnedKg[a.Tinder] = f.UnburnedKg.GetValueOrDefault(a.Tinder) + tinderKg - tinderIn;
         else Items.Add(pack, a.Tinder, tinderKg - tinderIn);
-        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Kindling, a.KindlingKg);
+        if (a.KindlingKg > 0) PutOn(f, pack, Resource.Stick, a.KindlingKg);
         IgniteAll(f);
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         // A catching strike pays a miss's worth now, the rest when the fire takes wood (PayLighter), so tinder with no fuel to follow cannot farm levels.
@@ -736,8 +736,8 @@ public static class Fire
         var lit = PitAt(world, tile) is FireId id ? BurnCopy(world.Fires[id]) : new FireState { Tile = tile, LastUpdatedMinute = world.Minute, Pit = a.Pit };
         AddFuel(lit, a.Tinder, a.TinderKg);
         // The sticks that would go on: whole ones, as many as fit (PutOn).
-        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Kindling, a.KindlingKg, RoomKg(lit)) : 0;
-        if (sticksKg > 0 && CanAddFuel(lit, Resource.Kindling)) AddFuel(lit, Resource.Kindling, sticksKg);
+        double sticksKg = a.KindlingKg > 0 ? Items.WouldMoveKg(Items.Pack(world, a.Who), Resource.Stick, a.KindlingKg, RoomKg(lit)) : 0;
+        if (sticksKg > 0 && CanAddFuel(lit, Resource.Stick)) AddFuel(lit, Resource.Stick, sticksKg);
         IgniteAll(lit);
         return lit;
     }

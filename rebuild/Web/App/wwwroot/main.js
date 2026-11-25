@@ -480,7 +480,7 @@ function renderPack(d, v) {
     ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}
     ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}`;
 }
-const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Kindling|Pine|Birch|Oak|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
+const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Stick|Branch|Firewood|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
   : r === 'Water' ? 'ui/water' : /Hide/.test(r) ? 'ui/hide' : /Bone/.test(r) ? 'ui/bone' : /Charcoal/.test(r) ? 'ui/charcoal' : 'ui/materials';
 
 function renderLog(d, v) {

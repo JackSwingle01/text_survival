@@ -183,9 +183,9 @@ public class ExposureTests
         {
             var f = new FireState { Tile = rock, LastUpdatedMinute = 0, Pit = PitType.Open };
             Fire.AddFuel(f, Resource.BirchBark, 0.05);
-            Fire.AddFuel(f, Resource.Kindling, 1.0);
+            Fire.AddFuel(f, Resource.Stick, 1.0);
             Fire.IgniteAll(f);
-            Fire.AddFuel(f, Resource.Birch, 3.0);
+            Fire.AddFuel(f, Resource.BirchBranch, 3.0);
             var events = new List<WorldEvent>();
             for (int i = 1; i <= 30; i++) Fire.Tick(f, new FireId(0), i, events);
             f.LastUpdatedMinute = w.Minute;

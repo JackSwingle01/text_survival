@@ -13,6 +13,9 @@
 //   regrowing one per respawnHoursPerUnit (stated on every harvest item; 0 never). Salvage and details give everything at once, all
 //   the units' kilos together. anyOf: one of these, drawn after every item's counts. gear: a gear kind
 //   (items.json), whole. shuffle: these items shuffled, then take [take, takeMax] of them, each rolled.
+//   Every anyOf of a find is one draw: the find is one wood, so its lists name their woods in one order.
+//   requiresTool: only someone carrying that tool works the item (a wood find's firewood needs an axe);
+//   the rest come by hand. Wood in a wood find never regrows.
 //
 // terrains, cave: the draws, in order. Each entry is there on its spawnChance and found after about
 //   expectedHours of searching. An entry that waitsFor a system not built yet (small game, events)
@@ -26,14 +29,20 @@
   "Cattails": { "name": "Cattail Stand", "found": ["Cattails! Good for fiber and tinder both.", "A stand of cattails. Useful plants, if you know how.", "Cattail reeds - their fluff catches sparks easily."], "work": "Harvest", "minutes": 10, "items": [
    { "resource": "PlantFiber", "units": 10, "kgPerUnit": 0.1, "respawnHoursPerUnit": 168 },
    { "resource": "Tinder", "units": 6, "kgPerUnit": 0.03, "respawnHoursPerUnit": 168 } ] },
-  "MixedDeadfall": { "name": "Fallen Tree", "found": ["You find a fallen tree. Dry wood, ready to use.", "A fallen tree - nature's kindling pile.", "Wind-felled timber. This fallen tree could fuel a fire for days."], "work": "Harvest", "minutes": 10, "items": [
-   { "resource": "Pine", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 720 },
-   { "resource": "Kindling", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 168 },
+  "MixedDeadfall": { "name": "Fallen Tree", "found": ["You find a fallen tree. Dry wood, ready to use.", "A fallen tree - nature's woodpile.", "Wind-felled timber. This fallen tree could fuel a fire for days."], "work": "Harvest", "minutes": 10, "items": [
+   { "resource": "PineBranch", "units": 3, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+   { "resource": "PineFirewood", "units": 4, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+   { "resource": "Stick", "units": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
    { "resource": "Tinder", "units": 3, "kgPerUnit": 0.05, "respawnHoursPerUnit": 168 } ] },
-  "MassiveDeadfall": { "name": "Massive Fallen Pine", "found": ["You find a massive fallen pine. Dry wood, ready to use.", "A massive fallen pine - nature's kindling pile.", "Wind-felled timber. This massive fallen pine could fuel a fire for days."], "work": "Harvest", "minutes": 20, "items": [
-   { "resource": "Pine", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0 },
-   { "resource": "Kindling", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
+  "MassiveDeadfall": { "name": "Massive Fallen Pine", "found": ["You find a massive fallen pine. Dry wood, ready to use.", "A massive fallen pine - nature's woodpile.", "Wind-felled timber. This massive fallen pine could fuel a fire for days."], "work": "Harvest", "minutes": 20, "items": [
+   { "resource": "PineBranch", "units": 4, "kgPerUnit": 2.0, "respawnHoursPerUnit": 0 },
+   { "resource": "PineFirewood", "units": 8, "kgPerUnit": 2.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+   { "resource": "Stick", "units": 15, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 },
    { "resource": "Tinder", "units": 5, "kgPerUnit": 0.05, "respawnHoursPerUnit": 0 } ] },
+  "Deadfall": { "name": "Deadfall", "found": ["Deadfall: dry branches brought down by the wind, and a trunk among them.", "A tangle of deadfall. Dry wood, there for the taking.", "Wind-thrown deadwood, grey and dry. Branches by hand, and more with an axe."], "work": "Harvest", "minutes": 3, "items": [
+   { "anyOf": ["PineBranch", "BirchBranch", "OakBranch"], "units": 3, "unitsMax": 5, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+   { "anyOf": ["PineFirewood", "BirchFirewood", "OakFirewood"], "units": 4, "unitsMax": 8, "kgPerUnit": 2.2, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+   { "resource": "Stick", "units": 4, "unitsMax": 8, "kgPerUnit": 0.3, "respawnHoursPerUnit": 0 } ] },
   "MeltwaterPool": { "name": "Glacial Pool", "found": ["You find glacial pool. Crystal-clear meltwater. Pure but painfully cold."], "work": "Harvest", "minutes": 3, "items": [
    { "resource": "Water", "units": 20, "kgPerUnit": 1.0, "respawnHoursPerUnit": 24 } ] },
   "MarshWater": { "name": "Open Water", "found": ["You find open water. Dark water between ice sheets. Needs to be boiled."], "work": "Harvest", "minutes": 3, "items": [
@@ -74,9 +83,10 @@
   "KnappingScatter": { "name": "Knapping Scatter", "found": ["You find knapping scatter. Flint flakes and cores scattered around a flat rock. Someone made tools here."], "work": "Harvest", "minutes": 4, "items": [
    { "resource": "Flint", "units": 2, "unitsMax": 5, "kgPerUnit": 0.12, "respawnHoursPerUnit": 0 },
    { "chance": 0.3, "resource": "Shale", "units": 1, "kgPerUnit": 0.2, "respawnHoursPerUnit": 0 } ] },
-  "DryWoodStack": { "name": "Dry Wood Stack", "found": ["You find dry wood stack. A stack of dry logs under a rock ledge. Ready to burn."], "work": "Harvest", "minutes": 4, "items": [
-   { "anyOf": ["Pine", "Birch", "Oak"], "units": 3, "unitsMax": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
-   { "resource": "Kindling", "units": 4, "unitsMax": 8, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
+  "DryWoodStack": { "name": "Dry Wood Stack", "found": ["You find dry wood stack. A stack of dry wood under a rock ledge. Ready to burn."], "work": "Harvest", "minutes": 4, "items": [
+   { "anyOf": ["PineBranch", "BirchBranch", "OakBranch"], "units": 3, "unitsMax": 6, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0 },
+   { "anyOf": ["PineFirewood", "BirchFirewood", "OakFirewood"], "units": 2, "unitsMax": 4, "kgPerUnit": 1.5, "respawnHoursPerUnit": 0, "requiresTool": "Axe" },
+   { "resource": "Stick", "units": 4, "unitsMax": 8, "kgPerUnit": 0.15, "respawnHoursPerUnit": 0 } ] },
 
   "TallowPot": { "name": "Tallow Cache", "found": ["You discover something interesting: Tallow Cache."], "work": "Salvage", "minutes": 5, "items": [
    { "resource": "Tallow", "units": 1, "unitsMax": 3, "kgPerUnit": 0.25 } ] },
@@ -97,20 +107,20 @@
     { "resource": "RoseHip", "units": 2, "unitsMax": 3, "kgPerUnit": 0.03 },
     { "resource": "JuniperBerry", "units": 2, "unitsMax": 3, "kgPerUnit": 0.03 } ] } ] },
   "AbandonedCamp": { "name": "Abandoned Camp", "found": ["You discover something interesting: Abandoned Camp."], "work": "Salvage", "minutes": 45, "items": [
-   { "resource": "Kindling", "kgPerUnit": 0.6 },
+   { "resource": "Stick", "kgPerUnit": 0.6 },
    { "resource": "Tinder", "kgPerUnit": 0.05 },
    { "resource": "PlantFiber", "kgPerUnit": 0.1 },
    { "chance": 0.5, "gear": "worn_knife" } ] },
   "TrapperBundle": { "name": "Trapper's Bundle", "found": ["You discover something interesting: Trapper's Bundle."], "work": "Salvage", "minutes": 25, "items": [
    { "resource": "PlantFiber", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 },
    { "resource": "Sinew", "kgPerUnit": 0.12, "kgPerUnitMax": 0.25 },
-   { "resource": "Kindling", "kgPerUnit": 0.5, "kgPerUnitMax": 0.8 },
+   { "resource": "Stick", "kgPerUnit": 0.5, "kgPerUnitMax": 0.8 },
    { "chance": 0.5, "resource": "Hide", "kgPerUnit": 0.3, "kgPerUnitMax": 0.5 },
    { "chance": 0.3, "resource": "Rope", "kgPerUnit": 0.1, "kgPerUnitMax": 0.2 } ] },
   // Old game: the abandoned spear rolled its durability as 30-70% of an unlimited maximum (-1),
   // which always came out 0, so every one was found broken (bug, fixed: found whole).
   "HuntersBlind": { "name": "Hunter's Blind", "found": ["You discover something interesting: Hunter's Blind."], "work": "Salvage", "minutes": 20, "items": [
-   { "resource": "Kindling", "kgPerUnit": 0.6, "kgPerUnitMax": 1.0 },
+   { "resource": "Stick", "kgPerUnit": 0.6, "kgPerUnitMax": 1.0 },
    { "chance": 0.5, "gear": "wooden_spear" },
    { "chance": 0.5, "resource": "Bone", "kgPerUnit": 0.3, "kgPerUnitMax": 0.5 },
    { "chance": 0.4, "resource": "Tinder", "kgPerUnit": 0.15, "kgPerUnitMax": 0.3 } ] },
@@ -180,8 +190,8 @@
  },
 
  "details": {
-  "fallen_log": { "name": "Fallen Log", "found": ["A fallen log, half-buried in snow. Might yield some sticks.", "You notice a rotting log nearby. Worth investigating.", "Deadfall - a log that could provide some kindling."], "work": "Detail", "minutes": 3, "items": [
-   { "resource": "Kindling", "units": 2, "unitsMax": 4, "kgPerUnit": 0.2, "kgPerUnitMax": 0.4 } ] },
+  "fallen_log": { "name": "Deadwood", "found": ["Deadwood, half-buried in snow. Might yield some sticks.", "You notice a rotting limb nearby. Worth investigating.", "Dead wood on the ground that could provide some sticks."], "work": "Detail", "minutes": 3, "items": [
+   { "resource": "Stick", "units": 2, "unitsMax": 4, "kgPerUnit": 0.2, "kgPerUnitMax": 0.4 } ] },
   "hollow_tree": { "name": "Hollow Tree", "found": ["A hollow tree catches your eye. Dry material inside.", "Dead wood with a hollow center. Good for tinder.", "You spot a hollow tree - might be worth checking."], "work": "Detail", "minutes": 4, "items": [
    { "resource": "Tinder", "units": 1, "unitsMax": 2, "kgPerUnit": 0.02, "kgPerUnitMax": 0.05 } ] },
   "stone_pile": { "name": "Stone Pile", "found": ["Loose stones gathered at the base of an outcrop.", "A pile of rocks. Might find something useful.", "Stones, naturally collected by erosion. Could be handy."], "work": "Detail", "minutes": 5, "items": [
@@ -227,7 +237,8 @@
    { "find": "KillSite", "spawnChance": 0.02, "expectedHours": 3.0 },
    { "waitsFor": "event: beehive", "spawnChance": 0.02, "expectedHours": 3.0 },
    { "find": "SquirrelCache", "spawnChance": 0.02, "expectedHours": 2.0 },
-   { "waitsFor": "event: mushroom_patch", "spawnChance": 0.03, "expectedHours": 2.0 }
+   { "waitsFor": "event: mushroom_patch", "spawnChance": 0.03, "expectedHours": 2.0 },
+   { "find": "Deadfall", "spawnChance": 0.15, "expectedHours": 1.0 }
   ],
   "Clearing": [
    { "find": "BerryBush", "spawnChance": 0.09, "expectedHours": 0.8 },
@@ -238,7 +249,8 @@
    { "find": "OldButcheringSite", "spawnChance": 0.01, "expectedHours": 2.5 },
    { "find": "DryWoodStack", "spawnChance": 0.02, "expectedHours": 2.0 },
    { "find": "AbandonedCamp", "spawnChance": 0.02, "expectedHours": 3.5 },
-   { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 }
+   { "find": "HuntersBlind", "spawnChance": 0.02, "expectedHours": 3.0 },
+   { "find": "Deadfall", "spawnChance": 0.10, "expectedHours": 1.0 }
   ],
   "Plain": [
    { "find": "BonePile", "spawnChance": 0.04, "expectedHours": 2.0 },

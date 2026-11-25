@@ -21,7 +21,7 @@ public class StationTests
     {
         var id = new FireId(w.NextFireId++);
         var f = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, Pit = pit };
-        if (birchKg > 0) f.BurningKg[Resource.Birch] = birchKg;
+        if (birchKg > 0) f.BurningKg[Resource.BirchFirewood] = birchKg;
         w.Fires[id] = f;
         return id;
     }
@@ -117,7 +117,7 @@ public class StationTests
         Assert.DoesNotContain(FireMenu(w), v => v.Activity is TakeFinished);
 
         // Four minutes on embers at a quarter of the rate: one minute of the fifteen done, fourteen left.
-        f.BurningKg[Resource.Birch] = 5;
+        f.BurningKg[Resource.BirchFirewood] = 5;
         long relit = w.Minute;
         Assert.Equal(relit + 14, FinishOf(w, 60).Minute);
     }

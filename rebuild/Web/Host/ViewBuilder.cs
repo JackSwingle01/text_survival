@@ -90,7 +90,7 @@ sealed class ViewBuilder(World world, int gen)
             Careful: travel?.Pace == Pace.Careful,
             Uses: v.Activity switch
             {
-                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Kindling, f.KindlingKg) } : [], Names.Of(f.Tool)],
+                StartFire f => [Load(f.Tinder, f.TinderKg), .. f.KindlingKg > 0 ? new[] { Load(Resource.Stick, f.KindlingKg) } : [], Names.Of(f.Tool)],
                 AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },

@@ -53,16 +53,16 @@ public class ConservationMakeTests
             if (s.Tools[i])
             {
                 var g = Items.Make(ToolKinds[i]);
-                g.MadeOf = new(); TestKit.Give(g.MadeOf, Resource.Pine, 1.5); // parts recorded: they must travel into what it is made into
+                g.MadeOf = new(); TestKit.Give(g.MadeOf, Resource.PineBranch, 1.5); // parts recorded: they must travel into what it is made into
                 pack.Gear.Add(g);
             }
         if (s.Fire)
         {
             var f = new FireState { Tile = Camp(w), LastUpdatedMinute = w.Minute, Pit = PitType.Open };
             Survival.Fire.AddFuel(f, Resource.BirchBark, 0.05);
-            Survival.Fire.AddFuel(f, Resource.Kindling, 1.0);
+            Survival.Fire.AddFuel(f, Resource.Stick, 1.0);
             Survival.Fire.IgniteAll(f);
-            Survival.Fire.AddFuel(f, Resource.Birch, 8);
+            Survival.Fire.AddFuel(f, Resource.BirchBranch, 8);
             w.Fires[new FireId(w.NextFireId++)] = f;
         }
         return w;

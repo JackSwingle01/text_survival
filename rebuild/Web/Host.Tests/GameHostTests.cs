@@ -40,7 +40,7 @@ public class GameHostTests
         if (Fire.PitAt(w, me.Tile) == null)
             w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
         var pit = w.Fires[Fire.PitAt(w, me.Tile)!.Value];
-        pit.BurningKg[Resource.Birch] = 5;
+        pit.BurningKg[Resource.BirchFirewood] = 5;
         Items.AddPiece(Items.Pack(w, AgentId.Player), Resource.RawMeat, 0.4);
         static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
 
@@ -66,7 +66,7 @@ public class GameHostTests
         var me = w.Agent(AgentId.Player);
         if (Fire.PitAt(w, me.Tile) == null)
             w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
-        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.Birch] = 5;
+        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.BirchFirewood] = 5;
         Items.AddPiece(Items.Pack(w, AgentId.Player), Resource.RawMeat, 0.4);
         static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
         string? Mark(ViewDto v) => v.Map.Places.SingleOrDefault(p => (p.X, p.Y) == (me.Tile.X, me.Tile.Y))?.Station;

@@ -230,7 +230,7 @@ public class ConservationFireTests
     [Fact]
     public void Fire_TinderOnOak_LeavesTheOakItsTime()
     {
-        var oak = new FireState { Tile = default, LastUpdatedMinute = 0, Pit = PitType.Open, BurningKg = { [Resource.Oak] = 2 } };
+        var oak = new FireState { Tile = default, LastUpdatedMinute = 0, Pit = PitType.Open, BurningKg = { [Resource.OakBranch] = 2 } };
         var withTinder = Copy(oak);
         Fire.AddFuel(withTinder, Resource.Tinder, 0.5);
         var (alone, _) = Burn(oak);
@@ -307,8 +307,8 @@ public class ConservationFireTests
     /// Fire_MoreOfTheSameFuel_NeverShortensTheBurn_Many).
     [Fact]
     public void Fire_AGramMore_OfOneFuel_LeavesTheEmbersTheirTime() =>
-        MoreFuel(new MoreScene(new FireScene(2, [.. FuelKinds.Select(r => r == Resource.Pine ? 2.0 : 0)], new double[FuelKinds.Length], [], 1, [1]),
-            Array.IndexOf(FuelKinds, Resource.Pine), 0.0033670508448069274), 1.0);
+        MoreFuel(new MoreScene(new FireScene(2, [.. FuelKinds.Select(r => r == Resource.PineBranch ? 2.0 : 0)], new double[FuelKinds.Length], [], 1, [1]),
+            Array.IndexOf(FuelKinds, Resource.PineBranch), 0.0033670508448069274), 1.0);
 
     /// One minute of a mix with nothing waiting: what each fuel lost, or null where a stack burned out
     /// or the fire burned everything (the share then is the stack, not the rate).

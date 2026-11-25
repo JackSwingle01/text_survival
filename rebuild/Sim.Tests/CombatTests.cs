@@ -795,7 +795,7 @@ public class CombatTests
         var fled = enc.Units.Single(u => u.Agent == npc);
         fled.InField = false; // it fled; the player fights on
         var bison = Agents.SpawnGroup(w, Species.Bison, tile, 3)[0];
-        TestKit.Give(Items.PileAt(w, tile), Resource.Birch, 60);
+        TestKit.Give(Items.PileAt(w, tile), Resource.BirchBranch, 60);
 
         var events = Sim.Step(w, new Hunt(npc, bison), Verbs.UntilDoneMinutes).Events; // the hunt a mind would choose
         Assert.Contains(events, e => e is EncounterEnded f && f.Agent == bison); // the NPC's hunt was fought out
@@ -804,6 +804,27 @@ public class CombatTests
         for (int i = 0; i < 600 && w.Encounters.Contains(enc); i++) events.AddRange(Sim.Advance(w, 1));
         Assert.DoesNotContain(w.Encounters, e => e == enc);
         Assert.Single(events.OfType<EncounterEnded>(), f => f.Agent == AgentId.Player);
+    }
+
+    /// A herd whose last member bleeds out off the field, before it is out of the fight, stays that
+    /// fight's to clear: it is not asked to plan, and the aftermath takes it and leaves its carcass.
+    [Fact]
+    public void AHerdThatDiesOffTheField_IsLeftToTheFightsAftermath()
+    {
+        var (w, tile) = Field();
+        var ran = Herd(w, Species.Wolf, 1, tile);
+        var stays = Herd(w, Species.Wolf, 1, tile);
+        var enc = Combat.Create(w, [new Fighter(AgentId.Player)], [new Fighter(ran[0]), new Fighter(stays[0])], tile, 20, Awareness.Engaged, Awareness.Engaged);
+        enc.Units.Single(u => u.Agent == ran).InField = false; // it ran, speared; the other fights on
+        w.Agent(ran).Body.HydrationMl = 0; // it was after water
+        w.Agent(ran).Body.BloodPct = 0; // and bled out before it got away
+
+        Sim.Advance(w, 2);
+        Assert.True(w.Agents.ContainsKey(ran)); // still the fight's to clear
+
+        var events = new List<WorldEvent>();
+        Combat.Finish(w, enc, events);
+        Assert.False(w.Agents.ContainsKey(ran));
     }
 
     /// Releasing a fled fighter settles it out of the old fight: its weapon comes back to its pack,
