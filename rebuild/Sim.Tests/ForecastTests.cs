@@ -360,7 +360,7 @@ public class ForecastTests
         }
         var east = Map.Step(Camp(w), Direction.East);
         int light = Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick);
-        TestKit.Give(Items.Pack(w, P), Resource.Stone, 60);
+        TestKit.Give(Items.Pack(w, P), Resource.Stone, 20); // slowed, not more than the body can carry
         Assert.True(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick) > light); // a load picked up this minute counts
         var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Trip.StepMinutes(w, P, Camp(w), east, Pace.Quick), Trip.StepMinutes(loaded, P, Camp(loaded), east, Pace.Quick));
@@ -687,11 +687,11 @@ public class ForecastTests
         Assert.Equal((Items.Resources[Resource.Stone].MinPieceKg + Items.Resources[Resource.Stone].MaxPieceKg) / 2, stone.Kg, 9);
         Assert.Equal(new MissingResource(Resource.Honey, 1).AnyOf, ((MissingResource)Sim.Refusal(w, new Eat(P, Resource.Honey, 1))!.Missing!).AnyOf);
         var body = Me(w).Body;
-        foreach (var leg in new[] { BodyTarget.LeftLeg, BodyTarget.RightLeg })
-            for (int i = 0; i < 6 && Body.GetCapacities(body).Moving > Traversal.LameMovingPct; i++)
-                Body.Damage(body, new DamageInfo(1.0, DamageType.Blunt, leg), Rng.ForSystem(i, "lame"));
-        var lame = Assert.IsType<MissingState>(Sim.Refusal(w, new Travel(P, Direction.East))!.Missing);
-        Assert.Equal((Lack.MovingPct, Traversal.LameMovingPct, Body.GetCapacities(body).Moving), (lame.Lack, lame.Need, lame.Have));
+        foreach (var leg in body.Regions.Where(r => r.Name.EndsWith("Leg")))
+            foreach (var layer in leg.Layers) layer.Condition = 0;
+        var lame = Assert.IsType<MissingFaculty>(Sim.Refusal(w, new Travel(P, Direction.East))!.Missing);
+        Assert.Equal(Faculty.Speed, lame.Faculty);
+        Assert.Equal([CrippledBy.NoWorkingLimb], lame.Because);
     }
 
     // ---- Stations: the finish of a transformation ----

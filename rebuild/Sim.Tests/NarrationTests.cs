@@ -57,6 +57,8 @@ public class NarrationTests
         events.AddRange(Sim.Step(w, new Eat(P, Resource.Berries, 0.5), 10).Events);
         // A search's luck is one roll: a lean one at camp can come up empty, so search until something turns up.
         for (int i = 0; i < 6 && !events.OfType<Gathered>().Any(g => g.What.Length > 0); i++) events.AddRange(Sim.Step(w, new Gather(P, 0), 60).Events);
+        // TestKit.Supply packs twice what the body can carry: set most of it down to walk (speed is at zero under it).
+        foreach (var r in new[] { Resource.Stick, Resource.BirchBranch, Resource.PineBranch, Resource.Bone }) Items.Move(Items.Pack(w, P), new Inventory(), r, 100);
         var walk = Verbs.At(w, P).Walk.First(v => v.Allowed);
         events.AddRange(Sim.Step(w, walk.Activity, walk.Minutes).Events);
         var lines = events.Select(e => Narration.ForPlayer(w, e)).OfType<Narrated>().ToList();

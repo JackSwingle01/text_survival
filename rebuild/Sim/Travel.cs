@@ -31,7 +31,7 @@ public static class Traversal
     public static Refusal? Refusal(World world, Travel t)
     {
         var agent = world.Agent(t.Who);
-        if (CannotWalk(agent) is string lame) return new(lame, new MissingState(Lack.MovingPct, LameMovingPct, Moving(agent)));
+        if (CannotWalk(agent) is { } lame) return lame;
         return Blocked(world, agent, agent.Tile, Map.Step(agent.Tile, t.Dir)) is string blocked ? new(blocked) : null;
     }
 
@@ -49,13 +49,24 @@ public static class Traversal
         ? agent.Members.Where(Body.IsAlive).Sum(Fauna.BurnKcalPerMinute)
         : Body.BurnKcalPerMinute(agent.Body, Sim.ActivityFactor(world, agent.Tile, new Travel(agent.Id, Direction.North)));
 
-    /// At or under this Moving, a person can barely move.
-    public const double LameMovingPct = 0.1;
+    /// Lame (GLOSSARY), under the load: asked before any crossing time, and every minute (Advance), so a crossing stops at the same minute however stepped.
+    public static Refusal? CannotWalk(Agent agent)
+    {
+        var why = Body.SpeedCrippledBy(PaceBody(agent), new AbilityContext(EncumbrancePct: Items.EncumbrancePct(agent)));
+        return why.Count == 0 ? null : new(CannotWalkReason + string.Join(", ", why.Select(Phrase)), new MissingFaculty(Faculty.Speed, why));
+    }
 
-    static double Moving(Agent agent) => agent.Members.Where(Body.IsAlive).Min(m => Body.GetCapacities(m).Moving);
+    public const string CannotWalkReason = "you cannot walk: ";
 
-    /// Checked at the start and every minute (Advance), so a crossing stops at the same minute however its minutes are cut into steps.
-    static string? CannotWalk(Agent agent) => Moving(agent) <= LameMovingPct ? "you can barely move" : null;
+    static string Phrase(CrippledBy why) => why switch
+    {
+        CrippledBy.NoWorkingLimb => "no working leg",
+        CrippledBy.LostBlood => "lost blood",
+        CrippledBy.Unconscious => "unconscious",
+        CrippledBy.Load => "the load",
+        CrippledBy.Build => "too frail a build",
+        _ => throw new ArgumentOutOfRangeException(nameof(why), why, null),
+    };
 
     /// A crossing in another direction, at another pace, or from a tile the agent is no longer on, is abandoned.
     public static Crossing Begin(World world, Travel t)
@@ -89,7 +100,7 @@ public static class Traversal
             Pools.Search(world, agent, c.From, hours / 2, events);
             Pools.Search(world, agent, Map.Step(c.From, c.Dir), hours / 2, events);
         }
-        if (++c.ElapsedMinutes < c.TotalMinutes) return CannotWalk(agent);
+        if (++c.ElapsedMinutes < c.TotalMinutes) return CannotWalk(agent)?.Reason;
 
         if (c.From != agent.Tile) throw new InvalidOperationException($"{agent.Id} is crossing from {c.From} but stands on {agent.Tile}");
         var from = c.From;
@@ -119,11 +130,14 @@ public static class Traversal
 
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {
+        if (!(speed > 0)) throw new ArgumentOutOfRangeException(nameof(speed), speed, "a body at speed zero cannot walk: ask CannotWalk first");
         double multiplier = Map.TravelHazardLevel(m, tile, sky.Minute);
         if (sky.WindLevel > 0.5) multiplier *= 1 + Exposure.OpenWindLevel(m, tile, sky) * 0.3;
         if (sky.PrecipitationPct > 0.5) multiplier *= 1 + sky.PrecipitationPct * 0.2;
-        return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / Math.Max(0.1, speed));
+        return (int)Math.Ceiling(Math.Min(MaxSegmentMinutes, Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / speed));
     }
+
+    const double MaxSegmentMinutes = int.MaxValue / 16; // keeps a crossing's sums whole numbers
 
     public static int EdgeMinutes(World world, TileId from, TileId to) => Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
 
@@ -154,14 +168,14 @@ public static class Traversal
     public static Odds InjuryOdds(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace = Pace.Quick, TileId? from = null) =>
         InjuryOdds(EffectiveHazardLevel(world, tile, from), body, sky, pace);
 
-    /// Weather and bad legs worsen footing in proportion, so easy ground stays easy in a storm.
+    /// Weather and bad legs (speed short of fresh) worsen footing in proportion, so easy ground stays easy in a storm.
     internal static Odds InjuryOdds(double hazardLevel, BodyState body, WeatherSample sky, Pace pace)
     {
         var (weatherWhy, weather) = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? (Names.Title(sky.Condition), 0.25)
             : sky.Condition == WeatherCondition.LightSnow ? (Names.Title(sky.Condition), 0.15)
             : sky.PrecipitationPct > 0.3 ? (sky.Precipitation == Precipitation.None ? "Precipitation" : $"Heavy {Names.Of(sky.Precipitation)}", 0.15)
             : (Names.Title(sky.Condition), 0.0);
-        double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
+        double impaired = (1 - Math.Min(1, SpeciesTable.SpeedPct(Species.Human, body))) * 0.3; // only a person stumbles (Begin)
         double ground = Math.Clamp(hazardLevel, 0, 1), weathered = Math.Min(1, ground * (1 + weather)), lame = Math.Min(1, ground * (1 + weather + impaired));
         return new Odds("Ground", FallPct(ground), Odds.Moving(
             OddsTerm.Add(weatherWhy, FallPct(weathered) - FallPct(ground)),

@@ -36,6 +36,7 @@ public static class Trip
     {
         var m = Map.Of(world);
         double unloaded = Body.Speed(body), speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
+        if (!(speed > 0)) throw new InvalidOperationException("A body at speed zero has no crossing time: ask Traversal.CannotWalk first");
         var still = sky with { WindLevel = 0, PrecipitationPct = 0 }; // no wind or precipitation to slow a walk
         var (exit, entry) = (Segment(from), Segment(to));
         int edge = m.EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
@@ -154,6 +155,8 @@ public static class Trip
         if (world.StepMinutesCache is not { } cache || cache.Minute != world.Minute) world.StepMinutesCache = cache = (world.Minute, []);
         if (cache.Minutes.TryGetValue((who, from, to, pace), out var kept) && kept.EncumbrancePct == encumbrancePct && kept.Speed == speed)
             return kept.Minutes;
+        // A kept price was made this minute at this speed and load, so by a body that could walk.
+        if (Traversal.CannotWalk(agent) is { } lame) throw new ArgumentException($"No crossing from {from} to {to}: {lame.Reason}");
         if (Traversal.Blocked(world, agent, from, to) is string blocked) throw new ArgumentException($"No crossing from {from} to {to}: {blocked}");
         int minutes = new Pricer(world, agent, pace, Weather.At(world, world.Minute)).Minutes(from, to);
         cache.Minutes[(who, from, to, pace)] = (minutes, encumbrancePct, speed);
@@ -174,7 +177,7 @@ public static class Trip
     /// the tile settled first is kept, so the answer never depends on the order anything was looked at.
     /// maxMinutes: nothing farther is reached. until: told each tile as it settles, with its minutes; true ends the
     /// search there (the nearest of some goals, or travel past the best total a planner has found so far).
-    /// refused: tiles the caller won't route through (never the origin). into: route into this tile from
+    /// A lame agent (Traversal.CannotWalk) reaches only the origin. refused: tiles the caller won't route through (never the origin). into: route into this tile from
     /// everywhere instead, each crossing priced in the direction it would be walked.
     public static RouteMap Routes(World world, AgentId who, int maxMinutes = int.MaxValue, Func<TileId, int, bool>? until = null,
         Func<TileId, bool>? refused = null, TileId? into = null)
@@ -192,6 +195,8 @@ public static class Trip
         bool walksSeenGround = agent.Mind is PersonMind;
         var explored = (agent.Mind as PersonMind)?.Memory.Explored;
         bool Open(TileId t) => !walksSeenGround || t == agent.Tile || explored?.Contains(t) == true;
+        // A lame body reaches only the origin, and no crossing is priced.
+        bool lame = Traversal.CannotWalk(agent) != null;
         int start = scratch.Index(origin);
         (scratch.Minutes[start], scratch.ReachedStamp[start]) = (0, search);
         scratch.Queue.Enqueue(start, (0, origin));
@@ -201,7 +206,7 @@ public static class Trip
             scratch.SettledStamp[i] = search;
             scratch.Settled.Add(i);
             var t = key.Tile;
-            if (until?.Invoke(t, key.Minutes) == true) break;
+            if (until?.Invoke(t, key.Minutes) == true || lame) break;
             foreach (var (dx, dy) in MapGen.NeighborSteps) // MapGen.Neighbors' order, without an array a tile
             {
                 var n = new TileId(t.X + dx, t.Y + dy);

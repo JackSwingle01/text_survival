@@ -26,12 +26,12 @@ public class OddsTests
         return Math.Clamp(accuracy, 0.05, 0.95);
     }
 
-    /// The old terms (weather, bad legs) make the footing worse in proportion; the footing curve turns it into a chance.
+    /// The old terms (weather, bad legs: speed short of a fresh body's) make the footing worse in proportion; the footing curve turns it into a chance.
     static double ExpectedInjury(World world, TileId tile, BodyState body, WeatherSample sky, Pace pace)
     {
         double weather = sky.Condition is WeatherCondition.Blizzard or WeatherCondition.Stormy ? 0.25
             : sky.PrecipitationPct > 0.3 || sky.Condition == WeatherCondition.LightSnow ? 0.15 : 0;
-        double impaired = (1 - Body.GetCapacities(body).Moving) * 0.3;
+        double impaired = (1 - Math.Min(1, SpeciesTable.SpeedPct(Species.Human, body))) * 0.3;
         double footing = Math.Min(1, Traversal.EffectiveHazardLevel(world, tile) * (1 + weather + impaired));
         return Math.Pow(footing, Math.E) / 2 * (pace == Pace.Careful ? 0.25 : 1);
     }
