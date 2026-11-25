@@ -59,7 +59,7 @@ internal static class TissueReads
         }
         c[moving] = legs == 0 ? allSum / regions.Count : legSum + otherSum;
 
-        // Manipulation: 90% arms, 2% each from the other regions; a body without hands has none.
+        // Manipulation: 90% arms, 2% each from the other regions; only a human body has hands.
         double manip = 0;
         for (int r = 0; r < regions.Count; r++)
             manip += caps[r * CapacityCount + manipulation] * (body.Kind != BodyKind.Human ? 0 : regions[r].Name switch
@@ -287,21 +287,21 @@ internal static class Faculties
 /// surroundings (no dark, wet or load). One a fresh body lacks (a wolf's dexterity) is left out.
 internal static class Vitality
 {
-    readonly record struct Four(double Strength, double Speed, double Dexterity, double Perception);
+    readonly record struct FacultyRead(double Strength, double Speed, double Dexterity, double Perception);
 
-    static Four Read(BodyState body, in Capacities c) =>
-        new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, 0), Faculties.Perception(c, default));
+    static FacultyRead Read(BodyState body, in Capacities c) =>
+        new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, wetSeverity: 0), Faculties.Perception(c, default));
 
     static readonly int SexCount = Enum.GetValues<Sex>().Length;
 
     /// Built once on first use, by the type initializer: thread-safe.
-    static readonly Four[] Fresh = [.. Enum.GetValues<Species>().SelectMany(s => Enum.GetValues<Sex>().Select(sex =>
+    static readonly FacultyRead[] Fresh = [.. Enum.GetValues<Species>().SelectMany(s => Enum.GetValues<Sex>().Select(sex =>
     {
         var body = SpeciesTable.Average(s, sex);
         return Read(body, Capacities.Of(body));
     }))];
 
-    static Four FreshOf(Species species, Sex sex) =>
+    static FacultyRead FreshOf(Species species, Sex sex) =>
         Fresh[(int)species * SexCount + (int)(species == Species.Human ? sex : Sex.Male)];
 
     internal static double Of(BodyState body, Species species)
