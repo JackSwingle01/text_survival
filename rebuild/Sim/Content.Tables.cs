@@ -140,6 +140,7 @@ public static partial class Content
         var effectRows = Keyed<EffectKind, EffectRow>(effects, "effects.json", problems, complete: true);
         var effectCaps = effectRows.ToDictionary(e => e.Key,
             e => Keyed<Capacity, double>(e.Value.Capacities ?? new Dictionary<string, double>(), $"effects.json {e.Key} capacities", problems));
+        problems.AddRange(EffectNameProblems(effectCaps));
         var kinds = Keyed<ShelterKind, ShelterKindProps>(shelters.Kinds, "shelters.json kinds", problems, complete: true);
         var materials = Keyed<Resource, ShelterMaterial>(shelters.Materials, "shelters.json materials", problems);
         var beddings = Keyed<BeddingKind, BeddingProps>(shelters.Beddings, "shelters.json beddings", problems, complete: true);
@@ -290,6 +291,13 @@ public static partial class Content
     {
         if (problems.Count > 0) throw new InvalidDataException("Content is broken:\n" + string.Join("\n", problems));
     }
+
+    /// An effect names only a capacity, blood or breath: digestion is the gut's own, below them all.
+    internal static IEnumerable<string> EffectNameProblems(IReadOnlyDictionary<EffectKind, Dictionary<Capacity, double>> effectCaps) =>
+        from e in effectCaps
+        from cap in e.Value.Keys
+        where cap == Capacity.Digestion
+        select $"effects.json {e.Key} capacities: {cap} is not a capacity, blood or breath";
 
     static IReadOnlyDictionary<TKey, T> ReadOnly<TKey, T>(Dictionary<TKey, T> d) where TKey : notnull => new ReadOnlyDictionary<TKey, T>(d);
 
