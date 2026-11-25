@@ -226,8 +226,8 @@ Ranked by how much of the game is unplayable without it, then by how much else w
 | Eat any food: calories and water per kg | `ConsumptionHandler` | Done | `Work` `Eat`; CLI `eat`; `WorkTests.Eating_TakesTenMinutes_AndPutsItsCaloriesAndWaterIntoTheBody` | | |
 | Drink from the pack, or from a river or lake | `ConsumptionHandler`, `WaterFeature` | Changed | Drinking straight from a river or lake is new and easier; the old game drank only from the pack. Sim: CLI `drink`; `WorkTests.Drinking_UsesThePacksWaterFirst_AtMostALitre_AndRefusesWhenThereIsNone`, `ARiverOrLake_GivesWaterWithoutAPack` | | |
 | Cold water cools an overheated body | `ConsumptionHandler` | Done | `Work.Begin` (`Work.cs:202`); covered by the drink test | | |
-| Cook meat and fish at a burning fire | `CookingHandler.CookMeat/CookFish` | Done | CLI `cook`; `WorkTests.Cooking_TurnsRawToCooked_AtAKiloAQuarterHour_OnABurningFire` | | |
-| Melt snow | `CookingHandler.MeltSnow` | Partial | `WorkTests.MeltingSnow_MakesALitreInTenMinutes`. Missing: it ignores the real snow depth (`Work.cs:306`), so it works in July, as the old one did | S | |
+| Cook meat and fish at a burning fire | `CookingHandler.CookMeat/CookFish` | Changed | Put on the fire and taken later, not cooked by hand (spec 2026-11-24 fire-and-rack-as-stations); `StationTests` | | |
+| Melt snow | `CookingHandler.MeltSnow` | Partial | Set melting at the fire and the water taken (spec 2026-11-24 fire-and-rack-as-stations); `StationTests`. Missing: it ignores the real snow depth, so it works in July, as the old one did | S | |
 | Wash off blood | `ConsumptionHandler` `wash_blood` | Missing | Bloody only decays at its floor | S | |
 | Honey's energy boost | `ConsumptionHandler.EatHoney` | Missing | See §5 | S | |
 

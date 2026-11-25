@@ -108,6 +108,12 @@ public static class Stations
 
     public static long? Forecast(World world, FireId pit, Transformation t) => FinishMinute(world, pit, Recipes.Get(t.Recipe), t.DonePct);
 
+    public static long? Forecast(World world, FireId pit, Ongoing o)
+    {
+        var r = Recipes.Get(o.Recipe);
+        return Items.Have(At(world, pit).Ready, r.Result.Resource!.Value) >= r.Result.CapKg - DoneSlack ? null : FinishMinute(world, pit, r, o.DonePct);
+    }
+
     public static Slowed? SlowedBy(FireState fire) =>
         fire.HasEmbers ? Slowed.Embers : !Fire.IsActive(fire) ? Slowed.FireOut : HeatRatePct(fire) < 1 ? Slowed.FireLow : null;
 

@@ -163,7 +163,7 @@ public sealed class GameHost
     }
 
     /// Work that takes time, run in chunks and held between them: a search, a butchering, cooking, melting snow.
-    static bool HeldWork(Activity a) => a is Gather or Butcher or Cook or MeltSnow or WalkAbout;
+    static bool HeldWork(Activity a) => a is Gather or Butcher or WalkAbout;
 
     void Run(Job job, int chunk)
     {
