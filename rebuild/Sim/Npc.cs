@@ -234,15 +234,15 @@ public static class Npc
         double UsableHoursAt(TileId site)
         {
             if (Here == site) return FireHere().Hours;
-            return FireLeftHoursAt(site) + Fire.Forecast(new FireAsk(null, PitType.Open, WithPack(memory.Places.GetValueOrDefault(site)?.Pile), Starter, 0)).Hours;
+            return FireLeftHoursAt(site) + Fire.Forecast(new FireAsk(null, PitType.Open, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile), Starter, 0)).Hours;
         }
 
         FireForecast? fireHere;
-        FireForecast FireHere() => fireHere ??= Fire.Forecast(new FireAsk(PitHere, PitType.Open, WithPile(PileHere), Starter, 0));
+        FireForecast FireHere() => fireHere ??= Fire.Forecast(new FireAsk(PitHere, PitType.Open, PackWith(PileHere), Starter, 0));
 
         ToolType? Starter => Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
 
-        Inventory WithPile(Inventory? pile)
+        Inventory PackWith(Inventory? pile)
         {
             var all = Items.CopyResources(pack);
             if (pile != null) Items.AddAll(all, Items.CopyResources(pile));
@@ -250,7 +250,7 @@ public static class Npc
         }
 
         /// The pack with a pile as remembered, its weights in the pieces they would be fetched in.
-        Inventory WithPack(IReadOnlyDictionary<Resource, double>? pile)
+        Inventory PackWithRemembered(IReadOnlyDictionary<Resource, double>? pile)
         {
             var all = Items.CopyResources(pack);
             foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) Items.AddKg(all, r, kg);
@@ -324,10 +324,9 @@ public static class Npc
 
         StartFire? Strike()
         {
-            var tool = Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
-            if (tool == null) return null;
+            if (Starter is not ToolType tool) return null;
             var tinder = Fire.TinderToStrike(pack, Verbs.TinderKg);
-            return new StartFire(Id, tool.Value, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
+            return new StartFire(Id, tool, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
         }
 
         /// A strike it can make whose fire, by the fire forecast, outlasts the strike's own flame.

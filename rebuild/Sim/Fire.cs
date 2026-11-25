@@ -25,7 +25,7 @@ public readonly record struct FuelToAdd(Resource Fuel, double Kg);
 public sealed record FireStrike(Resource Tinder, double TinderKg, double KindlingKg);
 
 /// StrikePct is 1 when the pit burns or glows. LeastHeatF: the least Fire.HeatOutputF over the hours, against 0 °F air.
-/// Missing is empty when the hours reach those wanted. Next is null for a cold pit, which has the Strike assumed.
+/// Missing is empty when the hours reach those wanted or nothing could help (a cold pit too full to strike, >200 kg).
 public sealed record FireForecast(double StrikePct, double Hours, double LeastHeatF, IReadOnlyList<FireNeed> Missing, FuelToAdd? Next, FireStrike? Strike);
 
 public sealed record PitProps(int Room, double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
@@ -764,8 +764,6 @@ public static class Fire
         return lit;
     }
 
-    public static bool CanStrike(Inventory pack) => Starters.Any(t => Items.Tool(pack, t) != null);
-
     public static readonly IReadOnlyList<ToolType> Starters = [ToolType.FireStriker, ToolType.BowDrill, ToolType.HandDrill];
 
     public static readonly IReadOnlyList<Resource> Tinders =
@@ -781,7 +779,8 @@ public static class Fire
         bool burns = ask.Pit is { } pit && (IsActive(pit) || pit.HasEmbers);
         if (!burns && ask.Starter == null) return new(0, 0, 0, [new FireNeed(FireNeedKind.Starter, [], 0)], null, null);
         if (!burns && ask.Pit != null && TotalKg(ask.Pit) >= MaxFuelKg(ask.Pit.Pit)) return new(0, 0, 0, [], null, null); // no room to strike in
-        var strike = burns ? null : StrikeFrom(ask.Fuel);
+        var struck = burns ? null : StrikeFrom(ask.Fuel);
+        var strike = struck;
         var burned = burns || strike != null ? Burn(ask.Pit, ask.NewPit, ask.Fuel, strike) : Burned.None;
         double strikePct = burns ? 1 : strike != null ? StartOdds(ask.Starter!.Value, strike.Tinder, ask.FirecraftLevel, ask.DexterityPct).TotalPct : 0;
         var missing = new List<FireNeed>();
@@ -799,7 +798,7 @@ public static class Fire
             }
             if (toSearch.Hours < ask.HoursWanted && FuelNeed(ask, offer, strike, toSearch) is { } need) missing.Add(need);
         }
-        return new FireForecast(strikePct, burned.Hours, burned.LeastHeatF, missing, burns ? burned.First : null, burns ? null : StrikeFrom(ask.Fuel));
+        return new FireForecast(strikePct, burned.Hours, burned.LeastHeatF, missing, burns ? burned.First : null, struck);
     }
 
     const double MostFuelSearchedKg = 200;
@@ -817,20 +816,20 @@ public static class Fire
         {
             var target = burned.Stranded.OrderBy(r => Props[r].MinFireTempF).ThenBy(r => r).First();
             var bridges = ByHoursPerKg(r => !burned.Stranded.Contains(r) && Props[r].MinFireTempF <= burned.HeatReachedF && Props[r].PeakTempF >= Props[target].MinFireTempF);
-            if (Weighed(ask, offer, strike, burned, bridges, target) is { } bridge) return bridge with { Kind = FireNeedKind.Bridge };
+            if (Weighed(ask, offer, strike, burned, bridges, FireNeedKind.Bridge, target) is { } bridge) return bridge;
         }
         var more = ByHoursPerKg(r => !burned.Stranded.Contains(r) && Props[r].MinFireTempF <= burned.HeatReachedF);
-        return Weighed(ask, offer, strike, burned, more, mustTake: null);
+        return Weighed(ask, offer, strike, burned, more, FireNeedKind.Hours, mustTake: null);
     }
 
     static List<Resource> ByHoursPerKg(Func<Resource, bool> which) =>
         [.. Props.Keys.Where(which).OrderBy(r => Props[r].BurnRateKgPerHour).ThenBy(r => r)];
 
-    static FireNeed? Weighed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned, List<Resource> candidates, Resource? mustTake)
+    static FireNeed? Weighed(FireAsk ask, Inventory offer, FireStrike? strike, Burned burned, List<Resource> candidates, FireNeedKind kind, Resource? mustTake)
     {
+        double shortHours = Math.Max(ask.HoursWanted - burned.Hours, 1.0 / 60);
         foreach (var fuel in candidates)
         {
-            double shortHours = Math.Max(ask.HoursWanted - burned.Hours, 1.0 / 60);
             double kg = Math.Max(Items.IsDiscrete(fuel) ? Items.Resources[fuel].MinPieceKg : 0.01, shortHours * Props[fuel].BurnRateKgPerHour * ReckonedBurnSizeFactor);
             for (; kg <= MostFuelSearchedKg; kg *= 1.5)
             {
@@ -838,7 +837,7 @@ public static class Fire
                 double added = Items.AddKg(more, fuel, kg);
                 var tried = Burn(ask.Pit, ask.NewPit, more, strike, ask.HoursWanted, mustTake);
                 if (tried.Hours >= ask.HoursWanted && (mustTake is not Resource m || !tried.Stranded.Contains(m)))
-                    return new FireNeed(FireNeedKind.Hours, [fuel, .. candidates.Where(c => c != fuel)], added);
+                    return new FireNeed(kind, [fuel, .. candidates.Where(c => c != fuel)], added);
             }
         }
         return null;
@@ -881,8 +880,8 @@ public static class Fire
         return next;
     }
 
-    /// The tending a forecast assumes, and its Next: of the fuel on offer, the first in the order it catches (least heat
-    /// needed, then the slowest burning) that the fire takes now and has room for, as much as fits. Null for a cold pit.
+    /// The tending a forecast assumes, and its Next: of the fuel on offer that the fire takes now and has room for, the
+    /// hottest (then the slowest burning), as much as fits. Null for a cold pit.
     internal static FuelToAdd? NextFuel(FireState f, Inventory fuel)
     {
         if (!IsActive(f) && !f.HasEmbers) return null;
