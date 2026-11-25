@@ -19,10 +19,12 @@ name: Resolve conflicts
 #
 # Outcomes. Resolved: one merge commit on the PR's branch, its message saying how each conflicted
 # file was resolved, and a comment on the PR with Claude's confidence in the merge (0 to 100) and
-# the part a reviewer should check first. The score is reported, not acted on. The push is made with the Claude app's token, so CI runs on it. Not resolved
-# (the two sides need a person to choose, or the run failed): a comment on the PR and `needs-user`,
-# which keeps later runs off it. Remove the label to try again. A run refused for plan usage leaves
-# the PR as it was, for the hourly run.
+# the part a reviewer should check first. The score is reported, not acted on. The push is made with
+# the Claude app's token, so CI runs on it: the checkout keeps no credentials of its own, because git
+# would push with them first, as github-actions, and workflows on such a push wait for approval.
+# Not resolved (the two sides need a person to choose, or the run failed): a comment on the PR and
+# `needs-user`, which keeps later runs off it. Remove the label to try again. A run refused for
+# plan usage leaves the PR as it was, for the hourly run.
 #
 # The resolve step is capped at 45 minutes: the Claude app token it pushes with lasts 60.
 #
@@ -127,6 +129,10 @@ jobs:
         with:
           ref: ${{ matrix.pr.branch }}
           fetch-depth: 0
+          # checkout would leave GITHUB_TOKEN in git's config (an includeIf the Claude action does not
+          # clear), and git sends it ahead of the action's credential helper: the merge was pushed as
+          # github-actions and CI on it waited for approval. With none kept, the push is the app's.
+          persist-credentials: false
 
       # Try the merge without Claude: the files that conflict, and the two commits being merged.
       # Left unmerged; Claude runs the merge again itself.
@@ -134,13 +140,14 @@ jobs:
         id: conflicts
         run: |
           set -euo pipefail
-          git fetch origin main
+          # origin/main is the checkout's (fetch-depth 0 fetches every branch): git has no credentials
+          # here to fetch it again.
           echo "before=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "main=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+          echo "main=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
           # This checkout is the PR's branch, which may predate the script or carry its own copy:
           # the steps below run main's.
-          git show FETCH_HEAD:.github/scripts/plan_limits.py > "$RUNNER_TEMP/plan_limits.py"
-          if git -c user.name=probe -c user.email=probe@localhost merge --no-commit --no-ff FETCH_HEAD; then
+          git show origin/main:.github/scripts/plan_limits.py > "$RUNNER_TEMP/plan_limits.py"
+          if git -c user.name=probe -c user.email=probe@localhost merge --no-commit --no-ff origin/main; then
             echo "#$PR merges cleanly now: nothing to resolve." >> "$GITHUB_STEP_SUMMARY"
             echo "any=false" >> "$GITHUB_OUTPUT"
           else
