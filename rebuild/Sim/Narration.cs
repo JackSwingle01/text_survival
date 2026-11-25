@@ -42,6 +42,7 @@ public static class Narration
             TreeFelled x => x.Who == me,
             Ate x => x.Who == me,
             Drank x => x.Who == me,
+            Washed x => x.Who == me,
             Butchered x => x.Who == me && x.Finished,
             Killed x => x.By == me,
             EncounterEnded x => x.Agent == me,
@@ -67,6 +68,8 @@ public static class Narration
         string Is(AgentId id) => Me(id) ? "You are" : $"{Who(id)} is";
         (string Text, Tone Tone)? line = e switch
         {
+            // Grime builds from the first minute and comes back the minute after a wash: the wash is told instead.
+            EffectStarted { Kind: EffectKind.Dirty } or EffectEnded { Kind: EffectKind.Dirty } => null,
             EffectStarted x => ($"{Is(x.Who)} {Names.Of(x.Kind)}.", x.Kind switch { EffectKind.Sweating => Tone.Plain, EffectKind.WellFed => Tone.Good, _ => Tone.Bad }),
             EffectEnded x => ($"{Is(x.Who)} no longer {Names.Of(x.Kind)}.", x.Kind == EffectKind.WellFed ? Tone.Plain : Tone.Good),
             Died x => (Me(x.Who) ? "You die." : $"{Who(x.Who)} dies.", Tone.Bad),
@@ -94,6 +97,7 @@ public static class Narration
             TutorialShown x => (Tutorials.Text(x.Tutorial, x.Kg), Tone.Plain),
             TreeFelled => ("The tree comes down.", Tone.Good),
             Ate x => ($"{Does(x.Who, "eat")} {Names.Amount(x.Food, x.Kg, x.Pieces)}.", Tone.Plain),
+            Washed x => ($"{Does(x.Who, "wash")} {x.In switch { WashedIn.Snow => "with snow", WashedIn.CarriedWater => "with carried water", WashedIn.Water => "in the water", _ => throw new NotSupportedException($"No words for washing in {x.In}") }}, and {(Me(x.Who) ? "are" : "is")} left damp.", Tone.Plain),
             Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),

@@ -154,7 +154,7 @@ public class Location
             case Weather.WeatherCondition.FreezingRain:
                 rainfall = precipitation * MaxRainfallMPerMinute;
                 break;
-            // A whiteout is snow already down, blown about. Nothing new falls.
+                // A whiteout is snow already down, blown about. Nothing new falls.
         }
 
         return new SurfaceWeather(

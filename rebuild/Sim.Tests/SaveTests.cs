@@ -116,7 +116,7 @@ public class SaveFixtureTests
 
     /// A small world with a bit of most of what a save holds: a fire burning, a pile, a shelter and
     /// bedding, a crossing made, an NPC, a wolf pack, the player's memory, explored and remembered ground, rng
-    /// streams, a journal, a made thing's parts and an unfinished one in the pack, a well-fed player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
+    /// streams, a journal, a made thing's parts and an unfinished one in the pack, a well-fed, dirty player and an NPC asleep. Not World.New: its two dozen herds would make the fixture half a megabyte.
     internal static World SampleWorld()
     {
         var map = Map.Generate(17);
@@ -146,6 +146,7 @@ public class SaveFixtureTests
         w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;
         w.Agent(npc).Body.EnergyMinutes = 0;
         Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
+        Effects.Set(w.Agent(P).Body, EffectKind.Dirty, 0.3);
         ((NpcMind)w.Agent(npc).Mind).Plan = new NpcPlan(Stat.Warmth, Priority.Need, w.Minute, 90); // a committed plan, saved by name
         // A path trodden beside camp, and seen: a route in memory.
         w.Trails[new EdgeId(camp, new TileId(camp.X, camp.Y + 1))] = new EdgeTrodden(Tracks.PathAt + 0.05, w.Minute);

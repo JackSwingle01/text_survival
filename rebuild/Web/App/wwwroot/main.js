@@ -44,7 +44,7 @@ const dirTo = (from, to) => Object.keys(DIRS).find(d => from.x + DIRS[d][0] === 
 
 const KIND_ICON = {
   wait: 'ui/clock', rest: 'ui/energy', sleep: 'ui/moon', fire: 'ui/fire', fuel: 'ui/fuel', torch: 'ui/torch', charcoal: 'ui/charcoal',
-  gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', cook: 'ui/meat', melt: 'ui/water', putdown: 'ui/storage',
+  gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', wash: 'ui/water', cook: 'ui/meat', melt: 'ui/water', putdown: 'ui/storage',
   take: 'ui/storage', wear: 'ui/equip', takeoff: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
   make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', walkabout: 'ui/continue', other: 'ui/inspect',
 };

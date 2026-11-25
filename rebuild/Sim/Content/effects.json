@@ -1,7 +1,8 @@
 // The effects the body itself produces: survival thresholds, temperature, wetness, wounds. Every
 // EffectKind has one row. Loaded once by Content; ContentTests checks every name in here resolves.
 //
-// severityPerHour: how fast it drifts on its own: negative fades, 0 holds; nothing grows by itself.
+// severityPerHour: how fast it drifts on its own: negative fades, 0 holds. Nothing grows by this field:
+//   what grows (Wet, Bloody, Dirty) is set by the survival tick.
 // treatmentAboveSeverity: an effect that starts above this severity needs treatment, and then fades
 //   only to a floor; 0 means any of it does; null, stated, never needs treatment.
 // coreTempFPerHour, bleedMlPerHour: what it does to the body each hour at full severity.
@@ -28,6 +29,9 @@
  // Severity IS the blood on you; the survival tick sets it and owns drying (it dries on its own, faster by a fire:
  // decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
  "Bloody": { "severityPerHour": 0, "treatmentAboveSeverity": null },
+ // Severity IS the grime on you; the survival tick builds it with time, sweat and carcass work. Only scent reads it
+ // (Scent.Of); it never fades, and washing clears it (decisions/2026-11-21-no-effect-needs-a-missing-treatment.md).
+ "Dirty": { "severityPerHour": 0, "treatmentAboveSeverity": null },
  "Bleeding": { "severityPerHour": -0.1, "treatmentAboveSeverity": null, "bleedMlPerHour": 3000 },
  "Pain": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Manipulation": -0.25, "Consciousness": -0.15, "Sight": -0.15, "Hearing": -0.10 } },
  "Dazed": { "severityPerHour": -0.15, "treatmentAboveSeverity": null, "capacities": { "Sight": -0.4, "Hearing": -0.3, "Consciousness": -0.2 } },

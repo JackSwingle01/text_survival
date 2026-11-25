@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="CsCheck" Version="5.0.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="TngTech.ArchUnitNET" Version="0.13.5" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -25,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="../Sim/Sim.csproj" />
+    <!-- Referenced so CapacityReadTests reads the screen's compiled code with the sim's. -->
+    <ProjectReference Include="../Web/Host/Host.csproj" />
     <!-- Built, not referenced: Phase2GateTests runs the CLI in its own processes. -->
     <ProjectReference Include="../Cli/Cli.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>

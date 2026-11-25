@@ -25,7 +25,7 @@ public class WhereThingsGoTests
 
     /// The ratchet over a set of named breaches: a new one fails with the fix, a listed one no longer
     /// found fails until it leaves the list.
-    static List<string> SetRatchet(IEnumerable<(string Key, string Detail)> found, IReadOnlyDictionary<string, string> known,
+    internal static List<string> SetRatchet(IEnumerable<(string Key, string Detail)> found, IReadOnlyDictionary<string, string> known,
         string listName, string fix)
     {
         var problems = new List<string>();

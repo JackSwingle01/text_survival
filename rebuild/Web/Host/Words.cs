@@ -42,7 +42,7 @@ static class Words
         TutorialShown => "ui/help",
         TreeFelled => "forest",
         Ate => "ui/food",
-        Drank => "ui/water",
+        Drank or Washed => "ui/water",
         Butchered => "ui/knife",
         Killed => "carcass",
         EncounterEnded => "ui/target",

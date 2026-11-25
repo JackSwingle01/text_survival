@@ -112,6 +112,7 @@ sealed class ViewBuilder(World world, int gen)
         Butcher => "butcher",
         Eat => "eat",
         Drink => "drink",
+        Wash => "wash",
         Cook => "cook",
         MeltSnow => "melt",
         PutDown => "putdown",

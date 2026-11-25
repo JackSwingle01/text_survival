@@ -107,6 +107,7 @@ public static class Verbs
             if (Fire.PitAt(world, agent.Tile) == null) tile.Add(("Start a fire", Light(who, pack, PitType.Open), 1));
             if (Items.Tool(pack, ToolType.Torch) != null) tile.Add(("Light a torch", new LightTorch(who), 1));
             if (Items.Have(pack, Resource.Water) > 0 || Work.CanDrinkHere(world, agent.Tile)) tile.Add(("Drink", new Drink(who), Work.DrinkMinutes));
+            tile.Add(("Wash", new Wash(who), Work.WashMinutes));
         }
         var carried = new List<(string, Activity, int)>();
         if (pack != null)

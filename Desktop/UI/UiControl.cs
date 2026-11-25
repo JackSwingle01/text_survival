@@ -11,8 +11,12 @@ public sealed record UiControl(string Id, string Label, string Icon, KeyboardKey
 {
     public bool Enabled => DisabledReason == null;
     public string DisplayLabel => Shortcut is { } key ? $"{Label} [{KeyLabel(key)}]" : Label;
-    public static string KeyLabel(KeyboardKey key) => key switch {
-        KeyboardKey.Escape => "Esc", KeyboardKey.Space => "Space", _ => key.ToString() };
+    public static string KeyLabel(KeyboardKey key) => key switch
+    {
+        KeyboardKey.Escape => "Esc",
+        KeyboardKey.Space => "Space",
+        _ => key.ToString()
+    };
     public bool CanActivate(bool scopeEnabled, bool requested) => Enabled && scopeEnabled && requested;
 }
 

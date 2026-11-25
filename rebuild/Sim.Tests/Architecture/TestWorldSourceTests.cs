@@ -31,12 +31,12 @@ public class TestWorldSourceTests
         ["PlanBenchReport.cs"] = (1, "a benchmark of the real world over its own seeds"),
         ["SpeciesBodyTests.cs"] = (2, "two World.New of one seed draw the same fat: determinism is the subject"),
         ["MemoryTests.cs"] = (1, "a seed's World.New looks the same: determinism is the subject"),
+        ["MapTests.cs"] = (16, "the generator against the old one and against itself, and a save's bytes and loading, are the subject"),
     };
 
     /// Files still to move onto TestWorlds. Only shrinks.
     static readonly Dictionary<string, (int Count, string Why)> NotYetOnTestWorlds = new()
     {
-        ["MapTests.cs"] = (27, "generation is the subject of some of its tests, not of those reading the seed's map"),
     };
 
     static string TestsDir => Path.Combine(Path.GetDirectoryName(ArchitectureTests.SimSourceDir())!, "Sim.Tests");

@@ -1,5 +1,8 @@
 namespace Survival;
 
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<WashedIn>))]
+public enum WashedIn { Water, Snow, CarriedWater }
+
 /// A focused search keeps what it looks for and drops about half of the rest.
 public enum ForageFocus { General, Fuel, Food, Medicine, Materials }
 
@@ -39,9 +42,12 @@ public static class Work
     public const double MaxDrinkLiters = 1.0;
     public const int EatMinutes = 10, DrinkMinutes = 2, MeltSnowMinutes = 10, CookMeatMinutesPerKg = 15, CookFishMinutesPerKg = 12;
     public const double MeltSnowLiters = 1.0;
+    public const int WashMinutes = 5;
+    public const double WashLiters = 0.5;
+    public const string NoWashingWater = "no water or snow here";
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Cook or MeltSnow or PutDown or PickUp or Wear or TakeOff or WalkAbout;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or Cook or MeltSnow or PutDown or PickUp or Wear or TakeOff or WalkAbout;
 
     /// Keep Walking: five minutes walking the ground to notice new clues.
     public const int WalkAboutMinutes = 5;
@@ -52,7 +58,7 @@ public static class Work
 
     public const string WalkedAbout = "walked about";
 
-    public const string Ate = "ate", Drank = "drank", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
+    public const string Ate = "ate", Drank = "drank", WashedReason = "washed", CookedReason = "cooked", Melted = "melted", TreeFelled = "tree felled", ButcheredReason = "butchered";
 
     public static bool TooDarkToWork(World world, Agent agent)
     {
@@ -233,6 +239,10 @@ public static class Work
                 if (d.Liters <= 0) throw new ArgumentOutOfRangeException(nameof(activity), d.Liters, "Drink a positive amount");
                 if (Items.Have(pack, Resource.Water) <= 0 && !CanDrinkHere(world, agent.Tile)) return new("no water here", new MissingResource(Resource.Water, d.Liters));
                 return (Body.MaxHydrationMl - agent.Body.HydrationMl) / 1000 < 0.01 ? new("not thirsty") : null;
+            case Wash:
+                return WashingWater(world, agent, pack) == null
+                    ? new(NoWashingWater, new MissingResource(Resource.Water, WashLiters - Items.Have(pack, Resource.Water)))
+                    : null;
             case Cook c:
                 if (c.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), c.Kg, "Cook a positive amount");
                 if (Cooked(c.Raw) == null) return new($"{Names.Cap(Names.Of(c.Raw))} is not something to cook");
@@ -324,6 +334,14 @@ public static class Work
         double ml = Math.Min(water.PerMinute, Math.Max(0, Body.MaxHydrationMlOf(body) - body.HydrationMl));
         Body.Drink(body, ml);
         if (water.KcalPerUnit > 0) Body.SpendKcal(body, ml * water.KcalPerUnit);
+    }
+
+    /// What a wash here would use: open water or a pond first, then snow underfoot, then carried water; null with none of them.
+    static WashedIn? WashingWater(World world, Agent agent, Inventory pack)
+    {
+        if (CanDrinkHere(world, agent.Tile)) return WashedIn.Water;
+        if (Ground.Underfoot(world, agent.Tile).SnowDepthM >= MinSnowM) return WashedIn.Snow;
+        return Items.Have(pack, Resource.Water) >= WashLiters ? WashedIn.CarriedWater : null;
     }
 
     static bool HasCookingFire(World world, TileId tile) => Fire.PitAt(world, tile) is FireId id && Fire.IsActive(world.Fires[id]);
@@ -424,6 +442,8 @@ public static class Work
                 }
             case Cook or MeltSnow:
                 return new WorkSession { Activity = activity };
+            case Wash:
+                return new WorkSession { Activity = activity, TargetMinutes = WashMinutes };
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not work");
         }
@@ -501,6 +521,15 @@ public static class Work
                 return s.Minutes >= s.TargetMinutes ? Ate : null;
             case Drink:
                 return s.Minutes >= s.TargetMinutes ? Drank : null;
+            case Wash:
+                {
+                    if (s.Minutes < s.TargetMinutes) return null;
+                    if (WashingWater(world, agent, pack) is not WashedIn source) return NoWashingWater;
+                    if (source == WashedIn.CarriedWater) Items.Take(pack, Resource.Water, WashLiters);
+                    Body.Wash(agent.Body);
+                    events.Add(new Washed(world.Minute, agent.Id, agent.Tile, source));
+                    return WashedReason;
+                }
             case Cook c:
                 {
                     if (!HasCookingFire(world, agent.Tile)) return "the fire went out";
@@ -587,6 +616,7 @@ public static class Work
         double bloody = Effects.Severity(agent.Body, EffectKind.Bloody);
         if (bloody < 0.5) Effects.Set(agent.Body, EffectKind.Bloody, Math.Min(0.5, bloody + props.BloodySeverity / 60));
         c.ScentBonus += props.ScentIncrease / 60;
+        Effects.Set(agent.Body, EffectKind.Dirty, Effects.Severity(agent.Body, EffectKind.Dirty) + DirtyPerButcheringHour / 60);
         if (!Carcasses.AllCut(c, blade)) return null;
         if (c.Pending.Count > 0) return PackFull; // all cut; what the pack could not take waits on the carcass
         if (!Carcasses.AllCut(c)) return NeedsABlade; // the tusks and the great hide wait on it for someone with one
@@ -596,6 +626,9 @@ public static class Work
 
     public const string PackFull = "your pack is full";
     public const string NeedsABlade = "the rest needs a blade";
+
+    /// One rate for every mode: the mode changes how much blood, not how long your hands are in the carcass.
+    const double DirtyPerButcheringHour = 0.1;
 
     static void EndButcher(World world, Agent agent, Butcher b, WorkSession s, List<WorldEvent> events)
     {

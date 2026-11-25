@@ -42,10 +42,26 @@ static class TestKit
     /// The pieces today's recipes were written in (recipes.json's header); a resource left out is its range's middle.
     static readonly Dictionary<Resource, double> NominalKg = new()
     {
-        [Resource.Stone] = 0.3, [Resource.Flint] = 0.3, [Resource.Pyrite] = 0.1, [Resource.Bone] = 0.3, [Resource.Kindling] = 0.3,
-        [Resource.Pine] = 2.0, [Resource.Birch] = 2.0, [Resource.Oak] = 2.0, [Resource.Sinew] = 0.1, [Resource.Rope] = 0.2,
-        [Resource.Hide] = 1.0, [Resource.ScrapedHide] = 0.8, [Resource.CuredHide] = 0.7, [Resource.RawMeat] = 0.5, [Resource.CookedMeat] = 0.5,
-        [Resource.DriedMeat] = 0.5, [Resource.RawFish] = 0.5, [Resource.CookedFish] = 0.5, [Resource.DriedFish] = 0.5, [Resource.RawFat] = 0.5,
+        [Resource.Stone] = 0.3,
+        [Resource.Flint] = 0.3,
+        [Resource.Pyrite] = 0.1,
+        [Resource.Bone] = 0.3,
+        [Resource.Kindling] = 0.3,
+        [Resource.Pine] = 2.0,
+        [Resource.Birch] = 2.0,
+        [Resource.Oak] = 2.0,
+        [Resource.Sinew] = 0.1,
+        [Resource.Rope] = 0.2,
+        [Resource.Hide] = 1.0,
+        [Resource.ScrapedHide] = 0.8,
+        [Resource.CuredHide] = 0.7,
+        [Resource.RawMeat] = 0.5,
+        [Resource.CookedMeat] = 0.5,
+        [Resource.DriedMeat] = 0.5,
+        [Resource.RawFish] = 0.5,
+        [Resource.CookedFish] = 0.5,
+        [Resource.DriedFish] = 0.5,
+        [Resource.RawFat] = 0.5,
     };
 
     /// Kilos of r for setting a scene: an amount of a continuous resource, or as many nominal pieces of a discrete one

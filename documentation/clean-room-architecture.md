@@ -27,6 +27,10 @@ weather type, animal, recipe, effect, condition, item, verb, terrain, discovery 
   system publishes them, and the player and NPCs read the same ones.
 - **Refusals are data:** a reason, plus what is missing and how much (`Refusal` and `Missing`, `Sim/Verbs.cs`).
 - **The NPC AI uses only the Sim's public interface:** verbs, refusals, forecasts and memory.
+- **Everything outside a body reads its faculties,** never its capacities (`GLOSSARY.md`): only
+  `Body` reads `Capacities`, `Body.GetCapacities` and `Body.RegionCapacities`. The sim, the screen
+  (`Web/Host`) and the tests are held to it by `Architecture/CapacityReadTests.cs`, which reads their
+  compiled code; the reads that exist today are listed there by member, and the list only shrinks.
 - **An activity is declared once,** by its owning system, with every facet together: offer and
   refusal, minute, end, body profile and UI kind. `Sim.Step`, `Verbs`, the UI and the test
   generator read that one declaration, and a test enforces completeness. *Target state, not built.*
