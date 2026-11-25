@@ -742,7 +742,7 @@
      ]
     },
     { "kind": "stock", "work": "Salvage", "name": "Abandoned Camp", "description": "Signs of an old camp. The fire pit is cold, shelter collapsed.", "minutes": 45, "loot": "AbandonedCamp" },
-    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "BranchFrame", "insulation": 0.2, "overhead": 0.4, "wind": 0.3, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
+    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "LeanTo", "insulation": 0.2, "overhead": 0.4, "wind": 0.3, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
    ]
   },
   {
@@ -770,7 +770,7 @@
     },
     { "kind": "stock", "work": "Salvage", "name": "Main Camp Area", "description": "The camp's main living area.", "minutes": 45, "loot": "EliteShelter" },
     { "kind": "stock", "work": "Salvage", "name": "Hidden Cache", "description": "A pile of rocks looks deliberate. A cache?", "minutes": 30, "loot": "AncientCache" },
-    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "BranchFrame", "insulation": 0.15, "overhead": 0.3, "wind": 0.25, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
+    { "kind": "shelter", "name": "Collapsed Lean-to", "type": "LeanTo", "insulation": 0.15, "overhead": 0.3, "wind": 0.25, "insulationCap": 0.5, "overheadCap": 0.5, "windCap": 0.5 }
    ],
    "stories": [ "Claw marks on the collapsed shelter. Blood, long dried. They didn't leave by choice.", "A trail of belongings leads away, as if they left in a hurry. Or were dragged.", "Everything is orderly. Fire properly banked. They meant to come back.", "Carved into a tree: a tally of days. The marks stop at thirty-seven.", "The shelter is intact but empty. Snow has filled it. Whoever was here, they're long gone." ]
   },

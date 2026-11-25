@@ -260,8 +260,8 @@ public class GameHostTests
         var staff = Find(v, x => x.Make?.Recipe == "staff", "make staff");
         Assert.Null(staff.Refused);
         Assert.Equal(1, staff.Make!.PlainPct + staff.Make.Outcomes.Sum(o => o.Odds.TotalPct), 9);
-        var after = Run(h, staff, chunk: 2);
-        Assert.True(after.Job!.DoneMinutes > 2, "it ran in more than one chunk");
+        var after = Run(h, staff, chunk: 1);
+        Assert.True(after.Job!.DoneMinutes > 1, "it ran in more than one chunk");
         Assert.Empty(after.Pack.Projects);
         // It either made the staff (the plain result) or failed (its one outcome): never a second project.
         bool made = after.Pack.Gear.Count(g => g.Kind == "staff") == 1;

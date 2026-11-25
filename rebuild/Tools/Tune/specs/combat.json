@@ -59,7 +59,6 @@
   { "name": "bear.chaseLimitSeconds", "path": "species.json:species.Bear.chaseLimitSeconds", "min": 5, "max": 300, "log": true },
 
   { "name": "spear.damage", "path": "items.json:gear.wooden_spear.weapon.damage", "min": 0.5, "max": 6, "log": true, "note": "in units of tissue condition" },
-  { "name": "crudeSpear.damage", "path": "items.json:gear.crude_spear.weapon.damage", "min": 0.3, "max": 6, "log": true },
   { "name": "axe.damage", "paths": ["items.json:gear.ground_stone_axe.weapon.damage", "items.json:gear.flint_axe.weapon.damage"], "min": 0.3, "max": 6, "log": true,
    "note": "both axes alike" },
   { "name": "knife.damage", "paths": ["items.json:gear.flint_knife.weapon.damage", "items.json:gear.bone_knife.weapon.damage", "items.json:gear.worn_knife.weapon.damage"], "min": 0.3, "max": 6, "log": true,
