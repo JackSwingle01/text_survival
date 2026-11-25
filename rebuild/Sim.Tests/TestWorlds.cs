@@ -48,6 +48,15 @@ static class TestWorlds
         return Save.ToJson(w);
     })).Value);
 
+    /// Gives the player a fresh body of their kind (SpeciesTable.Average), not the autumn-fat one they are
+    /// born with, so work takes exactly its whole-body time: for a test whose subject is a job's minutes.
+    public static World FreshPlayer(World w)
+    {
+        var player = w.Agent(AgentId.Player);
+        player.Members[0] = SpeciesTable.Average(Species.Human, player.Body.Sex);
+        return w;
+    }
+
     /// Takes the starting firewood off the camp's pile (World.New lays it), leaving the camp tile as bare as the valley's.
     public static void EmptyCamp(World w)
     {

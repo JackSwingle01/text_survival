@@ -155,36 +155,39 @@ public static class Work
 
     static bool NeedsLight(World world, PoolDef def, Gather g) => def is not ForagePool;
 
-    /// Bad legs +20%, bad lungs +15%, bad hands +25% time; a frozen carcass +50%. Read every minute,
-    /// so how the work is split into steps cannot change what it gets done.
+    /// The body's slowing, a frozen carcass +50% (CutMinute catches it up first): read every minute, so splitting the work cannot change it.
     static double ImpairmentFactor(World world, Agent agent, Activity activity) => ImpairmentFactor(world, agent, agent.Tile, activity);
 
-    static double ImpairmentFactor(World world, Agent agent, TileId tile, Activity activity)
+    static double ImpairmentFactor(World world, Agent agent, TileId tile, Activity activity) =>
+        BodyTimeFactor(world, agent, tile, activity)
+        * (activity is Butcher b && Carcasses.IsFrozen(world, Carcasses.Find(world, agent.Tile, b.Carcass)!) ? 1.5 : 1.0);
+
+    /// Times the whole-body time, one to two; the body alone, so a forecast of work elsewhere can read it.
+    public static double BodyTimeFactor(World world, Agent agent, TileId tile, Activity activity) => activity switch
     {
-        var body = agent.Body;
-        return activity switch
+        Gather g => Pools.Def(world, new PoolId(tile, g.Pool)) switch
         {
-            Gather g => Pools.Def(world, new PoolId(tile, g.Pool)) switch
-            {
-                ForagePool => ImpairmentFactor(body, moving: true),
-                TreePool => ImpairmentFactor(body, moving: true, manipulation: true),
-                StockPool { Kind: StockKind.Salvage } => ImpairmentFactor(body, moving: true),
-                _ => 1.0,
-            },
-            // CutMinute catches the carcass up first: frozen is the air it felt last.
-            Butcher b => ImpairmentFactor(body, manipulation: true) * (Carcasses.IsFrozen(world, Carcasses.Find(world, agent.Tile, b.Carcass)!) ? 1.5 : 1.0),
+            ForagePool => TimeFactor(agent, Faculty.Speed),
+            TreePool => TimeFactor(agent, Faculty.Speed, Faculty.Dexterity),
+            StockPool { Kind: StockKind.Salvage } => TimeFactor(agent, Faculty.Speed),
             _ => 1.0,
-        };
+        },
+        Butcher => TimeFactor(agent, Faculty.Dexterity),
+        ImproveShelter => BuildTimeFactor(agent),
+        _ => 1.0,
+    };
+
+    public static double BuildTimeFactor(Agent agent) => TimeFactor(agent, Faculty.Speed, Faculty.Dexterity);
+
+    public static double TimeFactor(Agent agent, params Faculty[] slowedBy)
+    {
+        double share = 1;
+        foreach (var f in slowedBy) share = Math.Min(share, Body.Share(agent.Body, agent.Species, f));
+        return TimeFactor(share);
     }
 
-    static double ImpairmentFactor(BodyState body, bool moving = false, bool manipulation = false)
-    {
-        var c = Body.GetCapacities(body);
-        double f = 1.0;
-        if (moving && c.Moving < 0.5) f *= 1.20;
-        if (manipulation && c.Manipulation < 0.5) f *= 1.25;
-        return f;
-    }
+    /// The whole-body time over (a half plus half the share): twice at none, four thirds at a half, once whole.
+    public static double TimeFactor(double share) => 1 / (0.5 + 0.5 * share);
 
     // ---- refusal: before any time passes ----
 

@@ -700,7 +700,8 @@ public static class Npc
                 int minutes = pools[i] switch
                 {
                     ForagePool => MaxStintMinutes,
-                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id)) / Items.ChopFactor(Items.Axe(pack))) + 1,
+                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id)) / Items.ChopFactor(Items.Axe(pack))
+                        * Work.BodyTimeFactor(world, agent, t, new Gather(Id, i))) + 1,
                     StockPool s when (t != Here || Pools.HasStock(world, id, pack)) && s.Items.Any(x => req.AnyOf.Contains(x.Resource) && Pools.CanWork(x, pack)) => MaxStintMinutes,
                     _ => 0,
                 };
@@ -721,7 +722,8 @@ public static class Npc
                     if (Carcasses.Find(world, t, seenCarcass.Id) is { } c && !Carcasses.IsButchered(c) && Carcasses.MeatKg(c) > 0)
                         yield return new Leaf(Via.Butcher, t, c.Id, req, Math.Min(want, Carcasses.MeatKg(c) * req.PerKg(Resource.RawMeat)),
                             Math.Min(Carcasses.MeatKg(c), want / req.PerKg(Resource.RawMeat)),
-                            Carcasses.RemainingMinutes(c, ButcherMode.QuickStrip, Items.HasCuttingTool(pack)));
+                            (int)Math.Ceiling(Carcasses.RemainingMinutes(c, ButcherMode.QuickStrip, Items.HasCuttingTool(pack))
+                                * Work.BodyTimeFactor(world, agent, t, new Butcher(Id, c.Id))));
         }
 
         IReadOnlyDictionary<Resource, double> Expected(PoolId id, ForageFocus focus, int minutes, int startIn, TileMemory? seen)

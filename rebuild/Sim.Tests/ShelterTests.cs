@@ -275,7 +275,7 @@ public class ShelterTests
 
     static World Builder(out TileId tile)
     {
-        var w = At(Mild);
+        var w = TestWorlds.FreshPlayer(At(Mild));
         tile = Open(w);
         w.Agent(P).Tile = tile;
         return w;
@@ -523,13 +523,15 @@ public class ShelterTests
     [Fact]
     public void SnowShelter_IsDugWithAShovel_InTheCold()
     {
-        var w = At(Snowy);
+        var w = TestWorlds.FreshPlayer(At(Snowy));
         var tile = Open(w);
         w.Agent(P).Tile = tile;
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
         w.Agent(P).Body.CoreTempF = 98.6;
         var r = Sim.Step(w, new Make(P, "snow_shelter"), 200);
-        Assert.Equal(("built", 68), (r.InterruptedReason, r.MinutesElapsed)); // 135 minutes, doubled
+        // 135 minutes, doubled, and a minute more: the cold has reached the hands, and dexterity slows building.
+        Assert.True(Body.Share(w.Agent(P).Body, Species.Human, Faculty.Dexterity) < 1);
+        Assert.Equal(("built", 69), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile, [])!.Kind);
     }
 

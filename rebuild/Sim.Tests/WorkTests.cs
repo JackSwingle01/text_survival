@@ -9,7 +9,7 @@ public class WorkTests
 
     static World WithPools(params PoolDef[] pools)
     {
-        var w = TestWorlds.Bare(17);
+        var w = TestWorlds.FreshPlayer(TestWorlds.Bare(17));
         w.FixedWeather = Mild;
         w.PoolCache = new() { [Map.Of(w).Camp] = pools };
         return w;
@@ -211,16 +211,18 @@ public class WorkTests
         Axe(healthy); Axe(lame);
         RoomForATree(healthy); RoomForATree(lame);
         foreach (var leg in lame.Agent(P).Body.Regions.Where(r => r.Name.Contains("Leg"))) foreach (var t in leg.Layers) t.Condition = 0.3;
-        Assert.True(Body.GetCapacities(lame.Agent(P).Body).Moving < 0.5);
+        double speed = Body.Share(lame.Agent(P).Body, Species.Human, Faculty.Speed);
+        Assert.True(speed < Body.Share(lame.Agent(P).Body, Species.Human, Faculty.Dexterity)); // the legs set the time
         Assert.Equal("tree cut up", Sim.Step(healthy, new Gather(P, 1), 100).InterruptedReason);
         Assert.Null(Sim.Step(lame, new Gather(P, 1), 100).InterruptedReason);
-        Assert.Equal(100 / 1.2 / 100, Pools.ChopProgressPct(lame, new PoolId(Map.Of(lame).Camp, 1)), 9);
+        Assert.Equal(1 / Work.TimeFactor(speed), Pools.ChopProgressPct(lame, new PoolId(Map.Of(lame).Camp, 1)), 9);
 
         var tired = WithPools(Forage, Trees);
         Axe(tired);
         tired.Agent(P).Body.EnergyMinutes = 30;
         Assert.Equal("exhausted", Sim.Step(tired, new Gather(P, 1), 100).InterruptedReason);
-        Assert.Equal(0.30, Pools.ChopProgressPct(tired, new PoolId(Map.Of(tired).Camp, 1)), 9);
+        // 30 minutes kept, slowed by a tired head's dexterity: never below half the whole-body work.
+        Assert.InRange(Pools.ChopProgressPct(tired, new PoolId(Map.Of(tired).Camp, 1)), 0.15, 0.30);
     }
 
     [Fact]

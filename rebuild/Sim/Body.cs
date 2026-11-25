@@ -227,6 +227,7 @@ public static partial class Body
     public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default) => Faculties.DexterityCosts(body, context);
     public static double Perception(BodyState body, AbilityContext context = default) => Faculties.Perception(body, context);
     public static double Vitality(BodyState body, Species species) => Survival.Vitality.Of(body, species);
+    public static double Share(BodyState body, Species species, Faculty faculty) => Survival.Vitality.Share(body, species, faculty);
     public static bool IsAlive(BodyState body) => Alive.Is(body);
     public static double TissueVitality(BodyState body) => Alive.TissueVitality(body);
 

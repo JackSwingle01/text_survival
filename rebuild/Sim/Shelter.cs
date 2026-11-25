@@ -349,13 +349,6 @@ public static class Shelters
         }
     }
 
-    /// Improving: bad legs +20%, bad hands +25% (Making keeps the same rule for building).
-    static double ImpairmentFactor(BodyState body)
-    {
-        var c = Body.GetCapacities(body);
-        return (c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0);
-    }
-
     /// Returns why the work stops, if it does.
     public static string? Minute(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
@@ -367,7 +360,7 @@ public static class Shelters
                     if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                     if (At(world, tile, events) is not { } s) return "the shelter is gone";
                     var pack = Items.Pack(world, agent.Id);
-                    double pieces = 1.0 / 10 / ImpairmentFactor(agent.Body);
+                    double pieces = 1.0 / 10 / Work.BodyTimeFactor(world, agent, tile, i);
                     if (!Items.IsDiscrete(i.Material)) pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg * pieces) / Materials[i.Material].PieceKg;
                     else
                     {
