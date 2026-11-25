@@ -47,3 +47,14 @@ token, and `log_excerpt` strips the colour codes. Checked against a local server
 refuses a token on the second request and serves a log with a BOM and colour codes.
 What the first run did prove: the queue let the bot's issue through, the dispatch input worked, the
 brief reported the failed fetch, and triage parked on it rather than guess.
+
+Revised (second run on main, #250): parked again, "log wasn't available". The transcript shows the
+brief said "Run 45687073200. No job of it failed.": that is triage's own run, linked in the footer of
+the comment that parked the issue the first time, and the brief took the newest run linked anywhere
+in the text → it takes only runs on a "CI failed on main at ..." line, which is what `main_red.sh`
+writes. The fetch itself worked: no error, and `log_excerpt` on the real job's log shows the failing
+test and its message.
+
+Revised (third run on main, #250): triage marked it ready and the build selected #250 alone, then
+started nothing: weekly plan usage was at 80%, the build's limit. Jack raised the build's
+`MAX_PLAN_UTILIZATION` to 0.9. `resolve-conflicts.yml` keeps its own 0.8.

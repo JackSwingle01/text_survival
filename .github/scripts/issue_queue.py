@@ -238,9 +238,12 @@ def job_log(job_id):
 def failed_run_logs(text):
     """For a `main-red` issue: the failed jobs of the newest CI run its text links, each with its log's
     excerpt. The issue itself only names the checks, and triage has no GitHub access to read the run."""
-    runs = re.findall(rf"github\.com/{re.escape(REPO)}/actions/runs/(\d+)", text, re.IGNORECASE)
+    # Only the runs main_red.sh reported: the text also links triage's own runs (the footer of a comment
+    # that parked the issue), and #250's second triage read one of those as the failing run.
+    runs = re.findall(rf"CI failed on main at [^\n]*?github\.com/{re.escape(REPO)}/actions/runs/(\d+)", text,
+                      re.IGNORECASE)
     if not runs:
-        return "No CI run is linked."
+        return "No failing CI run is linked."
     run = runs[-1]
     listing, note = try_api(f"repos/{REPO}/actions/runs/{run}/jobs?filter=latest&per_page=100", f"jobs of run {run}")
     if note:
