@@ -737,4 +737,30 @@ public class ForecastTests
         Assert.Null(dying);
         Assert.True(weak > good, $"weak {weak}, good {good}");
     }
+
+    /// A melt's next litre: the forecast agrees with the minute it then comes, and there is none while the cap waits.
+    [Theory]
+    [InlineData(Resource.BirchFirewood, 5.0)]
+    [InlineData(Resource.BirchFirewood, 0.45)]
+    [InlineData(Resource.Stick, 0.05)]
+    public void AMeltsForecast_AgreesWithWhatThenHappens_AndIsNone_AtItsCap(Resource fuel, double kg)
+    {
+        var w = At();
+        w.FixedWeather = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+        PitWith(w, fuel, kg);
+        Sim.Advance(w, 1);
+        Sim.Step(w, new PutOn(P, "melt_snow"), 1);
+        var pit = Fire.PitAt(w, w.Agent(P).Tile)!.Value;
+        var melt = Recipes.Get("melt_snow");
+        for (int litre = 0; litre < melt.Result.CapKg / melt.Result.Kg; litre++)
+        {
+            var forecast = Stations.Forecast(w, pit, Stations.At(w, pit).Ongoing.Single());
+            long? came = null;
+            for (int i = 0; i < 1440 && came == null; i++)
+                came = Sim.Advance(w, 1).OfType<TransformationFinished>().FirstOrDefault()?.Minute;
+            Assert.Equal(came, forecast);
+            if (came == null) return;
+        }
+        Assert.Null(Stations.Forecast(w, pit, Stations.At(w, pit).Ongoing.Single()));
+    }
 }
