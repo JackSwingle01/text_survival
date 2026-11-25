@@ -29,8 +29,8 @@ public class HudTests
             Assert.InRange(rect.Y, 0, height - rect.Height);
         }
         for (int i = 0; i < rects.Length; i++)
-        for (int j = i + 1; j < rects.Length; j++)
-            Assert.False(Overlaps(rects[i], rects[j]));
+            for (int j = i + 1; j < rects.Length; j++)
+                Assert.False(Overlaps(rects[i], rects[j]));
         var camera = new Camera(12, 12);
         camera.Pan(new Vector2(.3f, .2f), 40, 40, true);
         foreach (bool history in new[] { false, true, false })

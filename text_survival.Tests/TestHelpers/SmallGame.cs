@@ -33,7 +33,7 @@ internal static class SmallGame
         var map = new GameMap(3, 1) { Weather = weather, CurrentPosition = new(0, 0) };
         var camp = new Location("Test Camp", "", weather,
             windFactor: campTerrain.BaseWindFactor(), overheadCoverLevel: campTerrain.BaseOverheadCover())
-            { Terrain = campTerrain };
+        { Terrain = campTerrain };
         camp.AddFeature(new ForageFeature(1).AddSticks());
         camp.AddFeature(new HeatSourceFeature());
         camp.AddFeature(CacheFeature.CreateCampCache());
