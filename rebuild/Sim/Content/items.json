@@ -55,13 +55,17 @@
   "Flint": { "category": "Material", "form": "Discrete", "pieceKg": [0.05, 0.4] },
   "Pyrite": { "category": "Material", "form": "Discrete", "pieceKg": [0.02, 0.15] },
   "ScrapedHide": { "category": "Material", "form": "Discrete", "pieceKg": [0.08, 48] },
-  "CuredHide": { "category": "Material", "form": "Discrete", "pieceKg": [0.07, 42] },
+  "CuredHide": { "category": "Material", "form": "Discrete", "pieceKg": [0.07, 43.2] },
+  // A cured hide cut in two or three: the lightest cut in three, the heaviest in two.
+  "HideStrip": { "category": "Material", "form": "Discrete", "pieceKg": [0.023, 21.6] },
   "RawFat": { "category": "Material", "form": "Discrete", "pieceKg": [0.1, 1] },
   "Tallow": { "category": "Material", "form": "Continuous" },
   "Charcoal": { "category": "Material", "form": "Continuous" },
   "Rope": { "category": "Material", "form": "Discrete", "pieceKg": [0.1, 0.4] },
   "Ivory": { "category": "Material", "form": "Discrete", "pieceKg": [0.5, 2] },
   "MammothHide": { "category": "Material", "form": "Discrete", "pieceKg": [1.5, 15] },
+  "ScrapedMammothHide": { "category": "Material", "form": "Discrete", "pieceKg": [1.2, 12] },
+  "CuredMammothHide": { "category": "Material", "form": "Discrete", "pieceKg": [1.08, 10.8] },
   "Feather": { "category": "Material", "form": "Continuous" },
   "BirchPolypore": { "category": "Medicine", "form": "Discrete", "pieceKg": [0.02, 0.2] },
   "Chaga": { "category": "Medicine", "form": "Discrete", "pieceKg": [0.02, 0.2] },
@@ -112,12 +116,17 @@
   "crude_spear": { "name": "Crude Spear", "category": "Tool", "baseWeightKg": 1, "maxDurability": 8, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 0.91, "class": "Pierce", "blockChance": 0.10, "reachM": 2.5, "thrown": { "rangeM": 15, "accuracy": 0.55, "damage": 1.40 } } },
   "heavy_spear": { "name": "Heavy Spear", "category": "Tool", "baseWeightKg": 1, "maxDurability": 15, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 5.56, "class": "Pierce", "blockChance": 0.12, "reachM": 2.5, "thrown": { "rangeM": 15, "accuracy": 0.60, "damage": 2.30 } } },
   "stone_tipped_spear": { "name": "Stone-Tipped Spear", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 20, "capabilities": ["Piercing", "Reaching"], "tool": "Spear", "weapon": { "damage": 6.29, "class": "Pierce", "blockChance": 0.12, "reachM": 2.5, "thrown": { "rangeM": 20, "accuracy": 0.70, "damage": 2.60 } } },
-  // Old hide clothing recipes: cured hide, waterproofLevel 0.3.
-  "hide_gloves": { "name": "Hide Gloves", "category": "Clothing", "baseWeightKg": 0.12, "maxDurability": 80, "capabilities": [], "slot": "Hands", "insulation": 0.15, "waterproofLevel": 0.3 },
-  "hide_cap": { "name": "Hide Cap", "category": "Clothing", "baseWeightKg": 0.12, "maxDurability": 80, "capabilities": [], "slot": "Head", "insulation": 0.12, "waterproofLevel": 0.3 },
-  "hide_wrap": { "name": "Hide Wrap", "category": "Clothing", "baseWeightKg": 0.31, "maxDurability": 80, "capabilities": [], "slot": "Chest", "insulation": 0.25, "waterproofLevel": 0.3 },
+  // Old hide clothing recipes: cured hide, waterproofLevel 0.3. Each weighs no more than its lightest inputs (#146):
+  // gloves and cap two of the lightest strips and a sinew, the wrap two of the lightest cured hides and two sinews.
+  "hide_gloves": { "name": "Hide Gloves", "category": "Clothing", "baseWeightKg": 0.09, "maxDurability": 80, "capabilities": [], "slot": "Hands", "insulation": 0.15, "waterproofLevel": 0.3 },
+  "hide_cap": { "name": "Hide Cap", "category": "Clothing", "baseWeightKg": 0.09, "maxDurability": 80, "capabilities": [], "slot": "Head", "insulation": 0.12, "waterproofLevel": 0.3 },
+  "hide_wrap": { "name": "Hide Wrap", "category": "Clothing", "baseWeightKg": 0.24, "maxDurability": 80, "capabilities": [], "slot": "Chest", "insulation": 0.25, "waterproofLevel": 0.3 },
   "hide_leggings": { "name": "Hide Leggings", "category": "Clothing", "baseWeightKg": 0.19, "maxDurability": 80, "capabilities": [], "slot": "Legs", "insulation": 0.20, "waterproofLevel": 0.3 },
   "hide_boots": { "name": "Hide Boots", "category": "Clothing", "baseWeightKg": 0.12, "maxDurability": 80, "capabilities": [], "slot": "Feet", "insulation": 0.18, "waterproofLevel": 0.3 },
+  // Old mammoth-hide-coat and mammoth-hood: insulation and waterproofing as there. The coat weighs its lightest inputs
+  // (a cured mammoth hide, a cured hide and four sinews), not the old 4 kg.
+  "mammoth_hide_coat": { "name": "Mammoth Hide Coat", "category": "Clothing", "baseWeightKg": 1.35, "maxDurability": 40, "capabilities": [], "slot": "Chest", "insulation": 0.45, "waterproofLevel": 0.4 },
+  "mammoth_hood": { "name": "Mammoth Hood", "category": "Clothing", "baseWeightKg": 0.8, "maxDurability": 30, "capabilities": [], "slot": "Head", "insulation": 0.22, "waterproofLevel": 0.4 },
   "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.8, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 10.0 }
  },
 

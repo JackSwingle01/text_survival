@@ -10,6 +10,7 @@ public enum Resource
     Ivory, MammothHide, Feather,
     BirchPolypore, RoseHip, JuniperBerry, WillowBark, PineNeedles, PineResin, SphagnumMoss,
     ResinTinder,
+    HideStrip, ScrapedMammothHide, CuredMammothHide,
 }
 
 public enum ResourceCategory { Fuel, Food, Water, Medicine, Material }

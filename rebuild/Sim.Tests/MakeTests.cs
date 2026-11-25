@@ -162,9 +162,9 @@ public class MakeTests
     // ---- the activity ----
 
     /// The bare seed-17 world under a mild grey sky at noon, the player at camp with an empty pack.
-    static World Noon(out Inventory pack)
+    static World Noon(out Inventory pack, double tempC = -2)
     {
-        var w = Verification.ConservationWorlds.Bare(-2);
+        var w = Verification.ConservationWorlds.Bare(tempC);
         w.Minute = 3 * 60; // the clock starts at nine in the morning
         pack = Items.Pack(w, P);
         TestKit.ClearResources(pack);
@@ -404,7 +404,7 @@ public class MakeTests
         var w = Begun("hide_cap", pack =>
         {
             pack.Gear.Add(Items.Make("bone_needle"));
-            TestKit.Give(pack, Resource.CuredHide, 0.35);
+            TestKit.GivePieces(pack, Resource.HideStrip, 2);
             TestKit.Give(pack, Resource.Sinew, 0.1);
         });
         var needle = Items.Pack(w, P).Gear.Single(g => g.Kind == "bone_needle");
@@ -468,6 +468,136 @@ public class MakeTests
         Assert.Equal(0.8, made.Produced[Resource.ScrapedHide], 9);
     }
 
+    // ---- hides, strips and clothing (#146) ----
+
+    /// Scraping and drying keep a share of the hide's own weight: a big hide gives more than a small one.
+    [Theory]
+    [InlineData(3.0, 2.4, 2.16)]
+    [InlineData(1.0, 0.8, 0.72)]
+    public void AHide_ScrapesAndDries_ToAShareOfItsWeight(double hideKg, double scrapedKg, double curedKg)
+    {
+        var w = Begun("scrape_hide", pack =>
+        {
+            pack.Gear.Add(Items.Make("flint_knife"));
+            Items.AddPieces(pack, Resource.Hide, [hideKg]);
+        });
+        Assert.Equal(Making.MadeIt, Complete(w, "scrape_hide", "succeed:injury:LeftArm:0.03=0.02", out _));
+        var pack = Items.Pack(w, P);
+        Assert.Equal(scrapedKg, Assert.Single(pack.Pieces[Resource.ScrapedHide]), 9);
+
+        Burning(w);
+        Assert.Null(Sim.Step(w, new Make(P, "dry_hide"), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("dry_hide"), null, []));
+        Assert.Equal(curedKg, Assert.Single(pack.Pieces[Resource.CuredHide]), 9);
+    }
+
+    [Fact]
+    public void ScrapingAHide_NeedsSomethingForCutting()
+    {
+        var w = Noon(out var pack);
+        TestKit.GivePieces(pack, Resource.Hide, 1);
+        Assert.Equal("you need something for cutting", Sim.Refusal(w, new Make(P, "scrape_hide"))?.Reason);
+    }
+
+    /// A cured hide cuts into two strips, or three on the outcome that gives one more, all of its weight between them.
+    [Theory]
+    [InlineData(null, 2)]
+    [InlineData("succeed:extra_product:HideStrip:1=0.5", 3)]
+    public void ACuredHide_CutsIntoTwoOrThreeStrips(string? outcome, int strips)
+    {
+        var w = Begun("hide_strips", pack =>
+        {
+            pack.Gear.Add(Items.Make("flint_knife"));
+            Items.AddPieces(pack, Resource.CuredHide, [0.6]);
+        });
+        var events = new List<WorldEvent>();
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("hide_strips"),
+            outcome == null ? null : Outcomes.Parse(outcome).Single(), events));
+        var pack = Items.Pack(w, P);
+        Assert.Equal(strips, pack.Pieces[Resource.HideStrip].Count);
+        Assert.All(pack.Pieces[Resource.HideStrip], kg => Assert.Equal(0.6 / strips, kg, 9));
+        Assert.Equal(0, Items.Count(pack, Resource.CuredHide));
+        var made = Assert.Single(events.OfType<Made>());
+        Assert.Equal(0.6, made.Produced[Resource.HideStrip], 9);
+        Assert.Empty(made.ExtraGear);
+    }
+
+    /// Rolled as it is in play, by a cutter of no skill with warm hands, by a fire through the nights: the third
+    /// strip about half the time.
+    [Fact]
+    public void TheThirdStrip_ComesAboutHalfTheTime()
+    {
+        var w = Noon(out var pack, tempC: 15);
+        var agent = w.Agent(P);
+        Burning(w);
+        pack.Gear.Add(Items.Make("flint_knife"));
+        int runs = 300, thirds = 0;
+        for (int i = 0; i < runs; i++)
+        {
+            KeepTheFireUp(w, pack);
+            (agent.Body.EnergyMinutes, agent.Body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+            ((PersonMind)agent.Mind).Skills.Clear();
+            agent.Body.Effects.Clear();
+            pack.Gear[0].Durability = Items.Def(pack.Gear[0]).MaxDurability;
+            pack.Pieces.Remove(Resource.HideStrip);
+            Items.AddPieces(pack, Resource.CuredHide, [0.6]);
+            Assert.Equal(0.5, Making.Odds(w, agent, Recipes.Get("hide_strips")).Outcomes.Single().Odds.TotalPct, 9);
+            string? why = null;
+            for (int m = 0; m < 30 && why == null; m++) why = Sim.Step(w, new Make(P, "hide_strips"), 1).InterruptedReason;
+            Assert.Equal(Making.MadeIt, why);
+            int n = pack.Pieces[Resource.HideStrip].Count;
+            Assert.InRange(n, 2, 3);
+            if (n == 3) thirds++;
+        }
+        Assert.InRange(thirds / (double)runs, 0.4, 0.6);
+    }
+
+    /// Each garment from what the spec lists, with a needle in the light; refused without one.
+    [Theory]
+    [InlineData("hide_gloves", 2, 0, 0, 1)]
+    [InlineData("hide_cap", 2, 0, 0, 1)]
+    [InlineData("hide_boots", 0, 1, 0, 1)]
+    [InlineData("hide_wrap", 0, 2, 0, 2)]
+    [InlineData("hide_leggings", 0, 2, 0, 1)]
+    [InlineData("mammoth_hide_coat", 0, 1, 1, 4)]
+    [InlineData("mammoth_hood", 0, 0, 1, 2)]
+    public void EachGarment_IsSewnFromWhatItLists_AndNeedsANeedle(string garment, int strips, int curedHides, int curedMammothHides, int sinew)
+    {
+        var w = Noon(out var pack);
+        TestKit.GivePieces(pack, Resource.HideStrip, strips);
+        TestKit.GivePieces(pack, Resource.CuredHide, curedHides);
+        TestKit.GivePieces(pack, Resource.CuredMammothHide, curedMammothHides);
+        TestKit.GivePieces(pack, Resource.Sinew, sinew);
+        Assert.Equal("you need something for sewing", Sim.Refusal(w, new Make(P, garment))?.Reason);
+
+        pack.Gear.Add(Items.Make("bone_needle"));
+        Assert.Null(Sim.Refusal(w, new Make(P, garment)));
+        Assert.Null(Sim.Step(w, new Make(P, garment), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get(garment), null, []));
+        Assert.Single(pack.Gear, g => g.Kind == garment);
+        foreach (var r in new[] { Resource.HideStrip, Resource.CuredHide, Resource.CuredMammothHide, Resource.Sinew })
+            Assert.Equal(0, Items.Count(pack, r));
+    }
+
+    /// A mammoth hide is scraped and dried like any hide; nothing is sewn from it raw.
+    [Fact]
+    public void AMammothHide_IsCuredBeforeItIsSewn()
+    {
+        Assert.DoesNotContain(Recipes.All, r => r.Tools.Contains(Capability.Sewing) && r.Materials.Any(m => m.AnyOf.Contains(Resource.MammothHide)));
+        var w = Begun("scrape_mammoth_hide", pack =>
+        {
+            pack.Gear.Add(Items.Make("flint_knife"));
+            Items.AddPieces(pack, Resource.MammothHide, [10.0]);
+        });
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_mammoth_hide"), null, []));
+        var pack = Items.Pack(w, P);
+        Assert.Equal(8.0, Assert.Single(pack.Pieces[Resource.ScrapedMammothHide]), 9);
+        Burning(w);
+        Assert.Null(Sim.Step(w, new Make(P, "dry_mammoth_hide"), 1).InterruptedReason);
+        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("dry_mammoth_hide"), null, []));
+        Assert.Equal(7.2, Assert.Single(pack.Pieces[Resource.CuredMammothHide]), 9);
+    }
+
     // ---- what the player sees ----
 
     [Fact]
@@ -494,7 +624,7 @@ public class MakeTests
 
     // ---- a run where you prepare ----
 
-    /// Every recipe can be made from what foraging and one butchered caribou give, starting with no
+    /// Every recipe can be made from what foraging, salvage and one butchered caribou give, starting with no
     /// tools at all, each tool made by an earlier recipe, at a camp fire kept burning.
     [Fact]
     public void EveryRecipe_CanBeMade_FromWhatTheLandAndAKillGive()
@@ -507,7 +637,10 @@ public class MakeTests
         var land = Content.Tables.Forage.Values.SelectMany(t => t).Select(i => i.Resource)
             .Concat(Content.Locations.SelectMany(l => l.All).OfType<SiteForage>().SelectMany(f => f.Items).Select(i => i.Resource))
             .Concat(Content.Locations.SelectMany(l => l.All).OfType<SiteStock>().SelectMany(f => f.Items ?? []).Select(i => i.Resource))
+            .Concat(Content.Loot.Values.SelectMany(Rolled))
             .ToHashSet();
+        static IEnumerable<Resource> Rolled(IEnumerable<LootRoll> rolls) =>
+            rolls.SelectMany(l => (l.Resource is Resource r ? [r] : Enumerable.Empty<Resource>()).Concat(Rolled(l.Of ?? [])));
         Burning(w);
         pack.Gear.Add(Items.Make("flint_knife")); // borrowed for the butchering, then put back
         Carcasses.Create(w, camp, "Caribou", SpeciesTable.NewBody(Species.Caribou, Survival.Rng.ForSystem(1, "carcass")), w.Minute);
@@ -549,6 +682,10 @@ public class MakeTests
                 var body = w.Agent(P).Body;
                 (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
                 body.Effects.Clear();
+                // A tool worn out on earlier work is made again, as a player would.
+                foreach (var cap in r.Tools.Where(c => !pack.Gear.Any(g => Items.Works(g) && Items.Def(g).Capabilities.Contains(c))).ToList())
+                    if (Recipes.All.FirstOrDefault(x => made.Contains(x.Id) && x.Result.Gear is string k && Items.GearKinds[k].Capabilities.Contains(cap)) is Recipe maker
+                        && !MakeOne(maker, depth + 1)) return false;
                 if (Sim.Refusal(w, new Make(P, r.Id)) != null) return false;
                 var step = Sim.Step(w, new Make(P, r.Id), 30);
                 Assert.True(step.InterruptedReason is Making.MadeIt or Making.Spoiled or null, $"{r.Id}: {step.InterruptedReason}");

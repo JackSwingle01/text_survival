@@ -526,6 +526,10 @@ public static class Making
         return Complete(world, agent, r, outcome, events);
     }
 
+    /// An extra product of a discrete result itself: more, smaller pieces of the same weight.
+    internal static int ExtraPieces(IEnumerable<Effect> effects, Resource result) =>
+        effects.OfType<ExtraProduct>().Where(x => x.What == result.ToString()).Sum(x => (int)x.Amount);
+
     /// Outcome null is the plain result. Tests name the outcome here.
     internal static string Complete(World world, Agent agent, Recipe r, Outcome? outcome, List<WorldEvent> events)
     {
@@ -585,7 +589,8 @@ public static class Making
             if (Items.IsDiscrete(made))
             {
                 kgMade = r.Result.SharePct * Math.Max(0, inputKg - wastedKg);
-                for (int i = 0; i < r.Result.Count; i++) Items.AddPiece(gained, made, kgMade / r.Result.Count);
+                int pieces = r.Result.Count + ExtraPieces(effects, made);
+                for (int i = 0; i < pieces; i++) Items.AddPiece(gained, made, kgMade / pieces);
             }
             else
             {
@@ -599,6 +604,8 @@ public static class Making
         foreach (var e in effects)
             switch (e)
             {
+                case ExtraProduct x when x.What == r.Result.Resource?.ToString():
+                    break;
                 case ExtraProduct x when Items.GearKinds.ContainsKey(x.What):
                     for (int i = 0; i < (int)x.Amount; i++) { gained.Gear.Add(Items.Make(x.What)); extraGear.Add(x.What); }
                     break;
