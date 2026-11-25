@@ -24,7 +24,7 @@ public class WorkSlowingTests
 
     static BodyState Whole() => SpeciesTable.Average(Species.Human);
 
-    static BodyState With(BodyState body, string region, double condition)
+    static BodyState Wounded(BodyState body, string region, double condition)
     {
         foreach (var t in body.Regions.Single(r => r.Name == region).Layers) t.Condition = condition;
         return body;
@@ -45,8 +45,8 @@ public class WorkSlowingTests
     public void OneArmDestroyed_ButchersSlower_AndAHalfArm_InBetween()
     {
         int whole = ButcherMinutes(Whole());
-        int halfArm = ButcherMinutes(With(Whole(), "Left Arm", 0.5));
-        int noArm = ButcherMinutes(With(Whole(), "Left Arm", 0));
+        int halfArm = ButcherMinutes(Wounded(Whole(), "Left Arm", 0.5));
+        int noArm = ButcherMinutes(Wounded(Whole(), "Left Arm", 0));
         Assert.True(whole < halfArm && halfArm < noArm, $"{whole} {halfArm} {noArm}");
     }
 
@@ -69,7 +69,7 @@ public class WorkSlowingTests
     [Fact]
     public void FellingWithABadLegAndAWorseArm_TakesTheArmsTime()
     {
-        var both = With(With(Whole(), "Left Arm", 0.1), "Left Leg", 0.7);
+        var both = Wounded(Wounded(Whole(), "Left Arm", 0.1), "Left Leg", 0.7);
         double speed = Body.Share(both, Species.Human, Faculty.Speed), dexterity = Body.Share(both, Species.Human, Faculty.Dexterity);
         Assert.True(dexterity < speed && speed < 1, $"{speed} {dexterity}"); // the leg is bad, the arm worse
         Assert.Equal(ChopPct(Whole()) / Work.TimeFactor(dexterity), ChopPct(both), 12);
@@ -96,11 +96,11 @@ public class WorkSlowingTests
     [Fact]
     public void TheTreeForecast_AgreesWithTheTimeSteppingTakes_ForAWoundedBody()
     {
-        Assert.True(Check(With(Whole(), "Left Arm", 0.2)) > Check(Whole()));
+        Assert.True(FelledMinute_AsForecast(Wounded(Whole(), "Left Arm", 0.2)) > FelledMinute_AsForecast(Whole()));
     }
 
     /// The minute the forecast first says the tree is down is the minute stepping fells it.
-    static int Check(BodyState body)
+    static int FelledMinute_AsForecast(BodyState body)
     {
         var w = With(body, Forage, Trees);
         Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
@@ -114,7 +114,7 @@ public class WorkSlowingTests
     [Fact]
     public void TheMakingForecast_IsTheRateSteppingCredits_ForAWoundedBody()
     {
-        var w = With(With(Whole(), "Left Arm", 0.2));
+        var w = With(Wounded(Whole(), "Left Arm", 0.2));
         var r = Recipes.Get("stone_club");
         double rate = Making.WorkPerMinute(w, w.Agent(P), Items.Pack(w, P), r);
         Assert.Equal(1 / Work.TimeFactor(Body.Share(w.Agent(P).Body, Species.Human, Faculty.Dexterity)), rate, 12);

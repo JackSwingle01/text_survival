@@ -28,7 +28,7 @@ public class BalanceReportTests
 public static class ReferenceBodies
 {
     public sealed record Faculties(double StrengthPct, double SpeedPct, double DexterityPct, double PerceptionPct, double Vitality,
-        double ButcherTimes, double ForageTimes);
+        double ButcherTimeFactor, double ForageTimeFactor);
 
     public static readonly IReadOnlyList<(string Name, Species Species, Func<BodyState> Build)> All =
     [
@@ -67,7 +67,7 @@ public static class ReferenceBodies
         foreach (var (name, species, build) in All)
         {
             var shares = Measure(species, build());
-            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.Vitality,8:0.00}  {Share(double.IsNaN(shares.DexterityPct) ? double.NaN : shares.ButcherTimes),9}  {shares.ForageTimes,8:0.00}");
+            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.Vitality,8:0.00}  {Share(double.IsNaN(shares.DexterityPct) ? double.NaN : shares.ButcherTimeFactor),9}  {shares.ForageTimeFactor,8:0.00}");
         }
         return string.Join('\n', lines);
     }

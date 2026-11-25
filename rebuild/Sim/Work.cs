@@ -173,8 +173,11 @@ public static class Work
             _ => 1.0,
         },
         Butcher => TimeFactor(agent, Faculty.Dexterity),
+        ImproveShelter => BuildTimeFactor(agent),
         _ => 1.0,
     };
+
+    public static double BuildTimeFactor(Agent agent) => TimeFactor(agent, Faculty.Speed, Faculty.Dexterity);
 
     public static double TimeFactor(Agent agent, params Faculty[] slowedBy)
     {

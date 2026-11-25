@@ -360,7 +360,7 @@ public static class Shelters
                     if (Work.TooDarkToWork(world, agent)) return Work.TooDark;
                     if (At(world, tile, events) is not { } s) return "the shelter is gone";
                     var pack = Items.Pack(world, agent.Id);
-                    double pieces = 1.0 / 10 / Work.TimeFactor(agent, Faculty.Speed, Faculty.Dexterity); // as building something placed
+                    double pieces = 1.0 / 10 / Work.BodyTimeFactor(world, agent, tile, i);
                     if (!Items.IsDiscrete(i.Material)) pieces = Items.Take(pack, i.Material, Materials[i.Material].PieceKg * pieces) / Materials[i.Material].PieceKg;
                     else
                     {

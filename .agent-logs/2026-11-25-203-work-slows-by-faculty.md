@@ -15,3 +15,9 @@ Revised: every player is born with autumn fat (0.15–0.18 against the fresh bod
 Revised: changed test WorkTests.ImpairedChopping_IsSlower_AndInterruptedChoppingKeepsItsProgress asserted the 1.2 step (and read Moving) → asserts the progress of 1 / TimeFactor(speed share), the legs setting it; its tired part now allows the tired head's dexterity to slow the 30 minutes (0.15–0.30, not exactly 0.30)
 Revised: changed test ShelterTests.SnowShelter_IsDugWithAShovel_InTheCold expected 68 minutes → 69: the cold reaches the hands and dexterity's share slows building (asserted)
 Revised: comment hygiene put Work.cs over its 10% limit → doc comments shortened
+Revised (review): the property test's "improve" row read Work.BodyTimeFactor, which returned 1 for ImproveShelter, while shelters slowed through their own call → improving goes through BodyTimeFactor, and building something placed and improving share one rule, Work.BuildTimeFactor
+Revised (review): Vitality.Share re-spelled the four faculty reads → reads them through Vitality's FacultyRead, picked by faculty
+Revised (review): a comment for the removed dexterity threshold was left above Making.MadeIt → removed; the report's ButcherTimes/ForageTimes renamed ButcherTimeFactor/ForageTimeFactor; test helpers renamed (Wounded, FelledMinute_AsForecast)
+Follow-up: the NPC's tree and butcher leaf minutes now read Work.BodyTimeFactor but no test drives a wounded NPC's plan; the NPC's butcher leaf leaves out the frozen ×1.5 (a remote carcass is not caught up), as before. A planner test with a wounded NPC would check both
+Follow-up: tiredness, thirst, starving and cold hands now slow work through the faculties (sixteen hours awake: butcher ×1.29, forage ×1.28, from ×1.00); the deprivation sizes are #206's to tune
+Follow-up: the NPC bench and cohesion gate were not run against the baselines branch; they run nightly (`gh workflow run nightly.yml --ref 203-work-slows-by-how-far-a-faculty-is-below`)

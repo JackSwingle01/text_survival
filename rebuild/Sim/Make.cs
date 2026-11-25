@@ -222,7 +222,6 @@ public static class Making
     public const double SkillPctPerLevel = 0.04;
     public const double AbandonReclaimPct = 0.8;
     public const double FasterToolFactor = 1.5;
-    /// Below this dexterity the work slows, by up to half again at none.
 
     public const string MadeIt = "made", Spoiled = "spoiled";
 
@@ -573,7 +572,7 @@ public static class Making
     {
         double work = 1.0;
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
-        return work / (r.Result.Placed ? Work.TimeFactor(agent, Faculty.Speed, Faculty.Dexterity) : Work.TimeFactor(agent, Faculty.Dexterity));
+        return work / (r.Result.Placed ? Work.BuildTimeFactor(agent) : Work.TimeFactor(agent, Faculty.Dexterity));
     }
 
     static readonly Cause Slip = new(null, "a slip at work");
