@@ -162,7 +162,7 @@ public static class Verbs
     static StartFire Light(AgentId who, Inventory pack, PitType pit)
     {
         var tool = Fire.Starters.FirstOrDefault(t => Items.Tool(pack, t) != null, ToolType.HandDrill);
-        var tinder = Fire.Tinders.FirstOrDefault(r => Items.Have(pack, r) >= TinderKg, Resource.Tinder);
+        var tinder = Fire.TinderToStrike(pack, TinderKg);
         return new StartFire(who, tool, tinder, TinderKg, Items.WouldMoveKg(pack, Resource.Kindling, KindlingKg), pit);
     }
 
