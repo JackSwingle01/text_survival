@@ -10,7 +10,7 @@ public class RackTests
 
     static World Camp(WeatherSample? sky = null)
     {
-        var w = TestWorlds.Bare(17);
+        var w = TestWorlds.FreshPlayer(TestWorlds.Bare(17));
         w.FixedWeather = sky ?? Mild;
         TestKit.ClearResources(Items.Pack(w, P));
         return w;

@@ -344,6 +344,23 @@ internal static class Vitality
     static FacultyRead FreshOf(Species species, Sex sex) =>
         Fresh[(int)species * SexCount + (int)(species == Species.Human ? sex : Sex.Male)];
 
+    /// A faculty as its share of a fresh body of the species and sex, read with no surroundings and held at
+    /// one for a body better than fresh. Zero for a faculty a fresh body lacks (a wolf's dexterity).
+    internal static double Share(BodyState body, Species species, Faculty faculty)
+    {
+        var c = Capacities.Of(body);
+        var fresh = FreshOf(species, body.Sex);
+        var (now, whole) = faculty switch
+        {
+            Faculty.Strength => (Faculties.Strength(body, c), fresh.Strength),
+            Faculty.Speed => (Faculties.Speed(body, c, default), fresh.Speed),
+            Faculty.Dexterity => (Faculties.Dexterity(c, default, wetSeverity: 0), fresh.Dexterity),
+            Faculty.Perception => (Faculties.Perception(c, default), fresh.Perception),
+            _ => throw new ArgumentOutOfRangeException(nameof(faculty), faculty, null),
+        };
+        return whole > 0 ? TissueReads.Clamp01(now / whole) : 0;
+    }
+
     internal static double Of(BodyState body, Species species)
     {
         var now = Read(body, Capacities.Of(body));

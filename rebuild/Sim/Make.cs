@@ -223,7 +223,6 @@ public static class Making
     public const double AbandonReclaimPct = 0.8;
     public const double FasterToolFactor = 1.5;
     /// Below this dexterity the work slows, by up to half again at none.
-    const double DexterityThreshold = 0.7, MaxDexterityPenaltyPct = 0.5;
 
     public const string MadeIt = "made", Spoiled = "spoiled";
 
@@ -568,18 +567,13 @@ public static class Making
         return Shelters.BuiltReason;
     }
 
-    /// Bad hands count twice, through manipulation and through the dexterity built on it. Read every
-    /// minute, so how the work is split into steps cannot change when it finishes. Camp work: legs and hands.
+    /// Something carried slows by dexterity, something placed by speed and dexterity (Work.TimeFactor). Read
+    /// every minute, so how the work is split into steps cannot change when it finishes.
     public static double WorkPerMinute(World world, Agent agent, Inventory pack, Recipe r)
     {
         double work = 1.0;
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
-        var c = Body.GetCapacities(agent.Body);
-        if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
-        double slow = c.Manipulation < 0.5 ? 1.25 : 1.0;
-        double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
-        if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;
-        return work / slow;
+        return work / (r.Result.Placed ? Work.TimeFactor(agent, Faculty.Speed, Faculty.Dexterity) : Work.TimeFactor(agent, Faculty.Dexterity));
     }
 
     static readonly Cause Slip = new(null, "a slip at work");
