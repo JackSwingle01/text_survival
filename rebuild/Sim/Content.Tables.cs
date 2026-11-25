@@ -453,8 +453,9 @@ public static partial class Content
         return recipes.AsReadOnly();
     }
 
-    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on, or
-    /// nothing goes on and grams of a continuous resource come off, until its cap waits (melting snow).
+    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on and one
+    /// piece or an amount comes off, or nothing goes on and grams of a continuous resource come off, until its cap
+    /// waits (melting snow).
     static IEnumerable<string> StationProblems(string at, RecipeFileRow row, List<MaterialInput> materials, List<string> items,
         IReadOnlyList<Capability> faster, List<Outcome> outcomes, IReadOnlyDictionary<Resource, ResourceDef> resources)
     {
@@ -472,8 +473,9 @@ public static partial class Content
         }
         else if (materials[0] is not { AnyOf.Count: 1, Count: 1 } m || !resources[m.AnyOf[0]].Discrete)
             yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource";
-        if (row.Result.Resource is not Resource made || !resources[made].Discrete || row.Result.Count != 1)
-            yield return $"{at}: a station-worked recipe makes one piece of a discrete resource";
+        if (row.Result.Resource is not Resource made
+            || (resources[made].Discrete ? row.Result.Count != 1 : row.Result.G > 0 || row.Result.SharePct <= 0))
+            yield return $"{at}: a station-worked recipe that takes a piece makes one piece of a discrete resource, or a share of its weight in a continuous one";
     }
 
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest

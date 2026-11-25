@@ -523,4 +523,84 @@ public class StationTests
         f.EmberDurationHours = f.EmberHoursRemaining = 3 / 60.0;
         Assert.Single(Sim.Advance(w, 30).OfType<TransformationStopped>());
     }
+
+    // ---- rendering fat (#189) ----
+
+    static double TallowAt(World w, FireId id) => Items.Have(Stations.At(w, id).Ready, Resource.Tallow);
+
+    static void PutOnFat(World w, double kg)
+    {
+        Items.AddPiece(Items.Pack(w, P), Resource.RawFat, kg);
+        Assert.Equal(1, Sim.Step(w, new PutOn(P, "render_fat"), 1).MinutesElapsed);
+    }
+
+    [Fact]
+    public void HalfAKiloOfFat_AtAGoodFire_Is300GramsOfTallow_20MinutesLater_WithNoOneActing_WaitingAsAnAmount()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        PutOnFat(w, 0.5);
+        Assert.Equal(0, Items.Count(Items.Pack(w, P), Resource.RawFat));
+
+        var done = FinishOf(w, 60);
+        Assert.Equal(setAt + 20, done.Minute);
+        Assert.Equal(Resource.Tallow, done.Made);
+        Assert.Equal(0.3, done.Kg, 9);
+        Assert.Equal(0.3, TallowAt(w, id), 9);
+        Assert.False(Stations.At(w, id).Ready.Pieces.ContainsKey(Resource.Tallow));
+
+        Sim.Step(w, Offer(w, a => a is TakeFinished).Activity, 1);
+        Assert.Equal(0.3, Items.Have(Items.Pack(w, P), Resource.Tallow), 9);
+    }
+
+    [Fact]
+    public void NoHandRecipe_RendersFat_AndTheFireOffersIt()
+    {
+        Assert.DoesNotContain(Recipes.ByHand, r => r.Result.Resource == Resource.Tallow || r.Materials.Any(m => m.AnyOf.Contains(Resource.RawFat)));
+        Assert.Equal(StationKind.Fire, Recipes.Get("render_fat").Station);
+        var w = Camp(out _);
+        Pit(w, 5);
+        Items.AddPiece(Items.Pack(w, P), Resource.RawFat, 0.4);
+        Assert.True(Offer(w, a => a is PutOn { Recipe: "render_fat" }).Allowed);
+    }
+
+    [Fact]
+    public void Rendering_TakesOneOfTheFiresPlaces()
+    {
+        var w = Camp(out _);
+        Pit(w, 5);
+        Meat(w, 0.4);
+        Meat(w, 0.3);
+        Sim.Advance(w, 1);
+        PutOnFat(w, 0.5);
+        PutOnMeat(w);
+        Assert.Equal("the fire has room for 2, and all of it is taken", Offer(w, a => a is PutOn { Recipe: "cook_meat" }).Refused?.Reason);
+    }
+
+    [Fact]
+    public void Rendering_StopsWhenTheFireIsCold_LosingNothing_AndGoesOnWhenRelit()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 5);
+        Sim.Advance(w, 1);
+        PutOnFat(w, 0.5);
+        Sim.Advance(w, 9); // half the work done
+        var f = w.Fires[id];
+        f.BurningKg.Clear();
+        f.UnburnedKg.Clear();
+        Sim.Advance(w, 1);
+        Assert.False(Fire.IsActive(f) || f.HasEmbers);
+        Assert.DoesNotContain(Sim.Advance(w, 120), e => e is TransformationFinished);
+        Assert.Equal(0, TallowAt(w, id));
+        var piece = Assert.Single(Stations.At(w, id).Working);
+        Assert.Equal(0.5, piece.InputKg);
+        Assert.Equal(0.5, piece.DonePct, 9);
+
+        f.BurningKg[Resource.BirchFirewood] = 5;
+        long relit = w.Minute;
+        Assert.Equal(relit + 10, FinishOf(w, 30).Minute);
+        Assert.Equal(0.3, TallowAt(w, id), 9);
+    }
 }

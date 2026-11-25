@@ -92,11 +92,6 @@
   "outcomes": [] },
 
  // ---- fat, fibre, cordage and hides ----
- // A hand recipe at a burning fire until the fire works it as a station (#189).
- "render_fat": { "name": "Render fat", "category": "Processing",
-  "inputs": [ { "of": "RawFat", "count": 1 } ], "tools": [], "requires": ["Fire"], "minutes": 20,
-  "result": { "resource": "Tallow", "sharePct": 0.6 },
-  "outcomes": [] },
  // Inner willow bark stripped and twisted by feel: no light needed.
  "willow_fibre": { "name": "Willow fibre", "category": "Processing",
   "inputs": [ { "of": "WillowBark", "g": 100 } ], "tools": [], "requires": [], "minutes": 10,
@@ -141,6 +136,11 @@
  "cook_fish": { "name": "Cook fish", "category": "Processing", "station": "Fire", "driver": "Heat",
   "inputs": [ { "of": "RawFish", "count": 1 } ], "tools": [], "requires": [], "minutes": 12,
   "result": { "resource": "CookedFish", "count": 1, "sharePct": 1 },
+  "outcomes": [] },
+ // Time is per piece, whatever it weighs; the tallow waits at the fire as an amount.
+ "render_fat": { "name": "Render fat", "category": "Processing", "station": "Fire", "driver": "Heat",
+  "inputs": [ { "of": "RawFat", "count": 1 } ], "tools": [], "requires": [], "minutes": 20,
+  "result": { "resource": "Tallow", "sharePct": 0.6 },
   "outcomes": [] },
  // Snow is assumed to be there (an existing gap) and needs no vessel: a litre at a time, until 4 L waits.
  "melt_snow": { "name": "Melt snow", "category": "Processing", "station": "Fire", "driver": "Heat",

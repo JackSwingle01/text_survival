@@ -233,7 +233,8 @@ public static class Stations
                 s.Working.Remove(t);
                 var made = r.Result.Resource!.Value;
                 double kg = t.InputKg * r.Result.SharePct;
-                Items.AddPiece(s.Ready, made, kg);
+                if (Items.IsDiscrete(made)) Items.AddPiece(s.Ready, made, kg);
+                else Items.Add(s.Ready, made, kg);
                 events.Add(new TransformationFinished(world.Minute, fire.Tile, id, t.SetBy, t.Recipe, made, kg));
                 bool cooked = r.Driver == StationDriver.Heat && Items.Resources[made].Category == ResourceCategory.Food;
                 if (cooked && world.Agents.TryGetValue(t.SetBy, out var setter) && Sim.IsAlive(setter))
