@@ -530,8 +530,8 @@ public static class Fire
                 if (Items.Tool(pack, a.Tool) == null) return new($"no working {Names.Of(a.Tool)}", new MissingTool(a.Tool));
                 if (Items.Have(pack, a.Tinder) < a.TinderKg - 1e-9)
                     return new($"not enough {Names.Of(a.Tinder)}", new MissingResource(a.Tinder, a.TinderKg - Items.Have(pack, a.Tinder)));
-                if (Items.Have(pack, Kindling) < a.KindlingKg - 1e-9)
-                    return new("not enough sticks", new MissingResource(Kindling, a.KindlingKg - Items.Have(pack, Kindling)));
+                if (Items.Have(pack, Resource.Stick) < a.KindlingKg - 1e-9)
+                    return new("not enough sticks", new MissingResource(Resource.Stick, a.KindlingKg - Items.Have(pack, Resource.Stick)));
                 return null;
             case AddFuel a:
                 if (!IsFuel(a.Fuel)) return new($"{Names.Cap(Names.Of(a.Fuel))} does not burn");
@@ -626,7 +626,7 @@ public static class Fire
         double tinderIn = AddFuel(f, tinder, tinderKg);
         if (Items.IsDiscrete(tinder)) f.UnburnedKg[tinder] = f.UnburnedKg.GetValueOrDefault(tinder) + tinderKg - tinderIn;
         else Items.Add(pack, tinder, tinderKg - tinderIn);
-        if (kindlingKg > 0) PutOn(f, pack, Kindling, kindlingKg);
+        if (kindlingKg > 0) PutOn(f, pack, Resource.Stick, kindlingKg);
         IgniteAll(f);
     }
 
@@ -770,10 +770,11 @@ public static class Fire
     public static readonly IReadOnlyList<Resource> Tinders =
         [.. new[] { Resource.ResinTinder, Resource.Amadou, Resource.BirchBark, Resource.Usnea, Resource.Tinder, Resource.Chaga }.OrderByDescending(r => Props[r].IgnitionBonusPct)];
 
-    public const Resource Kindling = Resource.Stick;
+    public static bool IsStrikeMaking(Resource r) => r == Resource.Stick || Tinders.Contains(r);
 
-    /// What a strike is made of: tinder or kindling.
-    public static bool MakesAStrike(Resource r) => r == Kindling || Tinders.Contains(r);
+    /// A forecast's strike made from the pack alone: its tinder if the pack holds enough (else the pack's surest), the sticks it holds.
+    public static StartFire StrikeFromPack(AgentId who, ToolType tool, Inventory pack, FireStrike s) =>
+        new(who, tool, Items.Have(pack, s.Tinder) >= s.TinderKg - 1e-9 ? s.Tinder : TinderToStrike(pack, s.TinderKg), s.TinderKg, Items.WouldMoveKg(pack, Resource.Stick, s.KindlingKg));
 
     /// The surest catch the pack holds enough of; plain tinder, the one a person plans to find, if none.
     public static Resource TinderToStrike(Inventory pack, double kg) => Tinders.FirstOrDefault(r => Items.Have(pack, r) >= kg, Resource.Tinder);
@@ -813,7 +814,7 @@ public static class Fire
     /// The surest tinder on offer whose lightest piece fits the pit (Refusal's rule), and a strike's kindling. Null without one.
     static FireStrike? StrikeFrom(Inventory fuel, double roomKg) =>
         Tinders.Where(r => Items.Have(fuel, r) >= Verbs.TinderKg - 1e-9 && !(Items.LightestKg(fuel, r) > roomKg + 1e-9)).Cast<Resource?>().FirstOrDefault() is Resource tinder
-            ? new FireStrike(tinder, Verbs.TinderKg, Items.WouldMoveKg(fuel, Kindling, Verbs.KindlingKg))
+            ? new FireStrike(tinder, Verbs.TinderKg, Items.WouldMoveKg(fuel, Resource.Stick, Verbs.KindlingKg))
             : null;
 
     /// One entry at most, weighed so that adding it alone reaches the hours wanted.

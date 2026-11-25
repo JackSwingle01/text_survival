@@ -95,6 +95,7 @@ public class NpcFireTests(ITestOutputHelper output)
         var log = first.Concat(rest).ToList();
         output.WriteLine(string.Join("\n", log.Where(e => e is FireLit or FireStartFailed or FuelAdded or Gathered)));
         Assert.Contains(log, e => e is FuelAdded f && f.By == npc.Id && f.Fuel == Resource.OakBranch);
+        Assert.True(Fire.CurrentPitAt(w, camp) is { } pit && Fire.IsActive(pit), "no fire burns at camp at the end");
     }
 
     // ---- each use of the fire: the forecast names a missing fuel, and it goes for it ----
@@ -114,13 +115,14 @@ public class NpcFireTests(ITestOutputHelper output)
         return at;
     }
 
-    void StepsToward(World w, Agent npc, TileId at, Resource fuel, FireForecast forecast)
+    void StepsToward(World w, Agent npc, TileId at, Resource fuel, FireForecast forecast, Stat? plan = null)
     {
         Assert.Contains(forecast.Missing, m => m.AnyOf.Contains(fuel));
         var (a, _) = Npc.Decide(w, npc, []);
         output.WriteLine($"{a}; missing {string.Join(", ", forecast.Missing)}");
         var travel = Assert.IsType<Travel>(a);
         Assert.True(MapGen.Manhattan(Map.Step(npc.Tile, travel.Dir), at) < MapGen.Manhattan(npc.Tile, at), $"walked {travel.Dir}, away from {at}");
+        if (plan != null) Assert.Equal(plan, MindOf(npc).Plan?.Stat);
     }
 
     /// Cold at camp with no tinder: the forecast names tinder, and it goes for the tinder.
@@ -132,7 +134,7 @@ public class NpcFireTests(ITestOutputHelper output)
         TestKit.Give(MindOf(npc).Pack, Resource.Water, 2);
         var at = RememberedPileEast(w, npc, Resource.Tinder, 1);
         npc.Body.CoreTempF = 96.0;
-        StepsToward(w, npc, at, Resource.Tinder, ForecastAtCamp(w, npc, 1));
+        StepsToward(w, npc, at, Resource.Tinder, ForecastAtCamp(w, npc, 1), Stat.Warmth);
     }
 
     /// Warm, by night, with too few sticks for the night: the forecast names more, and it goes for them.
@@ -146,7 +148,7 @@ public class NpcFireTests(ITestOutputHelper output)
         TestKit.Give(MindOf(npc).Pack, Resource.Water, 2);
         var at = RememberedPileEast(w, npc, Resource.Stick, 20);
         Assert.False(Weather.IsDaytime(w.Minute));
-        StepsToward(w, npc, at, Resource.Stick, ForecastAtCamp(w, npc, 8));
+        StepsToward(w, npc, at, Resource.Stick, ForecastAtCamp(w, npc, 8), Stat.Warmth);
     }
 
     /// Parched by day with no water near and too few sticks for a melt: it goes for the sticks the forecast names.
@@ -159,7 +161,7 @@ public class NpcFireTests(ITestOutputHelper output)
         var at = RememberedPileEast(w, npc, Resource.Stick, 20);
         npc.Body.HydrationMl = 0.1 * Body.MaxHydrationMl;
         Assert.True(Weather.IsDaytime(w.Minute));
-        StepsToward(w, npc, at, Resource.Stick, ForecastAtCamp(w, npc, 1));
+        StepsToward(w, npc, at, Resource.Stick, ForecastAtCamp(w, npc, 1), Stat.Water);
     }
 
     /// Hungry, with meat on a fire that will die before it cooks and nothing to feed it: it goes for fuel.
@@ -180,17 +182,19 @@ public class NpcFireTests(ITestOutputHelper output)
 
     // ---- listed equals stepped ----
 
-    sealed record Case(int PitKind, (Resource Fuel, double Kg)[] Pack, (Resource Fuel, double Kg)[] Pile, bool Starter, bool Night, bool Cold)
+    public enum PitKind { None, Cold, Glowing, Burning }
+
+    public sealed record Case(PitKind Pit, (Resource Fuel, double Kg)[] Pack, (Resource Fuel, double Kg)[] Pile, bool Starter, bool Night, bool Cold)
     {
         public override string ToString() =>
-            $"pit {PitKind}, pack [{string.Join(", ", Pack.Select(p => $"{p.Fuel} {p.Kg:0.00}"))}], pile [{string.Join(", ", Pile.Select(p => $"{p.Fuel} {p.Kg:0.00}"))}], starter {Starter}, night {Night}, cold {Cold}";
+            $"pit {Pit}, pack [{string.Join(", ", Pack.Select(p => $"{p.Fuel} {p.Kg:0.00}"))}], pile [{string.Join(", ", Pile.Select(p => $"{p.Fuel} {p.Kg:0.00}"))}], starter {Starter}, night {Night}, cold {Cold}";
     }
 
     static readonly Resource[] Fuels = [.. Fire.Props.Keys.Order()];
 
     static readonly Gen<(Resource, double)> FuelGen = Gen.Select(Gen.Int[0, Fuels.Length - 1], Gen.Double[0.05, 6], (i, kg) => (Fuels[i], kg));
 
-    static readonly Gen<Case> Cases = Gen.Select(Gen.Int[0, 2], FuelGen.Array[0, 4], FuelGen.Array[0, 3], Gen.Bool, Gen.Bool, Gen.Bool,
+    static readonly Gen<Case> Cases = Gen.Select(Gen.Enum<PitKind>(), FuelGen.Array[0, 4], FuelGen.Array[0, 3], Gen.Bool, Gen.Bool, Gen.Bool,
         (pit, pack, pile, starter, night, cold) => new Case(pit, pack, pile, starter, night, cold));
 
     /// Random packs, piles and pits at camp: a StartFire or AddFuel it chooses is never refused, and holding a fire plan
@@ -208,8 +212,13 @@ public class NpcFireTests(ITestOutputHelper output)
             foreach (var (r, kg) in c.Pack) Items.AddKg(pack, r, kg);
             foreach (var (r, kg) in c.Pile) Items.AddKg(Items.PileAt(w, camp), r, kg);
             TestKit.Give(pack, Resource.Water, 2);
-            if (c.PitKind == 1) Fire.AddFuel(Pit(w, camp), Resource.BirchBranch, 2);
-            if (c.PitKind == 2) Burning(w, camp, Resource.Stick, 0.5);
+            if (c.Pit == PitKind.Cold) Fire.AddFuel(Pit(w, camp), Resource.BirchBranch, 2);
+            if (c.Pit == PitKind.Glowing)
+            {
+                var embers = Pit(w, camp);
+                (embers.HasEmbers, embers.EmberDurationHours, embers.EmberHoursRemaining, embers.EmberStartTempF) = (true, 1, 1, 600);
+            }
+            if (c.Pit == PitKind.Burning) Burning(w, camp, Resource.Stick, 0.5);
             npc.Body.CoreTempF = c.Cold ? 96.0 : 98.6;
             var (a, _) = Npc.Decide(w, npc, []);
             var why = $"{c}: chose {a}";
