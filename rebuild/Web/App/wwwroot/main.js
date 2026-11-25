@@ -272,10 +272,15 @@ function head(ic, title, extra = '') {
 const section = (label, body, aside = '') => `<div class="sec"><div class="sec-h"><span class="label">${esc(label)}</span>${aside ? `<span class="aside">${aside}</span>` : ''}</div>${body}</div>`;
 const costChip = c => `<span class="cost">${img('ui/clock')}${esc(c)}</span>`;
 
+/** How a piece at a station is going: its forecast finish, and why it is slow. */
+const progressLine = p => [p.finishMinute != null ? `done about ${finishClock(p.finishMinute)}` : 'no finish', p.why].filter(Boolean).join(' · ');
+const finishClock = m => `${dayOf(m) !== S.view.clock.day ? `day ${dayOf(m)}, ` : ''}${clock(minuteOfDay(m))}`;
+const stationWords = s => s === 'ready' ? 'Ready at the fire' : 'Working at the fire';
+
 /** A row for a verb in a list: its label, its time or its refusal. */
 function menuItem(vb, { name = vb.label, sub = verbTime(vb), pressed = false, open = null } = {}) {
   return `<button class="mi" ${open ? `data-open="${open}"` : `data-verb="${vb.id}"`} ${vb.refused && !open ? 'disabled' : ''} aria-pressed="${pressed}">
-    ${img(verbIcon(vb))}<span>${px(name)}${vb.refused ? `<small class="no">${esc(cap(vb.refused))}</small>` : ''}</span><span class="m">${esc(vb.refused ? '' : sub)}</span></button>`;
+    ${img(verbIcon(vb))}<span>${px(name)}${vb.refused ? `<small class="no">${esc(cap(vb.refused))}</small>` : ''}${vb.progress ? `<small>${esc(progressLine(vb.progress))}</small>` : ''}</span><span class="m">${esc(vb.refused ? '' : sub)}</span></button>`;
 }
 
 /** The odds sheet: a big total, the bar (base and additions solid, subtractions hatched), each factor. */
@@ -390,6 +395,7 @@ function renderPlace(d, v) {
   const p = m.places.find(q => q.x === x && q.y === y), sights = m.sightings.filter(s => s.x === x && s.y === y);
   const lines = [];
   if (p?.fire) lines.push([p.fire === 'Embers' || p.fire === 'Cold' ? 'embers' : 'fire', `Fire: ${p.fire}`, ago(v.minute - p.seenMinute)]);
+  if (p?.station) lines.push(['ui/meat', stationWords(p.station), '']);
   if (p?.shelter) lines.push(['shelter', p.shelter, '']);
   if (p?.carcass) lines.push(['carcass', 'A carcass', '']);
   if (p?.pile) lines.push(['cache', 'A pile', '']);
@@ -639,6 +645,7 @@ function hoverTile(t, e) {
   if (code !== '.') {
     const p = m.places.find(q => q.x === t.x && q.y === t.y);
     if (p?.fire) rows.push(`${img(p.fire === 'Embers' || p.fire === 'Cold' ? 'embers' : 'fire')}Fire: ${esc(p.fire)}`);
+    if (p?.station) rows.push(`${img('ui/meat')}${stationWords(p.station)}`);
     if (p?.shelter) rows.push(`${img('shelter')}${esc(p.shelter)}`);
     for (const s of m.sightings.filter(s => s.x === t.x && s.y === t.y)) rows.push(`${img(s.species)}${s.count > 1 ? `${s.count} × ` : ''}${esc(s.species.split('/').pop())} · ${ago(S.view.minute - s.minute)}`);
     const dir = dirTo(S.view.place, t), w = dir && walkVerb(S.view, dir);

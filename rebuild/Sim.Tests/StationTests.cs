@@ -261,4 +261,115 @@ public class StationTests
         Assert.Equal(1, Sim.Step(w, back.Activity, back.Minutes).MinutesElapsed);
         Assert.Equal([0.7], Items.Pack(w, P).Pieces[Resource.RawMeat]);
     }
+
+    // ---- how it is going (#185) ----
+
+    static Verb TakeBackOffer(World w) => Offer(w, a => a is TakeBack);
+
+    [Fact]
+    public void TheFiresMenu_ShowsAnExpectedFinish_ForMeatCooking_AndTheFireIsOut_ForMeatAtAColdFire()
+    {
+        var w = Camp(out _);
+        Pit(w, 5);
+        Meat(w, 0.4);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        PutOnMeat(w);
+        var going = TakeBackOffer(w).Progress!;
+        Assert.Equal(setAt + 15, going.FinishMinute);
+        Assert.Null(going.Why); // a good fire: the recipe's own time
+
+        var cold = Camp(out _);
+        Pit(cold, 0);
+        Meat(cold, 0.4);
+        Sim.Advance(cold, 1);
+        PutOnMeat(cold);
+        var stopped = TakeBackOffer(cold).Progress!;
+        Assert.Null(stopped.FinishMinute);
+        Assert.Equal("the fire is out", Narration.Why(stopped.Why!.Value));
+    }
+
+    [Fact]
+    public void AWeakFire_SaysTheFireIsLow_AndEmbers_ThatTheFireIsDownToEmbers()
+    {
+        var weak = Camp(out _);
+        Pit(weak, 0.45);
+        Meat(weak, 0.4);
+        Sim.Advance(weak, 1);
+        PutOnMeat(weak);
+        Assert.Equal("the fire is low", Narration.Why(TakeBackOffer(weak).Progress!.Why!.Value));
+
+        var embers = Camp(out _);
+        var f = embers.Fires[Pit(embers, 0)];
+        f.HasEmbers = true;
+        f.EmberStartTempF = 400;
+        f.EmberDurationHours = f.EmberHoursRemaining = 3;
+        Meat(embers, 0.4);
+        Sim.Advance(embers, 1);
+        PutOnMeat(embers);
+        Assert.Equal("the fire is down to embers", Narration.Why(TakeBackOffer(embers).Progress!.Why!.Value));
+    }
+
+    /// The player walks off the camp for a while, comes back and stands a minute: the receipt of that minute.
+    static Receipt TripAway(World w, TileId camp, int minutes)
+    {
+        w.Agent(P).Tile = Map.Step(Map.Step(Map.Step(camp, Direction.East), Direction.East), Direction.East);
+        Sim.Step(w, new Wait(P), minutes);
+        w.Agent(P).Tile = camp;
+        return Assert.Single(Sim.Step(w, new Wait(P), 1).Events.OfType<Noticed>()).Receipt;
+    }
+
+    [Fact]
+    public void AfterATripAway_TheReceipt_ListsTheMeatThatCooked_AndTheMinuteItFinished()
+    {
+        var w = Camp(out var camp);
+        Pit(w, 5);
+        Meat(w, 0.4);
+        Sim.Advance(w, 1);
+        long setAt = w.Minute;
+        PutOnMeat(w);
+        var r = TripAway(w, camp, 60);
+        var done = Assert.Single(r.Happened.OfType<TransformationFinished>());
+        Assert.Equal(setAt + 15, done.Minute);
+        Assert.Equal("1 cut of cooked meat is done at the fire.", Narration.Of(w, done)!.Text);
+        Assert.Contains(done, Journal.Between(w, camp, setAt, w.Minute + 1)); // the tile journal keeps it
+    }
+
+    [Fact]
+    public void AfterATripInWhichTheFireDiedFirst_TheReceipt_SaysTheFireWentOutWithFoodOnIt()
+    {
+        var w = Camp(out var camp);
+        var id = Pit(w, 0);
+        var f = w.Fires[id];
+        f.HasEmbers = true;
+        f.EmberStartTempF = 300;
+        f.EmberDurationHours = f.EmberHoursRemaining = 5 / 60.0;
+        Meat(w, 0.4);
+        Sim.Advance(w, 1);
+        PutOnMeat(w);
+        var r = TripAway(w, camp, 60);
+        var stop = Assert.Single(r.Happened.OfType<TransformationStopped>());
+        var died = Assert.Single(r.Happened.OfType<FireDied>());
+        Assert.Equal((died.Minute, camp, StopReason.FireOut), (stop.Minute, stop.Tile, stop.Why));
+        Assert.Equal([Resource.RawMeat], stop.Left);
+        Assert.Equal("The fire goes out with raw meat on it.", Narration.Of(w, stop)!.Text);
+        Assert.Contains(stop, Journal.Between(w, camp, 0, w.Minute + 1));
+    }
+
+    [Fact]
+    public void PuttingOnAtAColdFire_RaisesNoStop_AndRelightingThenLettingItDie_RaisesOne()
+    {
+        var w = Camp(out _);
+        var id = Pit(w, 0);
+        Meat(w, 0.4);
+        Sim.Advance(w, 1);
+        PutOnMeat(w);
+        Assert.DoesNotContain(Sim.Advance(w, 30), e => e is TransformationStopped);
+
+        var f = w.Fires[id];
+        f.HasEmbers = true;
+        f.EmberStartTempF = 300;
+        f.EmberDurationHours = f.EmberHoursRemaining = 3 / 60.0;
+        Assert.Single(Sim.Advance(w, 30).OfType<TransformationStopped>());
+    }
 }

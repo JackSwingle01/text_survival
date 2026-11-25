@@ -101,6 +101,7 @@ export function createObserverMap(canvas, get) {
       if (p.shelter) sprite('shelter', px + 2, py + 2, sp * 0.8);
       if (p.carcass) sprite('carcass', px + s - sp * 0.7, py + s - sp * 0.7, sp * 0.6);
       if (p.pile) sprite('cache', px + 4, py + s - sp * 0.6, sp * 0.5);
+      if (p.station) sprite('ui/meat', px + 2, py + 2, sp * 0.45, p.station === 'ready' ? 1 : 0.5);
       if (p.fire && p.fire !== 'Cold') sprite(burning ? 'fire' : 'embers', px + s - sp * 0.8, py + s - sp * 0.8, sp * 0.75);
     }
 

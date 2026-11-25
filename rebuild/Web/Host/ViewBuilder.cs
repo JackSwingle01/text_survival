@@ -94,7 +94,8 @@ sealed class ViewBuilder(World world, int gen)
                 AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },
-            Durations: v.Durations);
+            Durations: v.Durations,
+            Progress: v.Progress is { } p ? new ProgressDto(p.FinishMinute, p.Why is Slowed why ? Narration.Why(why) : null) : null);
     }
 
     /// The activity's family, for the page's icons and keys. Not a vocabulary: the page acts by id.
