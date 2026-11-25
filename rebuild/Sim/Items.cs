@@ -45,12 +45,13 @@ public readonly record struct PieceRange(double Min, double Max);
 
 /// Instances carry only their kind and wear. Insulation is in tenths of a clo over the covered part of the body.
 /// Capabilities is what carrying it lets someone do to a thing (Survival.Capabilities), stated on every row.
+/// BurnMinutes is how long a torch burns once lit.
 /// ChopFactor: how fast an axe fells and cuts up a tree, the ground stone axe's being 1; every axe states it, and nothing else.
 public sealed record GearDef(
     string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
-    double CapacityBonusKg = 0, double? ChopFactor = null);
+    double CapacityBonusKg = 0, double BurnMinutes = 0, double? ChopFactor = null);
 
 /// One discrete item. Durability -1 never wears out; 0 is broken.
 public sealed class Gear
@@ -73,6 +74,12 @@ public sealed class Gear
 public sealed class MakeProject
 {
     public required string Recipe { get; init; }
+    /// A repair's gear kind; the piece itself is in Materials until the work ends.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Target { get; init; }
+    /// The repaired piece was worn, and goes back on when the work ends.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Worn { get; init; }
     /// As a whole, warm, dry person would count them (Recipe.Minutes is the total).
     public double MinutesDone { get; set; }
     public Inventory Materials { get; init; } = new();
@@ -86,7 +93,7 @@ public sealed class Inventory
     /// Discrete: each piece's kilos, lightest first, never an empty list. Both are changed only through Items.
     public SortedDictionary<Resource, List<double>> Pieces { get; init; } = [];
     public List<Gear> Gear { get; init; } = [];
-    /// One per recipe; null when there are none.
+    /// One per recipe, and per target of a repair; null when there are none.
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public List<MakeProject>? Projects { get; set; }
 }

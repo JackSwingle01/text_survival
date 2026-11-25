@@ -170,7 +170,8 @@ public class WorkTests
         {
             var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
             w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(seed, "work");
-            Sim.Step(w, new Gather(P, 0, focus), 60);
+            // Short enough that even a jackpot never fills the pack: a full pack drops what a lighter one keeps.
+            Sim.Step(w, new Gather(P, 0, focus), 20);
             return Items.KgByResource(Items.Pack(w, P));
         }
         for (int seed = 0; seed < 6; seed++)

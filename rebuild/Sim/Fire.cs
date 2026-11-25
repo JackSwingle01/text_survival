@@ -51,7 +51,7 @@ public static class Fire
 
     const double BaseCatchRateKgPerMinute = 0.05;
     const double CharcoalYieldPct = 0.04;
-    public const double TorchBurnMinutes = 60;
+    const double TorchFadeMinutes = 60;
 
     public static int Room(PitType pit) => Pits[pit].Room;
     public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
@@ -148,7 +148,7 @@ public static class Fire
     public static double HeatOutputF(FireState f, double ambientF)
     {
         if (f.CarriedBy != null)
-            return f.TorchMinutesLeft > 0 ? 3.0 + 2.0 * (f.TorchMinutesLeft / TorchBurnMinutes) : 0;
+            return f.TorchMinutesLeft > 0 ? 3.0 + 2.0 * Math.Min(1, f.TorchMinutesLeft / TorchFadeMinutes) : 0;
         double differentialF = TemperatureF(f) - ambientF;
         if (differentialF <= 0) return 0;
         return differentialF / 50.0 * Math.Sqrt(Math.Max(BurningKg(f), 0.5));
@@ -269,7 +269,7 @@ public static class Fire
         return f;
     }
 
-    static void RequireCurrent(World world, FireId id, FireState f)
+    internal static void RequireCurrent(World world, FireId id, FireState f)
     {
         if (f.LastUpdatedMinute != world.Minute)
             throw new InvalidOperationException($"Fire {id.Value} is at minute {f.LastUpdatedMinute}, world at {world.Minute}: catch it up first");
@@ -680,6 +680,19 @@ public static class Fire
         return minutes;
     }
 
+    /// A forecast of its burn untended: one copy, yielded after each minute's tick until cold; read it before the next.
+    public static IEnumerable<FireState> Ahead(FireState f)
+    {
+        if (f.CarriedBy != null) throw new ArgumentException("A carried torch has no burn to forecast here", nameof(f));
+        var copy = BurnCopy(f);
+        while (IsActive(copy) || copy.HasEmbers)
+        {
+            copy.LastUpdatedMinute++;
+            Tick(copy, default, copy.LastUpdatedMinute, []);
+            yield return copy;
+        }
+    }
+
     /// A forecast: the minutes of light to work by here (HasLight) if nobody tends it. Fires around who must be caught up.
     public static int MinutesOfLightLeft(World world, AgentId who)
     {
@@ -776,15 +789,16 @@ public static class Fire
         EmberStartTempF = f.EmberStartTempF,
     };
 
-    /// Lit from flames on the tile or the torch already in hand (which it replaces); uses up a torch from the pack.
+    /// Lit from flames on the tile or the torch already in hand (which it replaces); uses up the first torch in the pack.
     static string? Torch(World world, LightTorch a, List<WorldEvent> events)
     {
         var tile = world.Agent(a.Who).Tile;
         var pack = Items.Pack(world, a.Who);
-        pack.Gear.Remove(Items.Tool(pack, ToolType.Torch)!);
+        var torch = Items.Tool(pack, ToolType.Torch)!;
+        pack.Gear.Remove(torch);
         foreach (var (old, f) in world.Fires.ToList())
             if (f.CarriedBy == a.Who) world.Fires.Remove(old);
-        var id = NewFire(world, new FireState { Tile = tile, LastUpdatedMinute = world.Minute, CarriedBy = a.Who, TorchMinutesLeft = TorchBurnMinutes });
+        var id = NewFire(world, new FireState { Tile = tile, LastUpdatedMinute = world.Minute, CarriedBy = a.Who, TorchMinutesLeft = Items.Def(torch).BurnMinutes });
         events.Add(new FireLit(world.Minute, id, tile, a.Who));
         return null;
     }

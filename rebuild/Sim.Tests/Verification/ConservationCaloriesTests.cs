@@ -54,7 +54,8 @@ public class ConservationCaloriesTests
             {
                 case OpKind.Eat:
                     {
-                        bool wholeGut = Body.GetCapacities(b).Digestion >= 1 - 1e-12;
+                        bool wholeGut = b.Regions.Single(r => r.Name == "Abdomen") is { IsDestroyed: false } abdomen
+                            && abdomen.Organs.All(o => o.Condition >= 1 - 1e-12);
                         double before = Held(b);
                         Body.Eat(b, op.Kcal);
                         double got = Held(b) - before;

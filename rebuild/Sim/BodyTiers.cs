@@ -44,31 +44,11 @@ internal static class TissueReads
         Span<double> caps = stackalloc double[regions.Count * CapacityCount];
         for (int r = 0; r < regions.Count; r++) RegionCapacities(regions[r], caps.Slice(r * CapacityCount, CapacityCount));
 
-        // Moving: 90% legs, 10% everything else. Legs are found by name so four-legged bodies count too.
-        int legs = 0;
-        foreach (var r in regions) if (IsLeg(r)) legs++;
-        int others = regions.Count - legs;
+        // Moving from the legs (found by name, so four-legged bodies count too), manipulation from a human's arms.
         const int moving = (int)Capacity.Moving, manipulation = (int)Capacity.Manipulation;
-        double legSum = 0, otherSum = 0, allSum = 0;
-        for (int r = 0; r < regions.Count; r++)
-        {
-            double m = caps[r * CapacityCount + moving];
-            if (legs == 0) allSum += m;
-            else if (IsLeg(regions[r])) legSum += m * 0.9 / legs;
-            else otherSum += m * 0.1 / others;
-        }
-        c[moving] = legs == 0 ? allSum / regions.Count : legSum + otherSum;
-
-        // Manipulation: 90% arms, 2% each from the other regions; only a human body has hands.
-        double manip = 0;
-        for (int r = 0; r < regions.Count; r++)
-            manip += caps[r * CapacityCount + manipulation] * (body.Kind != BodyKind.Human ? 0 : regions[r].Name switch
-            {
-                "Left Arm" or "Right Arm" => 0.45,
-                "Head" or "Chest" or "Abdomen" or "Left Leg" or "Right Leg" => 0.02,
-                _ => 0,
-            });
-        c[manipulation] = manip;
+        c[moving] = LimbsScaledByTheRest(regions, caps, moving, IsLeg, _ => true);
+        c[manipulation] = body.Kind != BodyKind.Human ? 0
+            : LimbsScaledByTheRest(regions, caps, manipulation, IsArm, r => r.Name is "Head" or "Chest" or "Abdomen" || IsLeg(r));
 
         for (int cap = 0; cap < CapacityCount; cap++)
         {
@@ -78,7 +58,34 @@ internal static class TissueReads
         }
     }
 
+    /// The limbs' mean times (0.9 + 0.1 × the rest's mean): the rest scales them and adds nothing, so no working limb is zero.
+    static double LimbsScaledByTheRest(List<Region> regions, ReadOnlySpan<double> caps, int cap, Func<Region, bool> isLimb, Func<Region, bool> isRest)
+    {
+        double limbSum = 0, restSum = 0;
+        int limbs = 0, rest = 0;
+        for (int r = 0; r < regions.Count; r++)
+        {
+            double v = caps[r * CapacityCount + cap];
+            if (isLimb(regions[r])) { limbSum += v; limbs++; }
+            else if (isRest(regions[r])) { restSum += v; rest++; }
+        }
+        if (limbs == 0) return 0;
+        return limbSum / limbs * (0.9 + 0.1 * (rest == 0 ? 1 : restSum / rest));
+    }
+
     static bool IsLeg(Region region) => region.Name.Contains("Leg");
+    static bool IsArm(Region region) => region.Name.Contains("Arm");
+
+    /// The gut's tissue alone, for eating and healing: no effect slows absorbing food. Not a capacity.
+    internal static double Digestion(BodyState body)
+    {
+        Span<double> c = stackalloc double[CapacityCount];
+        Fill(body, NoEffects, c);
+        return c[(int)Capacity.Digestion];
+    }
+
+    static readonly double[] NoEffectDeltas = new double[CapacityCount];
+    internal static ReadOnlySpan<double> NoEffects => NoEffectDeltas;
 
     /// Organs supply in proportion to their condition, plus the muscle's work, limited by the region's
     /// weakest layer. Not an average over tissues: that leaves two-thirds of breathing with both lungs destroyed.
@@ -127,8 +134,8 @@ internal static class TissueReads
             TissueKind.Muscle => cap switch
             {
                 Capacity.Moving or Capacity.Manipulation => c,
-                Capacity.Breathing => 0.8 + 0.2 * c,
-                Capacity.BloodPumping => 0.9 + 0.1 * c,
+                Capacity.Breath => 0.8 + 0.2 * c,
+                Capacity.Blood => 0.9 + 0.1 * c,
                 _ => 1.0,
             },
             // Squared: a cracked leg bone barely slows you, a shattered one stops you.
@@ -136,7 +143,7 @@ internal static class TissueReads
             {
                 Capacity.Moving => c * c,
                 Capacity.Manipulation => c,
-                Capacity.BloodPumping => 0.8 + 0.2 * c,
+                Capacity.Blood => 0.8 + 0.2 * c,
                 _ => 1.0,
             },
             _ => throw new ArgumentOutOfRangeException(nameof(t), t.Kind, "Not a layer"),
@@ -146,58 +153,49 @@ internal static class TissueReads
     internal static double Clamp01(double x) => Math.Clamp(x, 0, 1);
 }
 
-/// What lost blood takes from consciousness, moving and manipulation, and short breath from consciousness: 1
-/// when nothing.
-internal readonly record struct BloodAndBreath(double BloodPumping, double CirculationPct, double BreathPct)
+/// Blood and breath, and their scales (1 when whole): lost blood on consciousness and the limbs, short breath on consciousness.
+internal readonly record struct BloodAndBreath(double Blood, double Breath, double LostBloodScale, double ShortBreathScale)
 {
     internal const double CirculationFailsBloodPct = 0.5;
     const double BreathShortBelow = 0.3;
 
     /// Only real blood loss collapses circulation, not cold-slowed pumping.
-    internal static BloodAndBreath Of(BodyState body, double tissueBreathing, double tissueBloodPumping) => new(
-        tissueBloodPumping * body.BloodPct,
-        body.BloodPct < 1.0 ? Math.Max(0, (body.BloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct)) : 1,
-        tissueBreathing < BreathShortBelow ? tissueBreathing / BreathShortBelow : 1);
+    internal static BloodAndBreath Of(BodyState body, ReadOnlySpan<double> tissue)
+    {
+        double pumping = tissue[(int)Capacity.Blood], breath = tissue[(int)Capacity.Breath];
+        return new(
+            pumping * body.BloodPct,
+            breath,
+            body.BloodPct < 1.0 ? Math.Max(0, (body.BloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct)) : 1,
+            breath < BreathShortBelow ? breath / BreathShortBelow : 1);
+    }
 }
 
 /// The body's own business: outside it, only CapacityReadTests' listed reads may look.
-public readonly record struct Capacities(
-    double Moving, double Manipulation, double Breathing, double BloodPumping,
-    double Consciousness, double Sight, double Hearing, double Digestion)
+public readonly record struct Capacities(double Moving, double Manipulation, double Consciousness, double Sight, double Hearing)
 {
-    internal static Capacities Of(BodyState body)
+    internal static Capacities Of(BodyState body) => Of(body, out _);
+
+    internal static Capacities Of(BodyState body, out BloodAndBreath feed)
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
-        return Of(body, effectDeltas);
+        return Of(body, effectDeltas, out feed);
     }
 
-    /// Tissue and blood alone, as digestion and life use: hunger does not slow absorbing food, and no effect stops a heart.
-    internal static Capacities WithoutEffects(BodyState body) => Of(body, NoEffectDeltas);
+    /// Tissue and blood alone, as life uses: no effect stops a heart.
+    internal static Capacities WithoutEffects(BodyState body, out BloodAndBreath feed) => Of(body, TissueReads.NoEffects, out feed);
 
-    static readonly double[] NoEffectDeltas = new double[TissueReads.CapacityCount];
-
-    internal double WeakestVital => Math.Min(Breathing, Math.Min(BloodPumping, Consciousness));
-
-    static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas)
+    static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed)
     {
         Span<double> c = stackalloc double[TissueReads.CapacityCount];
         TissueReads.Fill(body, effectDeltas, c);
-        const int consciousness = (int)Capacity.Consciousness, moving = (int)Capacity.Moving, manipulation = (int)Capacity.Manipulation;
+        feed = BloodAndBreath.Of(body, c);
 
-        var feed = BloodAndBreath.Of(body, c[(int)Capacity.Breathing], c[(int)Capacity.BloodPumping]);
-        c[(int)Capacity.BloodPumping] = feed.BloodPumping;
-        c[consciousness] *= feed.CirculationPct;
-        c[moving] *= feed.CirculationPct;
-        c[manipulation] *= feed.CirculationPct;
-        c[consciousness] *= feed.BreathPct;
-        if (c[consciousness] < 0.1)
-        {
-            c[moving] *= 0.1;
-            c[manipulation] *= 0.1;
-        }
-
-        return new Capacities(c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]);
+        double consciousness = c[(int)Capacity.Consciousness] * feed.LostBloodScale * feed.ShortBreathScale;
+        double limbs = consciousness > 0 ? feed.LostBloodScale : 0; // unconscious, the limbs give nothing
+        return new Capacities(c[(int)Capacity.Moving] * limbs, c[(int)Capacity.Manipulation] * limbs, consciousness,
+            c[(int)Capacity.Sight], c[(int)Capacity.Hearing]);
     }
 }
 
@@ -242,17 +240,17 @@ internal static class Faculties
         double weightEffect = -(Math.Pow(structuralRatio, 0.7) - 1.0);
         double sizeModifier = 1 - 0.03 * Math.Log2(body.WeightKg / SpeedReferenceWeightKg);
 
-        double baseSpeed = c.Moving * (1 + muscleModifier - fatPenalty + weightEffect) * sizeModifier;
+        // Each term held at zero: two below it would make a body faster under its pack.
+        double baseSpeed = c.Moving * Math.Max(0, 1 + muscleModifier - fatPenalty + weightEffect) * Math.Max(0, sizeModifier);
 
         double effectiveLoad = context.EncumbrancePct / (0.5 + Strength(body, c) * 0.5);
         double loadPenalty = Math.Max(0, (effectiveLoad - 0.5) * 0.8);
-        return baseSpeed * (1 - loadPenalty);
+        return baseSpeed * Math.Max(0, 1 - loadPenalty);
     }
 
     internal static double Perception(BodyState body, AbilityContext context = default) => Perception(Capacities.Of(body), context);
 
-    /// Sight and hearing are half each, so the healthy perceive half as much in pitch dark as at noon; a
-    /// foggy head takes from both.
+    /// Sight and hearing are half each, so the healthy perceive half as much in pitch dark; a foggy head takes from both.
     internal static double Perception(in Capacities c, AbilityContext context)
     {
         double darkness = context.HasLightSource ? 0 : context.DarknessLevel;
@@ -329,7 +327,11 @@ internal static class Alive
 {
     internal static bool Is(BodyState body) => TissueVitality(body) > 0;
 
-    internal static double TissueVitality(BodyState body) => Capacities.WithoutEffects(body).WeakestVital;
+    internal static double TissueVitality(BodyState body)
+    {
+        var c = Capacities.WithoutEffects(body, out var feed);
+        return Math.Min(feed.Breath, Math.Min(feed.Blood, c.Consciousness));
+    }
 }
 
 /// The screen's one read of a body's capacities, blood and breath, in the health panel's order (BodyTierTests).
@@ -337,9 +339,9 @@ public static class BodyReadOut
 {
     public static IReadOnlyList<(Capacity Capacity, double Pct)> Of(BodyState body)
     {
-        var c = Capacities.Of(body);
-        return [(Capacity.Moving, c.Moving), (Capacity.Manipulation, c.Manipulation), (Capacity.Breathing, c.Breathing),
-            (Capacity.BloodPumping, c.BloodPumping), (Capacity.Consciousness, c.Consciousness), (Capacity.Sight, c.Sight),
+        var c = Capacities.Of(body, out var feed);
+        return [(Capacity.Moving, c.Moving), (Capacity.Manipulation, c.Manipulation), (Capacity.Breath, feed.Breath),
+            (Capacity.Blood, feed.Blood), (Capacity.Consciousness, c.Consciousness), (Capacity.Sight, c.Sight),
             (Capacity.Hearing, c.Hearing)];
     }
 }

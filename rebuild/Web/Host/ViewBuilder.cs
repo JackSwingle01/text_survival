@@ -94,7 +94,8 @@ sealed class ViewBuilder(World world, int gen)
                 AddFuel f => [Load(f.Fuel, f.Kg)],
                 _ => null,
             },
-            Durations: v.Durations);
+            Durations: v.Durations,
+            Progress: v.Progress is { } p ? new ProgressDto(p.FinishMinute, p.Why is Slowed why ? Narration.Why(why) : null) : null);
     }
 
     /// The activity's family, for the page's icons and keys. Not a vocabulary: the page acts by id.
@@ -155,15 +156,16 @@ sealed class ViewBuilder(World world, int gen)
     MakeDto MakeOf(Make mk, MakeOdds? odds)
     {
         var r = Recipes.Get(mk.Recipe);
-        double? progress = Making.MinutesDone(world, _player, r) / r.Minutes;
+        double? progress = Making.MinutesDone(world, _player, r, mk.Target) / r.Minutes;
         var materials = r.Materials.Select(Making.Words)
             .Concat(r.Items.Select(Names.GearWords)).ToList();
-        string result = r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}") : r.Name;
-        return new MakeDto(r.Id, r.Name, Names.Of(r.Category), r.Minutes, materials,
+        string result = r.Result.Repair is { } repair && mk.Target is { } kind ? $"{Names.Gear(kind)}, {Names.Pct(repair.RestoresPct)} of its wear made good"
+            : r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : r.Result.Kg > 0 ? $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}" : Names.Of(res)) : r.Name;
+        return new MakeDto(r.Id, Making.Label(r, mk.Target), Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
             odds == null ? [] : [.. odds.Outcomes.Select(o => new MakeOutcomeDto(o.Outcome.Words, o.Outcome.Kind == OutcomeKind.Succeed, o.Outcome.FailureLike, OddsOf(o.Odds)))],
-            progress);
+            progress, mk.Target);
     }
 
     // ---- the always-on layer ----
@@ -259,7 +261,8 @@ sealed class ViewBuilder(World world, int gen)
         return new PackDto(Math.Round(Items.CarriedKg(_player), 2), Items.CapacityKg(pack),
             [.. Items.Totals(pack).Where(x => x.Kg > 0.001).Select(x => new StackDto(x.Resource.ToString(), Names.Title(x.Resource), Math.Round(x.Kg, 2), Names.Amount(x.Resource, x.Kg, Items.Count(pack, x.Resource))))],
             [.. pack.Gear.Select(G)], [.. _player.Body.Worn.Select(G)],
-            [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Recipes.Get(p.Recipe).Name, Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
+            [.. (pack.Projects ?? []).Select(p => new ProjectDto(p.Recipe, Making.Label(Recipes.Get(p.Recipe), p.Target),
+                Math.Clamp(p.MinutesDone / Recipes.Get(p.Recipe).Minutes, 0, 1)))]);
     }
 
     BodyDto BodyOf(BodyState b)
@@ -373,7 +376,7 @@ sealed class ViewBuilder(World world, int gen)
         int? total = job.Budget;
         if (job.Activity is Travel && _player.Crossing is { } c) total = c.TotalMinutes;
         else if (job.Activity is Travel && job.Finished) total = job.Done;
-        if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.MinutesDone(world, _player, Recipes.Get(mk.Recipe)) is double done)
+        if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.MinutesDone(world, _player, Recipes.Get(mk.Recipe), mk.Target) is double done)
         {
             var r = Recipes.Get(mk.Recipe);
             double rate = Making.WorkPerMinute(world, _player, pack, r);

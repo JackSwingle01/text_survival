@@ -15,7 +15,8 @@
 //   wear. maxDurability is stated on every kind; -1 never wears out. insulation is tenths of a clo over the slot's share of the
 //   body (old BaseInsulation). A tent's shelter values are shelters.json's. capabilities is stated on every
 //   kind: what carrying it lets someone do to a thing (Capability names, each once; [] for none). An unlit
-//   torch gives no Light: a burning one is a fire, not gear.
+//   torch gives no Light: a burning one is a fire, not gear. burnMinutes: how long a torch burns once lit,
+//   stated on every torch and only there.
 //   chopFactor (axes, and only axes): how fast it fells and cuts up a tree, the ground stone axe's being 1.
 //   weapon: damage in units of tissue condition (GLOSSARY.md, Damage), its class, how far
 //   from the wielder it strikes (reachM), and, if it is made to be thrown, how far, how true and how hard
@@ -100,7 +101,7 @@
   "hand_drill": { "name": "Hand Drill", "category": "Tool", "baseWeightKg": 0.1, "maxDurability": -1, "capabilities": ["Spark"], "tool": "HandDrill" },
   "bow_drill": { "name": "Bow Drill", "category": "Tool", "baseWeightKg": 0.2, "maxDurability": -1, "capabilities": ["Spark"], "tool": "BowDrill" },
   "waterskin": { "name": "Waterskin", "category": "Tool", "baseWeightKg": 0.3, "maxDurability": -1, "capabilities": ["Carrying"], "tool": "WaterContainer" },
-  "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.1, "maxDurability": 1, "capabilities": [], "tool": "Torch" },
+  "torch": { "name": "Torch", "category": "Tool", "baseWeightKg": 0.1, "maxDurability": 1, "capabilities": [], "tool": "Torch", "burnMinutes": 60 },
   "bone_needle": { "name": "Bone Needle", "category": "Tool", "baseWeightKg": 0.05, "maxDurability": 20, "capabilities": ["Binding", "Sewing"], "tool": "Needle" },
   "worn_fur_chest_wrap": { "name": "Worn Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.5, "maxDurability": 50, "capabilities": [], "slot": "Chest", "insulation": 0.20, "cushioning": 0.12, "toughness": 0.04, "waterproofLevel": 0.1 },
   "fur_chest_wrap": { "name": "Fur Chest Wrap", "category": "Clothing", "baseWeightKg": 1.8, "maxDurability": 100, "capabilities": [], "slot": "Chest", "insulation": 0.30, "cushioning": 0.20, "toughness": 0.08, "waterproofLevel": 0.1 },
@@ -111,9 +112,11 @@
   "mammoth_hide_chest": { "name": "Mammoth Hide Chest", "category": "Clothing", "baseWeightKg": 4.5, "maxDurability": 200, "capabilities": [], "slot": "Chest", "insulation": 0.45, "cushioning": 0.25, "toughness": 0.38, "waterproofLevel": 0.25 },
   "mammoth_hide_legs": { "name": "Mammoth Hide Legs", "category": "Clothing", "baseWeightKg": 2.5, "maxDurability": 200, "capabilities": [], "slot": "Legs", "insulation": 0.30, "cushioning": 0.22, "toughness": 0.35, "waterproofLevel": 0.25 },
   "worn_coat": { "name": "Worn Coat", "category": "Clothing", "baseWeightKg": 2.0, "maxDurability": 50, "capabilities": [], "slot": "Chest", "insulation": 0.15 },
-  "small_pouch": { "name": "Small Pouch", "category": "Accessory", "baseWeightKg": 0.1, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 0.5 },
-  "rope_belt": { "name": "Rope Belt", "category": "Accessory", "baseWeightKg": 0.4, "maxDurability": 100, "capabilities": ["Carrying", "Binding"], "capacityBonusKg": 3.0 },
-  "proper_belt": { "name": "Proper Belt", "category": "Accessory", "baseWeightKg": 0.3, "maxDurability": 150, "capabilities": ["Carrying"], "capacityBonusKg": 4.0 },
+  // Carrying things weigh no more than their lightest inputs (#150): the rope belt two of the lightest ropes, the hide
+  // belt two of the lightest hide strips, the large bag three of the lightest cured hides, two sinews and two ropes.
+  "small_pouch": { "name": "Birch-Bark Pouch", "category": "Accessory", "baseWeightKg": 0.1, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 0.5 },
+  "rope_belt": { "name": "Rope Belt", "category": "Accessory", "baseWeightKg": 0.2, "maxDurability": 100, "capabilities": ["Carrying", "Binding"], "capacityBonusKg": 3.0 },
+  "hide_belt": { "name": "Hide Belt", "category": "Accessory", "baseWeightKg": 0.046, "maxDurability": 150, "capabilities": ["Carrying"], "capacityBonusKg": 4.0 },
   "bone_shovel": { "name": "Bone Shovel", "category": "Tool", "baseWeightKg": 1.1, "maxDurability": 15, "capabilities": ["Digging"], "tool": "Shovel" },
   "hide_tent": { "name": "Hide Tent", "category": "Tool", "baseWeightKg": 3.0, "maxDurability": 50, "capabilities": [], "tool": "Tent" },
   "mammoth_hide_tent": { "name": "Mammoth Hide Tent", "category": "Tool", "baseWeightKg": 5.0, "maxDurability": 80, "capabilities": [], "tool": "Tent" },
@@ -137,7 +140,11 @@
   // (a cured mammoth hide, a cured hide and four sinews), not the old 4 kg.
   "mammoth_hide_coat": { "name": "Mammoth Hide Coat", "category": "Clothing", "baseWeightKg": 1.35, "maxDurability": 40, "capabilities": [], "slot": "Chest", "insulation": 0.45, "waterproofLevel": 0.4 },
   "mammoth_hood": { "name": "Mammoth Hood", "category": "Clothing", "baseWeightKg": 0.8, "maxDurability": 30, "capabilities": [], "slot": "Head", "insulation": 0.22, "waterproofLevel": 0.4 },
-  "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.8, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 10.0 }
+  "large_bag": { "name": "Large Bag", "category": "Accessory", "baseWeightKg": 0.51, "maxDurability": 100, "capabilities": ["Carrying"], "capacityBonusKg": 10.0 },
+  // The lightest cured mammoth hide, two sinews and a rope.
+  "mammoth_hide_pack": { "name": "Mammoth Hide Pack", "category": "Accessory", "baseWeightKg": 1.28, "maxDurability": 150, "capabilities": ["Carrying"], "capacityBonusKg": 15.0 },
+  // Pine resin and tinder about a stick: burns twice a torch's hour.
+  "resin_torch": { "name": "Resin Torch", "category": "Tool", "baseWeightKg": 0.1, "maxDurability": 1, "capabilities": [], "tool": "Torch", "burnMinutes": 120 }
  },
 
  "slotCoverage": { "Head": 0.1, "Chest": 0.4, "Legs": 0.3, "Hands": 0.1, "Feet": 0.1 },

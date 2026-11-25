@@ -261,7 +261,7 @@ public class ContentTests
     [InlineData("shelters.json", "\"name\": \"Sleeping area\",", "\"name\": \"Sleeping area\", \"soft\": true,", "soft")]
     [InlineData("butchering.json", "\"timeFactor\": 0.5,", "\"timeFactor\": 0.5, \"mess\": 1,", "mess")]
     [InlineData("terrain.json", "\"traversalMinutes\": 4, \"blocking\": false }", "\"traversalMinutes\": 4, \"blocking\": false, \"fish\": 1 }", "fish")]
-    [InlineData("forage.json", "\"resource\": \"WillowBark\", \"abundance\": 0.25,", "\"resource\": \"WillowBark\", \"abundance\": 0.25, \"colour\": 1,", "colour")]
+    [InlineData("forage.json", "\"resource\": \"WillowBark\", \"abundance\": 1.25,", "\"resource\": \"WillowBark\", \"abundance\": 1.25, \"colour\": 1,", "colour")]
     [InlineData("discoveries.json", "\"name\": \"Wild Berry Bush\",", "\"name\": \"Wild Berry Bush\", \"thorns\": true,", "thorns")]
     [InlineData("accidents.json", "\"effect\": \"Dazed\", \"severity\": 0.2", "\"effect\": \"Dazed\", \"severity\": 0.2, \"ouch\": 1", "ouch")]
     public void Loader_RefusesAnUnknownField_InEveryFile(string file, string from, string to, string named) =>

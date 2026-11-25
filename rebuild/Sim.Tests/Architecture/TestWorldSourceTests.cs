@@ -20,6 +20,7 @@ public class TestWorldSourceTests
         ["PoolsTests.cs"] = (5, "searches over seeds 1-40"),
         ["HerdTests.cs"] = (4, "searches over 24 and 200 seeds, and the valley's population is the subject"),
         ["WeatherTests.cs"] = (1, "a search over 20 seeds"),
+        ["HaulReport.cs"] = (2, "the herds placed at generation, on the old forage and on today's, are the subject"),
         ["CombatTests.cs"] = (1, "a search over 20 seeds"),
         ["CombatFlightTests.cs"] = (2, "searches over 60 and 300 seeds"),
         ["CombatReachTests.cs"] = (3, "searches over 30 and 60 seeds"),

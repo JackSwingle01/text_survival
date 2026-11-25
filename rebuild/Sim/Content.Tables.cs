@@ -89,7 +89,7 @@ public static partial class Content
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
-        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null);
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -142,6 +142,7 @@ public static partial class Content
         var effectRows = Keyed<EffectKind, EffectRow>(effects, "effects.json", problems, complete: true);
         var effectCaps = effectRows.ToDictionary(e => e.Key,
             e => Keyed<Capacity, double>(e.Value.Capacities ?? new Dictionary<string, double>(), $"effects.json {e.Key} capacities", problems));
+        problems.AddRange(EffectNameProblems(effectCaps));
         var kinds = Keyed<ShelterKind, ShelterKindProps>(shelters.Kinds, "shelters.json kinds", problems, complete: true);
         var materials = Keyed<Resource, ShelterMaterial>(shelters.Materials, "shelters.json materials", problems);
         var beddings = Keyed<BeddingKind, BeddingProps>(shelters.Beddings, "shelters.json beddings", problems, complete: true);
@@ -294,6 +295,13 @@ public static partial class Content
         if (problems.Count > 0) throw new InvalidDataException("Content is broken:\n" + string.Join("\n", problems));
     }
 
+    /// An effect names only a capacity, blood or breath: digestion is the gut's own, below them all.
+    internal static IEnumerable<string> EffectNameProblems(IReadOnlyDictionary<EffectKind, Dictionary<Capacity, double>> effectCaps) =>
+        from e in effectCaps
+        from cap in e.Value.Keys
+        where cap == Capacity.Digestion
+        select $"effects.json {e.Key} capacities: {cap} is not a capacity, blood or breath";
+
     static IReadOnlyDictionary<TKey, T> ReadOnly<TKey, T>(Dictionary<TKey, T> d) where TKey : notnull => new ReadOnlyDictionary<TKey, T>(d);
 
     /// A table keyed by enum name, exactly as the enum spells it (the JSON reader alone would take
@@ -356,6 +364,7 @@ public static partial class Content
         IReadOnlyDictionary<Resource, ResourceDef> resources, List<string> problems)
     {
         var recipes = new List<Recipe>();
+        var repaired = new HashSet<string>();
         foreach (var (id, row) in rows)
         {
             string at = $"recipes.json {id}";
@@ -389,16 +398,18 @@ public static partial class Content
             if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
             var r = row.Result;
             bool placed = r.Shelter != null || r.Bedding != null;
-            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null }.Count(x => x) != 1)
-                problems.Add($"{at}: the result is a gear kind, a resource, a shelter or a bedding, exactly one");
+            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null }.Count(x => x) != 1)
+                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding or a repair, exactly one");
+            else if (r.Repairs != null) problems.AddRange(RepairProblems(at, row, items, gear, repaired));
             else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
             else if (r.Gear != null && (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0)) problems.Add($"{at}: a gear result is one piece, with no amount");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
-            else if (r.Resource is Resource made2 && !resources[made2].Discrete && (r.G <= 0 || r.Count != 0 || r.SharePct != 0 || r.Kg != 0))
-                problems.Add($"{at}: a continuous result {made2} is grams (g)");
+            else if (r.Resource is Resource made2 && !resources[made2].Discrete
+                && (!((r.G > 0 && r.SharePct == 0) || (r.G == 0 && r.SharePct is > 0 and <= 1)) || r.Count != 0 || r.Kg != 0))
+                problems.Add($"{at}: a continuous result {made2} is grams (g) or a sharePct (0-1] of the inputs' weight");
             var faster = row.Faster ?? Array.AsReadOnly(Array.Empty<Capability>());
             if (row.FasterFactor is double by && (by <= 1 || faster.Count == 0)) problems.Add($"{at}: fasterFactor {by} is over 1, and only with a faster tool");
             foreach (var (name, caps) in new[] { ("tools", row.Tools), ("faster", faster) })
@@ -433,7 +444,8 @@ public static partial class Content
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct), outcomes.AsReadOnly(),
+                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct,
+                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
@@ -497,10 +509,30 @@ public static partial class Content
                 double light = lo * r.SharePct / pieces, heavy = hi * r.SharePct / pieces;
                 if (light < resources[made].MinPieceKg - 1e-9 || heavy > resources[made].MaxPieceKg + 1e-9)
                     yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
-                if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             }
+            if (r.SharePct * lightest > lightest - saved + 1e-9)
+                yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";
             else if (r.G / 1000 > lightest - saved + 1e-9)
                 yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";
+        }
+    }
+
+    /// A repair works on pieces that wear, each kind in one repair recipe, none of them a tool of its own work; it
+    /// restores a share (0-1] of the missing condition and takes no items.
+    static IEnumerable<string> RepairProblems(string at, RecipeFileRow row, List<string> items, IReadOnlyDictionary<string, GearDef> gear, HashSet<string> repaired)
+    {
+        var r = row.Result;
+        if (items.Count > 0) yield return $"{at}: a repair takes no items";
+        if (r.RestoresPct is <= 0 or > 1) yield return $"{at}: restoresPct {r.RestoresPct} is a share (0-1] of the missing condition";
+        if (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0) yield return $"{at}: a repair has no amount";
+        if (r.Repairs!.Count == 0) yield return $"{at}: a repair names the gear kinds it works on";
+        var uses = row.Tools.Concat(row.Faster ?? []).ToList();
+        foreach (var kind in r.Repairs)
+        {
+            if (!gear.TryGetValue(kind, out var def)) { yield return $"{at}: no gear kind '{kind}'"; continue; }
+            if (def.MaxDurability <= 0) yield return $"{at}: {kind} never wears, so has nothing to repair";
+            if (!repaired.Add(kind)) yield return $"{at}: {kind} is repaired by another recipe too";
+            if (def.Capabilities.Intersect(uses).Any()) yield return $"{at}: {kind} gives a capability its own repair uses";
         }
     }
 
@@ -555,6 +587,7 @@ public static partial class Content
             foreach (var (name, v) in new[] { ("insulation", g.Insulation), ("cushioning", g.Cushioning), ("toughness", g.Toughness), ("waterproofLevel", g.WaterproofLevel) })
                 if (v is < 0 or > 1) yield return $"{at}: {name} {v} is not in 0-1";
             if (g.CapacityBonusKg < 0) yield return $"{at}: capacityBonusKg {g.CapacityBonusKg}";
+            if ((g.Tool == ToolType.Torch) != (g.BurnMinutes > 0) || g.BurnMinutes < 0) yield return $"{at}: a torch, and only a torch, burns (burnMinutes)";
             if (g.Weapon is { } w && (w.Damage <= 0 || w.BlockChance is < 0 or > 1 || w.ReachM <= 0))
                 yield return $"{at}: weapon damage {w.Damage} (above 0), blockChance {w.BlockChance}, reachM {w.ReachM}";
             if (g.Weapon?.Thrown is { } t && (t.RangeM <= 0 || t.Accuracy is <= 0 or > 1 || t.Damage <= 0))
