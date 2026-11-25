@@ -16,7 +16,7 @@
 //   diet: which foods it eats from piles, caches and carcasses (a name in diets).
 //   grazes (optional, nothing): what it grazes off a tile's forage, in order (old AnimalDietExtensions.GetConsumedResources);
 //     every herbivore has one. A meat-eater that grazes with no list lives on small game, on any ground (Fauna.GrazeAt).
-//     Starting lists, to be balanced (#116).
+//     Stick is twigs, and Tinder grass, as dried plant matter. Starting lists, to be balanced (#116).
 //   Humans never form herds of their own; theirs are the old defaults, Prey and Carnivore.
 //   How it runs (documentation/species-stats-research.md §5.3), fresh and unladen: topSpeedMps, flat out;
 //   enduranceSpeedMps, the pace it holds for 20 minutes or more; sprintSeconds, the seconds at top speed

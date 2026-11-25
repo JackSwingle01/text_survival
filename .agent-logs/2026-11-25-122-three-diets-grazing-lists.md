@@ -19,3 +19,4 @@ Revised: fixed-seed check done as a throwaway probe, not a kept test (pinned cap
 Follow-up: HerdTests.ThirtyPopulatedDays_StayCheap (Slow, nightly) is red on main before this change: 6,830 MB against its 6,600 MB cap, seed 17; with this change 6,848 MB, same 45,114 moves (the forage score is now cached per species, nine sums instead of three). Not re-baselined here.
 Follow-up: #124 should read `Content.Tables.Diets` for what an animal takes from a pile and drop `Fauna.RaidFood`; the Omnivore list is a starting list.
 Follow-up: `SpeciesStats` no longer has value equality (it holds a list); two tests compared rows with it. A value-equal list type in content records would restore it if more tests want it.
+Revised (review): no sub-agents to run the two review axes, so reviewed in the session: the old diets table said Stick stands for twigs and Tinder for grass, and the move to grazing lists dropped it → restored in the grazes note in species.json.
