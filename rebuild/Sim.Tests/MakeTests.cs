@@ -608,21 +608,20 @@ public class MakeTests
 
     // ---- processing, lighting and carrying (#150) ----
 
-    /// Each recipe from the spec's inputs, written "Resource=pieces" or "Resource=grams g": made with its tool or fire, refused
-    /// without it, its inputs all used.
+    /// Each recipe from the spec's inputs, written "Resource=pieces" or "Resource=grams g": made with its tool, refused
+    /// without it, its inputs all used. Render fat is the fire's (StationTests).
     [Theory]
-    [InlineData("render_fat", "RawFat=1", null, true, "Tallow", 20)]
-    [InlineData("willow_fibre", "WillowBark=100g", null, false, "PlantFiber", 10)]
-    [InlineData("cordage", "PlantFiber=300g", null, false, "Rope", 15)]
-    [InlineData("torch", "Stick=1 BirchBark=50g", null, false, "torch", 5)]
-    [InlineData("torch", "Stick=1 Tinder=50g", null, false, "torch", 5)]
-    [InlineData("resin_torch", "Stick=1 PineResin=30g Tinder=20g", null, false, "resin_torch", 10)]
-    [InlineData("small_pouch", "BirchBark=100g PlantFiber=50g", "flint_knife", false, "small_pouch", 15)]
-    [InlineData("rope_belt", "Rope=2", null, false, "rope_belt", 20)]
-    [InlineData("hide_belt", "HideStrip=2", "flint_knife", false, "hide_belt", 30)]
-    [InlineData("large_bag", "CuredHide=3 Sinew=2 Rope=2", "bone_needle", false, "large_bag", 60)]
-    [InlineData("mammoth_hide_pack", "CuredMammothHide=1 Sinew=2 Rope=1", "bone_needle", false, "mammoth_hide_pack", 120)]
-    public void EachRecipe_IsMadeFromWhatItLists_AndRefusedWithoutItsToolOrFire(string recipe, string inputs, string? tool, bool fire, string result, int minutes)
+    [InlineData("willow_fibre", "WillowBark=100g", null, "PlantFiber", 10)]
+    [InlineData("cordage", "PlantFiber=300g", null, "Rope", 15)]
+    [InlineData("torch", "Stick=1 BirchBark=50g", null, "torch", 5)]
+    [InlineData("torch", "Stick=1 Tinder=50g", null, "torch", 5)]
+    [InlineData("resin_torch", "Stick=1 PineResin=30g Tinder=20g", null, "resin_torch", 10)]
+    [InlineData("small_pouch", "BirchBark=100g PlantFiber=50g", "flint_knife", "small_pouch", 15)]
+    [InlineData("rope_belt", "Rope=2", null, "rope_belt", 20)]
+    [InlineData("hide_belt", "HideStrip=2", "flint_knife", "hide_belt", 30)]
+    [InlineData("large_bag", "CuredHide=3 Sinew=2 Rope=2", "bone_needle", "large_bag", 60)]
+    [InlineData("mammoth_hide_pack", "CuredMammothHide=1 Sinew=2 Rope=1", "bone_needle", "mammoth_hide_pack", 120)]
+    public void EachRecipe_IsMadeFromWhatItLists_AndRefusedWithoutItsTool(string recipe, string inputs, string? tool, string result, int minutes)
     {
         var w = Noon(out var pack);
         w.Minute = 14 * 60; // eleven at night: none of these needs light
@@ -637,11 +636,6 @@ public class MakeTests
             Assert.Equal(tool == "bone_needle" ? "you need something for sewing" : "you need something for cutting", Sim.Refusal(w, new Make(P, recipe))?.Reason);
             pack.Gear.Add(Items.Make(tool));
         }
-        if (fire)
-        {
-            Assert.Equal("you need a fire burning here", Sim.Refusal(w, new Make(P, recipe))?.Reason);
-            Burning(w);
-        }
         Assert.Null(Sim.Refusal(w, new Make(P, recipe)));
         Assert.Null(Sim.Step(w, new Make(P, recipe), 1).InterruptedReason);
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get(recipe), null, []));
@@ -649,19 +643,6 @@ public class MakeTests
         if (Enum.TryParse<Resource>(result, out var made)) Assert.True(Items.Have(pack, made) > 0, $"no {made}");
         else Assert.Single(pack.Gear, g => g.Kind == result);
         foreach (var (r, _) in given.Where(x => x.R.ToString() != result)) Assert.Equal(0, Items.Have(pack, r), 9);
-    }
-
-    [Fact]
-    public void AHalfKiloOfRawFat_RendersToThreeHundredGramsOfTallow()
-    {
-        var w = Noon(out var pack);
-        Burning(w);
-        Items.AddPieces(pack, Resource.RawFat, [0.5]);
-        Assert.Null(Sim.Step(w, new Make(P, "render_fat"), 1).InterruptedReason);
-        var events = new List<WorldEvent>();
-        Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("render_fat"), null, events));
-        Assert.Equal(0.3, Items.Have(pack, Resource.Tallow), 9);
-        Assert.Equal(0.3, Assert.Single(events.OfType<Made>()).Produced[Resource.Tallow], 9);
     }
 
     [Fact]
