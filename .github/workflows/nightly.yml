@@ -10,8 +10,10 @@ name: Nightly
 # command that replays it locally (documentation/verification.md). One issue a run, not one a test:
 # the issue agent builds each issue on its own branch, so an issue a test had several agents fixing
 # one cause in the same code. While that issue is open, the next failing run rewrites it. It carries
-# the `nightly` label. The issue agent does not pick it up: github-actions wrote it, and
-# issue_queue.py lets through only that bot's `ratchet` issues.
+# the `nightly` label. It is a ticket for the issue agent, and its body carries the rule: triage marks
+# it ready only when the fixes are small and obvious, else `needs-user`. The report job dispatches
+# triage for a new issue (one opened with GITHUB_TOKEN starts no workflows). It does not hold the
+# build queue: the Slow tests gate no PR.
 # - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds. It reports and never gates: its result is
 #   not in the run's issue.
 # Baselines. A run on main commits what it measured to the `baselines` branch (the baseline job,
@@ -183,7 +185,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      actions: read
+      # Write, to dispatch triage for a new issue.
+      actions: write
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -211,5 +214,8 @@ jobs:
             gh issue edit "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/body.md"
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Rewritten with the failures of $RUN_URL."
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label nightly --body-file "$RUNNER_TEMP/body.md"
+            url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label nightly --body-file "$RUNNER_TEMP/body.md")
+            echo "$url"
+            gh workflow run issue-triage.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f issue="${url##*/}" ||
+              echo "Triage was not dispatched; its hourly run picks the issue up."
           fi

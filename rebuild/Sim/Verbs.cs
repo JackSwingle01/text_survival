@@ -26,13 +26,15 @@ public sealed record MissingGear(IReadOnlyList<string> AnyOf) : Missing
 /// Need is the line and Have where it stands, in the unit the Lack names; both null for a state that is there or not.
 public sealed record MissingState(Lack Lack, double? Need = null, double? Have = null) : Missing;
 
-public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, MovingPct, FrostF, Shelter, Dry, StationRoom }
+public enum Lack { Light, BurningFire, FireHeatF, FireRoomKg, PackRoomKg, FrostF, Shelter, Dry, StationRoom }
+
+/// A faculty at zero (GLOSSARY: Crippled), and why: what would have to mend or be put down.
+public sealed record MissingFaculty(Faculty Faculty, IReadOnlyList<CrippledBy> Because) : Missing;
 
 /// One thing a person can do now, ready to run (Sim.Step(world, Activity, Minutes)). An activity that
 /// stops itself (a crossing, a butchering) gets a budget it never reaches. A refused verb is still listed, so the player sees why.
-/// Trip (Trip.Time) is the one number dock and preview show; Risk is the injury odds the crossing rolls.
-/// Durations: the lengths it can be run for, Minutes among them, where how long is the person's choice (a forage).
-/// Progress: on a Take back, how the piece on the station is going (its forecast finish, and why it is slow).
+/// Trip is the one number dock and preview show; Risk the injury odds the crossing rolls. Durations, where how long
+/// is the person's choice (a forage), include Minutes. Progress, on a Take back, is the piece's forecast finish and why.
 public sealed record Verb(string Label, Activity Activity, int Minutes, Refusal? Refused, Odds? Odds = null, TripTime? Trip = null,
     MakeOdds? Outcomes = null, Odds? Risk = null, IReadOnlyList<int>? Durations = null, StationProgress? Progress = null)
 {
@@ -247,8 +249,7 @@ public static class Verbs
         return verb is { } v ? [v] : [];
     }
 
-    /// The old forage screen's choices: a general search, labelled with the ground's word once foraged here, one
-    /// for each focus that grows here, and Keep Walking for new clues.
+    /// A general search (worded by the ground once foraged here), one per focus that grows here, and Keep Walking.
     static List<(string, Activity, int)> ForageVerbs(World world, AgentId who, LocationFeature t, ForagePool def)
     {
         var place = (world.Agent(who).Mind as PersonMind)?.Memory.Places.GetValueOrDefault(t.Tile);
@@ -276,9 +277,6 @@ public static class Verbs
         if (!Fire.IsActive(pit) && pack != null) menu.Add(("Light the fire", Light(who, pack, pit.Pit), 1));
         if (pit.CharcoalKg > 0) menu.Add(("Gather charcoal", new GatherCharcoal(who), 1));
         menu.AddRange(StationVerbs(world, who, StationKind.Fire, Stations.At(world, new FireId(t.Index)), null, pack));
-        foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
-            if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
-        menu.Add(("Melt snow by hand", new MeltSnow(who), Work.MeltSnowMinutes));
         return menu;
     }
 

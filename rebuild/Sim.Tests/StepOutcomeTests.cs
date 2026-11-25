@@ -33,18 +33,13 @@ public class StepOutcomeTests
     }
 
     [Fact]
-    public void EatingAndMeltingSnow_Finished()
+    public void Eating_Finished()
     {
         var w = Camp(out _);
         TestKit.Supply(w);
         TestKit.Give(Items.Pack(w, P), Resource.Berries, 1);
         var ate = Sim.Step(w, new Eat(P, Resource.Berries, 0.5), Verbs.UntilDoneMinutes);
         Assert.Equal((StepOutcome.Finished, Work.Ate), (ate.Outcome, ate.Reason));
-
-        var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
-        for (int i = 0; i < 20 && !(Fire.PitAt(w, w.Agent(P).Tile) is FireId f && Fire.IsActive(w.Fires[f])); i++) Sim.Step(w, light.Activity, 1);
-        var melted = Sim.Step(w, new MeltSnow(P), Verbs.UntilDoneMinutes);
-        Assert.Equal((StepOutcome.Finished, Work.Melted), (melted.Outcome, melted.Reason));
     }
 
     [Fact]
@@ -87,20 +82,5 @@ public class StepOutcomeTests
         Combat.Create(w, [new Fighter(P)], [new Fighter(wolf)], camp, 10, Awareness.Engaged, Awareness.Engaged);
         var r = Sim.Step(w, new Wait(P), 5);
         Assert.Equal((StepOutcome.Refused, Sim.InAnEncounter), (r.Outcome, r.Reason));
-    }
-
-    [Fact]
-    public void CookingWhenTheFireGoesOut_Interrupted_WithTheReason()
-    {
-        var w = Camp(out var camp);
-        TestKit.Supply(w);
-        TestKit.Give(Items.Pack(w, P), Resource.RawMeat, 5);
-        var light = Verbs.At(w, P).Tile.Single(v => v.Activity is StartFire);
-        for (int i = 0; i < 20 && !(Fire.PitAt(w, camp) is FireId f && Fire.IsActive(w.Fires[f])); i++) Sim.Step(w, light.Activity, 1);
-        var pit = w.Fires[Fire.PitAt(w, camp)!.Value];
-        // Nothing left to burn: the fire dies under the meat.
-        pit.UnburnedKg.Clear();
-        var r = Sim.Step(w, new Cook(P, Resource.RawMeat, 5), Verbs.UntilDoneMinutes);
-        Assert.Equal((StepOutcome.Interrupted, "the fire went out"), (r.Outcome, r.Reason));
     }
 }

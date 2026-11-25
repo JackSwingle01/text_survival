@@ -236,12 +236,41 @@ public class FacultiesTests
         Assert.True(Body.Speed(weak) > 0);
     }
 
+    // ---- a faculty at zero says why ----
+
+    /// Each way to speed at zero, alone, names only itself; a body that can walk names nothing.
+    [Fact]
+    public void SpeedAtZero_NamesWhatTookIt()
+    {
+        var legless = Whole();
+        Destroy(legless, "Left Leg");
+        Destroy(legless, "Right Leg");
+        Assert.Equal([CrippledBy.NoWorkingLimb], Body.SpeedCrippledBy(legless));
+
+        var bled = Whole();
+        bled.BloodPct = 0.5;
+        Assert.Equal([CrippledBy.LostBlood], Body.SpeedCrippledBy(bled));
+
+        Assert.Equal([CrippledBy.Unconscious], Body.SpeedCrippledBy(BlowToTheHead(brain: 0)));
+
+        var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
+        Effects.Add(weak, EffectKind.Tired, 1.0);
+        Assert.Equal([CrippledBy.Load], Body.SpeedCrippledBy(weak, new AbilityContext(EncumbrancePct: 1.0)));
+        Assert.Empty(Body.SpeedCrippledBy(weak));
+
+        Assert.Empty(Body.SpeedCrippledBy(Whole()));
+        var oneWeakLeg = Whole();
+        Destroy(oneWeakLeg, "Left Leg");
+        SetLayers(oneWeakLeg, "Right Leg", 0.01);
+        Assert.Empty(Body.SpeedCrippledBy(oneWeakLeg));
+    }
+
     // ---- properties over any body ----
 
     static readonly Gen<double> MostlyWhole = Gen.Frequency((1, Gen.Const(1.0)), (1, Condition), (1, Gen.Const(0.0)));
 
     /// Any species and sex, any wounds, blood, effects, build and load, in the dark or the light.
-    static readonly Gen<(BodyState Body, AbilityContext Context)> AnyBody =
+    internal static readonly Gen<(BodyState Body, AbilityContext Context)> AnyBody =
         Gen.Select(
             Gen.Select(Gen.Enum<Species>(), Gen.Enum<Sex>(), MostlyWhole.Array[48], Gen.Double[0, 1]),
             Gen.Select(Gens.Kind, Gens.Severity).Array[0, 6],
@@ -269,6 +298,17 @@ public class FacultiesTests
             foreach (var (name, faculty) in new[] { ("strength", Body.Strength(b)), ("speed", Body.Speed(b, context)),
                 ("dexterity", Body.Dexterity(b, context)), ("perception", Body.Perception(b, context)) })
                 Assert.True(double.IsFinite(faculty) && faculty >= 0, $"{name} {faculty}");
+        }, iter: 300);
+    }
+
+    /// A refusal always has its reasons: speed is at zero exactly when it names one.
+    [Fact]
+    public void SpeedIsAtZero_ExactlyWhenItNamesAReason_ForAnyBody()
+    {
+        AnyBody.Check(t =>
+        {
+            var (b, context) = t;
+            Assert.Equal(Body.Speed(b, context) == 0, Body.SpeedCrippledBy(b, context).Count > 0);
         }, iter: 300);
     }
 

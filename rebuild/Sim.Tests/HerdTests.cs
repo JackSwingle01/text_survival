@@ -650,15 +650,9 @@ public class HerdTests(ITestOutputHelper output)
         var tile = Quiet(w, Terrain.Forest);
         var id = Animals.Spawn(w, Species.Caribou, tile, members);
         var lame = w.Agent(id).Body;
-        var rng = Rng.ForSystem(1, "test");
-        while (Body.GetCapacities(lame).Moving > 0.1)
-        {
-            Body.Damage(lame, new DamageInfo(8, DamageType.Blunt, BodyTarget.AnyLeg), rng);
-            lame.Effects.Clear(); // lame from its legs, not from pain that fades
-        }
-        // A hurt back as well: four broken legs alone leave exactly the tenth of Moving the rest of the
-        // body gives, which is Fauna.Mobile's line, and a minute's mending crosses it.
-        lame.Regions.Single(r => r.Name == "Torso").Muscle.Condition = 0.5;
+        foreach (var leg in lame.Regions.Where(r => r.Name.EndsWith("Leg")))
+            foreach (var layer in leg.Layers) layer.Condition = 0;
+        Assert.Equal(0, Body.Speed(lame)); // lame: Fauna.Mobile's line is any speed at all
         Assert.True(Body.IsAlive(lame));
         return id;
     }
@@ -705,7 +699,7 @@ public class HerdTests(ITestOutputHelper output)
         var lone = HerdWithALameMember(w, 1);
         var body = w.Agent(lone).Body;
         var events = Sim.Advance(w, 6 * 1440);
-        Assert.True(Body.GetCapacities(body).Moving > 0.9, $"moving {Body.GetCapacities(body).Moving:F2} after six days");
+        Assert.True(SpeciesTable.SpeedPct(Species.Caribou, body) > 0.9, $"speed {SpeciesTable.SpeedPct(Species.Caribou, body):F2} of a fresh one after six days");
         Assert.Contains(events.OfType<Moved>(), m => m.Who == lone);
     }
 
