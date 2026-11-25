@@ -545,8 +545,11 @@ public class StationTests
     public void AHandRecipeThatNeedsAFire_IsStillMadeByHand_AtAFire()
     {
         var w = Camp(out _);
-        Items.Pack(w, P).Gear.Add(Items.Make("crude_spear"));
-        Assert.False(Verbs.At(w, P).Make.Single(v => v.Activity is Make { Recipe: "wooden_spear" }).Allowed);
+        var pack = Items.Pack(w, P);
+        pack.Gear.Add(Items.Make("flint_knife"));
+        TestKit.Give(pack, Resource.PineBranch, 1.5);
+        var refused = Verbs.At(w, P).Make.Single(v => v.Activity is Make { Recipe: "wooden_spear" });
+        Assert.Equal("you need a fire burning here", refused.Refused?.Reason);
         Pit(w, 5);
         var verb = Verbs.At(w, P).Make.Single(v => v.Activity is Make { Recipe: "wooden_spear" });
         Assert.True(verb.Allowed, verb.Refused?.Reason);

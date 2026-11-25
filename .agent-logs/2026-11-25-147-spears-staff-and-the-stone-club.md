@@ -22,3 +22,8 @@ Follow-up: the obsidian spear leads the axe by 0.1 points at 4000 fights (noise 
 Follow-up: the pack pick (Combat.WeaponWorth) ignores durability, so a fighter holding several spears takes the ivory or obsidian one; no NPC carries a spear today.
 Revised (review): SpearsAndClubTests copied MakeTests' Noon and Burning → MakeTests' are internal and shared; the one-letter W helper is Damage/Uses; the wooden spear's plain fail is listed first, as its neighbours.
 Revised (review): the spec measures the club on a person, a wolf and a caribou, and short on a bear, where the test checked the wolf → a theory over Human, Wolf and Caribou (club ≤ spear) and a bear fact (club > spear), all passing.
+
+Revised (merge with main): `StationTests.AHandRecipeThatNeedsAFire_IsStillMadeByHand_AtAFire` (#188,
+merged after this branch was cut) gave the player a `crude_spear` to fire-harden, a kind this ticket
+removes → it gives a flint knife and a pine branch, what `wooden_spear` takes now, and asserts the
+refusal without a fire is "you need a fire burning here".
