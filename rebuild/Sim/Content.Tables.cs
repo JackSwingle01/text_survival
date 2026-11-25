@@ -85,7 +85,7 @@ public static partial class Content
         Dictionary<string, string> Hints, IReadOnlyList<ClueDef> Clues, Dictionary<string, string> Tutorials, IReadOnlyList<SearchBand> SearchBands);
     sealed record RecipeFileRow(string Name, MakeCategory Category, IReadOnlyList<InputRow> Inputs, IReadOnlyList<Capability> Tools,
         IReadOnlyList<Requirement> Requires, int Minutes, ResultRow Result, IReadOnlyList<string> Outcomes, IReadOnlyList<Capability>? Faster = null,
-        double? FasterFactor = null);
+        double? FasterFactor = null, StationKind? Station = null, StationDriver? Driver = null);
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
@@ -427,15 +427,32 @@ public static partial class Content
                         case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
                             problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
+            if (row.Station != null || row.Driver != null) problems.AddRange(StationProblems(at, row, materials, items, faster, outcomes, resources));
             if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
                 new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct), outcomes.AsReadOnly(),
-                row.FasterFactor ?? Making.FasterToolFactor));
+                row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
+    }
+
+    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on.
+    static IEnumerable<string> StationProblems(string at, RecipeFileRow row, List<MaterialInput> materials, List<string> items,
+        IReadOnlyList<Capability> faster, List<Outcome> outcomes, IReadOnlyDictionary<Resource, ResourceDef> resources)
+    {
+        if (row.Station == null) yield return $"{at}: a driver with no station: only a station-worked recipe has one";
+        if (row.Driver == null) yield return $"{at}: a station-worked recipe names its driver";
+        if (row.Tools.Count > 0 || faster.Count > 0) yield return $"{at}: a station-worked recipe uses no tools";
+        if (outcomes.Count > 0) yield return $"{at}: a station-worked recipe has no outcome table";
+        if (row.Requires.Count > 0) yield return $"{at}: a station-worked recipe has no requirements: its station's exposure sets its rate";
+        if (items.Count > 0 || materials.Count != 1) yield return $"{at}: a station-worked recipe has one input";
+        else if (materials[0] is not { AnyOf.Count: 1, Count: 1 } m || !resources[m.AnyOf[0]].Discrete)
+            yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource";
+        if (row.Result.Resource is not Resource made || !resources[made].Discrete || row.Result.Count != 1)
+            yield return $"{at}: a station-worked recipe makes one piece of a discrete resource";
     }
 
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
@@ -571,7 +588,7 @@ public static partial class Content
             if (p.IgnitionBonusPct is < 0 or > 1) yield return $"fire.json fuels {r}: ignitionBonusPct {p.IgnitionBonusPct}";
         }
         foreach (var (pit, p) in pits)
-            if (p.MaxFuelKg <= 0 || p.WindProtectionLevel is < 0 or > 1 || p.FuelEfficiencyFactor <= 0) yield return $"fire.json pits {pit}: out of range";
+            if (p.Room < 1 || p.MaxFuelKg <= 0 || p.WindProtectionLevel is < 0 or > 1 || p.FuelEfficiencyFactor <= 0) yield return $"fire.json pits {pit}: out of range";
     }
 
     static string? RunningProblem(double topSpeedMps, double enduranceSpeedMps) =>

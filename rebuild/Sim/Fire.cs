@@ -9,7 +9,7 @@ public enum FirePhase { Cold, Igniting, Building, Roaring, Steady, Dying, Embers
 /// the reader builds a struct row from its parameterless constructor and would take a missing field as 0.
 public sealed record FuelProps(double PeakTempF, double BurnRateKgPerHour, double MinFireTempF, double IgnitionBonusPct);
 
-public sealed record PitProps(double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
+public sealed record PitProps(int Room, double MaxFuelKg, double WindProtectionLevel, double FuelEfficiencyFactor);
 
 /// What flame does to an animal's nerve (Content/fire.json deterrence, read by Combat.FireDeterrence).
 public sealed record DeterrenceProps(double FireFear, double TorchIntensityPct, double FullIntensityHeatF, double FullWithinM);
@@ -53,6 +53,7 @@ public static class Fire
     const double CharcoalYieldPct = 0.04;
     public const double TorchBurnMinutes = 60;
 
+    public static int Room(PitType pit) => Pits[pit].Room;
     public static double MaxFuelKg(PitType pit) => Pits[pit].MaxFuelKg;
     public static double WindProtectionLevel(PitType pit) => Pits[pit].WindProtectionLevel;
     static double FuelEfficiencyFactor(PitType pit) => Pits[pit].FuelEfficiencyFactor;

@@ -51,7 +51,7 @@ public static class Narration
             SkillLeveledUp x => x.Who == me,
             Made x => x.Who == me,
             ProjectAbandoned x => x.Who == me,
-            FireBurnedToEmbers or FireDied or ShelterCollapsed => e.Tile == here,
+            FireBurnedToEmbers or FireDied or ShelterCollapsed or TransformationFinished => e.Tile == here,
             _ => false,
         };
         return mine ? Of(world, e) : null;
@@ -80,6 +80,7 @@ public static class Narration
             FuelAdded x => ($"{Does(x.By, "add")} {Names.Amount(x.Fuel, x.Kg, x.Pieces)} to the fire.", Tone.Plain),
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
+            TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} is done at the fire.", Tone.Good),
             Moved x => ($"{Does(x.Who, "reach")} {Place(world, x.To)}.", Tone.Plain),
             Injured x => (Me(x.Who) ? $"You hurt your {x.Region.ToLowerInvariant()}."
                 : world.Agents.TryGetValue(x.Who, out var hurt) && hurt.Mind is HerdMind ? $"A {Names.Of(hurt.Species)} is hurt." // one of the herd, not the herd

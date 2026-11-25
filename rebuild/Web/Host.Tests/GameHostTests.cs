@@ -28,6 +28,34 @@ public class GameHostTests
     static VerbDto Find(ViewDto v, Func<VerbDto, bool> match, string what) =>
         AllVerbs(v).FirstOrDefault(match) ?? throw new Xunit.Sdk.XunitException($"No verb {what} in: {string.Join(", ", AllVerbs(v).Select(x => x.Label))}");
 
+    /// The fire's menu offers Put on for carried raw meat, then Take once it is cooked (spec 2026-11-24
+    /// fire-and-rack-as-stations, "Verbs").
+    [Fact]
+    public void The_fire_menu_puts_meat_on_and_takes_it_cooked()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var me = w.Agent(AgentId.Player);
+        if (Fire.PitAt(w, me.Tile) == null)
+            w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
+        var pit = w.Fires[Fire.PitAt(w, me.Tile)!.Value];
+        pit.BurningKg[Resource.Birch] = 5;
+        Items.AddPiece(Items.Pack(w, AgentId.Player), Resource.RawMeat, 0.4);
+        static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
+
+        var putOn = FireMenu(Parse(h.View())).Single(x => x.Kind == "puton");
+        Assert.Equal("Put on raw meat", putOn.Label);
+        Run(h, putOn);
+        var back = FireMenu(Parse(h.View())).Single(x => x.Kind == "takeback");
+        Assert.Null(back.Refused);
+        var wait = Find(Parse(h.View()), x => x.Kind == "wait", "wait");
+        Run(h, wait);
+        var take = FireMenu(Parse(h.View())).Single(x => x.Kind == "take");
+        Run(h, take);
+        Assert.Equal(0.4, Items.Have(Items.Pack(w, AgentId.Player), Resource.CookedMeat), 9);
+    }
+
     [Fact]
     public void A_new_game_lists_the_tiles_verbs_with_ids_and_the_four_walks()
     {

@@ -273,7 +273,7 @@ public class ContentTests
     [InlineData("species.json", "\"Fox\": {", "\"Fox, Wolf\": {", "no Species 'Fox, Wolf'")]
     [InlineData("effects.json", "\"Wet\":", "\"Soggy\":", "no EffectKind 'Soggy'")]
     // A kind the code has with no row.
-    [InlineData("fire.json", "  \"Mound\": { \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
+    [InlineData("fire.json", "  \"Mound\": { \"room\": 3, \"maxFuelKg\": 15, \"windProtectionLevel\": 0.4, \"fuelEfficiencyFactor\": 1.0 },\n", "", "fire.json pits: no row for Mound")]
     [InlineData("recipes.json", "\"shelter\": \"BranchFrame\"", "\"shelter\": \"BranchFrames\"", "no ShelterKind 'BranchFrames'")]
     [InlineData("effects.json", "\"Bloody\":", "\"Bloodied\":", "effects.json: no row for Bloody")]
     // A value that is no kind at all.
