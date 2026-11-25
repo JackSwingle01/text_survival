@@ -107,8 +107,8 @@ public class FireStartingTests
     [Fact]
     public void NoStartOdds_AreAbove95Pct()
     {
-        Gen.Select(Gen.Int[0, Fire.Starters.Count - 1], Gen.Int[0, Fuels.Length - 1], Gen.Int[0, Skills.MaxLevel], Gen.Bool, Gen.Double[0, 1])
-            .Check(c => Assert.InRange(Fire.StartOdds(Fire.Starters[c.Item1], Fuels[c.Item2], c.Item3, c.Item4, c.Item5).TotalPct, 0.05, 0.95), iter: 1000);
+        Gen.Select(Gen.Int[0, Fire.Starters.Count - 1], Gen.Int[0, Fuels.Length - 1], Gen.Int[0, Skills.MaxLevel], Gen.Double[0, 1])
+            .Check(c => Assert.InRange(Fire.StartOdds(Fire.Starters[c.Item1], Fuels[c.Item2], c.Item3, c.Item4).TotalPct, 0.05, 0.95), iter: 1000);
     }
 
     [Fact]

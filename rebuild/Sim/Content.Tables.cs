@@ -421,10 +421,11 @@ public static partial class Content
                             problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
                         case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
                             problems.Add($"{at}: extra_product {x.What} is no gear kind or resource"); break;
-                        case ExtraProduct x when gear.ContainsKey(x.What) && x.Amount != Math.Floor(x.Amount):
+                        case ExtraProduct x when (gear.ContainsKey(x.What) || Enum.TryParse<Resource>(x.What, out var whole) && resources[whole].Discrete)
+                            && x.Amount != Math.Floor(x.Amount):
                             problems.Add($"{at}: extra_product {x.What} is whole pieces"); break;
-                        case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete:
-                            problems.Add($"{at}: extra_product {x.What} is discrete, and an extra resource is an amount"); break;
+                        case ExtraProduct x when Enum.TryParse<Resource>(x.What, out var xr) && resources[xr].Discrete && xr != r.Resource:
+                            problems.Add($"{at}: extra_product {x.What} is discrete: an extra piece is of the recipe's own result, and an extra resource otherwise an amount"); break;
                     }
             if (problems.Count == before) problems.AddRange(WeightProblems(at, materials, items, r, outcomes, gear, resources));
             double sum = outcomes.Sum(o => o.BasePct);
@@ -475,7 +476,8 @@ public static partial class Content
             }
             if (resources[made].Discrete)
             {
-                double light = lo * r.SharePct / r.Count, heavy = hi * r.SharePct / r.Count;
+                int pieces = r.Count + Making.ExtraPieces(effects, made);
+                double light = lo * r.SharePct / pieces, heavy = hi * r.SharePct / pieces;
                 if (light < resources[made].MinPieceKg - 1e-9 || heavy > resources[made].MaxPieceKg + 1e-9)
                     yield return $"{at}: a piece of {made} would weigh {light:0.###}-{heavy:0.###} kg{(o == null ? "" : $" ({o.Text})")}, outside {resources[made].MinPieceKg}-{resources[made].MaxPieceKg}";
                 if (r.SharePct * lightest > lightest - saved + 1e-9) yield return $"{at}: {made} at {r.SharePct} of the inputs is more than is left after saving{(o == null ? "" : $" ({o.Text})")}";

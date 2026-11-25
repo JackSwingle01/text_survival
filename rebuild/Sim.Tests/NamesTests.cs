@@ -85,6 +85,7 @@ public class NamesTests
         Assert.Equal(["Done, but you cut your left arm", "Done, but you cut your right arm"], cut.Select(o => o.Words));
         Assert.Equal("Fails: the striking tool loses 2 uses", Outcomes.Parse("fail:break_tool:Striking:2=.02").Single().Words);
         Assert.Equal("Done, but an extra sharp rock", Outcomes.Parse("succeed:extra_product:sharp_rock:1=.05").Single().Words);
+        Assert.Equal("Done, but an extra hide strip", Outcomes.Parse("succeed:extra_product:HideStrip:1=.5").Single().Words);
     }
 
     /// A title-case name read inside a sentence is lower case throughout, not just its first letter.

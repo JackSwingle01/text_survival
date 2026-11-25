@@ -188,7 +188,7 @@ public class CombatTests
         var (w, t) = Field();
         var e = PlayerVs(w, t, species, 4);
         var prey = B(e);
-        double vitality = Body.Vitality(w.Agent(AgentId.Player).Body);
+        double vitality = Body.Vitality(w.Agent(AgentId.Player).Body, Species.Human);
         double last = prey.Position.DistanceTo(Me(e).Position);
         for (int turn = 0; turn < 30 && prey.InField; turn++)
         {
@@ -199,7 +199,7 @@ public class CombatTests
             last = now;
         }
         Assert.False(prey.InField); // off the map edge, alive
-        Assert.Equal(vitality, Body.Vitality(w.Agent(AgentId.Player).Body));
+        Assert.Equal(vitality, Body.Vitality(w.Agent(AgentId.Player).Body, Species.Human));
     }
 
     /// Block and Dodge are no longer actions (combat round 1): every aware fighter defends itself when struck.
@@ -729,6 +729,8 @@ public class CombatTests
         Normalize(w, B(e).Agent);
         Assert.Equal(1.3, Combat.UnitBoldness(w, e, B(e)), 9); // no opening optimism (round 2)
         var pack = PlayerVsPack(3);
+        // Every member average-sized: vitality is a share of a fresh wolf, so a spawned size moves it (#200).
+        foreach (var u in pack.E.Units.Where(u => u.Team == 1)) Normalize(pack.W, u.Agent);
         Assert.Equal(1.3 + 0.15 * 2 * (0.7 * 2), Combat.UnitBoldness(pack.W, pack.E, B(pack.E)), 9);
     }
 

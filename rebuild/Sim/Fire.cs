@@ -447,9 +447,9 @@ public static class Fire
         events.Add(new FireBurnedToEmbers(minute, id, f.Tile));
     }
 
-    /// Odds as terms: tool base, skill, tinder, -20% consciousness impaired, up to -50% clumsy hands; clamped 5-95%.
+    /// Odds as terms: tool base, skill, tinder, up to -50% clumsy hands (a foggy head among them); clamped 5-95%.
     /// handsWhy names what is costing dexterity, for the sheet.
-    public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0, string handsWhy = "")
+    public static Odds StartOdds(ToolType tool, Resource tinder, int skillLevel = 0, double dexterityPct = 1.0, string handsWhy = "")
     {
         double basePct = tool switch
         {
@@ -461,12 +461,11 @@ public static class Fire
         return new Odds(Names.Title(tool), basePct, Odds.Moving(
             OddsTerm.Add("Firecraft", Skills.FirecraftPct(skillLevel)),
             OddsTerm.Add(Names.Title(tinder), Props[tinder].IgnitionBonusPct),
-            OddsTerm.Add("Dazed", consciousnessImpaired ? -0.2 : 0),
             OddsTerm.Add(handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands", -(1.0 - dexterityPct) * 0.5)), MinPct: 0.05, MaxPct: 0.95);
     }
 
-    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, bool consciousnessImpaired = false, double dexterityPct = 1.0) =>
-        StartOdds(tool, tinder, skillLevel, consciousnessImpaired, dexterityPct).TotalPct;
+    public static double StartChancePct(ToolType tool, Resource tinder, int skillLevel = 0, double dexterityPct = 1.0) =>
+        StartOdds(tool, tinder, skillLevel, dexterityPct).TotalPct;
 
     /// Fires around the agent must be caught up (the light they work by).
     public static Odds StartOdds(World world, Agent agent, ToolType tool, Resource tinder)
@@ -474,7 +473,6 @@ public static class Fire
         var body = agent.Body;
         var context = AbilityContextFor(world, agent);
         return StartOdds(tool, tinder, Skills.Level(agent, Skill.Firecraft),
-            consciousnessImpaired: Body.GetCapacities(body).Consciousness < 0.5,
             dexterityPct: Body.Dexterity(body, context), handsWhy: string.Join(", ", Body.DexterityCosts(body, context)));
     }
 

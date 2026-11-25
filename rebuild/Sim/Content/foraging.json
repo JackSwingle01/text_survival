@@ -45,7 +45,7 @@
   "PineResin": "tree resin", "Usnea": "lichen", "SphagnumMoss": "moss", "PineNeedles": "needles",
   "Stone": "stone", "Shale": "stone", "Flint": "stone", "Pyrite": "stone", "PlantFiber": "fiber", "Rope": "fiber",
   "Bone": "animal parts", "Hide": "animal parts", "ScrapedHide": "animal parts", "CuredHide": "animal parts", "Sinew": "animal parts",
-  "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "Feather": "animal parts",
+  "RawFat": "animal parts", "Tallow": "animal parts", "Ivory": "animal parts", "MammothHide": "animal parts", "ScrapedMammothHide": "animal parts", "CuredMammothHide": "animal parts", "HideStrip": "animal parts", "Feather": "animal parts",
   "Charcoal": "charcoal", "RawMeat": "meat", "CookedMeat": "meat", "DriedMeat": "meat", "Berries": "berries", "DriedBerries": "berries",
   "Nuts": "nuts", "Roots": "roots", "Honey": "honey", "Stick": "sticks", "Tinder": "tinder", "ResinTinder": "tinder", "PineBranch": "branches", "BirchBranch": "branches",
   "OakBranch": "branches", "PineFirewood": "firewood", "BirchFirewood": "firewood", "OakFirewood": "firewood", "BirchBark": "bark", "Peat": "peat", "RawFish": "fish", "CookedFish": "fish", "DriedFish": "fish", "Water": "water"

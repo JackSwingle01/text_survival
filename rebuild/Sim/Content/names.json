@@ -36,6 +36,9 @@
   "Rope": "rope|ropes",
   "Ivory": "tusk of ivory|tusks of ivory",
   "MammothHide": "mammoth hide|mammoth hides",
+  "ScrapedMammothHide": "scraped mammoth hide|scraped mammoth hides",
+  "CuredMammothHide": "cured mammoth hide|cured mammoth hides",
+  "HideStrip": "hide strip|hide strips",
   "BirchPolypore": "birch polypore|birch polypores"
  },
  "Resource": {
@@ -80,6 +83,9 @@
   "Rope": "rope",
   "Ivory": "ivory",
   "MammothHide": "mammoth hide",
+  "ScrapedMammothHide": "scraped mammoth hide",
+  "CuredMammothHide": "cured mammoth hide",
+  "HideStrip": "hide strip",
   "Feather": "feather",
   "BirchPolypore": "birch polypore",
   "RoseHip": "rose hip",

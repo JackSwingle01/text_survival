@@ -149,11 +149,11 @@ public class IndividualsTests(ITestOutputHelper output)
         var tile = Quiet(w);
         var person = BodyState.BaselineHuman();
         var lone = Agents.Spawn(w, Species.Wolf, tile);
-        double alone = Combat.Boldness(w, lone, person);
+        double alone = Combat.Boldness(w, lone, person, Species.Human);
         Agents.SpawnGroup(w, Species.Wolf, tile, 4); // strangers
-        Assert.Equal(alone, Combat.Boldness(w, lone, person), 9);
+        Assert.Equal(alone, Combat.Boldness(w, lone, person, Species.Human), 9);
         var pack = Agents.SpawnGroup(w, Species.Wolf, Map.Step(tile, Direction.North), 5);
-        double inPack = Combat.Boldness(w, pack[0], person);
+        double inPack = Combat.Boldness(w, pack[0], person, Species.Human);
         Assert.True(inPack > alone, $"a pack of five ({inPack:0.00}) no bolder than a lone wolf ({alone:0.00})");
     }
 

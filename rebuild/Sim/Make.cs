@@ -347,17 +347,16 @@ public static class Making
     {
         var context = Fire.AbilityContextFor(world, agent);
         return Odds(r, Skills.Level(agent, Skill.Crafting), Body.Dexterity(agent.Body, context),
-            dazed: Body.GetCapacities(agent.Body).Consciousness < 0.5, handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
+            handsWhy: string.Join(", ", Body.DexterityCosts(agent.Body, context)));
     }
 
     /// Clumsy hands make failure-like outcomes up to twice as likely at no dexterity, and success
     /// bonuses rarer in proportion. Outcomes summing past certainty are scaled back to share it.
-    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, bool dazed = false, string handsWhy = "")
+    public static MakeOdds Odds(Recipe r, int craftingLevel, double dexterityPct = 1.0, string handsWhy = "")
     {
         string hands = handsWhy.Length > 0 ? $"Hands ({handsWhy})" : "Hands";
         List<OddsTerm> Terms(Outcome o) => o.FailureLike
-            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)),
-                OddsTerm.Scale("Dazed", dazed ? 1.2 : 1))
+            ? Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 - SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, 1 + (1 - dexterityPct)))
             : Survival.Odds.Moving(OddsTerm.Scale("Crafting", 1 + SkillPctPerLevel * craftingLevel), OddsTerm.Scale(hands, dexterityPct));
         var table = r.Outcomes.Select(o => new OutcomeOdds(o, new Survival.Odds("Base odds", o.BasePct, Terms(o)))).ToList();
         double sum = table.Sum(t => t.Odds.TotalPct);
@@ -506,7 +505,7 @@ public static class Making
         foreach (var cap in r.Faster) if (ToolFor(pack, cap) != null) work *= r.FasterFactor;
         var c = Body.GetCapacities(agent.Body);
         if (r.Result.Placed) return work / ((c.Moving < 0.5 ? 1.20 : 1.0) * (c.Manipulation < 0.5 ? 1.25 : 1.0));
-        double slow = (c.Manipulation < 0.5 ? 1.25 : 1.0) * (c.Consciousness < 0.5 ? 1.25 : 1.0);
+        double slow = c.Manipulation < 0.5 ? 1.25 : 1.0;
         double dexterity = Body.Dexterity(agent.Body, Fire.AbilityContextFor(world, agent));
         if (dexterity < DexterityThreshold) slow *= 1 + (DexterityThreshold - dexterity) / DexterityThreshold * MaxDexterityPenaltyPct;
         return work / slow;
@@ -525,6 +524,10 @@ public static class Making
             if ((roll -= o.Odds.TotalPct) < 0) { outcome = o.Outcome; break; }
         return Complete(world, agent, r, outcome, events);
     }
+
+    /// An extra product of a discrete result itself: more, smaller pieces of the same weight.
+    internal static int ExtraPieces(IEnumerable<Effect> effects, Resource result) =>
+        effects.OfType<ExtraProduct>().Where(x => x.What == result.ToString()).Sum(x => (int)x.Amount);
 
     /// Outcome null is the plain result. Tests name the outcome here.
     internal static string Complete(World world, Agent agent, Recipe r, Outcome? outcome, List<WorldEvent> events)
@@ -585,7 +588,8 @@ public static class Making
             if (Items.IsDiscrete(made))
             {
                 kgMade = r.Result.SharePct * Math.Max(0, inputKg - wastedKg);
-                for (int i = 0; i < r.Result.Count; i++) Items.AddPiece(gained, made, kgMade / r.Result.Count);
+                int pieces = r.Result.Count + ExtraPieces(effects, made);
+                for (int i = 0; i < pieces; i++) Items.AddPiece(gained, made, kgMade / pieces);
             }
             else
             {
@@ -599,6 +603,8 @@ public static class Making
         foreach (var e in effects)
             switch (e)
             {
+                case ExtraProduct x when x.What == r.Result.Resource?.ToString():
+                    break;
                 case ExtraProduct x when Items.GearKinds.ContainsKey(x.What):
                     for (int i = 0; i < (int)x.Amount; i++) { gained.Gear.Add(Items.Make(x.What)); extraGear.Add(x.What); }
                     break;
