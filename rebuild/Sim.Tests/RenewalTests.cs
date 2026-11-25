@@ -259,7 +259,7 @@ public class RenewalTests
         var den = Put(Species.Wolf);
         var wolves = Animals.Spawn(w, Species.Wolf, den, 8);
         var hyenas = Animals.Spawn(w, Species.Hyena, den, 6);
-        const int flock = 24;
+        const int flock = 32; // well over what the valley carries: about 23 since #152 raised the forage
         var ravens = Animals.Spawn(w, Species.Raven, den, flock);
         Assert.Equal(0, Fauna.Capacity(w, Species.Wolf)); // no prey left in the valley
         double ravensRoom = Fauna.Capacity(w, Species.Raven);

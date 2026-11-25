@@ -546,12 +546,19 @@ public static class Pools
     public static IReadOnlyDictionary<Resource, double> ExpectedForage(World world, PoolId id, int minutes, double effectivePct = 1, double? rememberedDensity = null)
     {
         var def = (ForagePool)Def(world, id);
-        var kg = new SortedDictionary<Resource, double>();
         double density = rememberedDensity ?? ForageDensity(world, id);
-        if (minutes <= 0 || density <= 0) return kg;
-        double hours = HoursBehind(def, density), stepHours = effectivePct / 60;
+        if (minutes <= 0 || density <= 0) return new SortedDictionary<Resource, double>();
         var ungrazed = def.Items.Select(i => rememberedDensity == null ? 1 - GrazedLevel(world, id, i.Resource) : 1).ToArray();
-        for (int step = 0; step < minutes; step++)
+        return ExpectedForageByMinute(def, density, ungrazed, effectivePct).Skip(minutes - 1).First();
+    }
+
+    /// ExpectedForage minute by minute, on ground of the density given, with each item's ungrazed share (none
+    /// grazed if null): after each minute, the kg found so far. One dictionary, updated in place and never ending.
+    public static IEnumerable<IReadOnlyDictionary<Resource, double>> ExpectedForageByMinute(ForagePool def, double density, double[]? ungrazed = null, double effectivePct = 1)
+    {
+        var kg = new SortedDictionary<Resource, double>();
+        double hours = HoursBehind(def, density), stepHours = effectivePct / 60;
+        while (true)
         {
             double d = def.Density / (1 + 2 * hours), findsPct = 0;
             for (int band = 0; band < Luck.Length; band++)
@@ -560,15 +567,15 @@ public static class Pools
                 for (int i = 0; i < def.Items.Count; i++)
                 {
                     var item = def.Items[i];
-                    double chance = d * item.Abundance * ungrazed[i] * Luck[band].Factor * stepHours;
+                    double chance = d * item.Abundance * (ungrazed?[i] ?? 1) * Luck[band].Factor * stepHours;
                     kg[item.Resource] = kg.GetValueOrDefault(item.Resource) + bandPct * chance * (item.MinKg + item.MaxKg) / 2;
                     nonePct *= chance >= 1 ? 0 : 1 - chance;
                 }
                 findsPct += bandPct * (1 - nonePct);
             }
             hours += stepHours * findsPct;
+            yield return kg;
         }
-        return kg;
     }
 
     /// A forecast: one felled tree's expected yield, the mixed wood shared out as Chop draws it.

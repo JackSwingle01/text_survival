@@ -24,6 +24,24 @@ public sealed record DistributionReport(IReadOnlyList<RegionRow> Regions, int[] 
     public bool TooMany(RegionRow r) => r.Total > MedianFinds * Report.MaxRegionFactor;
 }
 
+/// Ground: a terrain, or CaveEntrance or CaveFloor (Report.HaulGrounds).
+public sealed record HaulTarget(Resource Resource, string Ground, double Kg);
+
+public sealed record HaulRow(string Ground, Resource Resource, double HourKg, double SampledHourKg, double DayKg, double? TargetKg)
+{
+    public bool Ok => TargetKg is not double t || Math.Abs(HourKg - t) <= t * Report.HaulTolerancePct;
+}
+
+/// Kg of a continuous resource, or Count pieces of a discrete one.
+public sealed record HaulInput(Resource Resource, double Kg, int Count);
+/// Source: "recipe" from recipes.json, or "spec" for a recipe not in the game yet.
+public sealed record HaulNeed(string Name, string Source, IReadOnlyList<HaulInput> Inputs, double BudgetHours);
+
+public sealed record HaulNeedRow(HaulNeed Need, double Hours, string Ground, IReadOnlyList<string> Others)
+{
+    public bool Ok => Hours <= Need.BudgetHours * (1 + Report.HaulTolerancePct);
+}
+
 public sealed record PopulationRow(Species Species, int Herds, int Animals);
 public sealed record CurvePoint(int Day, IReadOnlyList<PopulationRow> Populations);
 
@@ -352,6 +370,152 @@ public static class Report
     static string Short(FindCategory c) => ShortNames[(int)c];
 
     static string Flag(bool ok) => ok ? "y" : "N";
+
+    // ---- haul ----
+
+    /// A first hour on fresh good ground should bring in about this much of these (the recipes spec's Foraging).
+    public static readonly IReadOnlyList<HaulTarget> HaulTargets =
+    [
+        new(Resource.PlantFiber, "Forest", 0.300), new(Resource.BirchBark, "Forest", 0.200), new(Resource.WillowBark, "Marsh", 0.100),
+        new(Resource.PineResin, "Forest", 0.030), new(Resource.Flint, "Rock", 0.050),
+    ];
+
+    /// A haul or a recipe's gathering within this share of its target is on it.
+    public const double HaulTolerancePct = 0.2;
+    /// A working day of foraging, all of it on one tile: the case where nobody moves on.
+    public const int HaulDayHours = 8;
+    /// Sampled hours per ground: each a fresh tile and one luck, searched through Pools.Forage itself.
+    public const int HaulSampleHours = 400;
+    /// An everyday item's foraged inputs should take about an hour, a camp comfort's about half a day.
+    public const double EverydayHours = 1, ComfortHours = HaulDayHours / 2.0;
+
+    /// Every ground a person forages unaided: each passable terrain's table at its base density, and the caves'.
+    public static IReadOnlyList<(string Ground, ForagePool Pool)> HaulGrounds() =>
+    [
+        .. Enum.GetValues<Terrain>().Where(t => t.IsPassable() && t.Row().Forage != null)
+            .Select(t => (t.ToString(), Pool(t.Row().Forage!))),
+        .. new[] { Cave.Entrance, Cave.Floor }.Select(c => ($"Cave{c}", Pool(c.Row().Forage))),
+    ];
+
+    static ForagePool Pool(ForageRef f) => new("forage", f.Density, Content.Tables.Forage[f.Table]);
+
+    /// What a first hour and a day bring in of each thing on each ground, fresh, General focus, a healthy unskilled
+    /// searcher: the forecast (Pools.ExpectedForageByMinute) and a sample of hours on the seed's own draws.
+    public static IReadOnlyList<HaulRow> Haul(int seed)
+    {
+        var rows = new List<HaulRow>();
+        foreach (var (ground, pool) in HaulGrounds())
+        {
+            Dictionary<Resource, double> hour = [], day = [];
+            int minute = 0;
+            foreach (var kg in Pools.ExpectedForageByMinute(pool, pool.Density))
+            {
+                if (++minute == 60) hour = new(kg);
+                if (minute == HaulDayHours * 60) { day = new(kg); break; }
+            }
+            var sampled = SampledHour(pool, seed, ground);
+            foreach (var r in pool.Items.Select(i => i.Resource).Distinct())
+                rows.Add(new HaulRow(ground, r, hour[r], sampled.GetValueOrDefault(r), day[r],
+                    HaulTargets.FirstOrDefault(t => t.Resource == r && t.Ground == ground)?.Kg));
+        }
+        return rows;
+    }
+
+    /// The mean of HaulSampleHours first hours on fresh ground, one luck each, as a search rolls it.
+    static Dictionary<Resource, double> SampledHour(ForagePool pool, int seed, string ground)
+    {
+        var tile = new TileId(0, 0);
+        var w = new World { Seed = seed, PoolCache = new() { [tile] = [pool] } };
+        var id = new PoolId(tile, 0);
+        var rng = Rng.ForSystem(seed, "haul " + ground);
+        var kg = new Dictionary<Resource, double>();
+        for (int h = 0; h < HaulSampleHours; h++)
+        {
+            w.Tiles.Clear();
+            double luck = Pools.RollLuck(rng);
+            for (int m = 0; m < 60; m++, w.Minute++)
+                foreach (var (r, found) in Pools.Forage(w, id, 1 / 60.0, rng, luck)) kg[r] = kg.GetValueOrDefault(r) + found / HaulSampleHours;
+        }
+        return kg;
+    }
+
+    /// What the everyday things and camp comforts take from the ground: their recipes' inputs where the recipe is
+    /// in the game, the spec's amounts where it is not yet. A piece counts as its row's middle weight.
+    public static IReadOnlyList<HaulNeed> HaulNeeds()
+    {
+        HaulNeed FromRecipe(string id, double budget)
+        {
+            var recipe = Recipes.All.Single(r => r.Id == id);
+            return new(recipe.Name, "recipe", [.. recipe.Materials.Select(m => new HaulInput(m.AnyOf[0], m.Kg, m.Count))], budget);
+        }
+        HaulNeed FromSpec(string name, double budget, params HaulInput[] inputs) => new(name, "spec", inputs, budget);
+        return
+        [
+            FromRecipe("cordage", EverydayHours),
+            FromRecipe("simple_torch", EverydayHours), FromRecipe("birch_bark_torch", EverydayHours), FromRecipe("resin_torch", EverydayHours),
+            FromSpec("Birch-bark pouch", EverydayHours, new(Resource.BirchBark, 0.100, 0), new(Resource.PlantFiber, 0.050, 0)),
+            FromSpec("Simple snare", EverydayHours, new(Resource.Stick, 0, 1), new(Resource.PlantFiber, 0.030, 0)),
+            FromSpec("Net", ComfortHours, new(Resource.PlantFiber, 0.200, 0), new(Resource.Stick, 0, 2)),
+            FromRecipe("padded_bedding", ComfortHours), FromRecipe("moss_bedding", ComfortHours),
+        ];
+    }
+
+    /// Hours of foraging a need's inputs take: on the one ground that gives them all soonest, or, where none
+    /// gives them all, each input on its own best ground in turn; infinite if some input takes more than a day.
+    /// Inputs no ground gives (a hide) are left out.
+    public static HaulNeedRow HaulHours(HaulNeed need)
+    {
+        var grounds = HaulGrounds();
+        var foraged = need.Inputs.Where(i => grounds.Any(g => Row(g.Pool, i.Resource) != null)).ToList();
+        var others = need.Inputs.Except(foraged).Select(i => i.Resource.ToString()).ToList();
+        var best = grounds.Select(g => (g.Ground, Minutes: MinutesFor(g.Pool, foraged))).MinBy(g => g.Minutes);
+        if (best.Minutes < int.MaxValue) return new HaulNeedRow(need, best.Minutes / 60.0, best.Ground, others);
+        double minutes = 0;
+        var where = new List<string>();
+        foreach (var input in foraged)
+        {
+            var b = grounds.Select(g => (g.Ground, Minutes: MinutesFor(g.Pool, [input]))).MinBy(g => g.Minutes);
+            minutes += b.Minutes == int.MaxValue ? double.PositiveInfinity : b.Minutes;
+            where.Add(b.Ground);
+        }
+        return new HaulNeedRow(need, minutes / 60.0, string.Join("+", where.Distinct()), others);
+    }
+
+    static ForageItem? Row(ForagePool pool, Resource r) => pool.Items.FirstOrDefault(i => i.Resource == r);
+
+    /// Minutes until the forecast has brought in every input on this ground; int.MaxValue if it never does in a day.
+    static int MinutesFor(ForagePool pool, IReadOnlyList<HaulInput> inputs)
+    {
+        if (inputs.Any(i => Row(pool, i.Resource) == null)) return int.MaxValue;
+        var needKg = inputs.Select(i => i.Count > 0 ? i.Count * (Row(pool, i.Resource)!.MinKg + Row(pool, i.Resource)!.MaxKg) / 2 : i.Kg).ToArray();
+        int minute = 0;
+        foreach (var kg in Pools.ExpectedForageByMinute(pool, pool.Density))
+        {
+            minute++;
+            if (inputs.Select((i, k) => kg[i.Resource] >= needKg[k]).All(x => x)) return minute;
+            if (minute >= 24 * 60) return int.MaxValue;
+        }
+        return int.MaxValue;
+    }
+
+    public static string HaulText(int seed)
+    {
+        var sb = new StringBuilder();
+        sb.Append(Invariant($"# haul, seed {seed}: fresh ground at its terrain's base density, General focus, a healthy unskilled searcher\n"));
+        sb.Append(Invariant($"# hour: the forecast's first hour; sampled: the mean of {HaulSampleHours} first hours on the seed's draws; day: {HaulDayHours} h on one tile, thinning\n"));
+        sb.Append(Invariant($"# a target is met within {HaulTolerancePct:P0}\n"));
+        sb.Append("ground       resource          hour_g  sampled_g    day_g  target_g\n");
+        foreach (var r in Haul(seed))
+            sb.Append(Invariant($"{r.Ground,-12} {r.Resource,-16} {r.HourKg * 1000,7:0} {r.SampledHourKg * 1000,10:0} {r.DayKg * 1000,8:0}")
+                + (r.TargetKg is double t ? Invariant($"  {t * 1000,8:0}  {(r.Ok ? "ok" : r.HourKg < t ? "LOW" : "HIGH")}") : "") + "\n");
+        sb.Append("\nneed                  from    hours  budget  ground           not foraged\n");
+        foreach (var need in HaulNeeds())
+        {
+            var row = HaulHours(need);
+            sb.Append(Invariant($"{need.Name,-22} {need.Source,-6} {(double.IsInfinity(row.Hours) ? " > 24" : Invariant($"{row.Hours,6:0.00}")),6} {need.BudgetHours,7:0.0}  {row.Ground,-16} {(row.Others.Count == 0 ? "-" : string.Join(", ", row.Others))}  {(row.Ok ? "ok" : "OVER")}\n"));
+        }
+        return sb.ToString();
+    }
 
     // ---- populations ----
 
