@@ -93,11 +93,11 @@ public static class Stations
     public static Slowed? SlowedBy(FireState fire) =>
         fire.HasEmbers ? Slowed.Embers : !Fire.IsActive(fire) ? Slowed.FireOut : HeatRatePct(fire) < 1 ? Slowed.FireLow : null;
 
-    public static StationProgress Progress(World world, FireId pit, Transformation t) =>
-        new(Forecast(world, pit, t), SlowedBy(world.Fires[pit]));
+    public static StationProgress? Progress(World world, AgentId who, TakeBack a) =>
+        Fire.PitAt(world, world.Agent(who).Tile) is FireId id && Piece(At(world, id), a) is { } t
+            ? new(Forecast(world, id, t), SlowedBy(world.Fires[id])) : null;
 
-    public static Transformation? Working(World world, AgentId who, TakeBack a) =>
-        Fire.PitAt(world, world.Agent(who).Tile) is FireId id ? Piece(At(world, id), a) : null;
+    public static StationMark? MarkAt(World world, FireId pit) => Mark(world.Stations.GetValueOrDefault(pit));
 
     /// Ready wins: something finished and not taken; else something working; else nothing.
     public static StationMark? Mark(StationState? s) =>

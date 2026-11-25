@@ -454,7 +454,7 @@ public static class Memories
         mem.ForageDensity = pools.Count > 0 && pools[0] is ForagePool ? Pools.ForageDensity(world, new PoolId(tile, 0)) : 0;
         mem.Fire = fire;
         mem.FireHours = pit != null && Fire.IsActive(pit) ? Math.Round(Fire.FuelHours(pit), 1) : null;
-        mem.Station = pitId is FireId sid ? Stations.Mark(world.Stations.GetValueOrDefault(sid)) : null;
+        mem.Station = pitId is FireId sid ? Stations.MarkAt(world, sid) : null;
         mem.Carcasses = carcasses;
         mem.Pile = pile;
         mem.Shelter = shelter;

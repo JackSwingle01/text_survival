@@ -34,7 +34,7 @@ static class MapView
         // the next minute awake, so on waking it would still hold the fire slept beside.
         var pitIdHere = Fire.PitAt(world, person.Tile);
         var pitHere = pitIdHere is FireId pid ? world.Fires[pid] : null;
-        var stationHere = pitIdHere is FireId sid ? Stations.Mark(world.Stations.GetValueOrDefault(sid)) : null;
+        var stationHere = pitIdHere is FireId sid ? Stations.MarkAt(world, sid) : null;
         foreach (var (t, mem) in memory.Places)
         {
             bool underfoot = t == person.Tile;

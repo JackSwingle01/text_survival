@@ -151,7 +151,7 @@ public static class Verbs
                 v.Activity is Make m ? Making.Odds(world, agent, Recipes.Get(m.Recipe)) : null,
                 v.Activity is Travel walk && refused == null ? Trip.Risk(world, who, walk.Dir, walk.Pace) : null,
                 v.Activity is Gather g && Pools.Def(world, new PoolId(agent.Tile, g.Pool)) is ForagePool ? ForageDurations : null,
-                v.Activity is TakeBack back && Stations.Working(world, who, back) is { } piece ? Stations.Progress(world, Fire.PitAt(world, agent.Tile)!.Value, piece) : null);
+                v.Activity is TakeBack back ? Stations.Progress(world, who, back) : null);
         }
     }
 
