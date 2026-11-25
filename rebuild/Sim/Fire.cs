@@ -219,6 +219,14 @@ public static class Fire
             if (holder != null && f.CarriedBy == holder) { RequireCurrent(world, id, f); torchHeatF += HeatOutputF(f, 0); }
             else if (f.CarriedBy == null && f.Tile == tile) { RequireCurrent(world, id, f); pits.Add(f); }
         }
+        return Of(pits, torchHeatF);
+    }
+
+    /// pit: as it is at the minute asked about (a forecast's copy, or caught up); no torch.
+    internal static FiresAround Beside(FireState? pit) => Of(pit == null ? [] : [pit], 0);
+
+    static FiresAround Of(List<FireState> pits, double torchHeatF)
+    {
         var burning = pits.Where(IsActive).ToList();
         return new FiresAround(pits, torchHeatF, burning.Count == 0 ? 0 : burning.Max(f => WindProtectionLevel(f.Pit)));
     }

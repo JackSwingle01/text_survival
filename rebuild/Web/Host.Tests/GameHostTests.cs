@@ -131,7 +131,10 @@ public class GameHostTests
         var rack = Assert.Single(v.LocationFeatures, t => t.Kind == "rack");
         Assert.Equal("curing rack", rack.Name);
         v = Run(h, rack.Menu.Single(x => x.Kind == "puton"));
-        Assert.Equal(w.Minute + 24 * 60 - 1, v.LocationFeatures.Single(t => t.Kind == "rack").Menu.Single(x => x.Kind == "takeback").Progress!.FinishMinute);
+        // The seeded sky and the camp set the rate (#190): the page shows the sim's own forecast.
+        var simFinish = Verbs.At(w, AgentId.Player).LocationFeatures.Single(t => t.LocationFeature.Kind == LocationFeatureKind.Rack)
+            .Menu.Single(x => x.Activity is TakeBack).Progress!.FinishMinute;
+        Assert.Equal(simFinish, v.LocationFeatures.Single(t => t.Kind == "rack").Menu.Single(x => x.Kind == "takeback").Progress!.FinishMinute);
         Assert.Equal("working", Mark(v));
     }
 

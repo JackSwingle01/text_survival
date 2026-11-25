@@ -355,21 +355,13 @@ public static class Making
                 case Requirement.Frost when Exposure.Surface(world, tile, world.Minute).AirTemperatureF is var airF && airF > 32:
                     return new("too warm to build in snow", new MissingState(Lack.FrostF, 32, airF));
                 case Requirement.Shelter when Shelters.Peek(world, tile) == null: return new("you need shelter here", new MissingState(Lack.Shelter));
-                case Requirement.Dry when Falling(world, tile) && !(Shelters.Peek(world, tile)?.OverheadLevel >= DryRoofLevel):
+                case Requirement.Dry when Exposure.FallsOn(Exposure.Surface(world, tile, world.Minute), Shelters.Peek(world, tile)?.OverheadLevel ?? 0):
                     return new("it is too wet here: this needs a roof or a dry sky", new MissingState(Lack.Dry));
                 case Requirement.NoShelter when Shelters.Peek(world, tile) is { } s: return new($"there is already a shelter here ({s.Name})");
                 case Requirement.Tent when TileProjectFor(world, agent, r) == null && !(Items.PackOf(agent) is { } pack && Shelters.CarriedTent(pack) != null):
                     return new("you have no tent", new MissingGear([.. Shelters.Tents.Keys]));
             }
         return null;
-    }
-
-    const double DryRoofLevel = 0.5;
-
-    static bool Falling(World world, TileId tile)
-    {
-        var s = Exposure.Surface(world, tile, world.Minute);
-        return s.SnowfallWeMPerMinute + s.RainfallMPerMinute > 0;
     }
 
     static bool Gives(Gear g, Capability cap) => Items.Works(g) && Items.Def(g).Capabilities.Contains(cap);

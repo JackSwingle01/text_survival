@@ -1,12 +1,14 @@
 namespace Survival.Tests;
 
 /// The curing rack (#187, spec 2026-11-24 fire-and-rack-as-stations): built through Make, food put on
-/// through its menu, the world advanced, and what a person could see read back. Drying runs at full rate
-/// whatever the weather in this ticket. A bare world, so a day's wait stays quick.
+/// through its menu, the world advanced, and what a person could see read back. Drying follows the weather and a
+/// fire on the tile (#190). A bare world, so a day's wait stays quick.
 public class RackTests
 {
     static readonly AgentId P = AgentId.Player;
-    static readonly WeatherSample Mild = new(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
+    /// A dry, still day, below the drying's reference air: the recipe's own time.
+    static readonly WeatherSample Mild = new(0, WeatherCondition.Cloudy, -12, 0, 0, 0.8, WindDirection.North);
+    static readonly WeatherSample Blizzard = new(0, WeatherCondition.Blizzard, -25, 0.9, 0.9, 1, WindDirection.North);
 
     static World Camp(WeatherSample? sky = null)
     {
@@ -110,15 +112,128 @@ public class RackTests
         Assert.Equal(0.4, Assert.Single(Pack(w).Pieces[Resource.DriedMeat]), 9);
     }
 
-    /// Until #190, the weather does not touch drying.
-    [Fact]
-    public void Meat_DriesAtFullRate_InFallingSnow()
+    static double Done(World w) => w.Racks.Values.Single().Work.Working.Single().DonePct;
+
+    static void Fire(World w, double birchKg, PitType pit = PitType.Stone)
     {
-        var w = WithRack(new(0, WeatherCondition.Blizzard, -25, 0.9, 0.9, 1, WindDirection.North));
+        var f = new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = w.Minute, Pit = pit };
+        f.BurningKg[Resource.BirchFirewood] = birchKg;
+        f.UnburnedKg[Resource.BirchFirewood] = birchKg;
+        w.Fires[new FireId(w.NextFireId++)] = f;
+    }
+
+    static long MeatFinish(World w)
+    {
         Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
         long setAt = w.Minute;
         PutOn(w, _ => true);
-        Assert.Equal(setAt + 24 * 60, FinishOf(w, 24 * 60 + 5).Minute);
+        return FinishOf(w, 24 * 60 + 5).Minute - setAt;
+    }
+
+    [Fact]
+    public void Meat_MakesNoProgress_InFallingSnow_AndLosesNothing()
+    {
+        var w = WithRack(Blizzard);
+        Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
+        PutOn(w, _ => true);
+        Assert.DoesNotContain(Sim.Advance(w, 30 * 60), e => e is TransformationFinished);
+        Assert.Equal(0, Done(w));
+        Assert.Equal(0.5, w.Racks.Values.Single().Work.Working.Single().InputKg);
+    }
+
+    [Fact]
+    public void Meat_UnderCover_DriesInFallingSnow()
+    {
+        var w = WithRack(Blizzard);
+        Shelters.At(w, Map.Of(w).Camp, [])!.OverheadLevel = 0.8;
+        Assert.True(MeatFinish(w) <= 24 * 60);
+    }
+
+    [Fact]
+    public void ARack_BesideABurningFire_FinishesSooner_ButNeverInUnderHalfTheTime()
+    {
+        var w = WithRack();
+        Fire(w, birchKg: 3);
+        long took = MeatFinish(w);
+        Assert.InRange(took, 12 * 60, 24 * 60 - 60);
+    }
+
+    [Fact]
+    public void ARoaringFire_OnAWarmDay_DriesAtTwiceTheRate_AndNoFaster()
+    {
+        var w = WithRack(new(0, WeatherCondition.Clear, 15, 0, 0, 0, WindDirection.North));
+        Fire(w, birchKg: 6);
+        Assert.Equal(12 * 60, MeatFinish(w));
+    }
+
+    [Fact]
+    public void ARack_InDeepCold_OnADryStillDay_TakesTheRecipesTime()
+    {
+        var w = WithRack(new(0, WeatherCondition.Clear, -40, 0, 0, 0, WindDirection.North));
+        Assert.Equal(24 * 60, MeatFinish(w));
+    }
+
+    [Fact]
+    public void ARack_InWind_FinishesALittleSooner()
+    {
+        var w = WithRack(new(0, WeatherCondition.Cloudy, -12, 0.6, 0, 0.8, WindDirection.North));
+        Assert.InRange(MeatFinish(w), 20 * 60, 24 * 60 - 10);
+    }
+
+    /// A seed whose first days have snow and clear spells at the camp.
+    const int StormSeed = 17;
+
+    /// The seeded sky: some minutes snow falls on the rack and it waits, the rest it dries, and it finishes.
+    [Fact]
+    public void Drying_ThatStoppedForAStorm_GoesOnAfterwards_FromWhereItWas()
+    {
+        var w = TestWorlds.Bare(StormSeed);
+        TestKit.ClearResources(Pack(w));
+        RackMaterials(w);
+        Build(w);
+        Shelters.At(w, Map.Of(w).Camp, [])!.OverheadLevel = 0; // open to the sky
+        TestKit.ClearResources(Pack(w));
+        Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
+        PutOn(w, _ => true);
+        int stopped = 0, dried = 0;
+        for (int i = 0; i < 4 * 24 * 60; i++)
+        {
+            double before = Done(w);
+            var sky = Exposure.Surface(w, Map.Of(w).Camp, w.Minute + 1);
+            bool snowing = sky.SnowfallWeMPerMinute + sky.RainfallMPerMinute > 0;
+            if (Sim.Advance(w, 1).OfType<TransformationFinished>().Any())
+            {
+                Assert.False(snowing);
+                Assert.True(stopped > 0 && dried > 0, $"stopped {stopped}, dried {dried}");
+                return;
+            }
+            if (snowing) { Assert.Equal(before, Done(w)); stopped++; }
+            else { Assert.True(Done(w) > before); dried++; }
+        }
+        throw new Xunit.Sdk.XunitException($"not finished in four days: stopped {stopped}, dried {dried}");
+    }
+
+    [Fact]
+    public void TheMenu_SaysWhy_WhenSnowIsFallingOnIt()
+    {
+        var w = WithRack(Blizzard);
+        Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
+        PutOn(w, _ => true);
+        var progress = Offer(w, a => a is TakeBack).Progress!;
+        Assert.Null(progress.FinishMinute);
+        Assert.Equal("snow is falling on it", Narration.Why(progress.Why!.Value));
+    }
+
+    [Fact]
+    public void TheMenu_SaysWhatSpeedsIt_BesideAFire()
+    {
+        var w = WithRack();
+        Fire(w, birchKg: 3);
+        Items.AddPiece(Pack(w), Resource.RawMeat, 0.5);
+        PutOn(w, _ => true);
+        var progress = Offer(w, a => a is TakeBack).Progress!;
+        Assert.Null(progress.Why);
+        Assert.Equal("the fire beside it speeds it", Narration.Why(progress.Faster!.Value));
     }
 
     [Fact]
