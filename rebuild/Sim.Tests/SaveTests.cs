@@ -142,6 +142,9 @@ public class SaveFixtureTests
         Items.Pack(w, P).Gear.Add(Items.Make("flint_knife"));
         Sim.Step(w, new Make(P, "crude_spear"), Verbs.UntilDoneMinutes);
         Sim.Step(w, new Make(P, "crude_spear"), 8);
+        // Snow melting at the fire: a litre waiting and half of the next done (Stations.Ongoing).
+        Sim.Step(w, new PutOn(P, "melt_snow"), 1);
+        Sim.Step(w, new Wait(P), 8);
         // Worn gloves taken off to be mended, begun without a minute passing: a repair's project and its piece.
         var gloves = Items.Make("hide_gloves");
         gloves.Durability = 40;
@@ -154,6 +157,11 @@ public class SaveFixtureTests
         Items.AddPiece(Items.Pack(w, P), Resource.RawMeat, 0.4);
         Sim.Step(w, new PutOn(P, "cook_meat"), 1);
         Sim.Step(w, new Wait(P), 6);
+        // A curing rack with berries half dried and finished dried meat waiting on it (#187).
+        var rack = Stations.Build(w, w.Agent(P).Tile);
+        Items.Add(Items.Pack(w, P), Resource.Berries, 0.3);
+        Sim.Step(w, new PutOn(P, "dry_berries", rack), 1);
+        w.Racks[rack].Work.Ready.Pieces[Resource.DriedMeat] = [0.2];
         // A good meal and a day without hunger behind it (Well fed), and the NPC asleep where it dropped.
         Body.Eat(w.Agent(P).Body, 2500);
         w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;

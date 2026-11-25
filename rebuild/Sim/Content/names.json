@@ -27,7 +27,7 @@
   "Stone": "stone|stones",
   "Hide": "hide|hides",
   "Sinew": "sinew|sinews",
-  "Shale": "piece of shale|pieces of shale",
+  "Obsidian": "piece of obsidian|pieces of obsidian",
   "Flint": "flint|flints",
   "Pyrite": "pyrite|pyrites",
   "ScrapedHide": "scraped hide|scraped hides",
@@ -72,7 +72,7 @@
   "Hide": "hide",
   "PlantFiber": "plant fibre",
   "Sinew": "sinew",
-  "Shale": "shale",
+  "Obsidian": "obsidian",
   "Flint": "flint",
   "Pyrite": "pyrite",
   "ScrapedHide": "scraped hide",
@@ -108,8 +108,7 @@
   "Torch": "torch",
   "Needle": "needle",
   "Shovel": "shovel",
-  "Tent": "tent",
-  "Hammerstone": "hammerstone"
+  "Tent": "tent"
  },
  "Capability": {
   "None": "no tool",
@@ -262,7 +261,8 @@
   "Lighting": "lighting",
   "Processing": "processing",
   "Clothing": "clothing",
-  "Camp": "camp"
+  "Camp": "camp",
+  "Carrying": "carrying"
  },
  "Requirement": {
   "Light": "light",

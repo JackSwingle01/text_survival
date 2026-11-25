@@ -285,7 +285,7 @@ public class ConservationItemsTests
         w.PoolCache = new() { [camp] = [pool] };
         ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(camp, 0));
         var pack = Items.Pack(w, P);
-        pack.Gear.Add(Items.Make("stone_axe"));
+        pack.Gear.Add(Items.Make("ground_stone_axe"));
         if (s.FillKg > 0) TestKit.Give(pack, Resource.Stone, s.FillKg);
         w.Minute = 10 * 60; // daylight
         var before = ItemKg(w);

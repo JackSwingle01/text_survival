@@ -28,6 +28,7 @@ public static class Signs
                 LocationFeatureKind.Track => [OfTrack(world, t)],
                 LocationFeatureKind.Sign => [],
                 LocationFeatureKind.Item => [],
+                LocationFeatureKind.Rack => [],
                 LocationFeatureKind.Trodden => [new Sign(t, SignKind.Trodden, state!.Trodden!.Minute, null)],
             });
         return signs;

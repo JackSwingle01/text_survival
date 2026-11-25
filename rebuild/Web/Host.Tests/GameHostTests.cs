@@ -56,6 +56,27 @@ public class GameHostTests
         Assert.Equal(0.4, Items.Have(Items.Pack(w, AgentId.Player), Resource.CookedMeat), 9);
     }
 
+    /// The fire's menu sets snow melting, needing nothing carried, and Take collects the water (#186).
+    [Fact]
+    public void The_fire_menu_sets_snow_melting_and_takes_the_water()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var me = w.Agent(AgentId.Player);
+        if (Fire.PitAt(w, me.Tile) == null)
+            w.Fires[new FireId(w.NextFireId++)] = new FireState { Tile = me.Tile, LastUpdatedMinute = w.Minute };
+        w.Fires[Fire.PitAt(w, me.Tile)!.Value].BurningKg[Resource.BirchFirewood] = 5;
+        static IReadOnlyList<VerbDto> FireMenu(ViewDto v) => v.LocationFeatures.Single(t => t.Kind == "fire").Menu;
+        double before = Items.Have(Items.Pack(w, AgentId.Player), Resource.Water);
+
+        Run(h, FireMenu(Parse(h.View())).Single(x => x.Label == "Melt snow"));
+        Assert.Null(FireMenu(Parse(h.View())).Single(x => x.Label == "Stop: melt snow").Refused);
+        Run(h, Find(Parse(h.View()), x => x.Kind == "wait", "wait"));
+        Run(h, FireMenu(Parse(h.View())).Single(x => x.Kind == "take"));
+        Assert.True(Items.Have(Items.Pack(w, AgentId.Player), Resource.Water) >= before + 1 - 1e-9);
+    }
+
     /// How it is going, as the page shows it (#185): the finish on the menu, the line in the log, the mark on the tile.
     [Fact]
     public void Meat_on_the_fire_shows_its_finish_then_the_log_says_it_is_done_and_the_tile_is_marked_working_then_ready()
@@ -83,6 +104,35 @@ public class GameHostTests
 
         v = Run(h, FireMenu(v).Single(x => x.Kind == "take"));
         Assert.Null(Mark(v));
+    }
+
+    /// The page offers the rack's build in the Make drawer and the rack's menu among the location features (#187).
+    [Fact]
+    public void The_page_builds_a_curing_rack_and_puts_meat_on_it()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var w = h.World;
+        var pack = Items.Pack(w, AgentId.Player);
+        for (int i = 0; i < 4; i++)
+        {
+            Items.AddPiece(pack, Resource.BirchBranch, 2);
+            Items.AddPiece(pack, Resource.Stick, 0.3);
+        }
+        Items.AddPiece(pack, Resource.Rope, 0.2);
+        Items.AddPiece(pack, Resource.RawMeat, 0.5);
+        var me = w.Agent(AgentId.Player);
+        string? Mark(ViewDto v) => v.Map.Places.SingleOrDefault(p => (p.X, p.Y) == (me.Tile.X, me.Tile.Y))?.Station;
+
+        var build = Parse(h.View()).Make.Single(x => x.Label == "Build a curing rack");
+        Assert.Equal("build", build.Kind);
+        Assert.Null(build.Refused);
+        var v = Run(h, build);
+        var rack = Assert.Single(v.LocationFeatures, t => t.Kind == "rack");
+        Assert.Equal("curing rack", rack.Name);
+        v = Run(h, rack.Menu.Single(x => x.Kind == "puton"));
+        Assert.Equal(w.Minute + 24 * 60 - 1, v.LocationFeatures.Single(t => t.Kind == "rack").Menu.Single(x => x.Kind == "takeback").Progress!.FinishMinute);
+        Assert.Equal("working", Mark(v));
     }
 
     [Fact]

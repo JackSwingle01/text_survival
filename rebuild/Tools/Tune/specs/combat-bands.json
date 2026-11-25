@@ -20,17 +20,20 @@
 
  "scenarios": {
   "caribou_careful_spear": { "setup": "hunt_caribou_resting", "weapon": "wooden_spear", "policy": "careful_melee" },
-  "caribou_careful_axe":   { "setup": "hunt_caribou_resting", "weapon": "stone_axe", "policy": "careful_melee" },
+  "caribou_careful_axe":   { "setup": "hunt_caribou_resting", "weapon": "ground_stone_axe", "policy": "careful_melee" },
   "caribou_careful_knife": { "setup": "hunt_caribou_resting", "weapon": "flint_knife", "policy": "careful_melee" },
   "caribou_quick_spear":   { "setup": "hunt_caribou_resting", "weapon": "wooden_spear", "policy": "quick_melee" },
 
   "wolf_spear": { "setup": "wolf1_aware", "weapon": "wooden_spear", "policy": "aggressive" },
-  "wolf_axe":   { "setup": "wolf1_aware", "weapon": "stone_axe", "policy": "aggressive" },
+  "wolf_axe":   { "setup": "wolf1_aware", "weapon": "ground_stone_axe", "policy": "aggressive" },
   "wolf_knife": { "setup": "wolf1_aware", "weapon": "flint_knife", "policy": "aggressive" },
   "wolf_crude_spear": { "setup": "wolf1_aware", "weapon": "crude_spear", "policy": "aggressive" },
   "wolf_stone": { "setup": "wolf1_aware", "weapon": "stone", "policy": "aggressive" },
   "wolf_staff": { "setup": "wolf1_aware", "weapon": "staff", "policy": "aggressive" },
   "wolf_hands": { "setup": "wolf1_aware", "weapon": "none", "policy": "aggressive" },
+  "wolf_flint_axe": { "setup": "wolf1_aware", "weapon": "flint_axe", "policy": "aggressive" },
+  "wolf_obsidian_knife": { "setup": "wolf1_aware", "weapon": "obsidian_knife", "policy": "aggressive" },
+  "wolf_bone_knife": { "setup": "wolf1_aware", "weapon": "bone_knife", "policy": "aggressive" },
 
   "pack3_spear": { "setup": "pack3_aware", "weapon": "wooden_spear", "policy": "aggressive" },
 
@@ -80,6 +83,13 @@
  "orders": [
   { "name": "Weapon order against a lone wolf", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_axe", "wolf_knife", "wolf_stone", "wolf_staff", "wolf_hands"], "margin": 0.02,
    "note": "Strict: each must beat the next by 2 points, so a tie at 100% still costs. The weapon table's order." },
+  // The stone, flint, obsidian and bone tools in the same order: the sharpest knife below either axe, the
+  // plainest above the stone. The two axes fight alike, as do the flint and bone knives, so none is set against its
+  // twin, and the spear's lead on an axe is the order above's. The obsidian knife's damage saturates about 2 points
+  // under an axe (4000 fights, 2026-11-25), so its margin there is 1 point.
+  { "name": "The flint axe and the obsidian knife in the weapon order", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_flint_axe", "wolf_obsidian_knife", "wolf_stone"], "margin": 0.02 },
+  { "name": "The obsidian knife below the ground stone axe", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_axe", "wolf_obsidian_knife"], "margin": 0.01 },
+  { "name": "The bone knife above the stone", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_bone_knife", "wolf_stone"], "margin": 0.02 },
   { "name": "A crude spear does worse than a finished one", "metric": "aWinsOrDrivesOff", "scenarios": ["wolf_spear", "wolf_crude_spear"], "margin": 0.02 },
   { "name": "Weapon order on a careful caribou hunt", "metric": "bKilled", "scenarios": ["caribou_careful_spear", "caribou_careful_axe", "caribou_careful_knife"], "margin": 0.02,
    "note": "Hands are left out: bare hands never kill a caribou." }

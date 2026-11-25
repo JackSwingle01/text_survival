@@ -313,7 +313,7 @@ public class ForecastTests
     public void TheGatherForecast_CountsATreeOnlyOnceItComesDown_ItsFirewoodByThePiece_AndAHarvestByItsCycles()
     {
         var w = At(new TreePool("trees", Resource.BirchFirewood, 100), Bush);
-        Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+        Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
         w.Minute = Clock(9 * 60);
         Assert.Empty(Work.ExpectedGather(w, Me(w), new Gather(P, 0), 30)); // it comes down at 40 minutes
         var down = Work.ExpectedGather(w, Me(w), new Gather(P, 0), 45);
@@ -681,7 +681,7 @@ public class ForecastTests
         var w = At(new TreePool("trees", Resource.BirchFirewood, 100));
         w.Minute = Clock(10 * 60);
         Assert.Equal(new MissingTool(ToolType.Axe), Sim.Refusal(w, new Gather(P, 0))!.Missing);
-        var stone = Assert.IsType<MissingResource>(Sim.Refusal(w, new Make(P, "sharp_rock"))!.Missing);
+        var stone = Assert.IsType<MissingResource>(Sim.Refusal(w, new Make(P, "crude_edge"))!.Missing);
         Assert.Equal([Resource.Stone], stone.AnyOf);
         Assert.Equal(1, stone.Count); // one stone short, whatever it weighs
         Assert.Equal((Items.Resources[Resource.Stone].MinPieceKg + Items.Resources[Resource.Stone].MaxPieceKg) / 2, stone.Kg, 9);

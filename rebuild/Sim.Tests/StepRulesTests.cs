@@ -124,7 +124,7 @@ public class StepRulesTests
         {
             var w = TestWorlds.Bare(1);
             w.Agent(P).Body.CoreTempF = 99.5; // above the sweating threshold
-            if (torch) PlacePit(w, new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, CarriedBy = P, TorchMinutesLeft = Fire.TorchBurnMinutes });
+            if (torch) PlacePit(w, new FireState { Tile = Map.Of(w).Camp, LastUpdatedMinute = 0, CarriedBy = P, TorchMinutesLeft = Items.GearKinds["torch"].BurnMinutes });
             Sim.Step(w, new Rest(P), 1);
             return w;
         }

@@ -18,9 +18,11 @@ namespace Survival.Tests.Verification;
 /// on into its result, at the recipe's share of its weight:
 ///
 ///   Δ held[input] = -TransformationFinished.Kg / share, Δ held[made] = +TransformationFinished.Kg
+///
+/// and one with no input (melting snow) makes its result from nothing held: only Δ held[made] = +Kg.
 public class ConservationMakeTests
 {
-    public enum OpKind { Make, Abandon, Wait, PutOn, TakeFinished, TakeBack }
+    public enum OpKind { Make, Abandon, Wait, PutOn, TakeFinished, TakeBack, StopWork }
 
     public sealed record Op(OpKind Kind, int Recipe, int Minutes);
 
@@ -28,12 +30,12 @@ public class ConservationMakeTests
     public sealed record Scene(double[] PackKg, bool[] Tools, bool Fire, Op[] Ops);
 
     static readonly Resource[] Inputs = [.. Recipes.All.SelectMany(r => r.Materials).SelectMany(m => m.AnyOf).Distinct().Order()];
-    static readonly string[] ToolKinds = ["sharp_rock", "flint_knife", "hammerstone", "bone_needle", "crude_spear", "wooden_spear", "hide_gloves", "stone_knife"];
+    static readonly string[] ToolKinds = ["crude_edge", "flint_knife", "stone", "bone_needle", "crude_spear", "wooden_spear", "hide_gloves", "obsidian_knife"];
 
-    static readonly Recipe[] AtTheFire = [.. Stations.FireRecipes];
+    static readonly Recipe[] AtAStation = [.. Recipes.All.Where(r => r.Station != null)];
 
     static readonly Gen<Op> OpGen = Gen.Select(Gen.Frequency((6, Gen.Const(OpKind.Make)), (1, Gen.Const(OpKind.Abandon)), (1, Gen.Const(OpKind.Wait)),
-            (2, Gen.Const(OpKind.PutOn)), (1, Gen.Const(OpKind.TakeFinished)), (1, Gen.Const(OpKind.TakeBack))),
+            (2, Gen.Const(OpKind.PutOn)), (1, Gen.Const(OpKind.TakeFinished)), (1, Gen.Const(OpKind.TakeBack)), (1, Gen.Const(OpKind.StopWork))),
         Gen.Int[0, Recipes.ByHand.Count - 1], Gen.Int[1, 90], (k, r, m) => new Op(k, r, m));
 
     static readonly Gen<Scene> Scenes = Gen.Select(
@@ -115,19 +117,25 @@ public class ConservationMakeTests
             string? target = recipe.Result.Repair is { } repair
                 ? pack.Projects?.FirstOrDefault(p => p.Recipe == recipe.Id)?.Target ?? pack.Gear.Select(g => g.Kind).FirstOrDefault(repair.Kinds.Contains)
                 : null;
+            var atStation = AtAStation[op.Recipe % AtAStation.Length];
+            // The tile's first rack, once one is built: always for a rack recipe, and for half of the Takes, so racks are taken from too.
+            RackId? rack = atStation.Station == StationKind.Rack || op.Minutes % 2 == 0 ? Stations.RacksAt(w, w.Agent(P).Tile).Cast<RackId?>().FirstOrDefault() : null;
+            var at = rack is RackId rid ? w.Racks[rid].Work : Stations.At(w, new FireId(0));
             Activity a = op.Kind switch
             {
                 OpKind.Make => new Make(P, recipe.Id, target),
                 OpKind.Abandon => new Abandon(P, recipe.Id, target),
-                OpKind.PutOn => new PutOn(P, AtTheFire[op.Recipe % AtTheFire.Length].Id),
-                OpKind.TakeFinished => new TakeFinished(P),
-                OpKind.TakeBack => Stations.At(w, new FireId(0)).Working.ElementAtOrDefault(op.Minutes % 3) is { } x
-                    ? new TakeBack(P, x.Input, x.InputKg) : new TakeBack(P, Resource.RawMeat, 0.4),
+                OpKind.PutOn when atStation.Station == StationKind.Rack && rack == null => new Wait(P), // no rack built yet
+                OpKind.PutOn => new PutOn(P, atStation.Id, atStation.Station == StationKind.Rack ? rack : null),
+                OpKind.TakeFinished => new TakeFinished(P, rack),
+                OpKind.TakeBack => at.Working.ElementAtOrDefault(op.Minutes % 3) is { } x
+                    ? new TakeBack(P, x.Input, x.InputKg, rack) : new TakeBack(P, Resource.RawMeat, 0.4, rack),
+                OpKind.StopWork => new StopWork(P, "melt_snow"),
                 _ => new Wait(P),
             };
             var held = Held(w);
             var pieces = Pieces(w);
-            var step = Sim.Step(w, a, a is PutOn or TakeFinished or TakeBack ? Stations.HandlingMinutes : op.Minutes);
+            var step = Sim.Step(w, a, a is PutOn or TakeFinished or TakeBack or StopWork ? Stations.HandlingMinutes : op.Minutes);
 
             var declared = new SortedDictionary<Resource, double>(held);
             void Move(IEnumerable<KeyValuePair<Resource, double>> kgs, int sign) { foreach (var (r, kg) in kgs) declared[r] = declared.GetValueOrDefault(r) + sign * kg; }
@@ -152,7 +160,7 @@ public class ConservationMakeTests
                     case TransformationFinished t:
                         {
                             var r = Recipes.Get(t.Recipe);
-                            Move([new(Stations.InputOf(r), t.Kg / r.Result.SharePct)], -1);
+                            if (!Stations.FromNothing(r)) Move([new(Stations.InputOf(r), t.Kg / r.Result.SharePct)], -1); // snow melts from nothing held
                             Move([new(t.Made, t.Kg)], +1);
                             break;
                         }

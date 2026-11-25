@@ -60,7 +60,7 @@ public static class Npc
         var id = new AgentId(world.NextAgentId++);
         if (world.Agents.ContainsKey(id)) throw new InvalidOperationException($"Agent id {id} is already taken");
         var pack = Items.StartingPack();
-        pack.Gear.Add(Items.Make("stone_axe"));
+        pack.Gear.Add(Items.Make("ground_stone_axe"));
         pack.Gear.Add(Items.Make("flint_knife"));
         var mind = new NpcMind { Pack = pack, Camp = camp ?? tile, TargetFatMinute = world.Minute };
         var body = SpeciesTable.NewBody(Species.Human, world.Birth("person", id));
@@ -617,7 +617,7 @@ public static class Npc
                 int minutes = pools[i] switch
                 {
                     ForagePool => MaxStintMinutes,
-                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id))) + 1,
+                    TreePool tree when (t == Here ? Pools.HasTrees(world, id) : seen?.Trees == true) => (int)Math.Ceiling(tree.MinutesToFell * (1 - Pools.ChopProgressPct(world, id)) / Items.ChopFactor(Items.Axe(pack))) + 1,
                     StockPool s when (t != Here || Pools.HasStock(world, id, pack)) && s.Items.Any(x => req.AnyOf.Contains(x.Resource) && Pools.CanWork(x, pack)) => MaxStintMinutes,
                     _ => 0,
                 };

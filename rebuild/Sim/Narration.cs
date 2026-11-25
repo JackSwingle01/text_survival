@@ -80,7 +80,7 @@ public static class Narration
             FuelAdded x => ($"{Does(x.By, "add")} {Names.Amount(x.Fuel, x.Kg, x.Pieces)} to the fire.", Tone.Plain),
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),
-            TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} is done at the fire.", Tone.Good),
+            TransformationFinished x => ($"{Names.Cap(Names.Amount(x.Made, x.Kg, 1))} {(Stations.FromNothing(x.Recipe) ? "waits" : "is done")} at the {Stations.Word(x.Station)}.", Tone.Good),
             TransformationStopped x => (x.Why switch
             {
                 StopReason.FireOut => $"The fire goes out with {string.Join(" and ", x.Left.Distinct().Select(r => Names.Of(r)))} on it.",

@@ -21,7 +21,7 @@ public class WoodTests(ITestOutputHelper output)
     }
 
     static void Know(World w, int pool) => ((PersonMind)w.Agent(P).Mind).Memory.Discovered.Add(new PoolId(Map.Of(w).Camp, pool));
-    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("stone_axe"));
+    static void Axe(World w) => Items.Pack(w, P).Gear.Add(Items.Make("ground_stone_axe"));
     static double Have(World w, IEnumerable<Resource> rs) => rs.Sum(r => Items.Have(Items.Pack(w, P), r));
 
     static StockPool Deadfall(int seed = 1) => (StockPool)Pools.Make(Content.Tables.Discoveries.Finds["Deadfall"], Rng.ForSystem(seed, "deadfall"), 0);
