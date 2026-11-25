@@ -89,7 +89,7 @@ public static partial class Content
     /// Kg is read only to refuse it: a discrete input is a count, a continuous one grams.
     sealed record InputRow(string? Item = null, string? Of = null, int Count = 0, double G = 0, double Kg = 0);
     sealed record ResultRow(string? Gear = null, Resource? Resource = null, int Count = 0, double SharePct = 0, double G = 0, double Kg = 0,
-        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null);
+        ShelterKind? Shelter = null, string? ShelterName = null, BeddingKind? Bedding = null, IReadOnlyList<string>? Repairs = null, double RestoresPct = 0);
 
     /// Names the game's code asks for by name: they must be in the files.
     static readonly string[] CodeSubstrates = ["loam", "forestFloor", "slope", "rock", "peat", "iceSheet", "impassable"],
@@ -356,6 +356,7 @@ public static partial class Content
         IReadOnlyDictionary<Resource, ResourceDef> resources, List<string> problems)
     {
         var recipes = new List<Recipe>();
+        var repaired = new HashSet<string>();
         foreach (var (id, row) in rows)
         {
             string at = $"recipes.json {id}";
@@ -389,8 +390,9 @@ public static partial class Content
             if (row.Minutes <= 0) problems.Add($"{at}: minutes {row.Minutes}");
             var r = row.Result;
             bool placed = r.Shelter != null || r.Bedding != null;
-            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null }.Count(x => x) != 1)
-                problems.Add($"{at}: the result is a gear kind, a resource, a shelter or a bedding, exactly one");
+            if (new[] { r.Gear != null, r.Resource != null, r.Shelter != null, r.Bedding != null, r.Repairs != null }.Count(x => x) != 1)
+                problems.Add($"{at}: the result is a gear kind, a resource, a shelter, a bedding or a repair, exactly one");
+            else if (r.Repairs != null) problems.AddRange(RepairProblems(at, row, items, gear, repaired));
             else if (placed) problems.AddRange(PlacedProblems(at, row, items));
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
             else if (r.Gear != null && (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0)) problems.Add($"{at}: a gear result is one piece, with no amount");
@@ -433,7 +435,8 @@ public static partial class Content
             if (sum > MaxOutcomePct + 1e-12) problems.Add($"{at}: outcomes' odds add up to {sum}, above {MaxOutcomePct}");
             if (problems.Count > before) continue;
             recipes.Add(new Recipe(id, row.Name, row.Category, materials.AsReadOnly(), items.AsReadOnly(), row.Tools, faster, row.Requires, row.Minutes,
-                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct), outcomes.AsReadOnly(),
+                new RecipeResult(r.Gear, r.Resource, r.G / 1000, r.Shelter, r.ShelterName, r.Bedding, r.Count, r.SharePct,
+                    r.Repairs is { } kinds ? new RepairResult(kinds, r.RestoresPct) : null), outcomes.AsReadOnly(),
                 row.FasterFactor ?? Making.FasterToolFactor, row.Station, row.Driver));
         }
         return recipes.AsReadOnly();
@@ -501,6 +504,25 @@ public static partial class Content
             }
             else if (r.G / 1000 > lightest - saved + 1e-9)
                 yield return $"{at}: {r.G} g of {made} from {lightest - saved:0.###} kg{(o == null ? "" : $" ({o.Text})")}";
+        }
+    }
+
+    /// A repair works on pieces that wear, each kind in one repair recipe, none of them a tool of its own work; it
+    /// restores a share (0-1] of the missing condition and takes no items.
+    static IEnumerable<string> RepairProblems(string at, RecipeFileRow row, List<string> items, IReadOnlyDictionary<string, GearDef> gear, HashSet<string> repaired)
+    {
+        var r = row.Result;
+        if (items.Count > 0) yield return $"{at}: a repair takes no items";
+        if (r.RestoresPct is <= 0 or > 1) yield return $"{at}: restoresPct {r.RestoresPct} is a share (0-1] of the missing condition";
+        if (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0) yield return $"{at}: a repair has no amount";
+        if (r.Repairs!.Count == 0) yield return $"{at}: a repair names the gear kinds it works on";
+        var uses = row.Tools.Concat(row.Faster ?? []).ToList();
+        foreach (var kind in r.Repairs)
+        {
+            if (!gear.TryGetValue(kind, out var def)) { yield return $"{at}: no gear kind '{kind}'"; continue; }
+            if (def.MaxDurability <= 0) yield return $"{at}: {kind} never wears, so has nothing to repair";
+            if (!repaired.Add(kind)) yield return $"{at}: {kind} is repaired by another recipe too";
+            if (def.Capabilities.Intersect(uses).Any()) yield return $"{at}: {kind} gives a capability its own repair uses";
         }
     }
 

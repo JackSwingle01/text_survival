@@ -108,7 +108,8 @@ public static class Narration
             ShelterCollapsed x => ($"The {Names.Lower(x.Name)} comes down.", Tone.Bad),
             SkillLeveledUp x => ($"{Names.Title(x.Skill)} rises to {x.Level}.", Tone.Rare),
             Made x => MadeLine(world, x),
-            ProjectAbandoned x => ($"{Does(x.Who, "give")} up on the {Names.Lower(Recipes.Get(x.Recipe).Name)}.", Tone.Plain),
+            ProjectAbandoned x => (x.Target is { } kind ? $"{Does(x.Who, "give")} up {Making.Doing(Recipes.Get(x.Recipe))} the {Names.GearWords(kind)}."
+                : $"{Does(x.Who, "give")} up on the {Names.Lower(Recipes.Get(x.Recipe).Name)}.", Tone.Plain),
             _ => null,
         };
         return line is { } l ? new Narrated(e.Minute, l.Text, l.Tone, e) : null;
@@ -158,8 +159,12 @@ public static class Narration
 
     static (string, Tone) MadeLine(World world, Made m)
     {
-        string name = Names.Lower(Recipes.Get(m.Recipe).Name);
+        var r = Recipes.Get(m.Recipe);
+        string name = Names.Lower(r.Name);
         string you = m.Who == AgentId.Player ? "You" : Names.Cap(Cause.Describe(world, m.Who));
+        if (m.Target is { } kind)
+            return m.Succeeded ? ($"{you} {Making.Verb(r)}{(m.Who == AgentId.Player ? "" : "s")} the {Names.GearWords(kind)}.", Tone.Good)
+                : ($"{Names.Cap(Making.Doing(r))} the {Names.GearWords(kind)} goes wrong.", Tone.Bad);
         if (!m.Succeeded) return ($"The {name} fails.", Tone.Bad);
         string make = m.Who == AgentId.Player ? "make" : "makes";
         return (m.ExtraGear.Count > 0 ? $"{you} {make} a {name}, and offcuts for more." : $"{you} {make} a {name}.", Tone.Good);
