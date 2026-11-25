@@ -115,7 +115,8 @@ public class ConservationMakeTests
                 OpKind.Abandon => new Abandon(P, recipe.Id),
                 OpKind.PutOn => new PutOn(P, AtTheFire[op.Recipe % AtTheFire.Length].Id),
                 OpKind.TakeFinished => new TakeFinished(P),
-                OpKind.TakeBack => new TakeBack(P, op.Minutes % 3),
+                OpKind.TakeBack => Stations.At(w, new FireId(0)).Working.ElementAtOrDefault(op.Minutes % 3) is { } x
+                    ? new TakeBack(P, x.Input, x.InputKg) : new TakeBack(P, Resource.RawMeat, 0.4),
                 _ => new Wait(P),
             };
             var held = Held(w);
@@ -145,7 +146,7 @@ public class ConservationMakeTests
                     case TransformationFinished t:
                         {
                             var r = Recipes.Get(t.Recipe);
-                            Move([new(r.Materials[0].AnyOf[0], t.Kg / r.Result.SharePct)], -1);
+                            Move([new(Stations.InputOf(r), t.Kg / r.Result.SharePct)], -1);
                             Move([new(t.Made, t.Kg)], +1);
                             break;
                         }

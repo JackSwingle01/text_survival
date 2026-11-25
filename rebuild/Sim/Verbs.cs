@@ -261,11 +261,11 @@ public static class Verbs
         if (pit.CharcoalKg > 0) menu.Add(("Gather charcoal", new GatherCharcoal(who), 1));
         var station = Stations.At(world, new FireId(t.Index));
         foreach (var r in Stations.FireRecipes)
-            if (pack != null && Items.Count(pack, r.Materials[0].AnyOf[0]) > 0)
-                menu.Add(($"Put on {Names.Of(r.Materials[0].AnyOf[0])}", new PutOn(who, r.Id), Stations.HandlingMinutes));
+            if (pack != null && Items.Count(pack, Stations.InputOf(r)) > 0)
+                menu.Add(($"Put on {Names.Of(Stations.InputOf(r))}", new PutOn(who, r.Id), Stations.HandlingMinutes));
         if (Items.HasResources(station.Ready)) menu.Add(($"Take {Items.Describe(station.Ready)}", new TakeFinished(who), Stations.HandlingMinutes));
-        for (int i = 0; i < station.Working.Count; i++)
-            menu.Add(($"Take back {Names.Amount(station.Working[i].Input, station.Working[i].InputKg, 1)}", new TakeBack(who, i), Stations.HandlingMinutes));
+        foreach (var x in station.Working)
+            menu.Add(($"Take back {Names.Amount(x.Input, x.InputKg, 1)}", new TakeBack(who, x.Input, x.InputKg), Stations.HandlingMinutes));
         foreach (var raw in (ReadOnlySpan<Resource>)[Resource.RawMeat, Resource.RawFish])
             if (have.GetValueOrDefault(raw) > 0) menu.Add(($"Cook {Names.Of(raw)}", new Cook(who, raw, have[raw]), UntilDoneMinutes));
         menu.Add(("Melt snow", new MeltSnow(who), Work.MeltSnowMinutes));

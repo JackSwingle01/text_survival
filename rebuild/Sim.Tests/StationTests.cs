@@ -242,4 +242,23 @@ public class StationTests
         Assert.Equal(setAt + 15, FinishOf(w, 30).Minute);
         Assert.Equal(setAt + 15, FinishOf(loaded, 30).Minute);
     }
+
+    /// A Take back offered before the first piece finished still takes back its own piece after it has.
+    [Fact]
+    public void TakeBack_NamesItsPiece_NotItsPlaceOnTheFire()
+    {
+        var w = Camp(out _);
+        Pit(w, 5);
+        Meat(w, 0.3);
+        Sim.Advance(w, 1);
+        PutOnMeat(w);
+        Sim.Advance(w, 10);
+        Meat(w, 0.7);
+        PutOnMeat(w);
+        var back = Offer(w, a => a is TakeBack { Kg: 0.7 });
+        Sim.Advance(w, 5); // the first piece is done, and leaves the work
+        Assert.Contains(FireMenu(w), v => v.Activity is TakeFinished);
+        Assert.Equal(1, Sim.Step(w, back.Activity, back.Minutes).MinutesElapsed);
+        Assert.Equal([0.7], Items.Pack(w, P).Pieces[Resource.RawMeat]);
+    }
 }

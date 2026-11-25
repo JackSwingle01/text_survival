@@ -76,7 +76,7 @@ public sealed record PackTent(AgentId Who) : Activity(Who);
 public sealed record Make(AgentId Who, string Recipe) : Activity(Who);
 public sealed record Abandon(AgentId Who, string Recipe) : Activity(Who);
 
-/// At the fire here (Stations). TakeBack's Slot indexes StationState.Working.
+/// At the fire here (Stations). TakeBack names the very piece put on: its input and kilos.
 public sealed record PutOn(AgentId Who, string Recipe) : Activity(Who);
 public sealed record TakeFinished(AgentId Who) : Activity(Who);
-public sealed record TakeBack(AgentId Who, int Slot) : Activity(Who);
+public sealed record TakeBack(AgentId Who, Resource Input, double Kg) : Activity(Who);

@@ -189,7 +189,12 @@ static class ActionGen
                 return new Abandon(P, PickOf(Items.Pack(w, P).Projects?.Select(p => p.Recipe).ToList() ?? [], pick, Recipes.ByHand[pick % Recipes.ByHand.Count].Id));
             case Act.PutOn: return new PutOn(P, PickOf([.. Stations.FireRecipes.Select(r => r.Id)], pick, "cook_meat"));
             case Act.TakeFinished: return new TakeFinished(P);
-            case Act.TakeBack: return new TakeBack(P, pick % 3);
+            case Act.TakeBack:
+                {
+                    var working = Fire.PitAt(w, tile) is FireId pit ? Stations.At(w, pit).Working : [];
+                    var x = PickOf(working, pick, null);
+                    return new TakeBack(P, x?.Input ?? Resource.RawMeat, x?.InputKg ?? 0.4);
+                }
             default: throw new NotSupportedException(i.Act.ToString());
         }
     }

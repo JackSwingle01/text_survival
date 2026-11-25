@@ -20,7 +20,7 @@ public sealed class StationState
     public Inventory Ready { get; init; } = new();
 }
 
-public sealed record TransformationFinished(long Minute, TileId Tile, FireId Station, AgentId SetBy, string Recipe, Resource Made, double Kg)
+public sealed record TransformationFinished(long Minute, TileId Tile, FireId Fire, AgentId SetBy, string Recipe, Resource Made, double Kg)
     : WorldEvent(Minute, Tile);
 
 /// The making system's stations. A fire is asked only for its temperature. Every station with work on it lives
@@ -33,12 +33,15 @@ public static class Stations
     public const double EmberRatePct = 0.25;
     public const int HandlingMinutes = 1;
     /// A hair of slack: fifteen fifteenths are not exactly 1 in floating point.
-    const double DoneSlackPct = 1e-9;
+    const double DoneSlack = 1e-9;
 
     public const string NoFire = "no fire here";
     public const string NothingReady = "nothing at the fire is done";
 
     public static bool Handles(Activity a) => a is PutOn or TakeFinished or TakeBack;
+
+    /// A station-worked recipe's one input, one piece of it (the loader's rule).
+    public static Resource InputOf(Recipe r) => r.Materials[0].AnyOf[0];
 
     public static string Word(StationKind kind) => kind switch { StationKind.Fire => "fire" };
 
@@ -72,7 +75,7 @@ public static class Stations
                 {
                     var r = Recipes.Get(a.Recipe);
                     if (r.Station != StationKind.Fire) throw new ArgumentException($"{a.Recipe} is not worked at a fire", nameof(activity));
-                    var input = r.Materials[0].AnyOf[0];
+                    var input = InputOf(r);
                     if (Items.Count(pack, input) == 0)
                         return new($"no {Names.Of(input)} to put on", new MissingResource([input], Items.Resources[input].MinPieceKg, 1));
                     int room = Room(world, id);
@@ -82,7 +85,7 @@ public static class Stations
             case TakeFinished:
                 return Items.HasResources(s.Ready) ? null : new(NothingReady);
             case TakeBack a:
-                return a.Slot >= 0 && a.Slot < s.Working.Count ? null : new("nothing there to take back");
+                return Piece(s, a) != null ? null : new("nothing there to take back");
             default:
                 throw new NotSupportedException($"{activity.GetType().Name} is not a station activity");
         }
@@ -99,7 +102,7 @@ public static class Stations
         {
             case PutOn a:
                 {
-                    var input = Recipes.Get(a.Recipe).Materials[0].AnyOf[0];
+                    var input = InputOf(Recipes.Get(a.Recipe));
                     double kg = Items.TakePieces(pack, input, 1).Single();
                     s.Working.Add(new Transformation { Recipe = a.Recipe, Input = input, InputKg = kg, SetBy = agent.Id });
                     break;
@@ -114,8 +117,8 @@ public static class Stations
                 }
             case TakeBack a:
                 {
-                    var t = s.Working[a.Slot];
-                    s.Working.RemoveAt(a.Slot);
+                    var t = Piece(s, a)!;
+                    s.Working.Remove(t);
                     var back = new Inventory();
                     Items.AddPiece(back, t.Input, t.InputKg);
                     Items.Receive(world, agent, back, events);
@@ -125,6 +128,8 @@ public static class Stations
         if (Used(s) == 0) world.Stations.Remove(id);
         return null;
     }
+
+    static Transformation? Piece(StationState s, TakeBack a) => s.Working.FirstOrDefault(t => t.Input == a.Input && t.InputKg == a.Kg);
 
     /// The fire is caught up to the minute before its heat is read. Cooking pays the setter, if alive.
     internal static void Minute(World world, List<WorldEvent> events)
@@ -141,7 +146,7 @@ public static class Stations
             {
                 var r = Recipes.Get(t.Recipe);
                 t.DonePct += rate / r.Minutes;
-                if (t.DonePct < 1 - DoneSlackPct) continue;
+                if (t.DonePct < 1 - DoneSlack) continue;
                 s.Working.Remove(t);
                 var made = r.Result.Resource!.Value;
                 double kg = t.InputKg * r.Result.SharePct;
