@@ -13,7 +13,8 @@ public class HaulReport(ITestOutputHelper output)
     public void Print()
     {
         output.WriteLine(Report.HaulText(Seed));
-        output.WriteLine($"# herds, seed {Seed}: animals by species on the day, placed on day 0");
+        output.WriteLine($"# herds, seed {Seed}: animals by species on the day. Day 0 is placement, the same on both;");
+        output.WriteLine("# renewal reads it (Renewal.ForageScore), so the two part from day 10 on.");
         output.WriteLine("before #152 (Fixtures/forage-before-152):");
         output.WriteLine(Report.CurveText(Herds(World.New(Seed, BeforeTables.Lay))));
         output.WriteLine("after:");

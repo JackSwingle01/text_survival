@@ -20,3 +20,11 @@ Revised: PoolsTests.Forage_YieldsAndThinsLikeTheOld pinned the old game's forest
 Revised: RenewalTests.What_LivesOnKills_ThinsWhenTheLandCannotFeedIt's 24 ravens were no longer over what the valley carries (23.4, the fungi and berries' abundance rose) → a flock of 32, the assertion as it was.
 Revised: WorkTests.AFocusedSearch_KeepsExactly... failed at 60 minutes (a general search kept no polypore that a food focus kept) once the haul neared the 15 kg pack → a 20-minute search, so no pack fills; the assertion as it was.
 Revised: ContentTests.Loader_RefusesAnUnknownField_InEveryFile edits the willow bark row by its text → the row's new abundance (1.25) in the match.
+Revised: the report puts the resin torch at 1.9 h (its recipe still takes 50 g of resin; the spec's 30 g lands with the lighting ticket) and the padded and moss beds at 4.8 and 6.6 h on one thinning tile against half a day (4 h) → reported as OVER, rates not pushed further: the acceptance names rope, torch, pouch and snare, all within the hour, and a player who moves on to fresh ground gathers the beds sooner.
+Follow-up: the animals' retune from the herd numbers (seed 17, 30 days: caribou 23 → 34, bear 2 → 3, the rest within a head or two), as the issue says.
+Follow-up: finds and stocks that give fibre or birch bark (Cattail Stand, the birch bark finds and loot) now give less than an hour of plain foraging; whether they keep an edge is a balance call outside this ticket.
+Follow-up: the NPC bench was not run against the baselines branch (NPC_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter NpcBenchReport); NPC people forage at the new rates.
+Revised (review): the need's gathering time counted two inputs of one resource apart, and a need with nothing foraged as a minute → inputs of a resource add up, none takes no time.
+Revised (review): the report's targets were judged on the forecast alone, while the criterion reads "on a fixed seed" → a target is ok only when the forecast and the seed's sample (1000 hours, up from 400 for a steadier mean) are both within 20%.
+Revised (review): ExpectedForage returned the live dictionary of the minute-by-minute sequence → it returns a copy.
+Revised (review): day 0 herds read the same before and after → the report says placement is the same on both and renewal parts them from day 10.

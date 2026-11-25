@@ -549,7 +549,8 @@ public static class Pools
         double density = rememberedDensity ?? ForageDensity(world, id);
         if (minutes <= 0 || density <= 0) return new SortedDictionary<Resource, double>();
         var ungrazed = def.Items.Select(i => rememberedDensity == null ? 1 - GrazedLevel(world, id, i.Resource) : 1).ToArray();
-        return ExpectedForageByMinute(def, density, ungrazed, effectivePct).Skip(minutes - 1).First();
+        var kg = ExpectedForageByMinute(def, density, ungrazed, effectivePct).Skip(minutes - 1).First();
+        return new SortedDictionary<Resource, double>(kg.ToDictionary(k => k.Key, k => k.Value)); // a copy: the sequence's is live
     }
 
     /// ExpectedForage minute by minute, on ground of the density given, with each item's ungrazed share (none
