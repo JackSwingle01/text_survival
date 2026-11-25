@@ -21,19 +21,20 @@ public class PackTests(ITestOutputHelper output)
 
     /// A herd of four bison six tiles off on the strip, against a pair of wolves (a kill chance of 0.35, and one of them wounded
     /// in 0.74 of hunts): hungry, the pair leaves them alone for an hour, more than it will risk (Fauna.HuntPays); starving, it
-    /// takes them on.
+    /// takes them on, as does a starving pack of eight (six hunting).
     [Theory]
-    [InlineData(0.8, 60, false)]
-    [InlineData(0.9, 6 * 60, true)]
-    public void APairOfWolves_LeavesBisonAlone_UntilStarving(double hunger, int minutes, bool hunts)
+    [InlineData(2, 0.8, 60, false)]
+    [InlineData(2, 0.9, 6 * 60, true)]
+    [InlineData(8, 0.9, 6 * 60, true)]
+    public void APairOfWolves_LeavesBisonAlone_UntilStarving(int wolves, double hunger, int minutes, bool hunts)
     {
         var w = PlannerTests.Strip();
         var bison = Agents.SpawnGroup(w, Species.Bison, T(26), 4);
-        var pack = Wolves(w, T(20), 2, hunger);
+        var pack = Wolves(w, T(20), wolves, hunger);
         var fought = new List<WorldEvent>();
         for (int i = 0; i < minutes && fought.Count == 0; i++)
             fought.AddRange(Sim.Advance(w, 1).Where(e => e is EncounterEnded f && bison.Contains(f.Agent) || e is Killed k && bison.Contains(k.Agent)));
-        output.WriteLine($"hunger {hunger}: {string.Join(", ", fought)}");
+        output.WriteLine($"{wolves} wolves at hunger {hunger}: {string.Join(", ", fought)}");
         Assert.Equal(hunts, fought.Count > 0);
     }
 

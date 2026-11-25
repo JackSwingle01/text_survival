@@ -16,3 +16,10 @@ Revised: changed pre-existing test `ForecastTests.KillChance_AgreesWithHeadlessP
 Revised: `KillOdds.Measure` returns (Kill, Injury) → its one other caller, KillChanceTableReport, prints both sections.
 Revised: the cohesion gate counts no hunts or predator deaths in fights → added the report `HuntValleyReport` (HUNT_VALLEY=1, HUNT_VALLEY_SEED) for the before-and-after numbers, run on a worktree of origin/main and on this branch.
 Revised: no separate adversarial design-review agent was run before code; the issue fixed every rule and number → the code review after the build is the only review.
+Revised (review): the gate overload checked HuntPays and every caller looked the kill chance up again → `GatedKillChance` (the kill chance, or 0 when the hunt fails the gate) is the one read in HuntAt, QuarryHere and Disperse.
+Revised (review): the PackTests rewrite dropped the pack-of-eight case → restored as a starving pack of eight that takes four bison on.
+Revised (review): the test helper `ListsTheHunt` let an optional hunger override its desperation and skip an assert → it takes hunger alone and returns the hunters' count, which the three-wolves case asserts.
+Revised (review): Desperation, KillChanceFloor and the tolerances carry no Pct/Level suffix (principles-code.md) → kept, matching KillChance and Hunger beside them.
+Follow-up: a hyena's starvingAt is 1.1 and hunger stops at 1, so its desperation tops out at 0.67 (tolerance 0.55); whether hyenas should reach full desperation is Jack's call.
+Follow-up: the starving pair of wolves on four bison passes the gate by 0.01 (injury 0.74 against 0.75); a re-measure after a combat change may flip it, and `PackTests.APairOfWolves_LeavesBisonAlone_UntilStarving` with it.
+Follow-up: "desperation" and "injury chance" are not in GLOSSARY.md.

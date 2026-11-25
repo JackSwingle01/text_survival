@@ -16,7 +16,7 @@ public class HuntValleyReport(ITestOutputHelper output)
     {
         int seed = int.TryParse(Environment.GetEnvironmentVariable("HUNT_VALLEY_SEED"), out var s) ? s : 17;
         var w = TestWorlds.New(seed);
-        var hunts = new HashSet<(Species, long, TileId)>();
+        var hunts = new HashSet<(Species Hunter, long Minute, TileId Tile)>();
         var kills = new Dictionary<Species, int>();
         var fought = new Dictionary<Species, int>();
         var died = new Dictionary<Species, int>();
@@ -41,6 +41,6 @@ public class HuntValleyReport(ITestOutputHelper output)
             }
         }
         foreach (var h in hunters)
-            output.WriteLine($"seed {seed} {h}: hunts {hunts.Count(x => x.Item1 == h)}, kills {kills.GetValueOrDefault(h)}, deaths {died.GetValueOrDefault(h)} ({fought.GetValueOrDefault(h)} in a fight)");
+            output.WriteLine($"seed {seed} {h}: hunts {hunts.Count(x => x.Hunter == h)}, kills {kills.GetValueOrDefault(h)}, deaths {died.GetValueOrDefault(h)} ({fought.GetValueOrDefault(h)} in a fight)");
     }
 }

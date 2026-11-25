@@ -71,33 +71,32 @@ public class HuntGateTests
     static void Senses(Agent animal, Species quarry, int count) =>
         (Fauna.MindOf(animal).Sightings ??= []).Add(new Sensed(null, animal.Tile, 0, Quarry: quarry, Count: count));
 
-    /// A pack of this many on the strip, each at this desperation, sensing a herd of the quarry on its tile: whether the
-    /// first lists the hunt as a food source (its hunters as many as the pack).
-    static bool ListsTheHunt(Species predator, int pack, double desperation, Species quarry, int herd, double? hunger = null)
+    /// A pack of this many on the strip, each at this hunger, sensing a herd of the quarry on its tile: whether the first lists
+    /// the hunt as a food source, and how many would hunt with it (Fauna.Hunters).
+    static (bool Listed, int Hunters) ListsTheHunt(Species predator, int pack, double hunger, Species quarry, int herd)
     {
         var w = PlannerTests.Strip();
         var hunters = Agents.SpawnGroup(w, predator, T(20), pack).Select(w.Agent).ToList();
-        foreach (var a in hunters) TestKit.SetHunger(a, hunger ?? HungerFor(predator, desperation));
-        if (hunger == null) Assert.Equal(pack, Fauna.Hunters(w, hunters[0]).Count);
+        foreach (var a in hunters) TestKit.SetHunger(a, hunger);
         Senses(hunters[0], quarry, herd);
-        return Fauna.HuntSource(w, hunters[0], hunters[0].Tile) > 0;
+        return (Fauna.HuntSource(w, hunters[0], hunters[0].Tile) > 0, Fauna.Hunters(w, hunters[0]).Count);
     }
 
     [Fact]
     public void AFedLoneSabreTooth_ListsACaribouHerdAsAFoodSource()
     {
-        Assert.True(ListsTheHunt(Species.SaberTooth, 1, 0, Species.Caribou, 3, hunger: 0));
-        Assert.True(ListsTheHunt(Species.SaberTooth, 1, 0, Species.Caribou, 1, hunger: 0));
+        Assert.True(ListsTheHunt(Species.SaberTooth, 1, 0, Species.Caribou, 3).Listed);
+        Assert.True(ListsTheHunt(Species.SaberTooth, 1, 0, Species.Caribou, 1).Listed);
     }
 
     [Fact]
     public void ThreeWolves_LeaveFourBisonAlone_UntilEveryOneIsStarving()
     {
         // Fed, only the one that starts it would hunt (Fauna.Hunters); were all three to, the chances are still more than it risks.
-        Assert.False(ListsTheHunt(Species.Wolf, 3, 0, Species.Bison, 4, hunger: 0));
+        Assert.False(ListsTheHunt(Species.Wolf, 3, 0, Species.Bison, 4).Listed);
         Assert.False(Fauna.HuntPays(At(Species.Wolf, 0), Combat.KillChance(Species.Wolf, 3, Species.Bison, 4), Combat.InjuryChance(Species.Wolf, 3, Species.Bison, 4)));
-        Assert.False(ListsTheHunt(Species.Wolf, 3, 0.5, Species.Bison, 4));
-        Assert.True(ListsTheHunt(Species.Wolf, 3, 1, Species.Bison, 4));
+        Assert.Equal((false, 3), ListsTheHunt(Species.Wolf, 3, HungerFor(Species.Wolf, 0.5), Species.Bison, 4));
+        Assert.Equal((true, 3), ListsTheHunt(Species.Wolf, 3, HungerFor(Species.Wolf, 1), Species.Bison, 4));
     }
 
     [Theory]
@@ -107,7 +106,7 @@ public class HuntGateTests
     public void ALoneHyena_NeverListsMegaloceros(double hunger)
     {
         for (int herd = 1; herd <= Combat.KillChanceHerds; herd++)
-            Assert.False(ListsTheHunt(Species.Hyena, 1, 0, Species.Megaloceros, herd, hunger));
+            Assert.False(ListsTheHunt(Species.Hyena, 1, hunger, Species.Megaloceros, herd).Listed);
     }
 
     /// Two hunts that both pass the gate, a tile either side of a lone wolf: it sets out for the one worth more by kill chance x
