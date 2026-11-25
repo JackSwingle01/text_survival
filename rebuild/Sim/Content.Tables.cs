@@ -407,7 +407,7 @@ public static partial class Content
             else if (r.Gear != null && !gear.ContainsKey(r.Gear)) problems.Add($"{at}: no gear kind '{r.Gear}'");
             else if (r.Gear != null && (r.Kg != 0 || r.G != 0 || r.Count != 0 || r.SharePct != 0)) problems.Add($"{at}: a gear result is one piece, with no amount");
             else if (r.Resource != null && items.Count > 0) problems.Add($"{at}: a resource result is worked from materials, not items");
-            else if (stationWorked) { } // StationProblems checks its result
+            else if (stationWorked && r.Resource is Resource sw && resources[sw].Discrete) { } // StationProblems checks its piece result
             else if (r.Resource is Resource made && resources[made].Discrete && (r.Count <= 0 || r.SharePct is <= 0 or > 1 || r.G != 0 || r.Kg != 0))
                 problems.Add($"{at}: a discrete result {made} is a count of pieces and a sharePct (0-1] of the inputs' weight");
             else if (r.Resource is Resource made2 && !resources[made2].Discrete
@@ -456,8 +456,9 @@ public static partial class Content
         return recipes.AsReadOnly();
     }
 
-    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on, or
-    /// nothing goes on and grams of a continuous resource come off, until its cap waits (melting snow).
+    /// A station-worked recipe (Stations): nothing is rolled, nothing is held in hand, and one piece goes on and one
+    /// piece or an amount comes off, or nothing goes on and grams of a continuous resource come off, until its cap
+    /// waits (melting snow).
     static IEnumerable<string> StationProblems(string at, RecipeFileRow row, List<MaterialInput> materials, List<string> items,
         IReadOnlyList<Capability> faster, List<Outcome> outcomes, IReadOnlyDictionary<Resource, ResourceDef> resources)
     {
@@ -475,9 +476,10 @@ public static partial class Content
         }
         else if (materials[0] is not { AnyOf.Count: 1 } m || (resources[m.AnyOf[0]].Discrete ? m.Count != 1 : m.Kg <= 0))
             yield return $"{at}: a station-worked recipe's input is one piece of one discrete resource, or up to some grams of one continuous one";
-        else if (row.Result.Resource is not Resource made || resources[made].Discrete != resources[m.AnyOf[0]].Discrete
-            || row.Result.Count != (resources[made].Discrete ? 1 : 0) || row.Result.SharePct is <= 0 or > 1 || row.Result.G != 0 || row.Result.Kg != 0)
-            yield return $"{at}: a station-worked recipe makes, as a sharePct (0-1] of its input, one piece of a discrete resource from a piece, or an amount from an amount";
+        if (materials.Count == 1 && materials[0] is { AnyOf.Count: 1 } inp
+            && (row.Result.Resource is not Resource made || (resources[made].Discrete && !resources[inp.AnyOf[0]].Discrete)
+            || row.Result.Count != (resources[made].Discrete ? 1 : 0) || row.Result.SharePct is <= 0 or > 1 || row.Result.G != 0 || row.Result.Kg != 0))
+            yield return $"{at}: a station-worked recipe makes, as a sharePct (0-1] of its input, one piece of a discrete resource from a piece, an amount from an amount, or a share of its weight in a continuous one from a piece";
     }
 
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
