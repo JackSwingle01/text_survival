@@ -319,7 +319,7 @@ public static class Npc
                     case FireNeedKind.Starter or FireNeedKind.Tinder when lit: break;
                     case FireNeedKind.Starter: return Impossible("a fire starter");
                     case FireNeedKind.Tinder:
-                        double odds = Math.Max(LeastStrikePct, Starter is ToolType tool ? Fire.StartOdds(world, agent, tool, need.AnyOf[0]).TotalPct : 0);
+                        double odds = Math.Max(LeastStrikePct, Starter is ToolType tool ? Fire.StartOdds(world, agent, tool, Fire.TinderToStrike(pack, need.Kg)).TotalPct : 0);
                         reqs.Add(NeedReq(need, need.Kg * Math.Clamp(StrikesPerFire / odds, MinStrikes, MaxStrikes), 0));
                         break;
                     default:
