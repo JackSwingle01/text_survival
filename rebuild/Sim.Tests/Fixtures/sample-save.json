@@ -605,8 +605,8 @@
             },
             {
               "Kind": "flint_knife",
-              "Durability": -1,
-              "MaxDurability": -1
+              "Durability": 29,
+              "MaxDurability": 30
             },
             {
               "Kind": "bone_needle",
@@ -1259,8 +1259,8 @@
             },
             {
               "Kind": "flint_knife",
-              "Durability": -1,
-              "MaxDurability": -1
+              "Durability": 30,
+              "MaxDurability": 30
             }
           ]
         },
