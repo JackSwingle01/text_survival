@@ -2644,7 +2644,7 @@
         "Gear": []
       },
       "TornOpen": false,
-      "BreakInMinutes": 1,
+      "BreakInMinutesSpent": 1,
       "Cause": {
         "Who": 0,
         "What": "buried by the player"

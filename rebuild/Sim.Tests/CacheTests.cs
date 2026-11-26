@@ -60,9 +60,14 @@ public class CacheTests
             var w = SnowyStrip();
             var id = CacheOfMeat(w, T(20), kind);
             double meat = Meat(w, id);
+            // The same meat in a pile beside it: the animal is feeding, so the cache's meat is kept out, not passed over.
+            var pile = Items.PileAt(w, T(20), new Cause(P, "put down by the player"));
+            TestKit.GivePieces(pile, Resource.RawMeat, 3);
+            double piled = Items.Have(pile, Resource.RawMeat);
             var animal = Hungry(w, species, T(20), hunger: 0.9);
             Assert.False(Access.GetsInto(w, animal.Id, Feature(w, id)), $"{species} gets into the {kind}");
             Sim.Advance(w, 60);
+            Assert.True((w.Tiles.GetValueOrDefault(T(20))?.Pile is { } left ? Items.Have(left, Resource.RawMeat) : 0) < piled, $"{species} did not feed");
             Assert.Equal(meat, Meat(w, id));
             Assert.False(w.Caches[id].TornOpen);
         }
@@ -86,23 +91,33 @@ public class CacheTests
         Assert.Equal([CacheKind.RockCleft], sites["sheltered_valley"]);
     }
 
-    /// A pile and a buried cache of the same meat, five tiles either side: the break-in is counted in the forecast, so the
-    /// bear goes to the pile.
-    [Fact]
-    public void WithAPileAndACacheEquallyFar_AnAnimalTakesThePileFirst()
+    /// A pile and a buried cache of the same meat, five tiles either side, the cache on the side a tie goes to: the break-in is
+    /// counted in the forecast, so the bear goes to the pile; with the cache torn open, nothing to break, it goes to the cache.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WithAPileAndACacheEquallyFar_AnAnimalTakesThePileFirst(bool tornOpen)
     {
         var w = SnowyStrip();
-        TestKit.EditGround(w, T(25), (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.5, CompactionPct = 0.3, FrozenFractionPct = 1 }));
-        TestKit.GivePieces(Items.PileAt(w, T(15), new Cause(P, "put down by the player")), Resource.RawMeat, 3);
-        var id = CacheOfMeat(w, T(25), CacheKind.BuriedInSnow);
+        TestKit.EditGround(w, T(15), (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.5, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        TestKit.GivePieces(Items.PileAt(w, T(25), new Cause(P, "put down by the player")), Resource.RawMeat, 3);
+        var id = CacheOfMeat(w, T(15), CacheKind.BuriedInSnow);
+        w.Caches[id].TornOpen = tornOpen;
         var bear = Hungry(w, Species.Bear, T(20), hunger: 0.85);
-        Fauna.MindOf(bear).Sightings = [new Sensed(null, T(15), 0, Pile: true), new Sensed(null, T(25), 0, Cache: id)]; // both found before
-        var pile = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, T(15)));
-        var cache = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, T(25)));
+        Fauna.MindOf(bear).Sightings = [new Sensed(null, T(25), 0, Pile: true), new Sensed(null, T(15), 0, Cache: id)]; // both found before
+        var pile = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, T(25)));
+        var cache = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, T(15)));
         Assert.Equal(pile.PerMinute, cache.PerMinute, 9);
-        Assert.Equal(Caches.Row(CacheKind.BuriedInSnow).BreakInMinutes, cache.SetupMinutes);
+        Assert.Equal(tornOpen ? 0 : Caches.Row(CacheKind.BuriedInSnow).BreakInMinutes, cache.SetupMinutes);
         Fauna.Decide(w, bear, []);
-        Assert.Equal(T(15), Fauna.MindOf(bear).Plan?.At);
+        Assert.Equal(tornOpen ? T(15) : T(25), Fauna.MindOf(bear).Plan?.At);
+        if (tornOpen) return;
+        double PileMeat() => w.Tiles.GetValueOrDefault(T(25))?.Pile is { } p ? Items.Have(p, Resource.RawMeat) : 0;
+        double piled = PileMeat(), cached = Meat(w, id);
+        Sim.Advance(w, 60);
+        Assert.True(PileMeat() < piled, "the bear did not eat at the pile");
+        Assert.Equal(cached, Meat(w, id));
+        Assert.False(w.Caches[id].TornOpen);
     }
 
     /// A fox digs for five minutes (breakInMinutes), eating nothing, then the cache lies torn open and it eats; a wolf then gets
@@ -155,17 +170,22 @@ public class CacheTests
         Assert.Equal(carried + meat, Items.Have(pack, Resource.RawMeat), 9);
         Assert.False(w.Caches.ContainsKey(id)); // emptied, the snow is only snow
 
+        Items.Add(pack, Resource.Water, Items.CapacityKg(pack)); // a full pack: the take is refused, not spilled
+        TestKit.GivePieces(w.Caches[Caches.Place(w, T(20), CacheKind.RockCleft)].Contents, Resource.RawMeat, 1);
+        var cleft = Assert.Single(Caches.At(w, T(20)));
+        Assert.Equal("your pack is full", Work.Refusal(w, new PickUp(P, Resource.RawMeat, 0.5, cleft))?.Reason);
+        Items.Take(pack, Resource.Water, Items.CapacityKg(pack));
+
         var bury = Assert.Single(Verbs.At(w, P).Pack, v => v.Activity is Bury { Resource: Resource.RawMeat });
         Sim.Step(w, bury.Activity, 1);
-        var buried = Assert.Single(Caches.At(w, T(20)));
-        Assert.Equal(CacheKind.BuriedInSnow, w.Caches[buried].Kind);
+        var buried = Assert.IsType<CacheId>(Caches.BuriedAt(w, T(20)));
         Assert.Equal(Math.Min(carried + meat, Caches.Row(CacheKind.BuriedInSnow).CapacityKg), Meat(w, buried), 9);
     }
 
     /// Calm air, six tiles: a bear smells 3 kg of raw meat in a pile (6 x 0.6 x 3 = 10.8 tiles), but buried in snow the scent
     /// is x0.2 (2.2 tiles), and it does not.
     [Fact]
-    public void BuriedFood_IsSmelledThroughItsScentMultiplier()
+    public void BuriedFood_IsSmelledThroughItsScentPct()
     {
         var w = SnowyStrip();
         var id = CacheOfMeat(w, T(26), CacheKind.BuriedInSnow);
@@ -173,7 +193,7 @@ public class CacheTests
         var bear = Hungry(w, Species.Bear, T(20), hunger: 0.85);
         var senses = Senses.Now(w, bear);
         Assert.True(senses.Smells(T(14), Scent.OfFoodIn(w.Tiles[T(14)].Pile!)));
-        Assert.Equal(Scent.OfFoodIn(w.Caches[id].Contents) * Caches.Row(CacheKind.BuriedInSnow).ScentMultiplier, Scent.OfCache(w.Caches[id]), 9);
+        Assert.Equal(Scent.OfFoodIn(w.Caches[id].Contents) * Caches.Row(CacheKind.BuriedInSnow).ScentPct, Scent.OfCache(w.Caches[id]), 9);
         Assert.False(senses.Smells(T(26), Scent.OfCache(w.Caches[id])));
         Fauna.Decide(w, bear, []);
         var seen = Fauna.MindOf(bear).Sightings ?? [];

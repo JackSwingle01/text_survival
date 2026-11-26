@@ -114,12 +114,12 @@ public class SaveTests
         var fox = w.Agent(Agents.Spawn(w, Species.Fox, tile));
         TestKit.SetHunger(fox, 0.85);
         Sim.Advance(w, 2);
-        Assert.True(w.Caches[id].BreakInMinutes is > 0 and < 5, $"break-in at {w.Caches[id].BreakInMinutes}");
+        Assert.True(w.Caches[id].BreakInMinutesSpent is > 0 and < 5, $"break-in at {w.Caches[id].BreakInMinutesSpent}");
         Assert.Contains(Fauna.MindOf(fox).Sightings ?? [], s => s.Cache == id);
 
         var loaded = TestWorlds.Load(Save.ToJson(w));
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
-        Assert.Equal(w.Caches[id].BreakInMinutes, loaded.Caches[id].BreakInMinutes);
+        Assert.Equal(w.Caches[id].BreakInMinutesSpent, loaded.Caches[id].BreakInMinutesSpent);
         Ground.SetClassState(loaded, tile, Ground.At(w, tile)); // the snow set down by hand, which the weather would have laid
         Sim.Advance(w, 30);
         Sim.Advance(loaded, 30);

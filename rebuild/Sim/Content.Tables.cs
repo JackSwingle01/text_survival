@@ -77,7 +77,7 @@ public static partial class Content
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
         Dictionary<string, ShelterMaterial> Materials, Dictionary<string, BeddingProps> Beddings, Dictionary<string, CacheFileRow> Caches);
-    sealed record CacheFileRow(double CapacityKg, IReadOnlyList<Ability> LetsIn, int BreakInMinutes, double ScentMultiplier,
+    sealed record CacheFileRow(double CapacityKg, IReadOnlyList<Ability> LetsIn, int BreakInMinutes, double ScentPct,
         double Insulation, double Overhead, double Wind, double? BuryDepthM = null);
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
@@ -209,7 +209,7 @@ public static partial class Content
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
             ReadOnly(beddings),
             ReadOnly(caches.ToDictionary(c => c.Key, c => new CacheRow(c.Value.CapacityKg, c.Value.LetsIn.Aggregate(Ability.None, (all, a) => all | a),
-                c.Value.BreakInMinutes, c.Value.ScentMultiplier, new ShelterCover(c.Value.Insulation, c.Value.Overhead, c.Value.Wind), c.Value.BuryDepthM))),
+                c.Value.BreakInMinutes, c.Value.ScentPct, new ShelterCover(c.Value.Insulation, c.Value.Overhead, c.Value.Wind), c.Value.BuryDepthM))),
             ReadOnly(butcherRows.ToDictionary(b => b.Key, b => new ButcherModeProps(b.Value.TimeFactor, ReadOnly(yields[b.Key]), b.Value.ScentIncrease, b.Value.BloodySeverity))),
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
             new Felling(terrain.Felling.Firewood, ReadOnly(firewoodKg), terrain.Felling.FirewoodKgSpreadPct,
@@ -231,8 +231,8 @@ public static partial class Content
         {
             string at = $"shelters.json caches {kind}";
             if (c.CapacityKg <= 0 || c.BreakInMinutes < 0) yield return $"{at}: capacityKg above 0 and breakInMinutes not below 0";
-            if (c.ScentMultiplier is < 0 or > 1 || new[] { c.Insulation, c.Overhead, c.Wind }.Any(l => l is < 0 or > 1))
-                yield return $"{at}: scentMultiplier, insulation, overhead and wind in 0-1";
+            if (c.ScentPct is < 0 or > 1 || new[] { c.Insulation, c.Overhead, c.Wind }.Any(l => l is < 0 or > 1))
+                yield return $"{at}: scentPct, insulation, overhead and wind in 0-1";
             if (!c.LetsIn.Contains(Ability.Hands)) yield return $"{at}: every cache lets hands in";
             if ((kind == CacheKind.BuriedInSnow) != (c.BuryDepthM is > 0)) yield return $"{at}: buryDepthM above 0 is buried in snow's, and only its";
         }

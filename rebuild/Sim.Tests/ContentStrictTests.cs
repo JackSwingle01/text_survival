@@ -196,9 +196,9 @@ public class ContentStrictTests
     [InlineData("species.json", "\"abilities\": [ \"Flies\" ]", "\"abilities\": [ \"Flies\", \"Hands\" ]", "species.json Raven: hands are a person's ability")]
     [InlineData("shelters.json", "\"letsIn\": [ \"Digs\", \"Hands\" ]", "\"letsIn\": [ \"Digs\" ]", "shelters.json caches BuriedInSnow: every cache lets hands in")]
     [InlineData("shelters.json", "\"capacityKg\": 40", "\"capacityKg\": 0", "shelters.json caches RockCleft: capacityKg above 0")]
-    [InlineData("shelters.json", "\"scentMultiplier\": 0.1", "\"scentMultiplier\": 1.5", "shelters.json caches IceCrevasse: scentMultiplier, insulation")]
+    [InlineData("shelters.json", "\"scentPct\": 0.1", "\"scentPct\": 1.5", "shelters.json caches IceCrevasse: scentPct, insulation")]
     [InlineData("shelters.json", ", \"buryDepthM\": 0.3", "", "shelters.json caches BuriedInSnow: buryDepthM above 0")]
-    [InlineData("shelters.json", "\"breakInMinutes\": 0, \"scentMultiplier\": 0.3", "\"breakInMinutes\": 0, \"buryDepthM\": 0.3, \"scentMultiplier\": 0.3", "shelters.json caches RockCleft: buryDepthM above 0")]
+    [InlineData("shelters.json", "\"breakInMinutes\": 0, \"scentPct\": 0.3", "\"breakInMinutes\": 0, \"buryDepthM\": 0.3, \"scentPct\": 0.3", "shelters.json caches RockCleft: buryDepthM above 0")]
     [InlineData("locations.json", "\"cache\": \"RockCleft\" }", "\"cache\": \"RockCleft\", \"chance\": 0.5 }", "cache Rock Cleft is placed when the world is made")]
     [InlineData("locations.json", "\"cache\": \"RockCleft\"", "\"cache\": \"Rockcleft\"", "no CacheKind 'Rockcleft'")]
     public void Loader_RefusesBadAbilities_AndBadCaches(string file, string from, string to, string named) =>

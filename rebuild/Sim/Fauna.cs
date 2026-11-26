@@ -401,7 +401,7 @@ public static partial class Fauna
         double kcal = eaten * MeatKcalPerKg;
         if (eaten <= 0 && StoreAt(world, herd, mind, herd.Tile, events) is { } store)
         {
-            if (store.BreakInMinutes > 0) Caches.BreakIn(world.Caches[store.Cache!.Value]);
+            if (store.BreakInLeft > 0) Caches.BreakIn(world.Caches[store.Cache!.Value]);
             else
                 foreach (var (r, kg) in Bite(StoreContents(world, herd.Tile, store.Cache)!, herd, RoomKcal(herd), herd.Members.Count))
                     kcal += Items.TakeFrom(world, herd.Id, store.Cache, r, kg, events) * Items.Resources[r].KcalPerKg;

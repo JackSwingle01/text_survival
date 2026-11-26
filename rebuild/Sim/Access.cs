@@ -59,7 +59,7 @@ public static class Access
         t.Kind != LocationFeatureKind.Cache || world.Caches[new CacheId(t.Index)] is var c
             && (Caches.Open(world, c) || (Caches.Row(c.Kind).LetsIn & AbilitiesOf(world.Agent(who))) != 0);
 
-    static Ability AbilitiesOf(Agent a) => SpeciesTable.Of(a.Species).Abilities;
+    internal static Ability AbilitiesOf(Agent a) => SpeciesTable.Of(a.Species).Abilities;
 
     public const Capability FreesIce = Capability.Striking | Capability.Cutting;
 

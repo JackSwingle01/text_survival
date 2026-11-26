@@ -6,7 +6,7 @@ namespace Survival;
 [JsonConverter(typeof(JsonStringEnumConverter<CacheKind>))]
 public enum CacheKind { BuriedInSnow, IceCrevasse, RockCleft }
 
-public sealed record CacheRow(double CapacityKg, Ability LetsIn, int BreakInMinutes, double ScentMultiplier, ShelterCover Cover, double? BuryDepthM);
+public sealed record CacheRow(double CapacityKg, Ability LetsIn, int BreakInMinutes, double ScentPct, ShelterCover Cover, double? BuryDepthM);
 
 public sealed class CacheState
 {
@@ -15,7 +15,7 @@ public sealed class CacheState
     public Inventory Contents { get; init; } = new();
     /// Broken into by an animal: it lets everyone in until a person repairs it. Damage, so stored.
     public bool TornOpen { get; set; }
-    public int BreakInMinutes { get; set; }
+    public int BreakInMinutesSpent { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Cause? Cause { get; init; }
 }
@@ -43,9 +43,11 @@ public static class Caches
     public static CacheId? BuriedAt(World world, TileId tile)
     {
         foreach (var id in At(world, tile))
-            if (Row(world.Caches[id].Kind).BuryDepthM != null) return id;
+            if (IsBuried(world.Caches[id].Kind)) return id;
         return null;
     }
+
+    public static bool IsBuried(CacheKind kind) => Row(kind).BuryDepthM != null;
 
     public static CacheState? Find(World world, CacheId id) => world.Caches.GetValueOrDefault(id);
 
@@ -59,23 +61,23 @@ public static class Caches
 
     /// Minutes the agent must spend breaking in before it eats: none with hands or into an open cache.
     public static int BreakInLeft(World world, CacheState c, Agent agent) =>
-        Open(world, c) || SpeciesTable.Of(agent.Species).Abilities.HasFlag(Ability.Hands) ? 0 : Math.Max(0, Row(c.Kind).BreakInMinutes - c.BreakInMinutes);
+        Open(world, c) || Access.AbilitiesOf(agent).HasFlag(Ability.Hands) ? 0 : Math.Max(0, Row(c.Kind).BreakInMinutes - c.BreakInMinutesSpent);
 
     public static void BreakIn(CacheState c)
     {
-        c.BreakInMinutes++;
-        if (c.BreakInMinutes >= Row(c.Kind).BreakInMinutes) c.TornOpen = true;
+        c.BreakInMinutesSpent++;
+        if (c.BreakInMinutesSpent >= Row(c.Kind).BreakInMinutes) c.TornOpen = true;
     }
 
     public static void Repair(CacheState c)
     {
         c.TornOpen = false;
-        c.BreakInMinutes = 0;
+        c.BreakInMinutesSpent = 0;
     }
 
     /// An emptied snow cache is snow again; the found caches stay.
     public static void Tidy(World world, CacheId id)
     {
-        if (Find(world, id) is { } c && Row(c.Kind).BuryDepthM != null && Items.IsEmpty(c.Contents)) world.Caches.Remove(id);
+        if (Find(world, id) is { } c && IsBuried(c.Kind) && Items.IsEmpty(c.Contents)) world.Caches.Remove(id);
     }
 }

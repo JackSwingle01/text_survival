@@ -137,7 +137,7 @@ public static partial class Fauna
         if (HuntAt(world, animal, mind, animal.Tile, Hunting(world, animal)) is var hunt && hunt > Math.Max(graze, Math.Max(meat, store?.KcalPerMinute ?? 0)))
             return QuarryHere(world, animal) is Agent prey && Refusal(world, new Hunt(animal.Id, prey.Id)) == null && !SideFoughtThisMinute(world, animal)
                 ? (new Hunt(animal.Id, prey.Id), 1) : Wait(animal);
-        double feed = Math.Min(FillMinutes(animal, meat), store is { } s ? FillMinutes(animal, s.KcalPerMinute, s.BreakInMinutes) : double.PositiveInfinity);
+        double feed = Math.Min(FillMinutes(animal, meat), store is { } s ? FillMinutes(animal, s.KcalPerMinute, s.BreakInLeft) : double.PositiveInfinity);
         return feed < FillMinutes(animal, graze) ? (new Feed(animal.Id), 1) : GrazeRefusal(world, animal) == null ? (new Graze(animal.Id), 1) : Wait(animal);
     }
 
@@ -161,9 +161,9 @@ public static partial class Fauna
 
     /// A forecast: what the pile or cache it would feed at on the tile pays it (StoreAt), its break-in the source's setup.
     public static Source? PileOrCacheSource(World world, Agent animal, TileId tile) =>
-        StoreAt(world, animal, MindOf(animal), tile, events: null) is { } s ? new Source(s.KcalPerMinute, SetupMinutes: s.BreakInMinutes) : null;
+        StoreAt(world, animal, MindOf(animal), tile, events: null) is { } s ? new Source(s.KcalPerMinute, SetupMinutes: s.BreakInLeft) : null;
 
-    readonly record struct Store(CacheId? Cache, double KcalPerMinute, int BreakInMinutes);
+    readonly record struct Store(CacheId? Cache, double KcalPerMinute, int BreakInLeft);
 
     /// The pile or cache on the tile that fills it soonest (FillMinutes), the pile on a tie: here what it reaches, elsewhere what it sensed and gets into.
     static Store? StoreAt(World world, Agent animal, HerdMind mind, TileId tile, List<WorldEvent>? events)
@@ -177,7 +177,7 @@ public static partial class Fauna
             double kcal = 0;
             foreach (var (r, kg) in Bite(StoreContents(world, tile, cache)!, animal, double.PositiveInfinity)) kcal += kg * Items.Resources[r].KcalPerKg;
             int breakIn = cache is CacheId id ? Caches.BreakInLeft(world, world.Caches[id], animal) : 0;
-            if (kcal > 0 && (best is not { } b || FillMinutes(animal, kcal, breakIn) < FillMinutes(animal, b.KcalPerMinute, b.BreakInMinutes)))
+            if (kcal > 0 && (best is not { } b || FillMinutes(animal, kcal, breakIn) < FillMinutes(animal, b.KcalPerMinute, b.BreakInLeft)))
                 best = new Store(cache, kcal, breakIn);
         }
         return best != null && !here && !WouldFeedAmong(world, animal, tile, events) ? null : best;
@@ -202,7 +202,7 @@ public static partial class Fauna
             if (rate > 0 && (best is not { } b || FillMinutes(animal, rate, setup) < FillMinutes(animal, b.PerMinute, b.SetupMinutes))) best = new Source(rate, SetupMinutes: setup);
         }
         Weigh(MeatAt(world, animal, mind, tile));
-        if (StoreAt(world, animal, mind, tile, events) is { } store) Weigh(store.KcalPerMinute, store.BreakInMinutes);
+        if (StoreAt(world, animal, mind, tile, events) is { } store) Weigh(store.KcalPerMinute, store.BreakInLeft);
         Weigh(GrazeAt(world, animal, tile)?.PerMinute ?? 0);
         // Quarry away from its tile is a source only when its pack is ready to go together.
         if (mind.Sightings != null && Combat.Hunts(animal.Species) && (hunting ?? Hunting(world, animal)) is var party && (party.Together || tile == animal.Tile))

@@ -13,7 +13,7 @@
 // caches: every CacheKind (GLOSSARY: Cache). capacityKg, the most it holds; letsIn, the abilities that get in
 //   (species.json abilities; every cache lets hands in); breakInMinutes, what an animal without hands spends
 //   once getting in, after which it lies torn open to everyone until repaired (0 where nothing it lets in
-//   must break in); scentMultiplier, on the scent of what it holds; insulation, overhead and wind, the cover
+//   must break in); scentPct, on the scent of what it holds; insulation, overhead and wind, the cover
 //   it gives what it holds, on top of the tile's (Exposure.InCache); buryDepthM, the snow it needs to be made
 //   and to keep shut (buried in snow only). All D (judged), from the work log
 //   .agent-logs/2026-11-26-125-caches.md; the found caches' capacities are the old game's.
@@ -69,8 +69,8 @@
  },
 
  "caches": {
-  "BuriedInSnow": { "capacityKg": 50, "letsIn": [ "Digs", "Hands" ], "breakInMinutes": 5, "scentMultiplier": 0.2, "insulation": 0.5, "overhead": 1.0, "wind": 1.0, "buryDepthM": 0.3 },
-  "IceCrevasse": { "capacityKg": 50, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentMultiplier": 0.1, "insulation": 0.3, "overhead": 0.9, "wind": 0.9 },
-  "RockCleft": { "capacityKg": 40, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentMultiplier": 0.3, "insulation": 0.2, "overhead": 0.8, "wind": 0.7 }
+  "BuriedInSnow": { "capacityKg": 50, "letsIn": [ "Digs", "Hands" ], "breakInMinutes": 5, "scentPct": 0.2, "insulation": 0.5, "overhead": 1.0, "wind": 1.0, "buryDepthM": 0.3 },
+  "IceCrevasse": { "capacityKg": 50, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentPct": 0.1, "insulation": 0.3, "overhead": 0.9, "wind": 0.9 },
+  "RockCleft": { "capacityKg": 40, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentPct": 0.3, "insulation": 0.2, "overhead": 0.8, "wind": 0.7 }
  }
 }

@@ -314,7 +314,6 @@ public static class Work
 
     public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
 
-    /// The tool a pool's work needs whatever is there: an axe for trees. A stock's items each say their own (Pools.CanWork).
     static LocationFeature? CacheHere(World world, Agent agent, CacheId id) =>
         Caches.Find(world, id)?.Tile == agent.Tile ? new LocationFeature(LocationFeatureKind.Cache, agent.Tile, id.Value) : null;
 
@@ -334,9 +333,10 @@ public static class Work
         var c = world.Caches[id];
         int had = Items.Count(pack, r);
         double moved = Items.Move(pack, c.Contents, r, kg, Caches.RoomKg(c));
-        events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, r, moved, had - Items.Count(pack, r)));
+        if (moved > 0) events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, r, moved, had - Items.Count(pack, r)));
     }
 
+    /// The tool a pool's work needs whatever is there: an axe for trees. A stock's items each say their own (Pools.CanWork).
     static Refusal? ToolRefusal(PoolDef def, Inventory pack) => def switch
     {
         TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,

@@ -123,7 +123,7 @@ public static class Verbs
                 {
                     carried.Add(($"Put down {Names.Of(r)}", new PutDown(who, r, kg), 1));
                     foreach (var c in Caches.At(world, agent.Tile))
-                        if (Caches.Row(world.Caches[c].Kind).BuryDepthM == null) carried.Add(($"Put {Names.Of(r)} in the {Names.Of(world.Caches[c].Kind)}", new PutDown(who, r, kg, c), 1));
+                        if (!Caches.IsBuried(world.Caches[c].Kind)) carried.Add(($"Put {Names.Of(r)} in the {Names.Of(world.Caches[c].Kind)}", new PutDown(who, r, kg, c), 1));
                     if (Items.Resources[r].Category == ResourceCategory.Food) carried.Add(($"Bury {Names.Of(r)} in the snow", new Bury(who, r, kg), 1));
                 }
             // By kind: Wear and TakeOff name a kind, so two of one kind are one verb.
