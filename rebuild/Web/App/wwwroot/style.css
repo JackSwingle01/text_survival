@@ -296,18 +296,6 @@ button { font: inherit; color: inherit; }
 .sbtn[aria-pressed="true"] { border-color: var(--ember); }
 .sbtn:hover { border-color: var(--bone-3); }
 
-@media (max-width: 860px) {
-  body { overflow: auto; }
-  .app { height: auto; min-height: 100%; grid-template-rows: auto 64vh auto; }
-  .dock, .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .top > div { padding-left: 0; padding-right: 14px; margin-right: 14px; }
-  .drawer { inset: 0; width: 100%; border: 0; clip-path: none; }
-  .vitals { width: 150px; }
-  .where-btn { display: none; }
-  .dock { flex-wrap: wrap; }
-  .verb { min-width: 0; flex: 1 1 calc(50% - 5px); }
-  .dock .verbs { flex-basis: 100%; }
-}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 /* ---------- additions for the real game ---------- */
@@ -361,7 +349,6 @@ button { font: inherit; color: inherit; }
 .flash { animation: flash .5s steps(3); }
 @keyframes flash { 0% { background: #3d2a14; } 100% { background: transparent; } }
 .shake { animation: shake .3s steps(3); }
-@media (max-width: 860px) { .combatside { top: auto; bottom: 12px; max-height: 40%; } }
 .dock { gap: 8px; }
 .dock .verb { min-width: 0; padding: 6px 12px 6px 8px; grid-template-columns: 32px auto; }
 .dock .verb img { width: 32px; height: 32px; }
@@ -410,11 +397,6 @@ button { font: inherit; color: inherit; }
   .lbar { width: 48px; }
   .t-feels .muted { display: none; }
 }
-@media (max-width: 860px) {
-  .dock .group { flex-wrap: wrap; flex: 1 1 100%; }
-  .dock .group .verb.fight { flex: 1 1 calc(50% - 6px); }
-  .combatside { max-height: 34%; }
-}
 .act.quiet:disabled { opacity: .4; cursor: not-allowed; }
 
 /* forage: the prototype's trickle of finds (dev/prototypes/ui/index.html) */
@@ -433,3 +415,57 @@ button { font: inherit; color: inherit; }
 .mood { font: 500 14px/1 var(--f-pixel); padding: 4px 7px; letter-spacing: .04em; clip-path: var(--notch-s); }
 .mood.good { background: #33300f; color: var(--ochre); } .mood.thin { background: #2a2f33; color: var(--frost); } .mood.wait { background: var(--ink-3); color: var(--bone-3); }
 .found .empty { color: var(--bone-3); font-size: 16px; align-self: center; flex-basis: 100%; }
+
+/* ---------- phones: the page fits the screen and never scrolls ----------
+   Portrait: the top strip, the map, then a dock of verbs in two rows that scroll sideways beside the
+   sheet buttons; the vitals a strip along the map's top; a drawer a sheet from the bottom that leaves the
+   top of the map in view. Landscape: the dock a column on the right, a drawer a panel on the map's right.
+   Both queries are disjoint, and their union holds what they share. tools/shots.mjs --phone checks it. */
+@media (max-width: 860px) and (min-height: 501px), (max-height: 500px) and (max-width: 1000px) {
+  html:has(body:not(.obs)), body:not(.obs) { overscroll-behavior: none; }
+  .app { height: 100%; height: 100dvh; touch-action: manipulation; }
+  .top { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .top > div { padding-left: 0; padding-right: 12px; margin-right: 12px; }
+  .where-btn { display: none; }
+  .dock { overflow: visible; gap: 8px; align-items: stretch; min-height: 0;
+    padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
+  .dock .verbs { gap: 6px; overscroll-behavior: contain; scrollbar-width: none; }
+  .dock .verbs::-webkit-scrollbar { display: none; }
+  .dock .verb, .dock .verb.small { min-width: 0; padding: 5px 8px 5px 5px; grid-template-columns: 24px minmax(0, 1fr); column-gap: 6px; overflow: hidden; }
+  .dock .verb img, .dock .verb.small img { width: 24px; height: 24px; }
+  .dock .verb .vn, .dock .verb.small .vn { font-size: 14px; white-space: nowrap; }
+  .dock .verb .vt, .dock .verb.small .vt { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheets { display: grid; grid-template-columns: repeat(2, 44px); grid-auto-rows: 44px; gap: 4px; align-content: center; }
+  .sheets .sbtn { padding: 0; place-items: center; }
+  .sheets .sbtn img { width: 26px; height: 26px; }
+  /* a fight: every move in one scroller */
+  .dock:has(.group) { overflow: auto; scrollbar-width: none; }
+  .dock .group, .dock .group.refused { display: contents; }
+  /* the vitals and alerts: a strip along the map's top */
+  .status { top: 8px; left: 8px; right: 8px; bottom: auto; flex-direction: column; align-items: stretch; gap: 6px; }
+  .vitals { width: auto; padding: 6px 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .vbar { grid-template-columns: 16px 1fr; gap: 6px; }
+  .vbar .ico { width: 16px; height: 16px; }
+  .vtrack { height: 8px; }
+  .alerts { flex-direction: row; flex-wrap: wrap; }
+  .alert { padding: 5px 9px 5px 7px; font-size: 15px; }
+  .end { max-height: 100%; overflow: auto; }
+}
+@media (max-width: 860px) and (min-height: 501px) {
+  .dock .verbs { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); grid-auto-columns: 122px;
+    overflow-x: auto; overflow-y: hidden; mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+  .drawer { inset: auto 0 0 0; width: auto; height: 55%; border-width: 2px 0 0; clip-path: none; }
+  .combatside { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 38%; }
+}
+@media (max-height: 500px) and (max-width: 1000px) {
+  .app { grid-template-columns: minmax(0, 1fr) 212px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top top" "map dock"; }
+  .top > div { padding-top: 4px; padding-bottom: 4px; }
+  .t-clock .clock-time { font-size: 24px; }
+  .dock { flex-direction: column; border-top: 0; border-left: 2px solid var(--seam); padding-left: 8px; }
+  .dock .verbs { display: flex; flex-direction: column; flex-wrap: nowrap; flex: 1 1 auto; min-height: 0; width: 100%; overflow-x: hidden; overflow-y: auto; }
+  .dock .verb { flex: none; }
+  .sheets { grid-template-columns: repeat(4, 1fr); width: 100%; }
+  .status { right: auto; width: min(300px, calc(44% - 16px)); }
+  .drawer { top: 8px; right: 8px; bottom: 8px; width: min(360px, 56%); }
+  .combatside { top: 8px; right: 8px; width: min(300px, 55%); max-height: calc(100% - 16px); }
+}

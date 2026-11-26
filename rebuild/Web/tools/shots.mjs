@@ -4,6 +4,8 @@
 //   node shots.mjs <wwwroot> --run                 the scripted run: walk, fire, forage, make a staff, save, load
 //   node shots.mjs <wwwroot> --shot fire [--shot make ...] [--phone]   one state each (see STATES)
 //   node shots.mjs <wwwroot> --all [--phone]        every state
+// --phone also shoots each state on phones (portrait 390×664, landscape 844×390 and 932×430, touch on) and
+// fails when the layout does not fit the screen there (PHONE_LAYOUT).
 // Options: --out <dir> (default rebuild/Web/shots), --seed <n>, --chrome <path>.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -34,6 +36,40 @@ const page = {
   key: k => `(document.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', bubbles: true })), true)`,
   view: `window.ui.S.view`,
 };
+
+/** On a phone, the page fits the screen (#315): it never scrolls; every verb is in the window or in a
+ *  scroller of its own that brings it there; the sheet buttons are in the window with no scrolling; and an
+ *  open drawer leaves a third of the map uncovered by it and the status strip. Returns the problems. */
+const PHONE_LAYOUT = `(() => {
+  const W = innerWidth, H = innerHeight, out = [];
+  const shown = e => e.getClientRects().length > 0;
+  const inside = r => r.left >= -1 && r.top >= -1 && r.right <= W + 1 && r.bottom <= H + 1;
+  const name = b => b.querySelector('.vn')?.textContent.trim() || b.dataset.open || b.textContent.trim().slice(0, 20);
+  const scroller = e => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const s = getComputedStyle(p); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return p; } return null; };
+  const reached = b => { const r = b.getBoundingClientRect(); if (!inside(r)) return 'out of reach'; const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return hit && b.contains(hit) ? null : 'covered'; };
+  const doc = document.scrollingElement;
+  if (doc.scrollHeight > H || doc.scrollWidth > W) out.push('the page is ' + doc.scrollWidth + '×' + doc.scrollHeight + ' in a ' + W + '×' + H + ' window');
+  for (const sel of ['.app', '.top', '.map', '.dock']) { const e = document.querySelector(sel); if (e && shown(e) && !inside(e.getBoundingClientRect())) out.push(sel + ' runs past the window'); }
+  for (const b of document.querySelectorAll('.sheets button')) { const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
+  for (const b of document.querySelectorAll('.dock button')) {
+    if (!shown(b) || b.closest('.sheets')) continue;
+    scroller(b)?.scrollTo?.({ left: 0, top: 0 });
+    const sc = scroller(b); if (sc) { const r = b.getBoundingClientRect(), c = sc.getBoundingClientRect(); sc.scrollLeft += r.left - c.left; sc.scrollTop += r.top - c.top; }
+    const p = reached(b); if (p) out.push('verb ' + name(b) + ': ' + p);
+  }
+  if (doc.scrollTop || doc.scrollLeft) out.push('reaching the verbs scrolled the page');
+  const d = document.getElementById('drawer');
+  if (d && shown(d)) {
+    const m = document.querySelector('.map').getBoundingClientRect(), r = d.getBoundingClientRect();
+    const st = document.querySelector('.status'), top = Math.max(m.top, st && shown(st) ? st.getBoundingClientRect().bottom : m.top);
+    const above = Math.max(0, r.top - top) * m.width, beside = Math.max(0, r.left - m.left) * (m.bottom - top);
+    const left = Math.max(above, beside) / (m.width * m.height);
+    if (left < 1 / 3) out.push('an open drawer leaves ' + Math.round(left * 100) + '% of the map');
+  }
+  return out;
+})()`;
+
+const PHONES = [[390, 664, '-phone'], [844, 390, '-land'], [932, 430, '-land-max']];
 
 /** Each state: a URL scenario (Host Scenarios) and the steps that drive the page there. */
 const STATES = {
@@ -109,7 +145,7 @@ async function launch() {
   const port = 9400 + Math.floor(Math.random() * 400);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-shots-'));
   const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--no-first-run',
-    '--window-size=1280,860', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
+    '--window-size=1280,860', '--hide-scrollbars', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), 'about:blank'], { stdio: 'ignore' });
   let target;
   for (let i = 0; i < 60 && !target; i++) {
     await new Promise(r => setTimeout(r, 200));
@@ -141,6 +177,7 @@ async function launch() {
 
 async function size(cdp, w, h, mobile = false) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile });
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 });
 }
 
 async function goto(cdp, url) {
@@ -159,6 +196,36 @@ async function shot(cdp, name) {
   const file = path.join(out, `${name}.png`);
   fs.writeFileSync(file, Buffer.from(r.result.data, 'base64'));
   console.log(`  ${file}`);
+}
+
+/** A finger's tap at a point in the window. */
+async function tap(cdp, x, y) {
+  const at = [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await new Promise(r => setTimeout(r, 400));
+}
+const centreOf = sel => `(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`;
+const tipShown = `(() => { const t = document.getElementById('ftip'); return t.hidden ? null : t.textContent; })()`;
+
+/** On a phone, a tap shows what a mouse would hover (#315): the clock's tap shows the day and the weather;
+ *  the next tap only puts it away, so a tap on the map walks nowhere; a tap on a verb leaves no tip up. */
+async function phoneTaps(cdp) {
+  await size(cdp, 390, 664, true);
+  await goto(cdp, `${url}?seed=${seed}`);
+  const problems = [];
+  await tap(cdp, ...await cdp.evaluate(centreOf('.t-clock')));
+  const shown = await cdp.evaluate(tipShown);
+  if (!/Day \d/.test(shown ?? '')) problems.push(`a tap on the clock showed ${JSON.stringify(shown)}, not the day and weather`);
+  const [mx, my] = await cdp.evaluate(`(() => { const r = document.getElementById('world').getBoundingClientRect(); return [r.left + 30, r.bottom - 30]; })()`);
+  await tap(cdp, mx, my);
+  if (await cdp.evaluate(tipShown)) problems.push('a second tap left the tip up');
+  if (await cdp.evaluate(`window.ui.S.drawer?.kind ?? null`)) problems.push('the tap that put the tip away also acted on the map');
+  await cdp.evaluate(`(document.querySelector('.dock .verb[data-open="make"]').scrollIntoView({ block: 'nearest', inline: 'nearest' }), true)`);
+  await tap(cdp, ...await cdp.evaluate(centreOf('.dock .verb[data-open="make"]')));
+  if (await cdp.evaluate(tipShown)) problems.push('a tap on a verb left its tip up');
+  if (await cdp.evaluate(`window.ui.S.drawer?.kind ?? null`) !== 'make') problems.push('a tap on Make did not open it');
+  return problems;
 }
 
 async function step(cdp, s) { return cdp.evaluate(s === 'strike' ? STRIKE : s === 'remembered' ? REMEMBERED : s === 'away' ? AWAY : s); }
@@ -282,15 +349,17 @@ try {
     await new Promise(r => setTimeout(r, 2500));
     await shot(cdp, 'observe-04-ravine');
   }
+  if (phone) for (const p of await phoneTaps(cdp)) { console.error(`  taps: ${p}`); failed = true; }
   const wanted = args.includes('--all') ? Object.keys(STATES) : args.flatMap((a, i) => a === '--shot' ? [args[i + 1]] : []);
   for (const name of wanted) {
     const st = STATES[name];
     if (!st) throw new Error(`No state '${name}': ${Object.keys(STATES).join(', ')}`);
-    for (const [w, h, suffix] of phone ? [[1280, 860, ''], [390, 844, '-phone']] : [[1280, 860, '']]) {
+    for (const [w, h, suffix] of phone ? [[1280, 860, ''], ...PHONES] : [[1280, 860, '']]) {
       await size(cdp, w, h, suffix !== '');
       await goto(cdp, `${url}?seed=${seed}${st.scenario ? `&scenario=${st.scenario}` : ''}`);
       for (const s of st.steps) await step(cdp, s);
       await shot(cdp, `${name}${suffix}`);
+      if (suffix) for (const p of await cdp.evaluate(PHONE_LAYOUT)) { console.error(`  ${name}${suffix}: ${p}`); failed = true; }
     }
   }
 } catch (e) {

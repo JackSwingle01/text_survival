@@ -3,13 +3,13 @@
 // seen. Fires, shelters and animals are drawn as last seen, with their age when out of sight.
 // The ground itself is terrain.js: one art pixel per CSS pixel, so cells are CELL (48) wide on every
 // screen and stay crisp at a device pixel ratio of 1 or 2.
-import { icon, ago } from './util.js';
+import { icon, ago, cameraTarget } from './util.js';
 import { createTerrain, TERRAIN } from './terrain.js';
 import { CELL } from './terrain-core.js';
 import { createGround, worldState } from './ground-state.js';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** state(): { view, drawPos: {x,y}, drawerOpen, selected: {x,y}|null }. */
+/** state(): { view, drawPos: {x,y}, cover: {top,right,bottom} (cameraTarget), selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
   const TS = CELL, terrain = createTerrain(), ground = createGround(code => TERRAIN[code]);
@@ -55,8 +55,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0d1216'; ctx.fillRect(0, 0, w, h);
-    const shift = S.drawerOpen && w > 860 ? 232 / TS : 0;
-    const tx = S.drawPos.x + 0.5 + shift, ty = S.drawPos.y + 0.5;
+    const { x: tx, y: ty } = cameraTarget(S.drawPos, S.cover, TS);
     if (!cam) cam = { x: tx, y: ty };
     cam.x += (tx - cam.x) * Math.min(1, dt * 5); cam.y += (ty - cam.y) * Math.min(1, dt * 5);
     const ox = Math.round(w / 2 - cam.x * TS), oy = Math.round(h / 2 - cam.y * TS);
@@ -159,7 +158,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
     const m = state().view?.map;
     return m && x >= 0 && y >= 0 && x < m.width && y < m.height ? { x, y } : null;
   };
-  canvas.addEventListener('mousemove', e => { hover = tileAt(e); onHover(hover, e); });
+  canvas.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; hover = tileAt(e); onHover(hover, e); });
   canvas.addEventListener('mouseleave', () => { hover = null; onHover(null); });
   canvas.addEventListener('click', e => { const t = tileAt(e); if (t) onClick(t); });
 
