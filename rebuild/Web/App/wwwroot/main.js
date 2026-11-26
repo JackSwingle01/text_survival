@@ -641,14 +641,17 @@ document.addEventListener('pointerover', e => {
   const el = e.target.closest('[data-tip]');
   if (el) showTip(el); else hideTip();
 });
+// Each touch decides afresh whether it only puts a tip away, so a swipe (a pan ends in pointercancel,
+// with no click to swallow) never leaves the next tap swallowed.
 document.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'mouse' || !pinned) return;
-  hideTip(); swallow = true;
+  if (e.pointerType === 'mouse') return;
+  swallow = pinned;
+  if (pinned) hideTip();
 }, true);
+document.addEventListener('pointercancel', () => { swallow = false; }, true);
 document.addEventListener('click', e => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('pointerup', e => {
-  if (swallow) { setTimeout(() => { swallow = false; }, 400); return; } // a drag makes no click to swallow
-  if (e.pointerType === 'mouse') return;
+  if (e.pointerType === 'mouse' || swallow) return;
   const el = e.target.closest('[data-tip]');
   if (el && !el.closest('button, [data-verb], [data-open], [data-act], [data-sheet]')) { showTip(el); pinned = true; }
 });

@@ -208,6 +208,18 @@ async function tap(cdp, x, y) {
   await new Promise(r => setTimeout(r, 400)); // the click after the touch, and the page's answer to it
 }
 
+/** A finger's swipe from one point to another, slow enough that the browser pans what is under it. */
+async function swipe(cdp, [x0, y0], [x1, y1]) {
+  const at = (x, y) => [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(x0, y0) });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8) });
+    await new Promise(r => setTimeout(r, 16));
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await new Promise(r => setTimeout(r, 400));
+}
+
 /** On a phone, a tap shows what a mouse would hover (#315): the clock's tap shows the day and the weather;
  *  the next tap only puts it away, so a tap on the map walks nowhere; a tap on a verb leaves no tip up. */
 async function phoneTaps(cdp) {
@@ -221,6 +233,11 @@ async function phoneTaps(cdp) {
   await tap(cdp, mx, my);
   if (await cdp.evaluate(page.tip)) problems.push('a second tap left the tip up');
   if (await cdp.evaluate(page.drawer)) problems.push('the tap that put the tip away also acted on the map');
+  // A swipe that puts a tip away pans instead of clicking: the tap after it still acts.
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.t-clock')));
+  const [vx, vy] = await cdp.evaluate(page.centreOf('.dock .verbs'));
+  await swipe(cdp, [vx + 60, vy], [vx - 60, vy]);
+  if (await cdp.evaluate(page.tip)) problems.push('a swipe left the tip up');
   await cdp.evaluate(`(document.querySelector('.dock .verb[data-open="make"]').scrollIntoView({ block: 'nearest', inline: 'nearest' }), true)`);
   await tap(cdp, ...await cdp.evaluate(page.centreOf('.dock .verb[data-open="make"]')));
   if (await cdp.evaluate(page.tip)) problems.push('a tap on a verb left its tip up');
