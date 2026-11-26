@@ -12,25 +12,29 @@ namespace Survival.Tests;
 public class CapacityReadTests
 {
     /// The projects that use the sim but that Sim.Tests builds without referencing (Sim.Tests.csproj).
-    static readonly (string Project, string Assembly)[] NotReferenced =
-        [("Cli", "Cli"), ("Tools/Tune", "Tune"), ("Tools/TuneViewer", "TuneViewer"), ("Tools/Tune.Tests", "Tune.Tests"), ("Web/Host.Tests", "Host.Tests")];
+    /// Each is named for its folder under rebuild/, and its assembly for the folder's last part.
+    static readonly string[] NotReferenced = ["Cli", "Tools/Tune", "Tools/TuneViewer", "Tools/Tune.Tests", "Web/Host.Tests"];
+
+    static string AssemblyOf(string project) => Path.GetFileName(project);
 
     /// Its own load context, so a tool's copy of an assembly never stands in for the one the tests run.
     static readonly System.Runtime.Loader.AssemblyLoadContext Scanned = new(nameof(CapacityReadTests), isCollectible: true);
 
     /// A project's own build, in this build's configuration: a missing one fails rather than leaving its reads unread.
-    static string BuiltAssembly(string project, string assembly)
+    static string BuiltAssembly(string project)
     {
         string config = typeof(CapacityReadTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        var output = new DirectoryInfo(AppContext.BaseDirectory);
+        var dir = output;
         while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Sim", "Sim.csproj"))) dir = dir.Parent;
-        string path = Path.Combine(dir!.FullName, project, "bin", config, "net10.0", assembly + ".dll");
+        if (dir == null) throw new DirectoryNotFoundException($"no rebuild/ folder above {output.FullName}");
+        string path = Path.Combine(dir.FullName, project, "bin", config, output.Name, AssemblyOf(project) + ".dll");
         return File.Exists(path) ? path : throw new FileNotFoundException($"no build of {project} at {path}");
     }
 
     internal static readonly Lazy<CompiledCode> Compiled = new(() => NotReferenced.Aggregate(new ArchUnitNET.Loader.ArchLoader()
             .LoadAssemblies(typeof(World).Assembly, typeof(Survival.Web.ViewDto).Assembly, typeof(CapacityReadTests).Assembly),
-            (loader, p) => loader.LoadAssemblies(Scanned.LoadFromAssemblyPath(BuiltAssembly(p.Project, p.Assembly))))
+            (loader, project) => loader.LoadAssemblies(Scanned.LoadFromAssemblyPath(BuiltAssembly(project))))
         .Build());
 
     static readonly string CapacitiesType = typeof(Capacities).FullName!;
@@ -130,7 +134,7 @@ public class CapacityReadTests
     public void TheToolsAndTheOtherTests_AreRead()
     {
         var assemblies = Compiled.Value.Types.Select(t => t.Assembly.Name.Split(',')[0]).ToHashSet();
-        Assert.All(NotReferenced, p => Assert.Contains(p.Assembly, assemblies));
+        Assert.All(NotReferenced, p => Assert.Contains(AssemblyOf(p), assemblies));
     }
 
     [Fact]
@@ -163,7 +167,7 @@ public class CapacityReadTests
     static readonly string[] CapacityReadsToday =
     [
         // The tests.
-        "Tests.BodyTests.DestroyedLegs_LeaveNoMoving: Moving",
+        "EffectsPropertyTests.Readouts_AreSeverityScaledSumsOfTheTable: CapacityDeltas",
         "Tests.BodyTests.Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeCapacitiesToNothing: Moving",
         "Tests.BodyTests.Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Tests.BodyTests.Effects_DisableButNeverKill: Consciousness",

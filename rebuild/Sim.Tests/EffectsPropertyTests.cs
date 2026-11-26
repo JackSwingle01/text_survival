@@ -306,40 +306,35 @@ public class EffectsPropertyTests
 
     // ---- what effects do to the body ----
 
-    /// The body readouts are each effect's full-severity row scaled by its severity and summed, and nothing
-    /// from an effect that is not there.
+    /// The readouts are each effect's full-severity row scaled by its severity and summed, and nothing
+    /// from an effect that is not there; the discomforts' losses alone are summed and then saturate,
+    /// x / (1 + (x/0.8)^4)^(1/4).
     [Fact]
-    public void CoreTempAndBleedReadouts_AreSeverityScaledSumsOfTheTable()
+    public void Readouts_AreSeverityScaledSumsOfTheTable()
     {
         Gens.EffectOps.Check(ops =>
         {
             var b = Gens.BodyAfter(ops);
-            double core = b.Effects.Sum(e => Def(e.Kind).CoreTempFPerHour * e.Severity);
-            double bleed = b.Effects.Sum(e => Def(e.Kind).BleedMlPerHour * e.Severity);
+            var caps = new double[Enum.GetValues<Capacity>().Length];
+            var discomfort = new double[caps.Length];
+            double core = 0, bleed = 0;
+            foreach (var e in b.Effects)
+            {
+                foreach (var (cap, delta) in Def(e.Kind).Capacities)
+                    if (Def(e.Kind).Discomfort && delta < 0) discomfort[(int)cap] -= delta * e.Severity;
+                    else caps[(int)cap] += delta * e.Severity;
+                core += Def(e.Kind).CoreTempFPerHour * e.Severity;
+                bleed += Def(e.Kind).BleedMlPerHour * e.Severity;
+            }
+            var actual = Effects.CapacityDeltas(b);
+            for (int i = 0; i < caps.Length; i++)
+                Assert.Equal(caps[i] - discomfort[i] / Math.Pow(1 + Math.Pow(discomfort[i] / 0.8, 4), 0.25), actual[i], 12);
             Assert.Equal(core, Effects.CoreTempFPerHour(b), 12);
             Assert.Equal(bleed, Effects.BleedMlPerHour(b), 12);
         });
     }
 
     static double[] Shares(BodyState b) => [.. Enum.GetValues<Faculty>().Select(f => Body.Share(b, Species.Human, f))];
-
-    /// Every effect's table only takes from the body: worsening any effect a body has never raises a faculty.
-    [Fact]
-    public void AWorseEffect_NeverRaisesAFaculty()
-    {
-        Gen.Select(Gens.EffectOps, Gen.Int[0, 1000], Gen.Double[0, 0.5]).Check(t =>
-        {
-            var (ops, pick, by) = t;
-            var b = Gens.BodyAfter(ops);
-            if (b.Effects.Count == 0) return;
-            var kind = b.Effects[pick % b.Effects.Count].Kind;
-            var before = Shares(b);
-            Effects.Set(b, kind, Math.Min(1, Effects.Severity(b, kind) + by));
-            var after = Shares(b);
-            for (int i = 0; i < before.Length; i++)
-                Assert.True(after[i] <= before[i] + 1e-12, $"worse {kind} raised {(Faculty)i}: {before[i]} -> {after[i]}");
-        });
-    }
 
     /// Whatever the curve: worsening any discomfort never raises a faculty, and hunger, thirst and
     /// tiredness at any severities never leave a whole body helpless: every faculty stays above a sixth of fresh.

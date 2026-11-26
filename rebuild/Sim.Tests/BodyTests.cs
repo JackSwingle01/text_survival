@@ -223,12 +223,12 @@ public class BodyTests
     }
 
     [Fact]
-    public void DestroyedLegs_LeaveNoMoving()
+    public void DestroyedLegs_LeaveNoSpeed()
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Left Leg"));
         Destroy(RegionOf(b, "Right Leg"));
-        Assert.Equal(0, Body.GetCapacities(b).Moving);
+        Assert.Equal(0, Body.Speed(b));
     }
 
     [Fact]

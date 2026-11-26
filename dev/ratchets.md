@@ -92,11 +92,11 @@ When empty: delete the exception list and its branch in the rule, and hide the c
 the read that returns it from everything outside the body, the test project included, so the
 compiler holds the rule. The screen's named read-out stays. `Effects.CapacityDeltas` is hidden from
 everything outside the body with them. `internal` alone does not hide them: Sim grants
-InternalsVisibleTo to Sim.Tests, Tune and Host.Tests, so make them visible only to the body's own
-types (`BodyTierTests.TheBodysTypes`), and delete `CapacityReadTests`' own reads of them, its
+InternalsVisibleTo to Sim.Tests, Tune and Host.Tests, so make them private to the body's own types
+(`BodyTierTests.TheBodysTypes`), nested in them where more than one needs them, and delete `CapacityReadTests`' own reads of them, its
 breaching sample included, since the compiler then holds the rule. Rename the `Capacity` enum
 (`rebuild/Sim/Body.cs`) to `BodyFunction`, with everything that names it: the save's shape (regenerate
 the fixture by `documentation/save-format.md`), the table in `names.json` and the body screen's
 read-out. `GLOSSARY.md` gains an entry: a body function is what a part of the body supplies, and five
-of them are the capacities. No type or member in the sim is named `Capacity` for the eight; "capacity"
+of them are the capacities. No type or member in the sim is named `Capacity` for the eight body functions; "capacity"
 in code means one of the glossary's five.

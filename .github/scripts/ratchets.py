@@ -72,14 +72,14 @@ def title_prefix(ratchet):
     return f"Ratchet: {ratchet['name']}"
 
 
-TITLE_NAMES_MAX = 200  # GitHub refuses a title over 256 characters; the rest is the prefix.
+TITLE_NAMES_MAX_CHARS = 200  # GitHub refuses a title over 256 characters; the rest is the prefix.
 
 
 def title_names(names):
     """The items' names for a title, cut to the first few with "and N more" when all of them are too long."""
     for shown in range(len(names), 0, -1):
         text = ", ".join(names[:shown]) + (f" and {len(names) - shown} more" if shown < len(names) else "")
-        if len(text) <= TITLE_NAMES_MAX or shown == 1:
+        if len(text) <= TITLE_NAMES_MAX_CHARS or shown == 1:
             return text
     return ""
 
