@@ -16,3 +16,6 @@ Revised: MapTests.Save_HoldsNoCampTile_AndClothingBelongsToEachBody asserted 1.3
 Revised: ShelterTests.SnowShelter_IsDugWithAShovel_InTheCold: colder hands, built in 70 minutes, not 69 → 70.
 Revised: ExposureTests.FactorOneTile_IsBitForBitTheOldWiring compares with the old game's body, whose leg wraps were 60 of 60 → TestKit.OldBaselineHuman dresses the old outfit as the old game made it (wraps 60 of 60), so the goldens stand.
 Revised: the sample save's world is stepped, so the colder start changes many lines of the fixture → regenerated with SURVIVAL_UPDATE_SAVE_FIXTURE=1.
+Revised (review): the durability range was written twice, in `Items.Make` and the loader → one `Items.CanBeWornTo(GearDef, int)` used by both; the loader names a durability on a never-wearing kind as that, not "more than whole".
+Revised (review): WorkTests built the same test-only axe twice; ShelterTests' comment recorded history → one loop; the history note dropped.
+Follow-up: the NPC bench's reversals rose from 7019 (main at ea68c11, 20 seeds, 60 days) to 11380 on this branch, mostly seeds 5, 505 and 808; deaths by cause barely moved. Not read further here; a person may want to know whether a colder start feeds a warmth/fire flip-flop.
