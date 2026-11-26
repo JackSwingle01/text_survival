@@ -16,7 +16,7 @@ namespace Survival.Tests.Verification;
 /// FireStartFailed), the carcasses' own YieldKg, the fire's charcoal, the pit's room. Moves (put down,
 /// pick up, a full pack dropping to the ground, cut pieces waiting on a carcass, wearing, a skeleton
 /// scattering into a pile) have no term: they must net to zero. Gear by kind is constant.
-/// Raids and work-pool gathering are separate properties below.
+/// Feeding at a pile and work-pool gathering are separate properties below.
 public class ConservationItemsTests
 {
     static readonly Resource[] PackResources =
@@ -208,49 +208,49 @@ public class ConservationItemsTests
     [Trait("Category", TestCategories.Slow)]
     public void Items_AreNeitherMadeNorLost_Many() => Scenes.Check(Run, iter: 1500);
 
-    // ---- raids: the ravens' take is the only sink, and it is bounded ----
+    // ---- feeding at a pile: the ravens' take is the only sink, and it is bounded ----
 
-    public sealed record RaidScene(int Members, double[] PileKg, int Minutes);
+    public sealed record PileFeedScene(int Ravens, double[] PileKg, int Minutes);
 
-    static readonly Resource[] RaidPile =
+    static readonly Resource[] FedPile =
         [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat, Resource.Berries, Resource.BirchBranch, Resource.Hide];
 
-    static readonly Gen<RaidScene> RaidScenes = Gen.Select(Gen.Int[1, 8],
-        Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[RaidPile.Length], Gen.Int[60, 3000],
-        (m, kg, min) => new RaidScene(m, kg, min));
+    static readonly Gen<PileFeedScene> PileFeedScenes = Gen.Select(Gen.Int[1, 8],
+        Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[FedPile.Length], Gen.Int[60, 3000],
+        (m, kg, min) => new PileFeedScene(m, kg, min));
 
-    /// A pile nobody keeps, ravens beside it: only what the ravens eat leaves, never more
-    /// than RaidKgPerMember (0.05 kg) a member a minute, and nothing else moves.
-    static void Raid(RaidScene s)
+    /// A pile nobody keeps, ravens beside it: only what a raven's diet takes leaves (Fauna.Eats), never more than a feeding
+    /// minute's 0.1 kg a raven, with a torn cut's remnant under its least piece (0.05 kg), and nothing else moves.
+    static void FeedAtPile(PileFeedScene s)
     {
         var w = Bare(5);
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
-        for (int i = 0; i < RaidPile.Length; i++)
-            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), RaidPile[i], s.PileKg[i]);
-        Agents.SpawnGroup(w, Species.Raven, tile, s.Members);
+        for (int i = 0; i < FedPile.Length; i++)
+            if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), FedPile[i], s.PileKg[i]);
+        Agents.SpawnGroup(w, Species.Raven, tile, s.Ravens);
         var before = ItemKg(w);
         var gear = GearCount(w);
         Sim.Advance(w, s.Minutes);
         var after = ItemKg(w);
-        Resource[] food = [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat];
+        var food = Fauna.Eats(Species.Raven);
         double taken = 0;
         foreach (var r in after.Keys.Union(before.Keys))
         {
             double delta = after.GetValueOrDefault(r) - before.GetValueOrDefault(r);
-            if (food.Contains(r)) { Assert.True(delta <= Tolerance, $"{r} grew {delta:R} in a raid"); taken -= delta; }
-            else Assert.True(Math.Abs(delta) <= Tolerance, $"{r} moved {delta:R}: the ravens eat only meat and fish");
+            if (food.Contains(r)) { Assert.True(delta <= Tolerance, $"{r} grew {delta:R} at a pile"); taken -= delta; }
+            else Assert.True(Math.Abs(delta) <= Tolerance, $"{r} moved {delta:R}: ravens eat only what their diet takes");
         }
-        Assert.True(taken <= 0.05 * s.Members * s.Minutes + Tolerance, $"took {taken:R} kg in {s.Minutes} min with {s.Members} members");
+        Assert.True(taken <= 0.15 * s.Ravens * s.Minutes + Tolerance, $"took {taken:R} kg in {s.Minutes} min with {s.Ravens} ravens");
         Assert.Equal(gear, GearCount(w));
         Assert.Null(BrokenPiece(w));
     }
 
     [Fact]
-    public void Raids_TakeOnlyWhatTheFlockEats() => RaidScenes.Check(Raid, iter: 10);
+    public void FeedingAtAPile_TakesOnlyWhatTheDietEats() => PileFeedScenes.Check(FeedAtPile, iter: 10);
 
     [Fact]
     [Trait("Category", TestCategories.Slow)]
-    public void Raids_TakeOnlyWhatTheFlockEats_Many() => RaidScenes.Check(Raid, iter: 300);
+    public void FeedingAtAPile_TakesOnlyWhatTheDietEats_Many() => PileFeedScenes.Check(FeedAtPile, iter: 300);
 
     // ---- gathering: the haul is the source, and every kilo of it is in the pack or on the ground ----
 

@@ -2,8 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// Saved while an NPC or herd is part-way through one: a new activity type needs its line here, or saving a
-/// world where someone is doing it throws.
+/// Saved while an NPC or herd is part-way through one: a new activity type needs its line here, or saving it throws.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(Wait), "wait")]
 [JsonDerivedType(typeof(Rest), "rest")]
@@ -28,7 +27,6 @@ namespace Survival;
 [JsonDerivedType(typeof(Feed), "feed")]
 [JsonDerivedType(typeof(Watering), "watering")]
 [JsonDerivedType(typeof(Hunt), "hunt")]
-[JsonDerivedType(typeof(Raid), "raid")]
 [JsonDerivedType(typeof(ImproveShelter), "improveshelter")]
 [JsonDerivedType(typeof(PackTent), "packtent")]
 [JsonDerivedType(typeof(Make), "make")]

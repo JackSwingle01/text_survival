@@ -428,10 +428,7 @@ public static class Work
                 }
             case PickUp u:
                 {
-                    int had = Items.Count(pack, u.Resource);
-                    double kg = Items.MoveFromPile(world, agent.Tile, pack, u.Resource, u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent));
-                    bool taken = agent.Mind is not PersonMind || Memories.CampOf(world, agent) != agent.Tile;
-                    events.Add(new PickedUp(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken, Items.Count(pack, u.Resource) - had));
+                    Items.TakeFromPile(world, agent.Id, u.Resource, u.Kg, events, pack, Items.CapacityKg(pack) - Items.CarriedKg(agent));
                     return new WorkSession { Activity = activity };
                 }
             case Wear w:
