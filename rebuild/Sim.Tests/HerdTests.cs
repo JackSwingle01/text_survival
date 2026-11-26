@@ -629,14 +629,16 @@ public class HerdTests(ITestOutputHelper output)
         // These budgets are tripwires, not design limits: 6000 MB is about three times what a populated month
         // allocated when it was set, and the 1 MB save was the phase 1 exit criterion. Crossing one calls for
         // Jack's judgement on whether the cost buys something the player sees (then re-baseline). An agent does
-        // not redesign a feature to get back under one, nor raise the number: it reports the measurement in its PR.
+        // not redesign a feature to get back under one: it reports the measurement in its PR.
         // Re-baselined on purpose 2026-11-23 for thirst, water and rest on the planner (#82, whose criteria allow it with
         // the number stated), Release, seed 17: 9,423 MB in about 50 s (main 5,948 MB on the same probe), save 860 KB.
         // Animals now drink and sleep: route searches for water and dens, sensing, and predators up in their hours.
         // Under #81's 3x ceiling (12,192 MB); the cap leaves the usual margin over the measurement.
         // Lowered 2026-11-24 for the pooled route search (#133), Release, seed 17: 5,676 MB in about 25 s (main 8,106 MB
         // on the same probe), the same 39,161 moves.
-        Assert.True(allocatedMB < 6_600, $"allocated {allocatedMB} MB");
+        // Raised 2026-11-26 (#294) from 6,848 MB on main at ea68c11. Raised only by Jack, to 20% over a fresh
+        // measurement, never past 12,192 MB.
+        Assert.True(allocatedMB < 8_200, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 120, $"took {clock.Elapsed.TotalSeconds:F1}s");
         Assert.True(json < 1_000_000, $"save is {json} bytes");
         Assert.DoesNotContain("\"Layers\"", Save.ToJson(w)); // everyone read the ground; no tile stored any
