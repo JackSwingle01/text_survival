@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 /// run; NPC_BENCH_OUT appends each seed's line to a file as that seed finishes (finish order, so sort it), so
 /// seeds can be split across processes and a seed that never ends hides no other. It runs only with
 /// NPC_BENCH set: NPC_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter NpcBenchReport
+/// Kills: Killed by it. Dirty: its Dirty at the end, death or the last day.
 /// The nightly run keeps main's on the `baselines` branch (.github/workflows/nightly.yml).
 public class NpcBenchReport(ITestOutputHelper output)
 {
@@ -38,7 +39,7 @@ public class NpcBenchReport(ITestOutputHelper output)
         var w = World.New(seed);
         var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
         var agent = w.Agent(npc);
-        int fires = 0, felled = 0, refused = 0, stuck = 0, dropped = 0, injuries = 0, coldNights = 0, hunts = 0, campMoves = 0;
+        int fires = 0, felled = 0, refused = 0, stuck = 0, dropped = 0, injuries = 0, coldNights = 0, hunts = 0, campMoves = 0, kills = 0, washes = 0;
         double kcal = 0, forageMinutes = 0, lowestCoreF = agent.Body.CoreTempF;
         var reversals = new Reversals(npc);
         var camp = Memories.CampOf(w, agent);
@@ -72,6 +73,8 @@ public class NpcBenchReport(ITestOutputHelper output)
                     case Injured i when i.Who == npc: injuries++; break;
                     case Ate a when a.Who == npc: kcal += a.Kcal; break;
                     case EncounterEnded x when x.Agent == npc: hunts++; break;
+                    case Killed k when k.By == npc: kills++; break;
+                    case Washed x when x.Who == npc: washes++; break;
                 }
             }
             lowestCoreF = Math.Min(lowestCoreF, agent.Body.CoreTempF);
@@ -89,6 +92,6 @@ public class NpcBenchReport(ITestOutputHelper output)
         return $"seed {seed,7}: {(alive ? "alive" : "dead "),-5} day {lived,5:0.0}{(alive ? "" : $" ({Body.CauseOfDeath(agent.Body).What})"),-18} " +
                $"fat {agent.Body.FatKg,4:0.0} kg, lowest core {lowestCoreF:0.0}F, {kcal / Math.Max(1, lived),5:0} kcal/day, forage {forageMinutes / 60 / Math.Max(1, lived):0.0} h/day, " +
                $"fires {fires}, felled {felled}, fights {hunts}, injuries {injuries}, nights without a flame {coldNights}, " +
-               $"camp moves {campMoves}, reversals {reversals.Count}, refused {refused}, stuck {stuck}, dropped {dropped}";
+               $"camp moves {campMoves}, reversals {reversals.Count}, refused {refused}, stuck {stuck}, dropped {dropped}, kills {kills}, washes {washes}, dirty {Effects.Severity(agent.Body, EffectKind.Dirty):0.00}";
     }
 }

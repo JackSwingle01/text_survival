@@ -84,7 +84,7 @@ public class MemoryTests
         var w = Mild17();
         var me = w.Agent(P);
         Sim.Step(w, new Wait(P), 1);
-        var view = Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight);
+        var view = Sight.Visible(w, me.Tile, Body.Vision(me.Body));
         Assert.All(w.Agents.Values.Where(a => a.Id != P), a => Assert.Equal(view.Contains(a.Tile), Sight.InSight(w, me, a.Tile)));
         var places = ((PersonMind)me.Mind).Memory.Places;
         Assert.All(places.Keys, t => Assert.Contains(t, view));
@@ -110,7 +110,7 @@ public class MemoryTests
 
     static GroundMemory Explored(World w, AgentId who) => ((PersonMind)w.Agent(who).Mind).Memory.Explored!;
 
-    static double Eyes(World w, AgentId who) => Body.GetCapacities(w.Agent(who).Body).Sight;
+    static double Eyes(World w, AgentId who) => Body.Vision(w.Agent(who).Body);
 
     /// A new world has already looked once: the player stands at camp and has taken in what is in
     /// view, before any step (World.New). The same seed looks the same.

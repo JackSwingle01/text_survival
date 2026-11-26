@@ -354,6 +354,13 @@ public static class Work
         if (water.KcalPerUnit > 0) Body.SpendKcal(body, ml * water.KcalPerUnit);
     }
 
+    /// A forecast of WashingWater on a tile as the view knows it, carried water aside: open water, a pond or snow.
+    public static bool WashingWaterAt(WorldView view, TileId tile)
+    {
+        var ground = view.Ground(tile);
+        return view.OpenWater(tile) || ground.PondLiquidM >= MinStandingWaterM || ground.SnowDepthM >= MinSnowM;
+    }
+
     /// What a wash here would use: open water or a pond first, then snow underfoot, then carried water; null with none of them.
     static WashedIn? WashingWater(World world, Agent agent, Inventory pack)
     {
@@ -428,10 +435,7 @@ public static class Work
                 }
             case PickUp u:
                 {
-                    int had = Items.Count(pack, u.Resource);
-                    double kg = Items.MoveFromPile(world, agent.Tile, pack, u.Resource, u.Kg, Items.CapacityKg(pack) - Items.CarriedKg(agent));
-                    bool taken = agent.Mind is not PersonMind || Memories.CampOf(world, agent) != agent.Tile;
-                    events.Add(new PickedUp(world.Minute, agent.Id, agent.Tile, u.Resource, kg, taken, Items.Count(pack, u.Resource) - had));
+                    Items.TakeFromPile(world, agent.Id, u.Resource, u.Kg, events, pack, Items.CapacityKg(pack) - Items.CarriedKg(agent));
                     return new WorkSession { Activity = activity };
                 }
             case Wear w:

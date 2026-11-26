@@ -249,4 +249,14 @@ public class ItemsTests
         Assert.Equal(0.4, Items.Have(Items.Pack(w, P), Resource.Charcoal), 12);
         Assert.Equal(0, w.Fires[id].CharcoalKg);
     }
+
+    /// A piece outside its kind's range is refused: a mammoth hide weighs at most 3 kg (#287).
+    [Fact]
+    public void AMammothHide_HeavierThanThreeKilos_IsRefused()
+    {
+        var inv = new Inventory();
+        Items.AddPiece(inv, Resource.MammothHide, 3.0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Items.AddPiece(inv, Resource.MammothHide, 3.1));
+        Assert.Equal(1, Items.Count(inv, Resource.MammothHide));
+    }
 }

@@ -72,9 +72,13 @@ public class GameHostTests
 
         Run(h, FireMenu(Parse(h.View())).Single(x => x.Label == "Melt snow"));
         Assert.Null(FireMenu(Parse(h.View())).Single(x => x.Label == "Stop: melt snow").Refused);
-        Run(h, Find(Parse(h.View()), x => x.Kind == "wait", "wait"));
-        Run(h, FireMenu(Parse(h.View())).Single(x => x.Kind == "take"));
+        var waited = Run(h, Find(Parse(h.View()), x => x.Kind == "wait", "wait"));
+        Assert.Contains(waited.Log, l => l.Text == "1 L water waits at the fire.");
+        var take = FireMenu(waited).Single(x => x.Kind == "take");
+        Assert.Matches(@"^Take [\d.]+ L water$", take.Label);
+        var took = Run(h, take);
         Assert.True(Items.Have(Items.Pack(w, AgentId.Player), Resource.Water) >= before + 1 - 1e-9);
+        Assert.Contains(took.Pack.Stacks, s => s.Resource == "Water" && s.Amount.EndsWith(" L water", StringComparison.Ordinal));
     }
 
     /// How it is going, as the page shows it (#185): the finish on the menu, the line in the log, the mark on the tile.

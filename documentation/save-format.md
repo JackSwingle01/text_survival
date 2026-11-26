@@ -45,7 +45,8 @@ If they touch the same lines, regenerate the fixture on the merged branch. There
 The sample world has a little of most saved state: a fire, a pile, a shelter and bedding, a
 crossing, an NPC, a wolf pack, memory, explored and remembered ground, a remembered route, rng streams, a journal, a made spear
 with its recorded parts and an unfinished one in the pack, a well-fed player and an NPC asleep where it dropped,
-and a caribou on its way to water with a wolf in mind.
+a caribou part way across a tile on its way to water with a wolf in mind, and a wolf with a caribou herd and the
+camp's pile on its sightings list.
 
 ## What the types do not say
 

@@ -160,7 +160,7 @@ sealed class ViewBuilder(World world, int gen)
         var materials = r.Materials.Select(Making.Words)
             .Concat(r.Items.Select(Names.GearWords)).ToList();
         string result = r.Result.Repair is { } repair && mk.Target is { } kind ? $"{Names.Gear(kind)}, {Names.Pct(repair.RestoresPct)} of its wear made good"
-            : r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) ? Names.Pieces(res, r.Result.Count) : r.Result.Kg > 0 ? $"{Names.Grams(r.Result.Kg)} {Names.Of(res)}" : Names.Of(res)) : r.Name;
+            : r.Result.Gear is { } g ? Names.Gear(g) : r.Result.Resource is { } res ? (Items.IsDiscrete(res) || r.Result.Kg > 0 ? Names.Amount(res, r.Result.Kg, r.Result.Count) : Names.Of(res)) : r.Name;
         return new MakeDto(r.Id, Making.Label(r, mk.Target), Names.Of(r.Category), r.Minutes, materials,
             [.. r.Tools.Select(t => Names.Of(t))], [.. r.Requires.Select(q => Names.Of(q))], result,
             odds?.PlainPct ?? 1,
@@ -374,7 +374,7 @@ sealed class ViewBuilder(World world, int gen)
     JobDto JobOf(GameHost.Job job)
     {
         int? total = job.Budget;
-        if (job.Activity is Travel && _player.Crossing is { } c) total = c.TotalMinutes;
+        if (job.Activity is Travel && _player.Crossing is { } c && Traversal.MinutesLeft(world, _player) is int left) total = c.ElapsedMinutes + left;
         else if (job.Activity is Travel && job.Finished) total = job.Done;
         if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.MinutesDone(world, _player, Recipes.Get(mk.Recipe), mk.Target) is double done)
         {

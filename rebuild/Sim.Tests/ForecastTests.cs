@@ -413,13 +413,18 @@ public class ForecastTests
         Assert.InRange(before - Held(), routes.Kcal(target)!.Value * (1 - kcalTolerancePct), routes.Kcal(target)!.Value * (1 + kcalTolerancePct));
     }
 
-    /// A day into heavy snow, with every east-west edge near camp trodden hard: deep loose snow, where a trail pays.
+    /// Settled snow near camp under a dry sky, with every east-west edge near camp trodden hard, where a trail still
+    /// pays a little. A crossing goes at each minute's price (#288): snow falling into a trail, or loose snow settling,
+    /// changes the ground on the way, so this snow is packed nearly hard and barely settles.
     static World TroddenSnow()
     {
         var w = Bare(-10);
-        w.FixedWeather = new(0, WeatherCondition.HeavySnow, -10, 0.2, 0.6, 1, WindDirection.North);
         w.Minute = 1440;
         var camp = Camp(w);
+        for (int dx = -8; dx <= 8; dx++)
+            for (int dy = -8; dy <= 8; dy++)
+                if (new TileId(camp.X + dx, camp.Y + dy) is var t && Map.Of(w).InBounds(t) && Ground.Underfoot(w, t).SnowDepthM < 0.1)
+                    TestKit.EditGround(w, t, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.4, CompactionPct = 0.9, FrozenFractionPct = 1 })); // each ground class once
         for (int dx = -6; dx < 6; dx++)
             for (int dy = -6; dy <= 6; dy++)
                 w.Trails[new EdgeId(new TileId(camp.X + dx, camp.Y + dy), new TileId(camp.X + dx + 1, camp.Y + dy))] = new EdgeTrodden(0.9, w.Minute);
@@ -534,6 +539,27 @@ public class ForecastTests
     // ---- Work and Fauna: what an animal's water and rest pay ----
 
     static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat;
+
+    /// A hungry wolf on a pile of meat and berries eats what Fauna.PileSource says: a minute's 0.1 kg of the richest food its
+    /// diet takes there (the meat, torn off a cut), less its burn; the berries stay.
+    [Fact]
+    public void APile_AgreesWithWhatTheAnimalEatsThere()
+    {
+        var w = PlannerTests.Strip();
+        var tile = new TileId(20, 2);
+        var pile = Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player"));
+        TestKit.GivePieces(pile, Resource.RawMeat, 2);
+        Items.Add(pile, Resource.Berries, 1);
+        var wolf = PlannerTests.Animal(w, Species.Wolf, tile);
+        TestKit.SetHunger(wolf, 0.6);
+        var source = Assert.IsType<Source>(Fauna.PileSource(w, wolf, tile));
+        Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
+        double kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body), meat = Items.Have(pile, Resource.RawMeat);
+        Sim.Advance(w, 1);
+        Assert.Equal(kcal - burn + source.PerMinute, KcalHeld(wolf.Body), 3);
+        Assert.Equal(meat - 0.1, Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat), 9);
+        Assert.Equal(1, Items.Have(w.Tiles[tile].Pile!, Resource.Berries));
+    }
 
     /// A thirsty caribou beside a lake drinks what Fauna.WaterHere says, for nothing, less the minute's loss.
     [Fact]

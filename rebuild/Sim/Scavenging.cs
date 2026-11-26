@@ -1,28 +1,25 @@
 namespace Survival;
 
-/// Ravens and foxes (Opportunist) eat forage, piles and carrion on the planner when hungry; these are the rules over it.
+/// Ravens and foxes (Opportunist) eat forage, piles and carrion on the planner; these are its rules for carrion.
 public static partial class Fauna
 {
     public const int CarrionRangeTiles = 10;
     const int CarrionLookEveryMinutes = 10;
-    const double RaidChancePerMinute = 0.002, RaidKgPerMember = 0.05;
 
     public static bool Flies(Species s) => SpeciesTable.Of(s).FlightMinutesPerTile != null;
 
-    /// Ravens: an opportunist on the wing. The ravens' signs and the raid are theirs, not a fox's.
     public static bool IsRaven(Species s) => BehaviorOf(s) == HerdBehavior.Opportunist && Flies(s);
 
     /// A fox goes to no flesh a predator holds, here or seen from afar.
     static bool WalkerKeepsOff(World world, Agent herd, TileId tile) =>
         BehaviorOf(herd.Species) == HerdBehavior.Opportunist && !Flies(herd.Species) && PredatorAt(world, tile);
 
-    /// A scavenger's rules: off a held kill; an opportunist's raid, and on the look clock to an attractor, perching there.
+    /// A scavenger's rules: off a held kill; an opportunist's carrion, and on the look clock to an attractor, perching there.
     static (Activity, int)? Scavenge(World world, Agent herd, HerdMind mind, List<WorldEvent> events)
     {
         if (HeldKill(world, herd)) return KeepOff(world, herd, mind, events);
         if (BehaviorOf(herd.Species) != HerdBehavior.Opportunist) return null;
         if (CanFeed(world, herd)) return (new Feed(herd.Id), 1);
-        if (RaidRefusal(world, herd) == null && Roll(world, herd, RaidChancePerMinute)) return (new Raid(herd.Id), 1);
         if (world.Minute % CarrionLookEveryMinutes != 0 || Attractor(world, herd) is not TileId goal) return null;
         return goal == herd.Tile ? Wait(herd) : TowardNearest(world, herd, [goal]);
     }
@@ -65,34 +62,4 @@ public static partial class Fauna
 
     public static Agent? RavensAt(World world, TileId tile) =>
         AnimalsAt(world, tile).FirstOrDefault(h => IsRaven(h.Species) && Sim.IsAlive(h));
-
-    /// The ravens' raid, the carrion flock's unchanged: #124 replaces it.
-    static Refusal? RaidRefusal(World world, Agent herd)
-    {
-        if (!IsRaven(herd.Species)) return new("only ravens raid");
-        if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("no pile here");
-        var inv = world.Tiles[herd.Tile].Pile!;
-        if (!RaidFood.Any(r => Items.Have(inv, r) > 0)) return new("nothing in the pile it eats");
-        if (Nearby.At(world, herd.Tile).Any(p => p.Mind is PersonMind && Sim.IsAlive(p))) return new("someone is keeping it");
-        return Access.Refusal(world, herd.Id, pile);
-    }
-
-    static readonly Resource[] RaidFood = [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat];
-
-    static void RaidMinute(World world, Agent herd)
-    {
-        var mind = MindOf(herd);
-        // The flock carries off the lightest cut whole, however small its appetite, and more only within it.
-        double want = RaidKgPerMember * herd.Members.Count, taken = 0, kcal = 0;
-        foreach (var r in RaidFood)
-            if (want > taken)
-            {
-                double kg = Items.MoveFromPile(world, herd.Tile, new Inventory(), r, want - taken, taken > 0 ? want - taken : double.PositiveInfinity);
-                taken += kg;
-                kcal += kg * Items.Resources[r].KcalPerKg;
-            }
-        if (taken <= 0) return;
-        Nourish(herd, kcal);
-        mind.LastFedMinute = world.Minute;
-    }
 }

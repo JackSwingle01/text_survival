@@ -32,7 +32,7 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.PineBranch, 1);
         var first = LocationFeatures.PileAt(w, camp)!.Value;
-        Assert.Equal(1, Items.MoveFromPile(w, camp, new Inventory(), Resource.PineBranch, 1));
+        Assert.Equal(1, Items.TakeFromPile(w, P, Resource.PineBranch, 1, [], new Inventory()));
         Assert.False(LocationFeatures.Exists(w, first));
         TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.OakBranch, 1);
         var second = LocationFeatures.PileAt(w, camp)!.Value;
@@ -540,7 +540,7 @@ public class KillChainTests
     }
 
     [Fact]
-    public void Ravens_RaidAnUnwatchedPile_ThroughAccess()
+    public void Ravens_FeedAtAnUnwatchedPile_ThroughAccess()
     {
         var w = Bare();
         var camp = Map.Of(w).Camp;
@@ -548,14 +548,14 @@ public class KillChainTests
         TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), Resource.RawMeat, 5);
         var ravens = Animals.Spawn(w, Species.Raven, tile, 4);
         foreach (var raven in ravens.In(w)) TestKit.SetHunger(raven, 0.2); // not hungry enough to forage: only the pile tempts it
-        Assert.Null(Fauna.Refusal(w, new Raid(ravens)));
+        Assert.Null(Fauna.Refusal(w, new Feed(ravens)));
         w.Agent(P).Tile = tile;
-        Assert.Equal("someone is keeping it", Fauna.Refusal(w, new Raid(ravens))?.Reason);
+        Assert.Equal("people it will not come at are here", Fauna.Refusal(w, new Feed(ravens))?.Reason); // an awake person is too much for a raven
         w.Agent(P).Tile = camp;
         Animals.Spawn(w, Species.Wolf, tile, 2);
-        Assert.Null(Fauna.Refusal(w, new Raid(ravens))); // the guard gate is not wired
+        Assert.Null(Fauna.Refusal(w, new Feed(ravens))); // the guard gate is not wired
         w.AccessGates = Access.Gate.All;
-        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Raid(ravens))?.Reason);
+        Assert.Equal("a wolf pack guards it", Fauna.Refusal(w, new Feed(ravens))?.Reason);
         w.AccessGates = Access.Wired;
         foreach (var id in w.Agents.Values.Where(a => a.Species == Species.Wolf).Select(a => a.Id).ToList()) Agents.Remove(w, id);
         Sim.Advance(w, 5 * 1440);

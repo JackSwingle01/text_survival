@@ -31,8 +31,49 @@ public class SightTests
     {
         var w = TestWorlds.Bare(17);
         var me = w.Agent(AgentId.Player);
-        Assert.Equal(Sight.Visible(w, me.Tile, Body.GetCapacities(me.Body).Sight), Sight.InView(w, me));
+        Assert.Equal(Sight.Visible(w, me.Tile, Body.Vision(me.Body)), Sight.InView(w, me));
         Assert.Same(Sight.InView(w, me), Sight.InView(w, me));
+    }
+
+    /// Vision is the eyes times consciousness: knocked out, a body has nothing in view, not even its own tile,
+    /// and a wolf knocked out sees no distance at all.
+    [Fact]
+    public void AnUnconsciousBody_HasNothingInView()
+    {
+        var (w, tile) = CombatTests.Field(17);
+        w.FixedWeather = Clear;
+        var wolves = CombatTests.Herd(w, Species.Wolf, 1, tile);
+        CombatTests.Normalize(w, wolves);
+        foreach (var id in new[] { AgentId.Player, wolves.Ids[0] })
+            w.Agent(id).Body.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Brain").Condition = 0;
+        Assert.Empty(Sight.InView(w, w.Agent(AgentId.Player)));
+        Assert.Equal(0, Senses.Now(w, w.Agent(wolves.Ids[0])).SightBudgetTiles);
+    }
+
+    /// Half awake, half the budget: the open ground's eleven tiles fall to six (5.5, rounded).
+    [Fact]
+    public void HalfConscious_SeesHalfAsFar()
+    {
+        var (w, _) = CombatTests.Field(17);
+        w.FixedWeather = Clear;
+        var me = w.Agent(AgentId.Player);
+        me.Body.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Brain").Condition = 0.5;
+        Assert.Equal(Sight.Visible(w, me.Tile, 0.5), Sight.InView(w, me));
+        Assert.True(Sight.InView(w, me).Count < Sight.Visible(w, me.Tile, 1).Count);
+    }
+
+    /// A fresh body has vision one, so on a fixed tile under a fixed sky its view is what whole eyes see,
+    /// pinned as the person's tile count and a checksum of their coordinates, and the wolf's budget.
+    [Fact]
+    public void AFreshPersonAndAFreshWolf_SeeAsFarAsWholeEyes()
+    {
+        var (w, tile) = CombatTests.Field(17);
+        w.FixedWeather = Clear;
+        var wolves = CombatTests.Herd(w, Species.Wolf, 1, tile);
+        CombatTests.Normalize(w, wolves);
+        var view = Sight.InView(w, w.Agent(AgentId.Player));
+        Assert.Equal((61, 274009L), (view.Count, view.Sum(t => t.X * 1000L + t.Y)));
+        Assert.Equal(11, Senses.Now(w, w.Agent(wolves.Ids[0])).SightBudgetTiles, 12);
     }
 
     [Fact]
@@ -97,7 +138,7 @@ public class SightTests
         var w = Plain();
         Assert.True(Sees(w, Centre, 6, 0, sight: 0.5));   // round(5.5) = 6
         Assert.False(Sees(w, Centre, 7, 0, sight: 0.5));
-        Assert.Equal([Centre], Sight.Visible(w, Centre, sightCapacity: 0));
+        Assert.Empty(Sight.Visible(w, Centre, vision: 0)); // blind or out cold: not even the tile underfoot
     }
 
     /// From outside, a cave's floor is hidden; inside, sight has six tiles of budget along its own floor.
