@@ -39,7 +39,7 @@ button { font: inherit; color: inherit; }
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
 .map { grid-area: map; position: relative; min-width: 0; overflow: hidden; background: var(--night); }
-#world { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#world { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; } /* a drag pans the map */
 
 /* ---------- shared pieces ---------- */
 .plate { background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch); }
@@ -473,3 +473,26 @@ button { font: inherit; color: inherit; }
   .drawer { top: 8px; right: 8px; bottom: 8px; width: min(360px, 56%); }
   .combatside { top: 8px; right: 8px; width: min(300px, 55%); max-height: calc(100% - 16px); }
 }
+
+/* ---------- the trip card: a neighbouring tile's trip, on the map by the tile ---------- */
+.tcard { position: absolute; z-index: 4; width: min(320px, calc(100% - 16px)); padding: 10px 12px; display: grid; gap: 8px; }
+.tcard .h { display: flex; align-items: baseline; gap: 8px; }
+.tcard .h b { font: 500 19px/1 var(--f-pixel); }
+.tcard .h .sub { font-size: 14px; color: var(--bone-3); }
+.tcard .h .num { margin-left: auto; font-size: 18px; }
+.tcard .h .xbtn { padding: 2px 7px; align-self: center; }
+.tcard .tbar { display: flex; height: 10px; gap: 2px; clip-path: var(--notch-s); }
+.tcard .tbar i { display: block; }
+.tcard .risk { margin: 0; font-size: 14px; color: var(--bone-2); }
+.tcard .risk b { color: var(--minus); font-family: var(--f-num); }
+.tcard .tbtns { display: flex; gap: 6px; }
+.tcard .tbtns .act { flex: 1 1 auto; padding: 9px 10px; font-size: 16px; white-space: nowrap; }
+.tcard .tbtns .info { flex: 0 0 44px; padding: 6px; }
+.tcard .tbtns .info img { width: 22px; height: 22px; image-rendering: pixelated; }
+/* On a phone on its side the map is short: the card is wide and low, the buttons beside what it says. */
+@media (max-height: 500px) and (max-width: 1000px) {
+  .tcard { width: min(560px, calc(100% - 16px)); grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 6px; align-items: center; }
+  .tcard > .h, .tcard > .tbar, .tcard > .risk { grid-column: 1; }
+  .tcard > .tbtns { grid-column: 2; grid-row: 1 / span 3; }
+}
+
