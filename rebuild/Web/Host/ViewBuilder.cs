@@ -374,7 +374,7 @@ sealed class ViewBuilder(World world, int gen)
     JobDto JobOf(GameHost.Job job)
     {
         int? total = job.Budget;
-        if (job.Activity is Travel && _player.Crossing is { } c) total = c.TotalMinutes;
+        if (job.Activity is Travel && _player.Crossing is { } c && Traversal.MinutesLeft(world, _player) is int left) total = c.ElapsedMinutes + left;
         else if (job.Activity is Travel && job.Finished) total = job.Done;
         if (job.Activity is Make mk && Items.PackOf(_player) is { } pack && Making.MinutesDone(world, _player, Recipes.Get(mk.Recipe), mk.Target) is double done)
         {

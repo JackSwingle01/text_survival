@@ -69,10 +69,11 @@ static class TestWorlds
     }
 
     /// Save.FromJson with the shared map of the save's seed attached: the map Map.Of would generate again.
-    public static World Load(string json)
+    /// map: a hand-built world's own, which the save does not hold; otherwise the seed's.
+    public static World Load(string json, GeneratedMap? map = null)
     {
         var w = Save.FromJson(json);
-        w.GeneratedMap = Map(w.Seed);
+        w.GeneratedMap = map ?? Map(w.Seed);
         return w;
     }
 

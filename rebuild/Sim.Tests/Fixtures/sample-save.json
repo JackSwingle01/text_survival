@@ -2438,7 +2438,14 @@
           }
         ]
       },
-      "Crossing": null
+      "Crossing": {
+        "From": "22,42",
+        "Dir": 1,
+        "Pace": 0,
+        "Covered": 366503875925,
+        "ElapsedMinutes": 2,
+        "RiskPct": 0
+      }
     }
   },
   "Rngs": {

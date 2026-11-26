@@ -186,7 +186,10 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 2);
         // A caribou on its way to water, the wolf it sensed kept in mind (Fauna.Needs): a stored plan and a sighting.
         var den = new TileId(camp.X + 12, camp.Y);
-        var caribou = (HerdMind)w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y))).Mind;
+        var caribouAgent = w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y)));
+        var caribou = (HerdMind)caribouAgent.Mind;
+        // A third of the way across to the first tile of its plan: a crossing's progress.
+        caribouAgent.Crossing = new Crossing { From = caribouAgent.Tile, Dir = Direction.East, Pace = Pace.Quick, Covered = Crossing.Whole / 3, ElapsedMinutes = 2 };
         caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
         caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
         // The pack's wolf has the caribou in sight as quarry (Fauna.Sense): a sighting of a herd, by species and count.
