@@ -468,6 +468,22 @@ public class CarcassTests
         Assert.Equal(0, Carcasses.EatMeat(c, 1));
     }
 
+    /// A whole mammoth butchered carefully with a blade, all of it cut: what comes off the carcass.
+    internal static Inventory ButcherWholeMammoth()
+    {
+        var (_, c) = Make("Mammoth");
+        return CutAll(c, Carcasses.RemainingMinutes(c, ButcherMode.Careful), true, false, ButcherMode.Careful);
+    }
+
+    /// A mammoth's 15 kg of hide comes off in pieces of the hide's largest size, 3 kg (#287), not as one piece.
+    [Fact]
+    public void AMammothsHide_ComesOffInFivePiecesOfThreeKilos()
+    {
+        var pieces = ButcherWholeMammoth().Pieces[Resource.MammothHide];
+        Assert.Equal(5, pieces.Count);
+        Assert.All(pieces, kg => Assert.Equal(3, kg, Digits));
+    }
+
     /// Bare hands finish what bare hands can cut: the tusks and the great hide are not torn off by
     /// hand, so they wait on the carcass for a blade rather than keep the work from ever ending. Old
     /// game: bare hands on a mammoth never finished (bug, fixed).

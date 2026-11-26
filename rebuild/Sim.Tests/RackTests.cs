@@ -401,13 +401,13 @@ public class RackTests
     public void AScrapedMammothHide_CuresToNineTenthsOfItsWeight()
     {
         var w = WithRack();
-        Items.AddPiece(Pack(w), Resource.ScrapedMammothHide, 8.0);
+        Items.AddPiece(Pack(w), Resource.ScrapedMammothHide, 2.4);
         long setAt = w.Minute;
         PutOn(w, a => a is PutOn { Recipe: "cure_mammoth_hide" });
         var done = FinishOf(w, 48 * 60 + 5);
         Assert.Equal(setAt + 48 * 60, done.Minute);
         Assert.Equal(Resource.CuredMammothHide, done.Made);
-        Assert.Equal(7.2, done.Kg, 9);
+        Assert.Equal(2.16, done.Kg, 9);
     }
 
     [Fact]
@@ -430,7 +430,7 @@ public class RackTests
     {
         var w = WithRack();
         Items.AddPiece(Pack(w), Resource.Hide, 3.0);
-        Items.AddPiece(Pack(w), Resource.MammothHide, 10.0);
+        Items.AddPiece(Pack(w), Resource.MammothHide, 3.0);
         Assert.DoesNotContain(RackMenu(w), v => v.Activity is PutOn);
         Items.AddPieces(Pack(w), Resource.ScrapedHide, [2.4, 1.0]);
         Assert.Equal("cure_hide", Assert.IsType<PutOn>(Assert.Single(RackMenu(w), v => v.Activity is PutOn).Activity).Recipe);
@@ -472,5 +472,67 @@ public class RackTests
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("hide_strips"), null, []));
         Assert.Equal(0, Items.Count(Pack(w), Resource.CuredHide));
         Assert.True(Items.Count(Pack(w), Resource.HideStrip) >= 2);
+    }
+
+    /// One mammoth's hide is enough for all three mammoth things (#287): butchered with a blade into five pieces,
+    /// each scraped by hand and cured on the rack, it makes a tent, a coat and a hood, with one cured piece left.
+    [Fact]
+    public void OneMammothsHide_ScrapedAndCured_MakesATentACoatAndAHood_WithOnePieceLeft()
+    {
+        var w = WithRack();
+        Pack(w).Gear.Add(Items.Make("flint_knife"));
+        Pack(w).Gear.Add(Items.Make("large_bag")); // the whole hide and then the tent's poles: more than the bare pack holds
+        Items.AddPieces(Pack(w), Resource.MammothHide, CarcassTests.ButcherWholeMammoth().Pieces[Resource.MammothHide]); // the rest of the kill stays behind
+        Assert.Equal(5, Items.Count(Pack(w), Resource.MammothHide));
+
+        for (int i = 0; i < 5; i++)
+        {
+            Daylight(w);
+            Assert.Null(Sim.Step(w, new Make(P, "scrape_mammoth_hide"), 1).InterruptedReason);
+            Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_mammoth_hide"), null, []));
+        }
+        Assert.Equal(5, Items.Count(Pack(w), Resource.ScrapedMammothHide));
+
+        // The rack holds four: four hides, then the fifth.
+        foreach (int batch in new[] { 4, 1 })
+        {
+            for (int i = 0; i < batch; i++) PutOn(w, a => a is PutOn { Recipe: "cure_mammoth_hide" });
+            Sim.Advance(w, 48 * 60 + 5);
+            Rested(w);
+            var take = Offer(w, a => a is TakeFinished);
+            Sim.Step(w, take.Activity, take.Minutes);
+        }
+        var cured = Pack(w).Pieces[Resource.CuredMammothHide];
+        Assert.Equal(5, cured.Count);
+        Assert.All(cured, kg => Assert.Equal(2.16, kg, 9));
+
+        Pack(w).Gear.Add(Items.Make("bone_needle"));
+        TestKit.GivePieces(Pack(w), Resource.Sinew, 10);
+        TestKit.GivePieces(Pack(w), Resource.CuredHide, 1);
+        TestKit.GivePieces(Pack(w), Resource.BirchBranch, 4);
+        foreach (var made in new[] { "mammoth_hide_tent", "mammoth_hide_coat", "mammoth_hood" })
+        {
+            Daylight(w);
+            Rested(w);
+            Assert.Null(Sim.Step(w, new Make(P, made), 1).InterruptedReason);
+            Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get(made), null, []));
+            Assert.Contains(Pack(w).Gear, g => g.Kind == made);
+        }
+        Assert.Equal(1, Items.Count(Pack(w), Resource.CuredMammothHide));
+    }
+
+    /// The sleep, food and water of the days' work and waiting, which these tests are not about.
+    static void Rested(World w)
+    {
+        var body = w.Agent(P).Body;
+        (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+        body.Effects.Clear();
+    }
+
+    /// Waits for light enough to work by.
+    static void Daylight(World w)
+    {
+        for (int i = 0; i < 24 * 60 && Work.TooDarkToWork(w, w.Agent(P)); i++) Sim.Advance(w, 1);
+        Assert.False(Work.TooDarkToWork(w, w.Agent(P)));
     }
 }
