@@ -4,7 +4,7 @@ using CompiledCode = ArchUnitNET.Domain.Architecture;
 
 namespace Survival.Tests;
 
-/// Everything outside a body reads its faculties (Body.Speed, Strength, Dexterity, Perception), never its
+/// Everything outside a body reads its faculties (Body.Speed, Strength, Dexterity, Perception, Vision), never its
 /// capacities: "Where things go" in documentation/clean-room-architecture.md, and the decision record
 /// "A body is read in tiers, and the world reads only its faculties". Read from the compiled sim, screen
 /// and tests (ArchUnitNET), not their source. The reads that exist today are listed by member: a ratchet.
@@ -66,7 +66,7 @@ public class CapacityReadTests
         .Where(t => t.FullName != typeof(CapacityReadTests).FullName && t.FullName != typeof(BodyTierTests).FullName
             && t.FullName != typeof(BreachingSample).FullName))]);
 
-    const string Fix = "Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception)";
+    const string Fix = "Read a faculty instead (Body.Speed, Body.Strength, Body.Dexterity, Body.Perception, Body.Vision)";
 
     static List<string> Problems(IEnumerable<string> reads, IEnumerable<string> listed) =>
         WhereThingsGoTests.SetRatchet(reads.Distinct().Select(r => (r, $"{r} reads a capacity")),
@@ -132,9 +132,6 @@ public class CapacityReadTests
     /// member reads a faculty instead (the tickets under #55).
     static readonly string[] CapacityReadsToday =
     [
-        // The sim.
-        "Senses.Now: Sight",
-        "Sight.ViewOf: Sight",
         // The tests.
         "EffectsPropertyTests.Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Phase2GateTests.S: Capacities",
@@ -153,9 +150,6 @@ public class CapacityReadTests
         "Tests.BodyTests.LostOrgans_TakeTheirCapacityWithThem: Consciousness, RegionCapacities, Sight",
         "Tests.BodyTests.LoweringAnyTissue_NeverRaisesAnyCapacity: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Tests.BodyTests.Unconscious_CannotMoveOrManipulate: Consciousness, Manipulation, Moving",
-        "Tests.MemoryTests.AGlance_SeesWhatTheRaysShow: Sight",
-        "Tests.MemoryTests.Eyes: Sight",
-        "Tests.SightTests.InView_IsTheVisibleTiles_FromWhereThePersonStands: Sight",
         "Tests.SurvivalTests.Hunger_AnEmptyStomachWithFatToSpare_IsAPang: Consciousness, Manipulation, Moving",
         "Tests.SurvivalTests.Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors: Moving",
         "Tests.SurvivalTests.LowStats_RaiseHungryThirstyTired: Moving",

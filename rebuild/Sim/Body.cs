@@ -230,10 +230,12 @@ public static partial class Body
         Faculty.Speed => Faculties.SpeedCrippledBy(body, context),
         Faculty.Dexterity => Faculties.DexterityCrippledBy(body),
         Faculty.Perception => Faculties.PerceptionCrippledBy(body, context),
+        Faculty.Vision => Faculties.VisionCrippledBy(body),
         _ => throw new ArgumentOutOfRangeException(nameof(faculty), faculty, "no verb needs strength above zero"),
     };
     public static IReadOnlyList<string> DexterityCosts(BodyState body, AbilityContext context = default) => Faculties.DexterityCosts(body, context);
     public static double Perception(BodyState body, AbilityContext context = default) => Faculties.Perception(body, context);
+    public static double Vision(BodyState body) => Faculties.Vision(body);
     public static double Vitality(BodyState body, Species species) => Survival.Vitality.Of(body, species);
     public static double Share(BodyState body, Species species, Faculty faculty) => Survival.Vitality.Share(body, species, faculty);
     public static bool IsAlive(BodyState body) => Alive.Is(body);

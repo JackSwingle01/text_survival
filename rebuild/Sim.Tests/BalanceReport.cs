@@ -1,7 +1,7 @@
 using Survival;
 using Xunit.Abstractions;
 
-/// What a set of reference bodies can do: strength, speed, dexterity and perception, each as a share of a fresh
+/// What a set of reference bodies can do: strength, speed, dexterity, perception and vision, each as a share of a fresh
 /// body of the same species and sex (SpeciesTable.Average), and vitality. Strength and speed are the shares the
 /// world reads (SpeciesTable.StrengthPct, and Running's SpeedPct with its floor). Butcher and forage are the times their
 /// whole-body time each takes (Work.TimeFactor: by dexterity, by speed); a body without hands butchers nothing: "-". Each body is built through the sim's own
@@ -27,7 +27,7 @@ public class BalanceReportTests
 
 public static class ReferenceBodies
 {
-    public sealed record Faculties(double StrengthPct, double SpeedPct, double DexterityPct, double PerceptionPct, double Vitality,
+    public sealed record Faculties(double StrengthPct, double SpeedPct, double DexterityPct, double PerceptionPct, double VisionPct, double Vitality,
         double ButcherTimeFactor, double ForageTimeFactor);
 
     public static readonly IReadOnlyList<(string Name, Species Species, Func<BodyState> Build)> All =
@@ -55,6 +55,7 @@ public static class ReferenceBodies
             SpeciesTable.RunningIfAble(species, body)?.SpeedPct ?? 0,
             Body.Dexterity(body) / Body.Dexterity(fresh),
             Body.Perception(body) / Body.Perception(fresh),
+            Body.Vision(body) / Body.Vision(fresh),
             Body.Vitality(body, species),
             Work.TimeFactor(Body.Share(body, species, Faculty.Dexterity)),
             Work.TimeFactor(Body.Share(body, species, Faculty.Speed)));
@@ -63,11 +64,11 @@ public static class ReferenceBodies
     public static string Table()
     {
         int width = All.Max(b => b.Name.Length);
-        var lines = new List<string> { $"{"body".PadRight(width)}  strength  speed  dexterity  perception  vitality  butcher ×  forage ×" };
+        var lines = new List<string> { $"{"body".PadRight(width)}  strength  speed  dexterity  perception  vision  vitality  butcher ×  forage ×" };
         foreach (var (name, species, build) in All)
         {
             var shares = Measure(species, build());
-            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.Vitality,8:0.00}  {Share(double.IsNaN(shares.DexterityPct) ? double.NaN : shares.ButcherTimeFactor),9}  {shares.ForageTimeFactor,8:0.00}");
+            lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.VisionPct,6:0.00}  {shares.Vitality,8:0.00}  {Share(double.IsNaN(shares.DexterityPct) ? double.NaN : shares.ButcherTimeFactor),9}  {shares.ForageTimeFactor,8:0.00}");
         }
         return string.Join('\n', lines);
     }
