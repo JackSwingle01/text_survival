@@ -501,9 +501,9 @@ public static partial class Fauna
         mind.Sightings?.RemoveAll(s => s.Pile && senses.Sees(world, s.Tile) && !EatsAt(world, animal, s.Tile));
         double reach = Scent.ReachTiles(1, senses.SmellFactor, 2);
         bool found = false;
-        foreach (var t in Items.PileTilesOf(world))
+        foreach (var t in Items.PileTilesOf(world).Concat(Stations.FoodTiles(world)))
         {
-            if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(world.Tiles[t].Pile!)))) continue;
+            if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(Stations.ExposedFood(world, t)!)))) continue;
             if (PileSensed(mind, t) || !EatsAt(world, animal, t)) continue;
             (mind.Sightings ??= []).Add(new Sensed(null, t, world.Minute, Pile: true));
             found = true;

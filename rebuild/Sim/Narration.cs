@@ -94,7 +94,7 @@ public static class Narration
                 : Me(x.Who) && x.Density is double d ? (FailureLine(d, x.Minute), Tone.Bad) : ($"{Does(x.Who, "find")} nothing.", Tone.Bad),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
             PutOnPile x => ($"{Does(x.Who, "put")} down {Names.Amount(x.Resource, x.Kg, x.Pieces)}.", Tone.Plain),
-            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Amount(x.Resource, x.Kg, x.Pieces)} from the pile." : $"{Does(x.Who, "pick")} up {Names.Amount(x.Resource, x.Kg, x.Pieces)}.",
+            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Amount(x.Resource, x.Kg, x.Pieces)} from the {(x.From is StationKind k ? Stations.Word(k) : "pile")}." : $"{Does(x.Who, "pick")} up {Names.Amount(x.Resource, x.Kg, x.Pieces)}.",
                 x.Taken ? Tone.Bad : Tone.Plain),
             PoolDiscovered x => (Me(x.Who) && Pools.FoundLine(world, x.Pool) is string found ? found : $"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
             Scavenged x => (x.Animal is Species a ? $"{Does(x.Who, "find")} a {x.Remains} - {Names.Of(a)}. It could be butchered for resources."

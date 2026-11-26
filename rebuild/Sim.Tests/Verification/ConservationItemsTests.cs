@@ -210,23 +210,34 @@ public class ConservationItemsTests
 
     // ---- feeding at a pile: the ravens' take is the only sink, and it is bounded ----
 
-    public sealed record PileFeedScene(int Ravens, double[] PileKg, int Minutes);
+    /// AtFire: a cold pit on the tile too, a piece of raw meat on it and a cooked cut waiting (#192).
+    public sealed record PileFeedScene(int Ravens, double[] PileKg, int Minutes, bool AtFire = false);
 
     static readonly Resource[] FedPile =
         [Resource.RawMeat, Resource.RawFish, Resource.CookedMeat, Resource.CookedFish, Resource.DriedMeat, Resource.Berries, Resource.BirchBranch, Resource.Hide];
 
     static readonly Gen<PileFeedScene> PileFeedScenes = Gen.Select(Gen.Int[1, 8],
         Gen.Frequency((1, Gen.Const(0.0)), (3, Gen.Double[0, 2])).Array[FedPile.Length], Gen.Int[60, 3000],
-        (m, kg, min) => new PileFeedScene(m, kg, min));
+        Gen.Bool, (m, kg, min, fire) => new PileFeedScene(m, kg, min, fire));
 
     /// A pile nobody keeps, ravens beside it: only what a raven's diet takes leaves (Fauna.Eats), never more than a feeding
-    /// minute's 0.1 kg a raven, with a torn cut's remnant under its least piece (0.05 kg), and nothing else moves.
+    /// minute's 0.1 kg a raven, with a torn cut's remnant under its least piece (0.05 kg), and nothing else moves. Food at
+    /// a cold fire there is eaten by the same rule, and nothing on it cooks.
     static void FeedAtPile(PileFeedScene s)
     {
         var w = Bare(5);
         var tile = Map.Step(Map.Step(Camp(w), Direction.East), Direction.East);
         for (int i = 0; i < FedPile.Length; i++)
             if (s.PileKg[i] > 0) TestKit.Give(Items.PileAt(w, tile, new Cause(P, "put down by the player")), FedPile[i], s.PileKg[i]);
+        if (s.AtFire)
+        {
+            var pit = new FireId(w.NextFireId++);
+            w.Fires[pit] = new FireState { Tile = tile, LastUpdatedMinute = w.Minute };
+            var station = new StationState();
+            station.Working.Add(new Transformation { Recipe = "cook_meat", Input = Resource.RawMeat, InputKg = 0.8, SetBy = P });
+            Items.AddPiece(station.Ready, Resource.CookedMeat, 0.6);
+            w.Stations[pit] = station;
+        }
         Agents.SpawnGroup(w, Species.Raven, tile, s.Ravens);
         var before = ItemKg(w);
         var gear = GearCount(w);
