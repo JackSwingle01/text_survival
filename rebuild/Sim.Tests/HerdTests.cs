@@ -373,6 +373,29 @@ public class HerdTests(ITestOutputHelper output)
 
     // ---- the populated valley ----
 
+    /// A giant deer is not a herd animal: a lone stag is ordinary, and so is a group of three (#292). Seed 17's
+    /// land populated by 200 seeds' placing streams; a group is the megaloceros put on one tile one after another.
+    [Fact]
+    public void Megaloceros_StartOneToThreeStrong()
+    {
+        var sizes = new HashSet<int>();
+        for (int seed = 1; seed <= 200; seed++)
+        {
+            var w = TestWorlds.Bare(17);
+            w.Rngs["populate"] = Rng.ForSystem(seed, "populate");
+            Fauna.Populate(w);
+            var deer = w.Agents.Values.Where(a => a.Species == Species.Megaloceros).OrderBy(a => a.Id.Value).ToList();
+            for (int i = 0; i < deer.Count;)
+            {
+                int size = 1;
+                while (i + size < deer.Count && deer[i + size].Tile == deer[i].Tile) size++;
+                sizes.Add(size);
+                i += size;
+            }
+        }
+        Assert.Equal([1, 2, 3], sizes.Order());
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(17)]

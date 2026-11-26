@@ -15,7 +15,7 @@ public static partial class Fauna
     {
         Species.Caribou => new(135, 190, 0.030, 0.0035, new(0.0035, 5, 15)),
         Species.Bison => new(130, 190, 0.020, 0.011, new(0.0066, 3, 8)),
-        Species.Megaloceros => new(140, 190, 0.020, 0.0026, new(0.0014, 2, 3)),
+        Species.Megaloceros => new(140, 190, 0.020, 0.0026, new(0.0014, 1, 3)),
         Species.Mammoth => new(120, 200, 0.004, 0.0019, null),
         Species.Wolf => new(110, 150, 0.020, 1.0 / 2500, new(1.0 / 3500, 3, 8)),
         Species.Hyena => new(110, 170, 0.015, 1.0 / 1150, new(1.0 / 3200, 3, 6)),

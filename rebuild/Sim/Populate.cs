@@ -52,7 +52,7 @@ public static partial class Fauna
         for (int i = 0; i < large / 2 && preyLand.Count > 0; i++)
         {
             var start = preyLand[rng.NextInt(preyLand.Count)];
-            if (Reach(m, start, preyLand, SpacingTiles).Count >= 3) Agents.SpawnGroup(world, Species.Megaloceros, start, 2 + rng.NextInt(2));
+            if (Reach(m, start, preyLand, SpacingTiles).Count >= 3) Agents.SpawnGroup(world, Species.Megaloceros, start, 1 + rng.NextInt(3));
         }
         for (int i = 0; i < large - large / 2 && preyLand.Count > 0; i++)
         {

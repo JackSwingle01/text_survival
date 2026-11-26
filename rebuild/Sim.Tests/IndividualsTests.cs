@@ -344,6 +344,9 @@ public static class CohesionGate
     /// Allocation a day: 3x the herd baseline (#81: 4,064 MB for 30 populated days on seed 17), kept after #133 (Jack).
     const double MaxAllocatedMbPerDay = 3 * 4064.0 / 30;
     static readonly Species[] OpenGroup = [Species.Caribou, Species.Bison, Species.Megaloceros, Species.Mammoth];
+    /// The open-group species the alone limits read. A lone giant deer is ordinary, not a broken herd (#292), so
+    /// megaloceros are left out; their alone share is still printed, as for bears and foxes.
+    static readonly Species[] AloneLimited = [.. OpenGroup.Except([Species.Megaloceros])];
 
     sealed class Tally
     {
@@ -521,7 +524,7 @@ public static class CohesionGate
             double moves = t.Moves / animalDays;
             Band(moves >= MinMovesPerAnimalDay && moves <= MaxMovesPerAnimalDay, $"{s} moved {moves:F1} tiles an animal-day");
             if (!OpenGroup.Contains(s)) continue;
-            Band(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"{s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time");
+            if (AloneLimited.Contains(s)) Band(t.Alone / (double)t.AnimalLooks < MaxAlonePct, $"{s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time");
             double blobLooks = t.BlobLooks / (double)Math.Max(1, t.CountedLooks);
             Band(blobLooks <= MaxBlobLooksPct, $"one {s} herd held over {MaxHerdPct:P0} of its species at {blobLooks:P1} of looks");
             Band(t.Regroups / animalDays >= MinRegroupsPerAnimalDay, $"{s} regrouped {t.Regroups / animalDays:F2} times an animal-day");
@@ -562,7 +565,7 @@ public static class CohesionGate
         // Broken: these fail.
         Assert.True(mbPerDay < BrokenAllocationFactor * MaxAllocatedMbPerDay, $"seed {seed}: {mbPerDay:F0} MB a day allocated, over {BrokenAllocationFactor * MaxAllocatedMbPerDay:F0}");
         foreach (var (s, t) in tallies)
-            if (OpenGroup.Contains(s))
+            if (AloneLimited.Contains(s))
                 Assert.True(t.Alone / (double)t.AnimalLooks < BrokenAlonePct, $"seed {seed}: {s} alone {t.Alone / (double)t.AnimalLooks:P1} of the time");
     }
 }
