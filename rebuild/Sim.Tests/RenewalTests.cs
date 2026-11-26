@@ -200,6 +200,27 @@ public class RenewalTests
         foreach (var s in Enum.GetValues<Species>()) Assert.Equal(Fauna.Capacity(w, s), Fauna.Capacity(loaded, s));
     }
 
+    /// Megaloceros come in one to three strong (#292): midnight after midnight into a valley with none, each group
+    /// that came taken away again so the next comes into the same empty valley.
+    [Fact]
+    public void Megaloceros_ArriveOneToThreeStrong()
+    {
+        var w = Bare();
+        w.Minute = Days(1) - Weather.MinuteOfDay(w.Minute) + w.Minute;
+        Assert.True(Fauna.ValleyCapacity(w, Species.Megaloceros) >= 3 && Fauna.Capacity(w, Species.Megaloceros) >= 3);
+        var sizes = new HashSet<int>();
+        for (int night = 0; night < 2000; night++)
+        {
+            Fauna.Renew(w, []);
+            var deer = w.Agents.Values.Where(a => a.Species == Species.Megaloceros).ToList();
+            if (deer.Count == 0) continue;
+            Assert.Single(deer.Select(a => a.Tile).Distinct());
+            sizes.Add(deer.Count);
+            foreach (var a in deer) Agents.Remove(w, a.Id);
+        }
+        Assert.Equal([1, 2, 3], sizes.Order());
+    }
+
     /// Every herd of a kind shares what the valley carries of it (spec "What animals know"): two caribou herds
     /// far apart, a valley's worth between them, have no young, not one each.
     [Fact]
