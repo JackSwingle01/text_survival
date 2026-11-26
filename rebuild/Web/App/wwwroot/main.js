@@ -332,10 +332,10 @@ function renderHere(d, v) {
       ${open ? `<div class="menu">${t.menu.map(x => menuItem(x)).join('')}</div>` : ''}</div>`;
   }).join('');
   $('sideBody').innerHTML = `
-    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}
-    ${v.fire ? section('Fire', fireBlock(v)) : ''}
     ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
-    ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}`;
+    ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}
+    ${v.fire ? section('Fire', fireBlock(v)) : ''}
+    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}`;
 }
 
 function renderFire(d, v) {
@@ -344,12 +344,13 @@ function renderFire(d, v) {
   const hist = S.strikes.length ? `<div class="hist" ${tip('Strikes', [`${S.strikes.filter(Boolean).length} of ${S.strikes.length} caught`])}>${S.strikes.map(s => `<span class="${s ? 's' : 'f'}"></span>`).join('')}</div>` : '';
   const result = d.result ? `<div class="result-line ${d.result.good ? 'good' : 'bad'} ${d.result.good ? 'flash' : 'shake'}">${esc(d.result.text)}</div>` : '';
   const tend = fire ? fire.menu.filter(x => x.kind !== 'fire') : [];
+  const striking = light && !v.fire?.burning;
   $('sideBody').innerHTML = `
+    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>${result}</div>` : result}
+    ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${v.fire ? section('The pit', fireBlock(v)) : ''}
-    ${light && !v.fire?.burning ? `<div class="sec">${light.odds ? oddsSheet(light.odds, { title: 'Chance it catches' }) : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
-      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}
-      ${result}<div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="key">F</span></button>`}${hist}</div></div>` : result}
-    ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${striking ? `<div class="sec">${light.odds ? oddsSheet(light.odds, { title: 'Chance it catches' }) : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
+      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}</div>` : ''}`;
 }
 
 function openTrip(dir) {
@@ -412,7 +413,7 @@ function renderMake(d, v) {
   const key = x => x.make.target ? `${x.make.recipe}:${x.make.target}` : x.make.recipe;
   if (!S.makeSel || !makes.some(x => key(x) === S.makeSel)) S.makeSel = key(makes.find(x => !x.refused) ?? makes[0] ?? { make: {} });
   const sel = makes.find(x => key(x) === S.makeSel);
-  let detail = '';
+  let detail = '', action = '';
   if (sel) {
     const mk = sel.make;
     // The odds sheet of a recipe: everything to plan, less each outcome's share; what is left is the plain result.
@@ -425,8 +426,8 @@ function renderMake(d, v) {
         ${mk.materials.map(m => `<div class="kv">${img('ui/materials')}<span>${esc(m)}</span><span class="v"></span></div>`).join('')}
         ${mk.tools.map(t => `<div class="kv">${img('ui/gear')}<span>A tool for ${esc(t)}</span><span class="v"></span></div>`).join('')}
         ${mk.requires.map(t => `<div class="kv">${img('ui/warning')}<span>Needs ${esc(t)}</span><span class="v"></span></div>`).join('')}
-        <div class="kv">${img('ui/clock')}<span>Work</span><span class="v">${dur(mk.workMinutes)}</span></div></div>`)}
-      <div class="row">${sel.refused ? `<p class="note">${esc(cap(sel.refused))}</p>` : `<button class="act" data-verb="${sel.id}">${px(sel.label)}</button>`}</div>`;
+        <div class="kv">${img('ui/clock')}<span>Work</span><span class="v">${dur(mk.workMinutes)}</span></div></div>`)}`;
+    action = `<div class="row">${sel.refused ? `<p class="note">${esc(cap(sel.refused))}</p>` : `<button class="act" data-verb="${sel.id}">${px(sel.label)} <span class="num">(${dur(mk.workMinutes)})</span></button>`}</div>`;
   }
   let lastCat = '';
   const list = makes.map(x => {
@@ -434,7 +435,7 @@ function renderMake(d, v) {
     return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: key(x) === S.makeSel, open: `recipe:${key(x)}` })
       ;
   }).join('');
-  $('sideBody').innerHTML = `${detail}
+  $('sideBody').innerHTML = `${action}${detail}
     ${abandons.length ? section('Unfinished', `<div class="menu">${abandons.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${section('Recipes', `<div class="menu">${list}</div>`)}
     ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`;
@@ -471,11 +472,11 @@ function renderPack(d, v) {
   const p = v.pack;
   head('ui/backpack', 'Pack', `<span class="cost num">${p.carriedKg.toFixed(1)} / ${p.capacityKg} kg</span>`);
   $('sideBody').innerHTML = `
+    ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}
     <div class="capacity"><div class="bar"><i style="width:${Math.min(1, p.carriedKg / p.capacityKg) * 100}%"></i></div></div>
     ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${esc(s.amount)}</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
     ${section('Tools and gear', p.gear.length ? `<div class="bag">${p.gear.map(gr => `<div class="it">${img('ui/gear')}<span>${esc(gr.name)}</span><span class="n">${pct(gr.conditionPct)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.3 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join('')}</div>` : '<p class="note">None.</p>')}
-    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}
-    ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}`;
 }
 const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Stick|Branch|Firewood|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
   : r === 'Water' ? 'ui/water' : /Hide/.test(r) ? 'ui/hide' : /Bone/.test(r) ? 'ui/bone' : /Charcoal/.test(r) ? 'ui/charcoal' : 'ui/materials';
@@ -525,6 +526,8 @@ function renderForage(d, v) {
     ? `<button class="clue" data-focusname="${esc(c.focus)}" ${running ? 'disabled' : ''} ${tip(c.text, [`Look for ${c.focus}`])}>${img('ui/inspect')}<span>${esc(c.text)}</span></button>`
     : `<div class="clue still">${img(c.kind === 'scavenge' ? 'carcass' : c.kind === 'game' ? 'ui/tracks' : 'ui/inspect')}<span>${esc(c.text)}</span></div>`).join('');
   $('sideBody').innerHTML = `
+    <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
+      : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="num">(${dur(S.forage.mins)})</span> <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking <span class="num">(5 min)</span> <span class="key">K</span></button>`}</div>
     <div class="sec"><div class="sec-h"><span class="label">The ground</span><span class="aside">${esc(f.effort)}</span></div>
       <p class="ground">${f.quality ? `Resources look <b>${esc(f.quality)}</b>.` : 'You haven\'t foraged here yet.'}</p></div>
     ${clues ? section('You notice', `<div class="clues">${clues}</div>`) : ''}
@@ -539,8 +542,6 @@ function renderForage(d, v) {
     <div class="found">${finds.length || rare.length ? '' : `<span class="empty">${told.length ? esc(told[told.length - 1].text) : 'Finds appear here as you search.'}</span>`}
       ${rare.map(l => `<div class="item rare">${img(l.icon)}<span>${esc(l.text)}</span></div>`).join('')}
       ${finds.map(x => `<div class="item ${x.category}">${img(stackIcon(x.resource))}${esc(cap(x.name))}<span class="n">×${x.count}</span></div>`).join('')}</div>
-    <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
-      : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking (5 min) <span class="key">K</span></button>`}</div>
     ${section('Your search', oddsSheet(f.yield, { title: "A minute's search" }))}`;
 }
 /** The chosen focus, or General where the ground does not offer it. */
@@ -563,10 +564,10 @@ function renderJob(d, v) {
   const f = d.done ? 1 : total ? Math.min(1, Math.max(0, shown) / total) : 0;
   const lines = v.log.filter(l => !d.logFrom.has(logKey(l)));
   $('sideBody').innerHTML = `
+    <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>
     <div class="run"><div class="runbar ${d.done ? (d.done.outcome === 'interrupted' || d.done.outcome === 'refused' ? 'fail' : 'ok') : ''}"><span class="fill" style="width:${f * 100}%"></span><span class="ticks10"></span></div>
       <div class="runmeta"><span class="num">${dur(Math.max(0, d.done ? d.done.minutes : shown))}${total && !d.done ? ` of ${dur(total)}` : ''}</span><span>${d.done ? esc(cap(d.done.reason ?? 'done')) : 'under way'}</span></div></div>
-    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}
-    <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>`;
+    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}`;
 }
 
 // ---------------------------------------------------------------- the fight
