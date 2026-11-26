@@ -99,10 +99,12 @@ public class ArchitectureTests
         // Planning reads of the sky are allowed where listed: they ask what the weather will do to a walk or a
         // rot, through Exposure, and routing them through Exposure.At would build a whole exposure per question.
         (@"\bWeather\.At\(", "reads the sky directly",
-            [("Travel.cs", "Begin", "a crossing's pace and injury risk against the sky (Traversal.CrossingMinutes)"),
+            [("Travel.cs", "Begin", "a crossing's injury risk against the sky"),
              ("Trip.cs", "Time", "the same crossing previewed before it starts, against the same sky"),
              ("Trip.cs", "Risk", "the same crossing's injury risk previewed, against the sky Begin fixes it by"),
              ("Trip.cs", "StepMinutes", "the same crossing's minutes for a planner, kept for the minute"),
+             ("Trip.cs", "MinutesNow", "each minute of a crossing priced against that minute's sky (Traversal.Advance)"),
+             ("Trip.cs", "PaceMatters", "whether care slows the crossing, against the sky its minutes are priced by"),
              ("Trip.cs", "Routes", "the same crossings' minutes for a route search, under the one sky of its minute"),
              ("Memory.cs", "BudgetTiles", "how far a person can see: the weather's visibility, nothing about warmth"),
              ("Scent.cs", "Now", "which way scent carries: the wind's heading, nothing about warmth"),

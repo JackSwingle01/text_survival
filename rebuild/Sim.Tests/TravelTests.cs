@@ -213,7 +213,7 @@ public class TravelTests
                 var agent = world.Agent(P);
                 agent.Tile = from;
                 agent.Members[0] = TestKit.OldBaselineHuman();
-                agent.Crossing = new Crossing { From = from, Dir = way, Pace = Pace.Quick, TotalMinutes = 1, RiskPct = 1 };
+                agent.Crossing = new Crossing { From = from, Dir = way, Pace = Pace.Quick, Covered = Crossing.Whole - 1, RiskPct = 1 };
                 var events = new List<WorldEvent>();
                 Traversal.Advance(world, agent, events);
                 hits.AddRange(events.OfType<Injured>());
