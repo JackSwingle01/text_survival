@@ -104,6 +104,22 @@ public class BladeWearTests
         Assert.Equal(20, knife.Durability);
     }
 
+    [Fact]
+    public void AFoundFlintKnife_KeepsItsRolledCondition_OutOfThirty()
+    {
+        int found = 0;
+        foreach (var (name, table) in Content.Loot)
+            foreach (var row in table.SelectMany(r => r.Of ?? [r]).Where(r => r.Gear?.Contains("flint_knife") == true && r.DurabilityPct != null))
+                for (int i = 0; i < 50; i++)
+                    foreach (var knife in Pools.RollLoot([row with { Chance = 1 }], Rng.ForSystem(i, name)).Gear.Where(g => g.Kind == "flint_knife"))
+                    {
+                        found++;
+                        Assert.Equal(30, knife.MaxDurability);
+                        Assert.InRange(knife.Durability, Math.Max(1, (int)(30 * row.DurabilityPct![0])), (int)(30 * row.DurabilityPct[1]));
+                    }
+        Assert.True(found > 0, "no flint knife in any loot table");
+    }
+
     // ---- the obsidian knife ----
 
     [Fact]
@@ -117,11 +133,11 @@ public class BladeWearTests
 
     // ---- an NPC sharpens its blade ----
 
-    static (World World, Agent Npc, Gear Knife) Npc(int knifeUses, bool stone)
+    static (World World, Agent Npc, Gear Knife) WithNpc(int knifeUses, bool stone)
     {
         var w = ConservationWorlds.Bare(5);
         w.Agents.Remove(P);
-        var npc = w.Agent(Survival.Npc.Spawn(w, Map.Of(w).Camp));
+        var npc = w.Agent(Npc.Spawn(w, Map.Of(w).Camp));
         var pack = ((NpcMind)npc.Mind).Pack;
         TestKit.ClearResources(pack);
         TestKit.Give(pack, Resource.Water, 2);
@@ -136,14 +152,14 @@ public class BladeWearTests
         return (w, npc, knife);
     }
 
-    static Activity Decides(World w, Agent npc) => Survival.Npc.Decide(w, npc, []).Activity;
+    static Activity Decides(World w, Agent npc) => Npc.Decide(w, npc, []).Activity;
 
     static bool Sharpens(Activity a) => a is Make { Recipe: "sharpen", Target: "flint_knife" };
 
     [Fact]
     public void AnNpc_WithAKnifeAtHalf_AStone_AndNoNeed_SharpensIt()
     {
-        var (w, npc, knife) = Npc(15, stone: true);
+        var (w, npc, knife) = WithNpc(15, stone: true);
         var a = Decides(w, npc);
         Assert.True(Sharpens(a), $"chose {a}");
         Assert.NotEqual(StepOutcome.Refused, Sim.Step(w, a, Verbs.UntilDoneMinutes).Outcome);
@@ -153,7 +169,7 @@ public class BladeWearTests
     [Fact]
     public void AnNpc_WithAStatAtNeed_DoesNotSharpen()
     {
-        var (w, npc, _) = Npc(15, stone: true);
+        var (w, npc, _) = WithNpc(15, stone: true);
         TestKit.ClearResources(((NpcMind)npc.Mind).Pack);
         npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
         Assert.False(Sharpens(Decides(w, npc)));
@@ -162,14 +178,22 @@ public class BladeWearTests
     [Fact]
     public void AnNpc_WithNoStrikingTool_DoesNotSharpen()
     {
-        var (w, npc, _) = Npc(15, stone: false);
+        var (w, npc, _) = WithNpc(15, stone: false);
         Assert.False(Sharpens(Decides(w, npc)));
     }
 
     [Fact]
     public void AnNpc_WithTheKnifeAboveHalf_DoesNotSharpen()
     {
-        var (w, npc, _) = Npc(16, stone: true);
+        var (w, npc, _) = WithNpc(16, stone: true);
+        Assert.False(Sharpens(Decides(w, npc)));
+    }
+
+    [Fact]
+    public void AnNpc_WithHealthAtNeed_DoesNotSharpen()
+    {
+        var (w, npc, _) = WithNpc(15, stone: true);
+        npc.Body.BloodPct = 0.7;
         Assert.False(Sharpens(Decides(w, npc)));
     }
 
@@ -177,7 +201,7 @@ public class BladeWearTests
     [Fact]
     public void AnNpc_GoesOnWithASharpenCutShort()
     {
-        var (w, npc, knife) = Npc(15, stone: true);
+        var (w, npc, knife) = WithNpc(15, stone: true);
         Assert.NotEqual(StepOutcome.Refused, Sim.Step(w, Decides(w, npc), 3).Outcome);
         Assert.DoesNotContain(knife, ((NpcMind)npc.Mind).Pack.Gear);
         npc.Body.HydrationMl = 0.3 * Body.MaxHydrationMl;
@@ -204,7 +228,7 @@ public class BladeWearTests
         int sharpened = 0;
         Cases.Check(c =>
         {
-            var (w, npc, knife) = Npc(c.KnifeUses, c.Stone);
+            var (w, npc, knife) = WithNpc(c.KnifeUses, c.Stone);
             if (c.Night) while (Weather.IsDaytime(w.Minute)) w.Minute += 30;
             npc.Body.HydrationMl = c.HydrationPct * Body.MaxHydrationMl;
             var a = Decides(w, npc);

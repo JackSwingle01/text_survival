@@ -165,8 +165,8 @@ public static class Npc
             // A Need met from what is in hand costs minutes, not a trip: it is met on the spot, before the plan goes on.
             foreach (var (stat, priority) in Ranked().Where(x => x.Priority >= Priority.Need))
                 if (InHand(stat) is { } quick) return quick;
-            // With nothing at Need, a blade at half its uses or less is sharpened on the spot, even with a Want plan held.
-            if (PrioritiesNow.Values.All(p => p < Priority.Need) && Sharpen() is { } edge) return edge;
+            // With nothing at Need, Health included, a blade at half its uses or less is sharpened on the spot, even with a Want plan held.
+            if (PrioritiesNow.Values.All(p => p < Priority.Need) && HealthPriority(Body) < Priority.Need && BladeToSharpen() is { } edge) return edge;
             if (mind.Plan is { } kept && Pursue(kept.Stat, kept.Priority) is { } step)
             {
                 mind.Plan = kept with { At = step.At };
@@ -836,7 +836,7 @@ public static class Npc
         Next? GoOnSharpening() => (pack.Projects ?? []).FirstOrDefault(p => p.Recipe == Sharpening.Id) is { Target: { } kind }
             ? SharpenNext(kind) : null;
 
-        Next? Sharpen()
+        Next? BladeToSharpen()
         {
             var kinds = Sharpening.Result.Repair!.Kinds;
             return Making.Held(agent, pack).Where(g => kinds.Contains(g.Kind) && Items.ConditionPct(g) <= SharpenAtPct)
