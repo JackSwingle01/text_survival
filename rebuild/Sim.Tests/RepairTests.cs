@@ -79,6 +79,26 @@ public class RepairTests
         Assert.Null(Sim.Refusal(w, new Make(P, "mend", "hide_boots")));
     }
 
+    /// A piece made worn (#265) is offered for mending, and mending it again and again brings it to its kind's maximum.
+    [Fact]
+    public void APieceMadeWorn_IsOfferedForMending_AndMendsToItsKindsMaximum()
+    {
+        var w = Noon(out var pack);
+        var body = w.Agent(P).Body;
+        body.Worn.Clear();
+        var wraps = Items.Make("fur_leg_wraps", 60);
+        body.Worn.Add(wraps);
+        Assert.True(Items.ConditionPct(wraps) < 1);
+        int mends = 0;
+        for (SewingKit(pack); Verbs.At(w, P).Make.Any(v => v.Activity is Make { Recipe: "mend_wrap", Target: "fur_leg_wraps" }); SewingKit(pack))
+        {
+            Repair(w, "mend_wrap", "fur_leg_wraps");
+            Assert.True(++mends < 10, "mending never finishes");
+        }
+        Assert.True(mends > 0, "never offered for mending");
+        Assert.Equal((100, 100), (wraps.Durability, wraps.MaxDurability));
+    }
+
     [Fact]
     public void Mending_TakesTheGarmentOff_AndPutsItBackOn()
     {
