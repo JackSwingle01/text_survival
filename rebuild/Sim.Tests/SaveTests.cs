@@ -183,7 +183,7 @@ public class SaveFixtureTests
         var den = new TileId(camp.X + 12, camp.Y);
         var caribouAgent = w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y)));
         var caribou = (HerdMind)caribouAgent.Mind;
-        // A third of the way across to the first tile of its plan: a crossing's progress (#288).
+        // A third of the way across to the first tile of its plan: a crossing's progress.
         caribouAgent.Crossing = new Crossing { From = caribouAgent.Tile, Dir = Direction.East, Pace = Pace.Quick, Covered = Crossing.Whole / 3, ElapsedMinutes = 2 };
         caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
         caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];

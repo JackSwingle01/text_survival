@@ -97,21 +97,46 @@ public class CrossingPaceTests
                 return (species, b);
             });
 
-    /// Over any body that can walk, any load it can carry, pace, ground and weather: a crossing takes at least what a
-    /// fresh body of its species and sex takes with the same share of its capacity, and no more than ten times that.
+    /// Over any body that can walk, any load it can carry, pace, ground (snow of any depth and packing included) and
+    /// weather: a crossing takes at least what a fresh body of its species and sex takes with the same share of its
+    /// capacity, and no more than ten times that.
     [Fact]
     public void ACrossing_TakesFromOnceToTenTimesAFreshBodysCrossing_ForAnyBodyThatCanWalk()
     {
-        Gen.Select(AnyWoundedBody, Gen.Double[0, 0.99], Gen.Enum<Pace>(), Gen.Int[0, Open.Length - 1].Array[2], AnySky).Check(t =>
+        var ground = Gen.Select(Gen.Int[0, Open.Length - 1].Array[2], Gen.Frequency((1, Gen.Const(0.0)), (2, Gen.Double[0, 0.8])), Gen.Double[0, 1]);
+        Gen.Select(AnyWoundedBody, Gen.Double[0, 2], Gen.Enum<Pace>(), ground, AnySky).Check(t =>
         {
-            var ((species, body), load, pace, ground, sky) = t;
-            var w = Row(Open[ground[0]], Open[ground[1]], sky);
-            if (Map.Blocked(Map.Of(w), West, East) != null || Body.SpeedCrippledBy(body, new AbilityContext(load)).Count > 0) return;
+            var ((species, body), load, pace, (terrain, snowM, packed), sky) = t;
+            var w = Row(Open[terrain[0]], Open[terrain[1]], sky);
+            foreach (var tile in new[] { West, East })
+                if (snowM > 0 && Ground.Underfoot(w, tile).SnowDepthM == 0)
+                    TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = snowM, CompactionPct = packed, FrozenFractionPct = 1 }));
             var fresh = SpeciesTable.Average(species, body.Sex);
+            if (Map.Blocked(Map.Of(w), West, East) != null || Body.SpeedCrippledBy(body, new AbilityContext(load)).Count > 0
+                || Body.SpeedCrippledBy(fresh, new AbilityContext(load)).Count > 0) return;
             int freshMinutes = Traversal.CrossingMinutes(w, fresh, West, East, pace, sky, load, species);
             int minutes = Traversal.CrossingMinutes(w, body, West, East, pace, sky, load, species);
             Assert.InRange(minutes, freshMinutes, 10 * freshMinutes);
         });
+    }
+
+    /// A herd walks at its slowest living member's pace each minute: a calf mended part way across brings the herd in
+    /// sooner than one left lame.
+    [Fact]
+    public void AHerdMendedPartWayAcross_ArrivesSooner_ThanOneLeftLame()
+    {
+        int Crossing(bool mended)
+        {
+            var w = Row(Terrain.Hills, Terrain.Hills, Calm);
+            var herd = w.Agent(Agents.SpawnGroup(w, Species.Caribou, West, 2)[0]);
+            var lame = herd.Members[^1];
+            foreach (var leg in lame.Regions.Where(r => r.Name.EndsWith("Leg"))) SetLayers(lame, leg.Name, 0.01);
+            return Walk(w, herd.Id, minute =>
+            {
+                if (minute == 2 && mended) foreach (var leg in lame.Regions.Where(r => r.Name.EndsWith("Leg"))) SetLayers(lame, leg.Name, 1);
+            });
+        }
+        Assert.True(Crossing(mended: true) < Crossing(mended: false));
     }
 
     /// The crossing is not priced once at the start: a quadruped that sets off with legs at a hundredth of their

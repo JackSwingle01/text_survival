@@ -139,7 +139,7 @@ public sealed class Observer
             var to = a.Crossing is { } c ? Map.Step(c.From, c.Dir) : (TileId?)null;
             list.Add(new ActorDto(id.Value, a.Mind is HerdMind ? "herd" : "npc", Words.SpeciesIcon(a.Species), Names.Cap(Cause.Describe(w, id)),
                 a.Tile.X, a.Tile.Y, count, Doing(a), (a.Mind as HerdMind)?.Choice?.GetType().Name,
-                a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round((double)cr.Covered / Crossing.Whole, 3) : null));
+                a.Mind is HerdMind && Fauna.IsPredator(a.Species), to?.X, to?.Y, a.Crossing is { } cr ? Math.Round(Traversal.CoveredPct(cr), 3) : null));
         }
         return list;
     }

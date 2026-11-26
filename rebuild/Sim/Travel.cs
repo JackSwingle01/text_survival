@@ -37,8 +37,12 @@ public static class Traversal
         return Blocked(world, agent, agent.Tile, Map.Step(agent.Tile, t.Dir)) is string blocked ? new(blocked) : null;
     }
 
+    /// A walker sets out only from ground it could stand on: a route searched into a site asks from every neighbour.
     public static string? Blocked(World world, Agent agent, TileId from, TileId to) =>
-        FlightMinutesPerTile(agent) == null ? Map.Blocked(Map.Of(world), from, to) : Map.BlockedInFlight(Map.Of(world), from, to);
+        FlightMinutesPerTile(agent) != null ? Map.BlockedInFlight(Map.Of(world), from, to)
+            : Map.Blocked(Map.Of(world), from, to) ?? (Map.Of(world).TerrainAt(from).IsPassable() ? null : NowhereToSetOutFrom);
+
+    public const string NowhereToSetOutFrom = "no ground to set out from";
 
     public static int? FlightMinutesPerTile(Agent agent) => SpeciesTable.Of(agent.Species).FlightMinutesPerTile;
 
@@ -88,9 +92,8 @@ public static class Traversal
             Pools.Search(world, agent, c.From, hours / 2, events);
             Pools.Search(world, agent, Map.Step(c.From, c.Dir), hours / 2, events);
         }
-        int minutes = Trip.MinutesNow(world, agent, c.From, Map.Step(c.From, c.Dir), c.Pace);
         c.ElapsedMinutes++;
-        c.Covered += Share(minutes);
+        c.Covered += ShareNow(world, agent, c);
         if (c.Covered < Crossing.Whole) return null;
 
         if (c.From != agent.Tile) throw new InvalidOperationException($"{agent.Id} is crossing from {c.From} but stands on {agent.Tile}");
@@ -116,11 +119,17 @@ public static class Traversal
     {
         var c = agent.Crossing ?? throw new InvalidOperationException($"{agent.Id} is not crossing");
         if (CannotWalk(agent) != null) return null;
-        long perMinute = Share(Trip.MinutesNow(world, agent, c.From, Map.Step(c.From, c.Dir), c.Pace));
+        long perMinute = ShareNow(world, agent, c);
         return (int)Math.Max(0, (Crossing.Whole - c.Covered + perMinute - 1) / perMinute);
     }
 
-    static long Share(int minutes) => (Crossing.Whole + minutes - 1) / minutes;
+    public static double CoveredPct(Crossing c) => (double)c.Covered / Crossing.Whole;
+
+    static long ShareNow(World world, Agent agent, Crossing c)
+    {
+        int minutes = Trip.MinutesNow(world, agent, c.From, Map.Step(c.From, c.Dir), c.Pace);
+        return (Crossing.Whole + minutes - 1) / minutes;
+    }
 
     public const string Arrived = "arrived", CrossedThePassReason = "crossed the pass";
 
@@ -131,14 +140,13 @@ public static class Traversal
         Species species = Species.Human) =>
         Trip.Terms(world, body, from, to, pace, sky, encumbrancePct, species).TotalMinutes;
 
-    /// speed: SpeciesTable.WalkingSpeed, floored, so the minutes stay a handful of hours.
     public static int SegmentMinutes(GeneratedMap m, TileId tile, double speed, WeatherSample sky)
     {
         if (!(speed > 0)) throw new ArgumentOutOfRangeException(nameof(speed), speed, "a body at speed zero cannot walk: ask CannotWalk first");
         double multiplier = Map.TravelHazardLevel(m, tile, sky.Minute);
         if (sky.WindLevel > 0.5) multiplier *= 1 + Exposure.OpenWindLevel(m, tile, sky) * 0.3;
         if (sky.PrecipitationPct > 0.5) multiplier *= 1 + sky.PrecipitationPct * 0.2;
-        return (int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / speed);
+        return checked((int)Math.Ceiling(Map.BaseTraversalMinutes(m, tile) * (1 + multiplier) / speed));
     }
 
     public static int EdgeMinutes(World world, TileId from, TileId to) => Map.Of(world).EdgeBetween(from, to)?.TraversalMinutes() ?? 0;
@@ -162,7 +170,9 @@ public static class Traversal
     /// Whether care slows a walk and is offered: the quick risk to sound legs, so care is never free and a crossing at
     /// the floor stays within ten times a fresh one at the same pace. Bad legs raise the risk itself (InjuryOdds).
     public static bool CareMatters(World world, TileId tile, TileId? from, WeatherSample sky) =>
-        PaceMatters(InjuryOdds(EffectiveHazardLevel(world, tile, from), 1, sky, Pace.Quick).TotalPct);
+        PaceMatters(InjuryOdds(EffectiveHazardLevel(world, tile, from), SoundLegsPct, sky, Pace.Quick).TotalPct);
+
+    const double SoundLegsPct = 1;
 
     public static bool IsHazardous(World world, TileId tile) => PaceMatters(FallPct(EffectiveHazardLevel(world, tile)));
 
