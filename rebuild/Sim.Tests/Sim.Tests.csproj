@@ -30,6 +30,11 @@
     <ProjectReference Include="../Web/Host/Host.csproj" />
     <!-- Built, not referenced: Phase2GateTests runs the CLI in its own processes. -->
     <ProjectReference Include="../Cli/Cli.csproj" ReferenceOutputAssembly="false" />
+    <!-- Built, not referenced: CapacityReadTests reads their compiled code from their own builds. -->
+    <ProjectReference Include="../Tools/Tune/Tune.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Tools/TuneViewer/TuneViewer.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Tools/Tune.Tests/Tune.Tests.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Web/Host.Tests/Host.Tests.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

@@ -334,10 +334,12 @@ public class EffectsPropertyTests
         });
     }
 
-    /// Whatever the curve: worsening any discomfort never raises a capacity, and
-    /// hunger, thirst and tiredness at any severities never take one below a fifth of a whole body.
+    static double[] Shares(BodyState b) => [.. Enum.GetValues<Faculty>().Select(f => Body.Share(b, Species.Human, f))];
+
+    /// Whatever the curve: worsening any discomfort never raises a faculty, and hunger, thirst and
+    /// tiredness at any severities never leave a whole body helpless: every faculty stays above a sixth of fresh.
     [Fact]
-    public void Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth()
+    public void Discomforts_AreMonotone_AndNeverLeaveAWholeBodyHelpless()
     {
         var kinds = new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired };
         var rng = new Random(7);
@@ -345,14 +347,13 @@ public class EffectsPropertyTests
         {
             var b = BodyState.BaselineHuman();
             foreach (var k in kinds) Effects.Set(b, k, rng.NextDouble());
-            var before = Body.GetCapacities(b);
-            foreach (var c in new[] { before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing })
-                Assert.True(c >= 0.2, $"trial {trial}: {c:0.000}");
+            var before = Shares(b);
+            Assert.All(before, share => Assert.True(share > 1 / 6.0, $"trial {trial}: {share:0.000}"));
             var k2 = kinds[rng.Next(kinds.Length)];
             Effects.Set(b, k2, Math.Min(1, Effects.Severity(b, k2) + rng.NextDouble() * 0.3));
-            var after = Body.GetCapacities(b);
-            Assert.True(after.Moving <= before.Moving + 1e-12 && after.Manipulation <= before.Manipulation + 1e-12
-                && after.Consciousness <= before.Consciousness + 1e-12 && after.Sight <= before.Sight + 1e-12, $"trial {trial}: worse {k2} raised a capacity");
+            var after = Shares(b);
+            for (int i = 0; i < before.Length; i++)
+                Assert.True(after[i] <= before[i] + 1e-12, $"trial {trial}: worse {k2} raised {(Faculty)i}");
         }
     }
 
