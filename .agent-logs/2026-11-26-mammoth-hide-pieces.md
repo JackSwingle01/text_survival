@@ -39,3 +39,16 @@ pass without them. Checked the harness without the workaround against the old ra
 
 Load check: unchanged weights. `WeightProblems` reads the minimum piece weights, which did not change;
 `ContentTests` pass. The sample save holds no mammoth items.
+
+Review (standards and spec sub-agents): spec found nothing missing. Fixed: `RackTests.Daylight` renamed
+`WaitForDaylight` (it advances the world; `Phase2GateTests.Daylight` is a predicate) and `Rested` renamed
+`Rest`, now also used by the older hide-to-strips rack test in the same file. Not taken: moving the rest
+top-up into `TestKit` across MakeTests, CarcassTests and CampBuildsTests (outside this ticket; Follow-up
+below), reading `TestKit`'s nominal weights from `items.json` (they are nominal by design, set per kind), and
+`shelters.json`'s 5.0 (above).
+
+Follow-up: one `TestKit` helper for the sleep, food and water top-up repeated across MakeTests, RackTests,
+CarcassTests (`Refresh`) and CampBuildsTests.
+
+Checks: fast suite (`Category!=Slow`, Release) 2056 passed, 2 skipped, before the review commit; RackTests
+28 passed after it. The sample save fixture test passed unchanged, so no regeneration.

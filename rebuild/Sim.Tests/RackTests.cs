@@ -464,10 +464,7 @@ public class RackTests
         Sim.Step(w, take.Activity, take.Minutes);
         Assert.Equal(2.16, Assert.Single(Pack(w).Pieces[Resource.CuredHide]), 9);
 
-        // The sleep, food and water of the two days' wait, which this test is not about.
-        var body = w.Agent(P).Body;
-        (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
-        body.Effects.Clear();
+        Rest(w);
         Assert.Null(Sim.Step(w, new Make(P, "hide_strips"), 1).InterruptedReason);
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("hide_strips"), null, []));
         Assert.Equal(0, Items.Count(Pack(w), Resource.CuredHide));
@@ -487,7 +484,7 @@ public class RackTests
 
         for (int i = 0; i < 5; i++)
         {
-            Daylight(w);
+            WaitForDaylight(w);
             Assert.Null(Sim.Step(w, new Make(P, "scrape_mammoth_hide"), 1).InterruptedReason);
             Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_mammoth_hide"), null, []));
         }
@@ -498,7 +495,7 @@ public class RackTests
         {
             for (int i = 0; i < batch; i++) PutOn(w, a => a is PutOn { Recipe: "cure_mammoth_hide" });
             Sim.Advance(w, 48 * 60 + 5);
-            Rested(w);
+            Rest(w);
             var take = Offer(w, a => a is TakeFinished);
             Sim.Step(w, take.Activity, take.Minutes);
         }
@@ -512,8 +509,8 @@ public class RackTests
         TestKit.GivePieces(Pack(w), Resource.BirchBranch, 4);
         foreach (var made in new[] { "mammoth_hide_tent", "mammoth_hide_coat", "mammoth_hood" })
         {
-            Daylight(w);
-            Rested(w);
+            WaitForDaylight(w);
+            Rest(w);
             Assert.Null(Sim.Step(w, new Make(P, made), 1).InterruptedReason);
             Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get(made), null, []));
             Assert.Contains(Pack(w).Gear, g => g.Kind == made);
@@ -521,8 +518,8 @@ public class RackTests
         Assert.Equal(1, Items.Count(Pack(w), Resource.CuredMammothHide));
     }
 
-    /// The sleep, food and water of the days' work and waiting, which these tests are not about.
-    static void Rested(World w)
+    /// Tops up the sleep, food and water of the days' work and waiting, which these tests are not about.
+    static void Rest(World w)
     {
         var body = w.Agent(P).Body;
         (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
@@ -530,7 +527,7 @@ public class RackTests
     }
 
     /// Waits for light enough to work by.
-    static void Daylight(World w)
+    static void WaitForDaylight(World w)
     {
         for (int i = 0; i < 24 * 60 && Work.TooDarkToWork(w, w.Agent(P)); i++) Sim.Advance(w, 1);
         Assert.False(Work.TooDarkToWork(w, w.Agent(P)));
