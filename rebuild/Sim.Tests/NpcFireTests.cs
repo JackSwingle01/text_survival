@@ -169,6 +169,26 @@ public class NpcFireTests(ITestOutputHelper output)
         Assert.NotEqual(Stat.Warmth, MindOf(npc).Plan?.Stat);
     }
 
+    /// Two tiles from camp by night with no starter, and the camp fire it remembers will outlast the walk back but not
+    /// the night: it gathers fuel for it before going home.
+    [Fact]
+    public void FromAway_WithNoStarter_ALitCampFireShortOfTonight_StillWantsFuel()
+    {
+        var (w, npc) = Alone(15);
+        Nightfall(w);
+        TestKit.Give(MindOf(npc).Pack, Resource.Water, 2);
+        MindOf(npc).Pack.Gear.RemoveAll(g => Fire.Starters.Any(t => Items.Def(g).Tool == t));
+        Assert.DoesNotContain(Fire.Starters, t => Items.Tool(MindOf(npc).Pack, t) != null);
+        var camp = Map.Of(w).Camp;
+        var away = new TileId(camp.X + 2, camp.Y);
+        Burning(w, camp, Resource.Stick, 10);
+        Memories.Of(npc).Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, FireHours = 3 };
+        npc.Tile = away;
+        var (a, _) = Npc.Decide(w, npc, []);
+        output.WriteLine($"{a}; plan {MindOf(npc).Plan}");
+        Assert.Equal(ForageFocus.Fuel, Assert.IsType<Gather>(a).Focus);
+    }
+
     /// Parched by day with no water near and too few sticks for a melt: it goes for the sticks the forecast names.
     [Fact]
     public void Melting_ForTheFuelTheForecastNames()

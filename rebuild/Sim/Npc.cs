@@ -243,7 +243,8 @@ public static class Npc
             if (site == Here) (pit, fuel) = (PitHere, PackWith(PileHere));
             else (pit, fuel) = (null, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile));
             bool lit = pit != null ? Fire.IsActive(pit) || pit.HasEmbers : RememberedFireMinutes(site) > ToSite(site).MinutesTo(Here, double.PositiveInfinity);
-            return forecasts[(site, hoursWanted)] = (Fire.Forecast(new FireAsk(pit, PitType.Open, fuel, Starter, hoursWanted)), lit);
+            var starter = Starter ?? (lit && pit == null ? Fire.Starters[0] : null); // fuel goes on a fire still lit: no strike to lack
+            return forecasts[(site, hoursWanted)] = (Fire.Forecast(new FireAsk(pit, PitType.Open, fuel, starter, hoursWanted)), lit);
         }
 
         ToolType? Starter => Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
