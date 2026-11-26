@@ -4,6 +4,8 @@
 //   node shots.mjs <wwwroot> --run                 the scripted run: walk, fire, forage, make a staff, save, load
 //   node shots.mjs <wwwroot> --shot fire [--shot make ...] [--phone]   one state each (see STATES)
 //   node shots.mjs <wwwroot> --all [--phone]        every state
+//   node shots.mjs <wwwroot> --run --replay         the scripted run with the playtest log on (?log), then
+//                                                   its log replayed on a fresh page: the same world, or fail
 // --phone also shoots each state on phones (portrait 390×664 and 402×714, landscape 844×390 and 932×430, touch on) and
 // fails when the layout does not fit the screen there (PHONE_LAYOUT).
 // Options: --out <dir> (default rebuild/Web/shots), --seed <n>, --chrome <path>.
@@ -23,9 +25,13 @@ const out = path.resolve(opt('--out', path.join(here, '..', 'shots')));
 const seed = +opt('--seed', 1);
 const chrome = opt('--chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 const phone = args.includes('--phone');
+const replaying = args.includes('--replay');
 fs.mkdirSync(out, { recursive: true });
 
 // ---- the page, from outside ----
+
+/** The general forage, as a predicate over VerbDto: its label gains the ground's word once searched ("Forage (scarce)"). */
+const FORAGE = `/^Forage( \\(|$)/.test(v.label) && !v.refused`;
 
 const page = {
   ready: `window.ui.ready.then(() => true)`,
@@ -98,7 +104,7 @@ const STATES = {
   walk: { steps: [page.run(`v.kind === 'walk' && !v.refused && !v.careful`), page.idle] },
   fire: { scenario: 'supplied', steps: [page.open('fire')] },
   lit: { scenario: 'supplied', steps: ['strike'] },
-  forage: { steps: [page.run(`v.label === 'Forage'`), page.idle] },
+  forage: { steps: [page.run(FORAGE), page.idle] },
   make: { scenario: 'supplied', steps: [`(window.ui.S.makeSel = 'staff', window.ui.openDrawer({ kind: 'make' }), true)`] },
   made: { scenario: 'supplied', steps: [`(window.ui.S.makeSel = 'staff', window.ui.openDrawer({ kind: 'make' }), true)`, page.run(`v.make?.recipe === 'staff'`), page.idle] },
   body: { steps: [page.open('body')] },
@@ -272,29 +278,29 @@ let failed = false;
 try {
   if (args.includes('--run')) {
     await size(cdp, 1280, 860);
-    console.log('scripted run');
-    await goto(cdp, `${url}?seed=${seed}`);
+    console.log(`scripted run${replaying ? ', logged' : ''}`);
+    await goto(cdp, `${url}?seed=${seed}${replaying ? '&log=1' : ''}`);
     await shot(cdp, 'run-01-start');
     await step(cdp, page.run(`v.kind === 'walk' && v.dir === 'east' && !v.careful && !v.refused`)); await step(cdp, page.idle);
     await shot(cdp, 'run-02-walked-east');
     await step(cdp, page.run(`v.kind === 'walk' && v.dir === 'west' && !v.careful && !v.refused`)); await step(cdp, page.idle);
     if (!(await cdp.evaluate(`window.ui.S.view.place.camp`))) throw new Error('walking back did not reach camp');
     // Forage for tinder and wood first: the starting pack holds three or four strikes' worth of tinder.
-    await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle);
+    await step(cdp, page.run(FORAGE)); await step(cdp, page.idle);
     await shot(cdp, 'run-03-foraged');
     await step(cdp, page.open('fire'));
     await shot(cdp, 'run-04-fire-odds');
     let lit = false;
     for (let round = 0; round < 4 && !lit; round++) {
       lit = await step(cdp, 'strike').catch(e => { if (/not enough/.test(e.message)) return false; throw e; });
-      if (!lit) { await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle); }
+      if (!lit) { await step(cdp, page.run(FORAGE)); await step(cdp, page.idle); }
     }
     if (!lit) throw new Error('the fire never caught');
     await shot(cdp, 'run-05-fire-lit');
     // Wood for a staff: forage until the recipe can start.
     let tries = 0;
     for (; tries < 8 && await cdp.evaluate(`window.ui.allVerbs().find(v => v.make?.recipe === 'staff').refused != null`); tries++) {
-      await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle);
+      await step(cdp, page.run(FORAGE)); await step(cdp, page.idle);
     }
     const refusal = await cdp.evaluate(`window.ui.allVerbs().find(v => v.make?.recipe === 'staff').refused`);
     if (refusal) throw new Error(`after ${tries} more forages the staff is still refused: ${refusal}`);
@@ -323,6 +329,24 @@ try {
       return { view: Math.round(view), waitHour: Math.round(hour) };
     })()`);
     console.log(`  worker round trip: view ${ms.view} ms, an hour's wait ${ms.waitHour} ms`);
+    if (replaying) {
+      // Finish the timing's wait first: the host saves only between jobs.
+      await cdp.evaluate(`window.ui.client.act({ stop: true }).then(() => true)`);
+      await step(cdp, `(window.ui.log.mark(), true)`);
+      await shot(cdp, 'run-10-logged');
+      const record = await cdp.evaluate(`JSON.stringify(window.ui.log.toJSON())`);
+      const end = await cdp.evaluate(`window.ui.client.save().then(b => new TextDecoder().decode(b))`);
+      const n = JSON.parse(record).entries.length;
+      await goto(cdp, `${url}?seed=${seed + 1}`); // a fresh page, unlogged, on another world
+      const again = await cdp.evaluate(`(async () => {
+        const [{ replay }, { createClient }] = await Promise.all([import('./playtest.js'), import('./client.js')]);
+        const fresh = createClient(); // its own host: verb ids count views from the host's first
+        await replay(${record}, fresh);
+        return new TextDecoder().decode(await fresh.save());
+      })()`);
+      if (again !== end) throw new Error(`the replay of ${n} logged entries did not reach the same world`);
+      console.log(`  replayed ${n} logged entries (${Math.round(record.length / 1024)} KB): the same world`);
+    }
   }
   if (args.includes('--observe')) {
     // Observer mode (observe.html): no player, the whole map, time at a rate, spawn and inspect.

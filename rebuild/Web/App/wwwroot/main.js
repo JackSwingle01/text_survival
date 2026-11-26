@@ -8,11 +8,15 @@ import { createClient } from './client.js';
 import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
+import { logOptions, withLog } from './playtest.js';
 import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy, cardPlace } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const client = createClient();
+// ?log: the playtest log (playtest.js) wraps the client, so every call is recorded; off otherwise.
+const logging = logOptions(params);
+const build = () => fetch('build.txt', { cache: 'no-store' }).then(r => r.ok ? r.text() : 'unknown').then(s => s.trim());
+const { client, log } = logging ? withLog(createClient(), { ...logging, build: build() }) : { client: createClient(), log: null };
 
 const S = {
   view: null,
@@ -30,7 +34,7 @@ const S = {
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
 };
-window.ui = { S, ready: null, client }; // for the headless checks (tools/shots.mjs)
+window.ui = { S, ready: null, client, log }; // for the headless checks (tools/shots.mjs)
 
 // ---------------------------------------------------------------- verbs, read off the view
 
@@ -242,7 +246,7 @@ function renderDock() {
 
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-verb],[data-open],[data-act]');
-  if (!b || S.busy && b.dataset.act !== 'stop') return; // while time runs, only Stop
+  if (!b || S.busy && !['stop', 'mark', 'logfile'].includes(b.dataset.act)) return; // while time runs, only Stop (and the playtest log's buttons)
   if (b.dataset.verb) return run(b.dataset.verb, b.dataset.forage ? { minutes: S.forage.mins } : {});
   if (b.dataset.open) {
     const o = b.dataset.open;
@@ -262,11 +266,13 @@ document.addEventListener('click', e => {
   else if (act === 'download') doDownload();
   else if (act === 'upload') doUpload();
   else if (act === 'new') newGame(Math.floor(Math.random() * 1e6));
+  else if (act === 'mark') markLog();
+  else if (act === 'logfile') download(JSON.stringify(log.toJSON()), log.fileName());
 });
 
 // ---------------------------------------------------------------- the drawer
 
-function openDrawer(d) { S.drawer = d; render(); }
+function openDrawer(d) { S.drawer = d; log?.ui({ drawer: d.kind }); render(); }
 function closeDrawer() { if ((S.drawer?.kind === 'job' || S.drawer?.kind === 'forage') && S.busy) return; S.drawer = null; S.selected = null; render(); }
 function head(ic, title, extra = '') {
   $('sideHead').innerHTML = `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`;
@@ -742,6 +748,7 @@ document.addEventListener('keydown', e => {
     closeVeil();
     if (does === 'close') { e.preventDefault(); return; }
   }
+  if (log && k.toLowerCase() === 'n' && !e.repeat) { markLog(); return; }
   if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else if (S.trip) closeTrip(); else closeDrawer(); return; }
   if (S.busy || v.combat) return;
   const arrows = { ArrowUp: 'north', ArrowRight: 'east', ArrowDown: 'south', ArrowLeft: 'west' };
@@ -795,11 +802,34 @@ async function loadBytes(bytes, note) {
   } catch (e) { toast('ui/warning', `Could not load: ${e.message}`); }
 }
 
+// ---------------------------------------------------------------- the playtest log (?log)
+
+/** A mark in the log, its wall-clock time shown on the chip a while, to say into the voice memo. */
+let markedAt = null, markT = 0;
+function markLog() {
+  markedAt = log.mark();
+  clearTimeout(markT); markT = setTimeout(() => { markedAt = null; renderLogChip(); }, 4000);
+  renderLogChip();
+}
+
+/** The recording chip: how many calls are logged, a mark, and the log as a file. */
+function renderLogChip() {
+  if (!log) return;
+  let chip = $('logChip');
+  if (!chip) {
+    chip = Object.assign(document.createElement('div'), { id: 'logChip', className: 'plate logchip' });
+    $('mapArea').append(chip);
+  }
+  const s = log.sink, posting = logging.endpoint ? ` · ${s.failures && s.sent < log.entries.length ? 'not posting' : 'posted'} ${s.sent}` : '';
+  chip.innerHTML = `<span class="rec${markedAt ? ' marked' : ''}" ${tip('Playtest log', [`${log.entries.length} entries${posting}`, s.lastError ?? 'N marks the moment'])}>${markedAt ? `Marked ${markedAt}` : `REC ${log.entries.length}`}</span>
+    <button class="act quiet" data-act="mark">Mark <span class="key">N</span></button><button class="act quiet" data-act="logfile">Log file</button>`;
+}
+
 // ---------------------------------------------------------------- render and start
 
 function render() {
   if (!S.view) return;
-  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderTripCard(); renderEnd();
+  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderTripCard(); renderEnd(); renderLogChip();
 }
 
 async function newGame(seed) {
