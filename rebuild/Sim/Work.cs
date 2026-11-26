@@ -354,6 +354,13 @@ public static class Work
         if (water.KcalPerUnit > 0) Body.SpendKcal(body, ml * water.KcalPerUnit);
     }
 
+    /// A forecast of WashingWater on a tile as the view knows it, carried water aside: open water, a pond or snow.
+    public static bool WashingWaterAt(WorldView view, TileId tile)
+    {
+        var ground = view.Ground(tile);
+        return view.OpenWater(tile) || ground.PondLiquidM >= MinStandingWaterM || ground.SnowDepthM >= MinSnowM;
+    }
+
     /// What a wash here would use: open water or a pond first, then snow underfoot, then carried water; null with none of them.
     static WashedIn? WashingWater(World world, Agent agent, Inventory pack)
     {

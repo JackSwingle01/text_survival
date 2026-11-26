@@ -20,7 +20,7 @@ public sealed record NpcPlan(
     [property: JsonConverter(typeof(JsonStringEnumConverter<Priority>))] Priority Priority,
     long StartedMinute, int BudgetMinutes, TileId? At = null);
 
-/// Worst priority first; within a priority, warmth, water, rest, food. The top stat becomes a committed plan: water, food
+/// Worst priority first; within a priority, warmth, water, rest, food, dirty. The top stat becomes a committed plan: water, food
 /// and rest from the shared planner over its memory (MemoryView), a fire's makings from a requirement tree built fresh
 /// every decision ("all of", each child a "one of" its sources). The survival forecast filters both. It reads the world
 /// only through verbs, refusals, forecasts and its own memory.
@@ -204,7 +204,9 @@ public static class Npc
             Stat.Warmth => ForWarmth(priority),
             Stat.Water => ForWater(priority),
             Stat.Rest => ForRest(priority),
-            _ => ForFood(priority),
+            Stat.Food => ForFood(priority),
+            Stat.Dirty => ForWash(priority),
+            _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, "Not a stat the NPC pursues"),
         };
 
         // ---- the ladder ----
@@ -220,6 +222,7 @@ public static class Npc
                 [Stat.Water] = WaterPriority(Body.HydrationPct, seeing(Stat.Water), waterToHandL, (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0),
                 [Stat.Rest] = RestPriority(Body.EnergyPct, seeing(Stat.Rest)),
                 [Stat.Food] = FoodPriority(Body, mind.TargetFatKg, seeing(Stat.Food), foodToHand: false),
+                [Stat.Dirty] = DirtyPriority(Effects.Severity(Body, EffectKind.Dirty)),
             };
         }
 
@@ -487,6 +490,31 @@ public static class Npc
                 if (CoreAfterF([(new Sleep(Id), Here, minutes)]) > HypothermiaCoreF + ColdSleepBufferF) return new(new Sleep(Id), minutes, minutes);
             return null;
         }
+
+        // ---- dirty: wash here, or where the view says there is water or snow to wash in ----
+
+        Next? WashHere() => Sim.Refusal(world, new Wash(Id)) == null ? new(new Wash(Id), Work.WashMinutes, Work.WashMinutes) : null;
+
+        /// Refused for want of water only, a trip: the kept source, else the planner's choice among tiles it forecasts
+        /// washing water on (Work.WashingWaterAt). Refused for anything else (the dark, its hands), no wash anywhere.
+        Next? ForWash(Priority priority)
+        {
+            var refused = Sim.Refusal(world, new Wash(Id));
+            if (refused == null) return new(new Wash(Id), Work.WashMinutes, Work.WashMinutes);
+            if (refused.Missing is not MissingResource) return null;
+            var here = FromHere();
+            ToSite(Camp);
+            Source? At(TileId t) => t != Here && here.Reaches(t) && Work.WashingWaterAt(View, t) ? new Source(1) : null;
+            bool Passes(TileId t) => Survives(t, Work.WashMinutes, new Wash(Id), Camp);
+            TileId? to = Kept(Stat.Dirty) is TileId kept && At(kept) != null && Passes(kept) ? kept
+                : Planner.Choose(world, Id, View, Ask(Stat.Dirty, priority, Work.WashMinutes), At, accept: Passes).At;
+            if (to is not TileId t || t == Here) return null;
+            double trip = here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]) + Work.WashMinutes;
+            return WalkTo(t) is { } go ? go with { ForecastMinutes = trip, At = t } : null;
+        }
+
+        /// Before it idles, dirty at all, it washes where it stands: no trip.
+        Next? WashBeforeIdling() => Effects.Severity(Body, EffectKind.Dirty) > 0 ? WashHere() : null;
 
         // ---- food: eat what is in hand, or go and get it ----
 
@@ -826,17 +854,18 @@ public static class Npc
             return new(act, minutes, minutes);
         }
 
-        /// What it does when nothing is wanted: keep the camp going through the night.
+        /// What it does when nothing is wanted: keep the camp going through the night, washing before it sleeps or rests.
         Next Keep()
         {
-            if (!AtCamp) return WalkTo(Camp) ?? new(new Rest(Id), StintMinutes, StintMinutes);
+            if (!AtCamp) return WalkTo(Camp) ?? WashBeforeIdling() ?? new(new Rest(Id), StintMinutes, StintMinutes);
             if (StopMelting() is { } stop) return stop;
             if (!Weather.IsDaytime(world.Minute))
             {
                 if (LightOrTend(HoursToSunrise()) is { } fire) return fire;
+                if (WashBeforeIdling() is { } nightWash) return nightWash;
                 if (SleepHere() is { } sleep) return sleep;
             }
-            return new(new Rest(Id), StintMinutes, StintMinutes);
+            return WashBeforeIdling() ?? new(new Rest(Id), StintMinutes, StintMinutes);
         }
 
         // ---- moving ----
