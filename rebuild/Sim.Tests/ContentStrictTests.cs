@@ -67,6 +67,21 @@ public class ContentStrictTests
     public void Loader_RefusesAResource_NotCountedAsItsForm(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
+    /// Waste and saving on a discrete input are whole pieces, no more than the recipe takes; on a continuous one, a
+    /// share (#289). The refusal names the recipe and the outcome.
+    [Theory]
+    [InlineData("\"fail:waste_material:HideStrip:1=.05\"", "\"fail:waste_material:HideStrip:0.5=.05\"", "hide_belt", "fail:waste_material:HideStrip:0.5=0.05", "HideStrip is whole pieces")]
+    [InlineData("\"fail:waste_material:HideStrip:1=.05\"", "\"fail:waste_material:HideStrip:3=.05\"", "hide_belt", "fail:waste_material:HideStrip:3=0.05", "3 pieces of HideStrip, above the 2 it takes")]
+    [InlineData("\"succeed:save_material:Sinew:1=.10\"", "\"succeed:save_material:Sinew:.5=.10\"", "ivory_tipped_spear", "succeed:save_material:Sinew:0.5=0.1", "Sinew is whole pieces")]
+    [InlineData("\"succeed:save_material:Sinew:1=.10\"", "\"succeed:save_material:Sinew:3=.10\"", "ivory_tipped_spear", "succeed:save_material:Sinew:3=0.1", "3 pieces of Sinew, above the 2 it takes")]
+    [InlineData("\"fail:waste_material:PlantFiber:0.5=.08\"", "\"fail:waste_material:PlantFiber:1.5=.08\"", "cordage", "fail:waste_material:PlantFiber:1.5=0.08", "PlantFiber is a share (0-1]")]
+    [InlineData("\"fail:waste_material:Flint:1=.10\"", "\"fail:waste_material:Sinew:1=.10\"", "flint_knife", "fail:waste_material:Sinew:1=0.1", "PlantFiber|Sinew is pieces or an amount")]
+    public void Loader_RefusesWasteOrSaving_NotInTheInputsForm(string from, string to, string recipe, string outcome, string named)
+    {
+        var message = BrokenIn("recipes.json", from, to);
+        Assert.Contains($"recipes.json {recipe}: {outcome}: {named}", message);
+    }
+
     // ---- 1c. a repair works on pieces that wear, each kind by one recipe, none a tool of its own repair (#148) ----
 
     [Theory]

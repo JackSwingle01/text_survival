@@ -80,7 +80,9 @@ public class NamesTests
     public void AnOutcome_ReadsInWords()
     {
         var waste = Outcomes.Parse("fail:waste_material:Stone:1=.2").Single();
-        Assert.Equal("Fails: the stone is wasted", waste.Words);
+        Assert.Equal("Fails: one stone is wasted", waste.Words);
+        Assert.Equal("Fails: 2 hide strips are wasted", Outcomes.Parse("fail:waste_material:HideStrip:2=.2").Single().Words);
+        Assert.Equal("Done, but 33% of the plant fibre is left over", Outcomes.Parse("succeed:save_material:PlantFiber:0.33=.1").Single().Words);
         var cut = Outcomes.Parse("succeed:injury:LeftArm|RightArm:0.03=.05");
         Assert.Equal(["Done, but you cut your left arm", "Done, but you cut your right arm"], cut.Select(o => o.Words));
         Assert.Equal("Fails: the striking tool loses 2 uses", Outcomes.Parse("fail:break_tool:Striking:2=.02").Single().Words);

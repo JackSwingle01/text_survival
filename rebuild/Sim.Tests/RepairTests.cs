@@ -40,7 +40,7 @@ public class RepairTests
     [Theory]
     [InlineData("hide_gloves", 40, 72)]       // 50% → 90%
     [InlineData("bear_hide_chest", 135, 147)] // 90% → 98%
-    [InlineData("hide_cap", 72, 78)]          // 90% → 97.5%: 6.4 points, in whole ones
+    [InlineData("hide_cap", 72, 79)]          // 90% → 98.75%: 6.4 points, rounded up (#289)
     public void Mending_RestoresFourFifthsOfTheMissingCondition(string kind, int before, int after)
     {
         var w = Noon(out var pack);
