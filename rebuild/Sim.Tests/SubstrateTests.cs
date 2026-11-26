@@ -144,8 +144,8 @@ public class SubstrateTests
         // The pile keeps its maker while it stands; emptied, it is gone with its cause.
         TestKit.Give(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.OakBranch, 1);
         Assert.Equal(P, w.Tiles[camp].PileCause!.Value.Who);
-        Items.MoveFromPile(w, camp, new Inventory(), Resource.PineBranch, 9);
-        Items.MoveFromPile(w, camp, new Inventory(), Resource.OakBranch, 9);
+        Items.TakeFrom(w, P, null, Resource.PineBranch, 9, [], new Inventory());
+        Items.TakeFrom(w, P, null, Resource.OakBranch, 9, [], new Inventory());
         Assert.Null(w.Tiles.GetValueOrDefault(camp)?.PileCause);
 
         for (int i = 0; i < 20 && Fire.PitAt(w, camp) == null; i++)
@@ -571,8 +571,8 @@ public class SubstrateTests
     public void EveryLocationFeatureRefusal_CallsAccess_InTheSource()
     {
         var dir = ArchitectureTests.SimSourceDir();
-        // Work's put-down (PutDown) asks Access.PutDownRefusal; herds' Feed, Graze and Raid ask it too.
-        foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 4), ("Scavenging.cs", 1) })
+        // Work's put-down (PutDown) asks Access.PutDownRefusal; herds' Feed and Graze ask it too.
+        foreach (var (file, calls) in new[] { ("Work.cs", 3), ("Fire.cs", 1), ("Shelter.cs", 2), ("Combat.cs", 1), ("Fauna.cs", 5) })
         {
             int n = Regex.Matches(File.ReadAllText(Path.Combine(dir, file)), @"Access\.Refusal\(").Count;
             Assert.True(n >= calls, $"{file} asks Access {n} times, not {calls}");

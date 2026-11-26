@@ -76,8 +76,7 @@ public class WhereThingsGoTests
     static readonly Dictionary<string, string> HerdActivities = new()
     {
         ["Graze"] = "a herd eating forage",
-        ["Feed"] = "a herd eating a carcass",
-        ["Raid"] = "a herd raiding a pile",
+        ["Feed"] = "a herd eating a carcass or a pile",
         ["Watering"] = "an animal drinking where it stands",
     };
 

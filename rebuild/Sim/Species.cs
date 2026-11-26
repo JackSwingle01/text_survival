@@ -8,6 +8,9 @@ public enum Group { Open, Closed }
 /// The hours a species is about: by day, at dawn and dusk (Weather.IsTwilight), or by night.
 public enum ActivityPattern { Diurnal, Crepuscular, Nocturnal }
 
+[Flags]
+public enum Ability { None = 0, Flies = 1 << 0, Climbs = 1 << 1, Digs = 1 << 2, Strong = 1 << 3, Hands = 1 << 4 }
+
 public enum Role { Human, Prey, DangerousPrey, Predator, Scavenger }
 
 public sealed record Temperament(double Base, double PerMember, double HungryAt, double StarvingAt, double HungerBonus, double DefendBonus, double Cap);
@@ -38,7 +41,7 @@ public sealed record SpeciesStats(
     int? FlightMinutesPerTile = null,
     double PerceptionFactor = 1,
     double StealthFactor = 1,
-    bool Hands = false)
+    Ability Abilities = Ability.None)
 {
     public bool IsAnimal => Role != Role.Human;
     public bool IsSkittish => Role == Role.Prey || (Role == Role.Scavenger && IsSmall);
@@ -127,6 +130,13 @@ public static class SpeciesTable
     }
 
     public const double MinSpeedPct = 0.1;
+
+    /// Body.Speed under the load, held at MinSpeedPct of a fresh body's unloaded speed, the floor running has too; zero stays zero.
+    public static double WalkingSpeed(Species species, BodyState body, double encumbrancePct = 0)
+    {
+        double speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
+        return speed > 0 ? Math.Max(speed, MinSpeedPct * FreshSpeed(species, body.Sex)) : 0;
+    }
 
     /// A share of a fresh member's strength, so a species' or weapon's damage is what an average one does:
     /// Strength's kilogram terms are a person's.

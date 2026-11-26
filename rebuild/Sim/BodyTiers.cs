@@ -213,11 +213,11 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     }
 }
 
-public enum Faculty { Strength, Speed, Dexterity, Perception }
+public enum Faculty { Strength, Speed, Dexterity, Perception, Vision }
 
 /// Why a faculty is at zero (GLOSSARY: Crippled). NoWorkingLimb: its limbs give nothing, wounded or cold.
-/// BlindAndDeaf: no hearing, and sight gives nothing, for want of eyes or of light.
-public enum CrippledBy { NoWorkingLimb, LostBlood, Unconscious, Load, Build, BlindAndDeaf }
+/// BlindAndDeaf: no hearing, and sight gives nothing, for want of eyes or of light. NoWorkingEye: the eyes give nothing.
+public enum CrippledBy { NoWorkingLimb, LostBlood, Unconscious, Load, Build, BlindAndDeaf, NoWorkingEye }
 
 /// Each reads the capacities and the body's build: none reads vitality, the tier above.
 internal static class Faculties
@@ -329,6 +329,20 @@ internal static class Faculties
         return perceived * c.Consciousness;
     }
 
+    /// How far a body sees, read only by the view's budget (Sight.BudgetTiles), which adds the sky; no verb needs it.
+    internal static double Vision(BodyState body) => Vision(Capacities.Of(body));
+
+    internal static double Vision(in Capacities c) => c.Sight * c.Consciousness;
+
+    internal static IReadOnlyList<CrippledBy> VisionCrippledBy(BodyState body)
+    {
+        var unscaled = Capacities.Unscaled(body, out var feed);
+        var why = new List<CrippledBy>();
+        if (unscaled.Sight <= 0) why.Add(CrippledBy.NoWorkingEye);
+        AddOut(why, unscaled, feed);
+        return why;
+    }
+
     internal static double Dexterity(BodyState body, AbilityContext context = default) =>
         Dexterity(Capacities.Of(body), context, Effects.Severity(body, EffectKind.Wet));
 
@@ -352,11 +366,11 @@ internal static class Faculties
     }
 }
 
-/// The mean of the faculties, each as its share of a fresh body of the species and sex, read with no
+/// The mean of the faculties but vision, each as its share of a fresh body of the species and sex, read with no
 /// surroundings (no dark, wet or load). One a fresh body lacks (a wolf's dexterity) is left out.
 internal static class Vitality
 {
-    readonly record struct FacultyRead(double Strength, double Speed, double Dexterity, double Perception)
+    readonly record struct FacultyRead(double Strength, double Speed, double Dexterity, double Perception, double Vision)
     {
         public double Of(Faculty f) => f switch
         {
@@ -364,12 +378,13 @@ internal static class Vitality
             Faculty.Speed => Speed,
             Faculty.Dexterity => Dexterity,
             Faculty.Perception => Perception,
+            Faculty.Vision => Vision,
             _ => throw new ArgumentOutOfRangeException(nameof(f), f, null),
         };
     }
 
     static FacultyRead Read(BodyState body, in Capacities c) =>
-        new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, wetSeverity: 0), Faculties.Perception(c, default));
+        new(Faculties.Strength(body, c), Faculties.Speed(body, c, default), Faculties.Dexterity(c, default, wetSeverity: 0), Faculties.Perception(c, default), Faculties.Vision(c));
 
     static readonly int SexCount = Enum.GetValues<Sex>().Length;
 

@@ -531,7 +531,7 @@ public class TracksTests
         var w = Walker();
         var herd = w.Agent(AgentId.Player);
         herd.Members.AddRange([BodyState.BaselineHuman(), BodyState.BaselineHuman()]);
-        herd.Crossing = new Crossing { From = herd.Tile, Dir = Direction.South, Pace = Pace.Quick, TotalMinutes = 1 };
+        herd.Crossing = new Crossing { From = herd.Tile, Dir = Direction.South, Pace = Pace.Quick, Covered = Crossing.Whole - 1 };
         Traversal.Advance(w, herd, []);
         Assert.Equal(3, Sign(w, new(2, 34))!.Value.Traffic);
         Assert.Equal(1 - Math.Pow(1 - Tracks.StampPct, 3), Tracks.TroddenAt(w, new(2, 33), new(2, 34)), 12);

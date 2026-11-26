@@ -27,6 +27,7 @@ internal sealed record ContentTables(
     IReadOnlyDictionary<string, ShelterDef> Tents,
     IReadOnlyDictionary<Resource, ShelterMaterial> ShelterMaterials,
     IReadOnlyDictionary<BeddingKind, BeddingProps> Beddings,
+    IReadOnlyDictionary<CacheKind, CacheRow> Caches,
     IReadOnlyDictionary<ButcherMode, ButcherModeProps> Butchering,
     IReadOnlyDictionary<Terrain, TerrainRow> Terrains,
     IReadOnlyDictionary<Cave, CaveRow> Caves,
@@ -70,12 +71,14 @@ public static partial class Content
         double SmellFactor, double ScentLevel,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null, double PerceptionFactor = 1,
         double StealthFactor = 1,
-        bool Hands = false, IReadOnlyList<Resource>? Grazes = null);
+        IReadOnlyList<Ability>? Abilities = null, IReadOnlyList<Resource>? Grazes = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
         double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
-        Dictionary<string, ShelterMaterial> Materials, Dictionary<string, BeddingProps> Beddings);
+        Dictionary<string, ShelterMaterial> Materials, Dictionary<string, BeddingProps> Beddings, Dictionary<string, CacheFileRow> Caches);
+    sealed record CacheFileRow(double CapacityKg, IReadOnlyList<Ability> LetsIn, int BreakInMinutes, double ScentPct,
+        double Insulation, double Overhead, double Wind, double? BuryDepthM = null);
     sealed record ButcherFile(double TimeFactor, double ScentIncrease, double BloodySeverity, Dictionary<string, double> YieldFactors);
     sealed record TerrainFile(Dictionary<string, TerrainRow> Terrains, Dictionary<string, CaveRow> Caves,
         Dictionary<string, SubstrateProfile> Substrates, Dictionary<string, EdgeRow> Edges, FellingFile Felling, Footing Footing, WaterIce WaterIce);
@@ -151,6 +154,7 @@ public static partial class Content
         var kinds = Keyed<ShelterKind, ShelterKindProps>(shelters.Kinds, "shelters.json kinds", problems, complete: true);
         var materials = Keyed<Resource, ShelterMaterial>(shelters.Materials, "shelters.json materials", problems);
         var beddings = Keyed<BeddingKind, BeddingProps>(shelters.Beddings, "shelters.json beddings", problems, complete: true);
+        var caches = Keyed<CacheKind, CacheFileRow>(shelters.Caches, "shelters.json caches", problems, complete: true);
         var butcherRows = Keyed<ButcherMode, ButcherFile>(butchering, "butchering.json", problems, complete: true);
         var yields = butcherRows.ToDictionary(b => b.Key,
             b => Keyed<Resource, double>(b.Value.YieldFactors, $"butchering.json {b.Key} yieldFactors", problems));
@@ -176,6 +180,7 @@ public static partial class Content
         problems.AddRange(DietProblems(diets, resources));
         problems.AddRange(EffectProblems(effectRows, effectCaps));
         problems.AddRange(ShelterProblems(shelters, items.Gear, kinds, materials, beddings));
+        problems.AddRange(CacheProblems(caches));
         problems.AddRange(ButcherProblems(butcherRows, yields));
         problems.AddRange(TerrainProblems(terrain, terrains, caves, forage));
         problems.AddRange(FellingProblems(terrain.Felling, firewoodKg, mixedWood, fuels, locations));
@@ -203,6 +208,8 @@ public static partial class Content
                 e.Value.MetabolicHeatDelta, e.Value.HealingDelta, e.Value.HungerFreeHours))),
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
             ReadOnly(beddings),
+            ReadOnly(caches.ToDictionary(c => c.Key, c => new CacheRow(c.Value.CapacityKg, c.Value.LetsIn.Aggregate(Ability.None, (all, a) => all | a),
+                c.Value.BreakInMinutes, c.Value.ScentPct, new ShelterCover(c.Value.Insulation, c.Value.Overhead, c.Value.Wind), c.Value.BuryDepthM))),
             ReadOnly(butcherRows.ToDictionary(b => b.Key, b => new ButcherModeProps(b.Value.TimeFactor, ReadOnly(yields[b.Key]), b.Value.ScentIncrease, b.Value.BloodySeverity))),
             ReadOnly(terrains), ReadOnly(caves), new ReadOnlyDictionary<string, SubstrateProfile>(terrain.Substrates), ReadOnly(edges),
             new Felling(terrain.Felling.Firewood, ReadOnly(firewoodKg), terrain.Felling.FirewoodKgSpreadPct,
@@ -215,6 +222,20 @@ public static partial class Content
             new ReadOnlyDictionary<string, IReadOnlyList<Accident>>(accidents),
             makeRecipes, ReadOnly(names), ReadOnly(pieceWords),
             new ForagingTables(foraging.Quality, foraging.Failures, ReadOnly(luck), ReadOnly(hints), foraging.Clues, ReadOnly(tutorials), foraging.SearchBands));
+    }
+
+    /// shelters.json caches: room, a break-in not below 0, levels in 0-1, hands let into each, and a bury depth for burying in snow alone.
+    static IEnumerable<string> CacheProblems(Dictionary<CacheKind, CacheFileRow> caches)
+    {
+        foreach (var (kind, c) in caches)
+        {
+            string at = $"shelters.json caches {kind}";
+            if (c.CapacityKg <= 0 || c.BreakInMinutes < 0) yield return $"{at}: capacityKg above 0 and breakInMinutes not below 0";
+            if (c.ScentPct is < 0 or > 1 || new[] { c.Insulation, c.Overhead, c.Wind }.Any(l => l is < 0 or > 1))
+                yield return $"{at}: scentPct, insulation, overhead and wind in 0-1";
+            if (!c.LetsIn.Contains(Ability.Hands)) yield return $"{at}: every cache lets hands in";
+            if ((kind == CacheKind.BuriedInSnow) != (c.BuryDepthM is > 0)) yield return $"{at}: buryDepthM above 0 is buried in snow's, and only its";
+        }
     }
 
     /// foraging.json: words for every band, highest first; one failure band for every word; a mood for every
@@ -362,7 +383,8 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet, r.Grazes ?? NoGrazing,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor, r.Hands);
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor,
+            r.Abilities?.Aggregate(Ability.None, (all, a) => all | a) ?? Ability.None);
 
     // ---- checks, one family at a time ----
 
@@ -438,6 +460,7 @@ public static partial class Content
                     {
                         case WasteMaterial w when !inputResources.Contains(w.Input): problems.Add($"{at}: {w.Input} is not an input"); break;
                         case SaveMaterial s when !inputResources.Contains(s.Input): problems.Add($"{at}: {s.Input} is not an input"); break;
+                        case WasteMaterial or SaveMaterial when AmountProblem(e, materials, resources) is string bad: problems.Add($"{at}: {o.Text}: {bad}"); break;
                         case BreakTool b when !row.Tools.Contains(b.Capability) && !faster.Contains(b.Capability):
                             problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
                         case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
@@ -489,6 +512,19 @@ public static partial class Content
             yield return $"{at}: a station-worked recipe makes, as a sharePct (0-1] of its input, one piece of a discrete resource from a piece, an amount from an amount, or a share of its weight in a continuous one from a piece";
     }
 
+    /// An outcome never leaves a fraction of a piece (#289): waste or saving on a discrete input is whole pieces, no
+    /// more than the recipe takes; on a continuous one a share (0-1]; on an input of both forms, never.
+    static string? AmountProblem(Effect e, List<MaterialInput> materials, IReadOnlyDictionary<Resource, ResourceDef> resources)
+    {
+        var (input, amount) = e switch { WasteMaterial w => (w.Input, w.Amount), SaveMaterial s => (s.Input, s.Amount), _ => throw new NotSupportedException(e.GetType().Name) };
+        var m = materials.First(m => m.AnyOf.Contains(input));
+        var forms = m.AnyOf.Select(x => resources[x].Discrete).Distinct().ToList();
+        if (forms.Count > 1) return $"{string.Join('|', m.AnyOf)} is pieces or an amount: waste or saving on it would be both";
+        if (!forms[0]) return amount <= 1 ? null : $"{input} is a share (0-1] of its amount";
+        if (amount != Math.Floor(amount)) return $"{input} is whole pieces";
+        return amount <= m.Count ? null : $"{amount} pieces of {input}, above the {m.Count} it takes";
+    }
+
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
     /// pieces, or its grams; null heaviest for nothing to bound it.
     static (double Lightest, double Heaviest) InputKg(MaterialInput m, IReadOnlyDictionary<Resource, ResourceDef> resources, int? pieces = null)
@@ -511,15 +547,16 @@ public static partial class Content
         if (r.Resource is not Resource made) yield break;
         foreach (var o in outcomes.Prepend(null))
         {
-            double ShareOf(Resource? input, IEnumerable<Effect> effects) => effects.Where(e => e is WasteMaterial w && w.Input == input || e is SaveMaterial s && s.Input == input)
-                .Sum(e => e is WasteMaterial w ? w.SharePct : ((SaveMaterial)e).SharePct);
+            // A share of the input: pieces over the pieces it takes, or the share of an amount.
+            double ShareOf(MaterialInput m, Resource? input, IEnumerable<Effect> effects) => effects.Where(e => e is WasteMaterial w && w.Input == input || e is SaveMaterial s && s.Input == input)
+                .Sum(e => e is WasteMaterial w ? w.Amount : ((SaveMaterial)e).Amount) / (m.Count > 0 ? m.Count : 1);
             var effects = o?.Effects ?? [];
             if (o?.Kind == OutcomeKind.Fail) continue;
             double lo = 0, hi = 0, saved = 0;
             foreach (var m in materials)
             {
-                double share = Math.Min(1, m.AnyOf.Sum(x => ShareOf(x, effects.OfType<WasteMaterial>())));
-                double kept = m.AnyOf.Sum(x => ShareOf(x, effects.OfType<SaveMaterial>()));
+                double share = Math.Min(1, m.AnyOf.Sum(x => ShareOf(m, x, effects.OfType<WasteMaterial>())));
+                double kept = m.AnyOf.Sum(x => ShareOf(m, x, effects.OfType<SaveMaterial>()));
                 var (l, h) = InputKg(m, resources);
                 lo += l * (1 - share);
                 hi += h;
@@ -635,6 +672,9 @@ public static partial class Content
         {
             if (!f.Gear.TryGetValue(k.Kind, out var g)) { yield return $"items.json: no gear kind '{k.Kind}' for the starting kit"; continue; }
             if (k.Durability is <= 0) yield return $"items.json: starting {k.Kind} durability {k.Durability}";
+            if (k.Durability is int n && !Items.CanBeWornTo(g, n))
+                yield return g.MaxDurability <= 0 ? $"items.json: starting {k.Kind} has a durability, and its kind never wears"
+                    : $"items.json: starting {k.Kind} durability {n} is more than whole (its kind's maxDurability is {g.MaxDurability})";
         }
         foreach (var k in f.StartingClothes)
             if (f.Gear.TryGetValue(k.Kind, out var g) && g.Slot == null) yield return $"items.json: starting clothes {k.Kind} is not clothing";
@@ -724,6 +764,7 @@ public static partial class Content
             if (r.Diet == Diet.Herbivore && !grazes) yield return $"{at}: a herbivore needs a grazing list";
             if (grazes && r.GrazeKcalPerMinute <= 0) yield return $"{at}: a grazing list needs grazeKcalPerMinute above 0";
             bool person = s == Survival.Species.Human;
+            if (person != (r.Abilities?.Contains(Ability.Hands) == true)) yield return $"{at}: hands are a person's ability, and a person has them";
             if (person != (r.AutumnFatPct != null) || person != (r.Female != null))
                 yield return $"{at}: autumnFatPct and female are a person's, and a person has both";
             if (r.AutumnFatPct is FatRange fat && FatRangeProblem(fat, r.FatPct, r.MusclePct) is string lean) yield return $"{at} autumnFatPct: {lean}";

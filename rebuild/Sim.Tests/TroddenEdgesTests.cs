@@ -22,7 +22,7 @@ public class TroddenEdgesTests
         var animal = w.Agent(Agents.Spawn(w, species, Forest));
         for (int i = 0; i < crossings; i++)
         {
-            animal.Crossing = new Crossing { From = animal.Tile, Dir = animal.Tile == Forest ? Direction.South : Direction.North, Pace = Pace.Quick, TotalMinutes = 1 };
+            animal.Crossing = new Crossing { From = animal.Tile, Dir = animal.Tile == Forest ? Direction.South : Direction.North, Pace = Pace.Quick, Covered = Crossing.Whole - 1 };
             Traversal.Advance(w, animal, []);
         }
         Agents.Remove(w, animal.Id);
@@ -36,11 +36,11 @@ public class TroddenEdgesTests
         return (int)(w.Minute - start);
     }
 
-    /// The minutes the crossing an animal begins from Forest to Rock is set to take.
+    /// The minutes a crossing an animal begins from Forest to Rock takes at the speed it sets off at.
     static int AnimalCrosses(World w, Species species)
     {
         var id = Agents.Spawn(w, species, Forest);
-        int minutes = Traversal.Begin(w, new Travel(id, Direction.South, Pace.Quick)).TotalMinutes;
+        int minutes = Trip.StepMinutes(w, id, Forest, Rock, Pace.Quick);
         Agents.Remove(w, id);
         return minutes;
     }

@@ -2,8 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Survival;
 
-/// Saved while an NPC or herd is part-way through one: a new activity type needs its line here, or saving a
-/// world where someone is doing it throws.
+/// Saved while an NPC or herd is part-way through one: a new activity type needs its line here, or saving it throws.
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(Wait), "wait")]
 [JsonDerivedType(typeof(Rest), "rest")]
@@ -20,6 +19,8 @@ namespace Survival;
 [JsonDerivedType(typeof(WalkAbout), "walkabout")]
 [JsonDerivedType(typeof(PutDown), "putdown")]
 [JsonDerivedType(typeof(PickUp), "pickup")]
+[JsonDerivedType(typeof(Bury), "bury")]
+[JsonDerivedType(typeof(RepairCache), "repaircache")]
 [JsonDerivedType(typeof(Wear), "wear")]
 [JsonDerivedType(typeof(TakeOff), "takeoff")]
 [JsonDerivedType(typeof(Fight), "fight")]
@@ -28,7 +29,6 @@ namespace Survival;
 [JsonDerivedType(typeof(Feed), "feed")]
 [JsonDerivedType(typeof(Watering), "watering")]
 [JsonDerivedType(typeof(Hunt), "hunt")]
-[JsonDerivedType(typeof(Raid), "raid")]
 [JsonDerivedType(typeof(ImproveShelter), "improveshelter")]
 [JsonDerivedType(typeof(PackTent), "packtent")]
 [JsonDerivedType(typeof(Make), "make")]
@@ -55,8 +55,10 @@ public sealed record Eat(AgentId Who, Resource Food, double Kg) : Activity(Who);
 public sealed record Drink(AgentId Who, double Liters = Work.MaxDrinkLiters) : Activity(Who);
 public sealed record Wash(AgentId Who) : Activity(Who);
 public sealed record WalkAbout(AgentId Who) : Activity(Who);
-public sealed record PutDown(AgentId Who, Resource Resource, double Kg) : Activity(Who);
-public sealed record PickUp(AgentId Who, Resource Resource, double Kg) : Activity(Who);
+public sealed record PutDown(AgentId Who, Resource Resource, double Kg, CacheId? Into = null) : Activity(Who);
+public sealed record PickUp(AgentId Who, Resource Resource, double Kg, CacheId? From = null) : Activity(Who);
+public sealed record Bury(AgentId Who, Resource Resource, double Kg) : Activity(Who);
+public sealed record RepairCache(AgentId Who, CacheId Cache) : Activity(Who);
 public sealed record Wear(AgentId Who, string Gear) : Activity(Who);
 public sealed record TakeOff(AgentId Who, string Gear) : Activity(Who);
 

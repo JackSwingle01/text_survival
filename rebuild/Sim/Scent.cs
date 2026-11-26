@@ -34,10 +34,17 @@ public static class Scent
         if (Effects.Has(agent.Body, EffectKind.Bleeding)) level += BleedingLevel;
         level += BloodyLevel * Effects.Severity(agent.Body, EffectKind.Bloody);
         level += DirtyLevel * Effects.Severity(agent.Body, EffectKind.Dirty);
+        return Math.Min(1, level + OfFoodIn(person.Pack));
+    }
+
+    public static double OfCache(CacheState c) => OfFoodIn(c.Contents) * Caches.Row(c.Kind).ScentPct;
+
+    public static double OfFoodIn(Inventory inv)
+    {
         double food = 0;
-        foreach (var (r, kg) in Items.Totals(person.Pack))
+        foreach (var (r, kg) in Items.Totals(inv))
             if (kg > 0) food = Math.Max(food, OfFood(r) * Math.Min(1, kg));
-        return Math.Min(1, level + food);
+        return food;
     }
 
     static (int X, int Y) Offset(WindDirection d) => d switch
@@ -60,7 +67,7 @@ public readonly record struct Senses(TileId From, double SightBudgetTiles, doubl
     public static Senses Now(World world, Agent animal)
     {
         var row = SpeciesTable.Of(animal.Species);
-        double sight = Sight.BudgetTiles(world, animal.Tile, Body.GetCapacities(animal.Body).Sight) * row.PerceptionFactor;
+        double sight = Sight.BudgetTiles(world, animal.Tile, Body.Vision(animal.Body)) * row.PerceptionFactor;
         return new Senses(animal.Tile, sight, row.SmellFactor, Weather.At(world, world.Minute).WindDirection);
     }
 

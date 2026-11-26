@@ -59,8 +59,8 @@ public class WorkTests
     {
         var one = WithPools(Trees);
         var quarters = WithPools(Trees);
-        Items.Pack(one, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10)); // a ground stone axe never wears; this one does
-        Items.Pack(quarters, P).Gear.Add(Items.Make("ground_stone_axe", durability: 10));
+        // A ground stone axe never wears, so Items.Make makes none worn; this one does wear.
+        foreach (var w in new[] { one, quarters }) Items.Pack(w, P).Gear.Add(new Gear { Kind = "ground_stone_axe", Durability = 10, MaxDurability = 10 });
         RoomForATree(one);
         RoomForATree(quarters);
         var r = Sim.Step(one, new Gather(P, 0), 300);

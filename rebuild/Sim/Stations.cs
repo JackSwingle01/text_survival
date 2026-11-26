@@ -1,5 +1,6 @@
 namespace Survival;
 
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<StationKind>))]
 public enum StationKind { Fire, Rack }
 
 public enum StationDriver { Heat, Drying }
@@ -347,6 +348,83 @@ public static class Stations
     }
 
     static Transformation? Piece(StationState s, TakeBack a) => s.Working.FirstOrDefault(t => t.Input == a.Input && t.InputKg == a.Kg);
+
+    static IEnumerable<(LocationFeature Feature, StationState State)> On(World world, TileId tile)
+    {
+        foreach (var (id, s) in world.Stations)
+            if (world.Fires[id].Tile == tile) yield return (new(LocationFeatureKind.Fire, tile, id.Value), s);
+        foreach (var (id, rack) in world.Racks)
+            if (rack.Tile == tile && !Empty(rack.Work)) yield return (new(LocationFeatureKind.Rack, tile, id.Value), rack.Work);
+    }
+
+    /// GLOSSARY: Exposed. The tile's pile and what sits at its stations, an input as itself. Only read: it may be the pile.
+    public static Inventory? ExposedFood(World world, TileId tile)
+    {
+        var pile = world.Tiles.GetValueOrDefault(tile)?.Pile;
+        if (world.Stations.Count == 0 && world.Racks.Count == 0) return pile;
+        Inventory? all = null;
+        foreach (var (_, s) in On(world, tile))
+        {
+            if (all == null)
+            {
+                all = new Inventory();
+                if (pile != null) Items.AddAll(all, pile);
+            }
+            foreach (var t in s.Working) AddByForm(all, t.Input, t.InputKg);
+            Items.AddAll(all, s.Ready);
+        }
+        return all ?? pile;
+    }
+
+    /// Tiles whose stations hold anything, and no pile (Items.PileTilesOf has those).
+    public static IEnumerable<TileId> FoodTiles(World world)
+    {
+        var seen = new HashSet<TileId>();
+        foreach (var (id, _) in world.Stations)
+            if (world.Fires[id].Tile is var t && world.Tiles.GetValueOrDefault(t)?.Pile == null && seen.Add(t)) yield return t;
+        foreach (var rack in world.Racks.Values)
+            if (!Empty(rack.Work) && world.Tiles.GetValueOrDefault(rack.Tile)?.Pile == null && seen.Add(rack.Tile)) yield return rack.Tile;
+    }
+
+    /// The station an animal reaches its food at, for its access check: the first on the tile holding any of it.
+    public static LocationFeature? FeatureWith(World world, TileId tile, IReadOnlyList<Resource> food)
+    {
+        foreach (var (feature, s) in On(world, tile))
+            if (s.Working.Exists(t => food.Contains(t.Input)) || food.Any(r => Items.Have(s.Ready, r) > 0)) return feature;
+        return null;
+    }
+
+    /// An animal's bite past the pile (Items.TakeFrom), as a pile's is torn: a piece being worked keeps working, smaller;
+    /// a finished amount eaten away frees its places.
+    internal static List<(StationKind At, double Kg)> Eat(World world, TileId tile, Resource r, double kg)
+    {
+        var took = new List<(StationKind, double)>();
+        foreach (var (feature, s) in On(world, tile).ToList())
+        {
+            if (kg <= Items.SliverKg) break;
+            double moved = Items.Bite(s.Ready, new Inventory(), r, kg);
+            if (!Items.IsDiscrete(r) && moved > 0 && !HoldsAnAmount(s)) s.ReadyAmounts = 0;
+            for (int i = 0; i < s.Working.Count && kg - moved > Items.SliverKg; i++)
+            {
+                var t = s.Working[i];
+                if (t.Input != r) continue;
+                double bite = Math.Min(t.InputKg, kg - moved), left = t.InputKg - bite;
+                bool whole = Items.IsDiscrete(r) ? !Items.InRange(r, left) : left <= Items.SliverKg;
+                moved += whole ? t.InputKg : bite;
+                if (whole) s.Working.RemoveAt(i--);
+                else s.Working[i] = new Transformation { Recipe = t.Recipe, Input = r, InputKg = left, SetBy = t.SetBy, DonePct = t.DonePct };
+            }
+            if (moved <= 0) continue;
+            took.Add((KindOf(feature), moved));
+            kg -= moved;
+            if (feature.Kind == LocationFeatureKind.Fire && Empty(s)) world.Stations.Remove(new FireId(feature.Index));
+        }
+        return took;
+    }
+
+    /// A finished amount made from an input (dried berries, tallow); a melt's water holds no place.
+    static bool HoldsAnAmount(StationState s) =>
+        Items.Totals(s.Ready).Any(x => !Items.IsDiscrete(x.Resource) && Recipes.All.Any(rc => !FromNothing(rc) && rc.Result.Resource == x.Resource));
 
     /// A fire, or the pit beside a rack, is caught up to the minute before its heat is read. Cooking pays the setter, if alive.
     internal static void Minute(World world, List<WorldEvent> events)

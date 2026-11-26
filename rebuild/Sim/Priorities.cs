@@ -1,12 +1,12 @@
 namespace Survival;
 
-/// GLOSSARY: Stat. Within a priority they rank warmth, water, rest, food (Priorities.Ladder).
-public enum Stat { Warmth, Water, Food, Rest }
+/// GLOSSARY: Stat. Within a priority they rank warmth, water, rest, food, dirty (Priorities.Ladder).
+public enum Stat { Warmth, Water, Food, Rest, Dirty }
 
 /// Least urgent first: a later priority outranks an earlier one (GLOSSARY: Priority). None: nothing to do, not even topping up.
 public enum Priority { None, Want, Need, Critical }
 
-public readonly record struct StatPriorities(Priority Warmth, Priority Water, Priority Food, Priority Rest)
+public readonly record struct StatPriorities(Priority Warmth, Priority Water, Priority Food, Priority Rest, Priority Dirty = Priority.None)
 {
     public Priority this[Stat stat] => stat switch
     {
@@ -14,6 +14,7 @@ public readonly record struct StatPriorities(Priority Warmth, Priority Water, Pr
         Stat.Water => Water,
         Stat.Food => Food,
         Stat.Rest => Rest,
+        Stat.Dirty => Dirty,
         _ => throw new ArgumentOutOfRangeException(nameof(stat), stat, "Not a stat"),
     };
 }
@@ -91,13 +92,18 @@ public static class Priorities
         : energyPct < RestNeedPct || seeingTo && energyPct < RestAgainPct ? Priority.Need
         : energyPct < RestedPct ? Priority.Want : Priority.None;
 
+    public const double WashWantedDirtyPct = 0.5;
+
+    /// A Want above half Dirty, and never more: washing waits on every other stat.
+    public static Priority DirtyPriority(double dirtySeverity) => dirtySeverity > WashWantedDirtyPct ? Priority.Want : Priority.None;
+
     /// Fat down to what the body will burn with nothing in the stomach: the muscle is what burns.
     public static bool Starving(BodyState body) =>
         body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingToleranceKg;
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 
-    public static readonly Stat[] Ladder = [Stat.Warmth, Stat.Water, Stat.Rest, Stat.Food];
+    public static readonly Stat[] Ladder = [Stat.Warmth, Stat.Water, Stat.Rest, Stat.Food, Stat.Dirty];
 
     /// The top-ranked stat at minimum or above (Outranks); null if none is.
     public static (Stat Stat, Priority Priority)? Top(StatPriorities priorities, Priority minimum)

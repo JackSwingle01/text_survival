@@ -94,7 +94,7 @@ public static class Narration
                 : Me(x.Who) && x.Density is double d ? (FailureLine(d, x.Minute), Tone.Bad) : ($"{Does(x.Who, "find")} nothing.", Tone.Bad),
             Dropped x => ($"No room in the pack: {Haul(x.What)} left on the ground.", Tone.Bad),
             PutOnPile x => ($"{Does(x.Who, "put")} down {Names.Amount(x.Resource, x.Kg, x.Pieces)}.", Tone.Plain),
-            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Amount(x.Resource, x.Kg, x.Pieces)} from the pile." : $"{Does(x.Who, "pick")} up {Names.Amount(x.Resource, x.Kg, x.Pieces)}.",
+            PickedUp x => (x.Taken ? $"{Does(x.Who, "take")} {Names.Amount(x.Resource, x.Kg, x.Pieces)} from the {(x.From is StationKind k ? Stations.Word(k) : "pile")}." : $"{Does(x.Who, "pick")} up {Names.Amount(x.Resource, x.Kg, x.Pieces)}.",
                 x.Taken ? Tone.Bad : Tone.Plain),
             PoolDiscovered x => (Me(x.Who) && Pools.FoundLine(world, x.Pool) is string found ? found : $"{Does(x.Who, "find")} {Names.Lower(x.Name)}.", Tone.Rare),
             Scavenged x => (x.Animal is Species a ? $"{Does(x.Who, "find")} a {x.Remains} - {Names.Of(a)}. It could be butchered for resources."
@@ -103,7 +103,7 @@ public static class Narration
             TreeFelled => ("The tree comes down.", Tone.Good),
             Ate x => ($"{Does(x.Who, "eat")} {Names.Amount(x.Food, x.Kg, x.Pieces)}.", Tone.Plain),
             Washed x => ($"{Does(x.Who, "wash")} {x.In switch { WashedIn.Snow => "with snow", WashedIn.CarriedWater => "with carried water", WashedIn.Water => "in the water", _ => throw new NotSupportedException($"No words for washing in {x.In}") }}, and {(Me(x.Who) ? "are" : "is")} left damp.", Tone.Plain),
-            Drank x => ($"{Does(x.Who, "drink")} {x.Liters.ToString("0.##", CultureInfo.InvariantCulture)} L.", Tone.Plain),
+            Drank x => ($"{Does(x.Who, "drink")} {Names.Liters(x.Liters)}.", Tone.Plain),
             Butchered x => ($"{Does(x.Who, "finish")} butchering.", Tone.Good),
             Killed x => (x.By is AgentId by ? $"{Does(by, "kill")} a {Names.Of(x.Species)}." : $"A {Names.Of(x.Species)} dies.", Tone.Rare),
             EncounterEnded x => ($"The fight is over: {EncounterResult(x.Result)}.", x.Result is CombatResult.Victory or CombatResult.AnimalFled ? Tone.Good : Tone.Bad),
@@ -150,9 +150,7 @@ public static class Narration
         ChangeKind.Fire => c.Now == null ? "The fire pit is gone."
             : c.Was == null ? $"A fire here: {Phase(c.Now)}."
             : $"The fire was {Phase(c.Was)}. Now it is {Phase(c.Now)}.",
-        ChangeKind.Pile => c.Now == null ? $"The {Stuff(c.Subject)} in the pile is gone."
-            : c.Was == null ? $"{c.Now} kg {Stuff(c.Subject)} in the pile."
-            : $"The pile's {Stuff(c.Subject)}: {c.Was} kg, now {c.Now} kg.",
+        ChangeKind.Pile => PileChange(Stuff(c.Subject), c.Was, c.Now),
         ChangeKind.Carcass => c.Now == null ? $"The {c.Subject.ToLowerInvariant()} carcass is gone." : $"A {c.Subject.ToLowerInvariant()} carcass lies here.",
         ChangeKind.Shelter => c.Now == null ? $"The {(c.Was ?? "shelter").ToLowerInvariant()} is gone." : $"A {c.Now.ToLowerInvariant()} stands here.",
         _ => throw new ArgumentOutOfRangeException(nameof(c), c.Kind, null),
@@ -210,8 +208,17 @@ public static class Narration
 
     static string Phase(string phase) => Names.Of(Enum.Parse<FirePhase>(phase));
 
-    static string Stuff(string resource) => Enum.TryParse<Resource>(resource, out var r) ? Names.Of(r)
+    static Resource Stuff(string resource) => Enum.TryParse<Resource>(resource, out var r) ? r
         : throw new ArgumentException($"A pile change names no resource: '{resource}'", nameof(resource));
+
+    /// The kilos Memory kept as text: water in liters (Names.Liters), the rest as kept.
+    static string PileChange(Resource r, string? was, string? now)
+    {
+        string Held(string kg) => Names.InLiters(r) ? Names.Liters(double.Parse(kg, CultureInfo.InvariantCulture)) : $"{kg} kg";
+        return now == null ? $"The {Names.Of(r)} in the pile is gone."
+            : was == null ? $"{Held(now)} {Names.Of(r)} in the pile."
+            : $"The pile's {Names.Of(r)}: {Held(was)}, now {Held(now)}.";
+    }
 
     static string Pct(double p) => (p * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 

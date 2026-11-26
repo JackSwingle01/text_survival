@@ -67,7 +67,7 @@ public class SaveTests
         Assert.Contains("enum Hare=0,Wolf=1\n", d);                // enum names and numbers
         Assert.Contains("enum Calm=0,Storm=1 via System.Text.Json.Serialization.JsonStringEnumConverter`1[", d); // and its own converter
         Assert.Contains("converter Survival.AgentIdConverter", d); // a type written by its own converter
-        Assert.Contains("raid=Survival.Raid", d);                 // a derived activity by its discriminator
+        Assert.Contains("feed=Survival.Feed", d);                 // a derived activity by its discriminator
         Assert.Contains("Minute:System.Int32", d);                // the element type inside a map of lists
     }
 
@@ -79,19 +79,52 @@ public class SaveTests
         Assert.Equal(Save.Fingerprint(d, "#1 a"), Save.Fingerprint(d, "#1 a"));
     }
 
-    /// A raid lasts a minute, so nothing saves one today; this keeps one saveable if it ever lasts longer.
+    /// A bear part way through a pile it smelled from afar, the pile on its sightings list: saved and loaded, it eats on the same.
     [Fact]
-    public void AHerdMidRaid_SavesAndLoads()
+    public void AnAnimalMidFeed_AtAPileItSensed_SavesAndLoads_AndEatsTheSame()
     {
-        var w = World.New(17);
-        var tile = Map.Step(Map.Of(w).Camp, Direction.West);
+        var w = KillChainTests.Bare();
+        var tile = Map.Step(Map.Step(Map.Of(w).Camp, Direction.West), Direction.West);
         TestKit.Give(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
-        var raven = Agents.SpawnGroup(w, Species.Raven, tile, 4)[0];
-        w.Agent(raven).Doing = new Doing { Plain = new Raid(raven), MinutesLeft = 1 };
+        var bear = w.Agent(Agents.Spawn(w, Species.Bear, Map.Step(tile, Direction.West)));
+        TestKit.SetHunger(bear, 0.85);
+        Sim.Advance(w, 30);
+        Assert.Contains(Fauna.MindOf(bear).Sightings ?? [], s => s.Pile && s.Tile == tile);
+        Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < 5, "the bear has not begun to eat");
+        Assert.IsType<Feed>(Fauna.MindOf(bear).Choice);
 
         var loaded = Save.FromJson(Save.ToJson(w));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+        Sim.Advance(w, 60);
+        Sim.Advance(loaded, 60);
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+    }
 
-        Assert.Equal(new Raid(raven), loaded.Agent(raven).Doing?.Activity);
+    /// A fox part way into a buried cache it found, then a torn-open one: saved and loaded, the cache, its contents, its
+    /// break-in and the sighting come back, and it digs and eats on the same.
+    [Fact]
+    public void AnAnimalBreakingIntoACache_SavesAndLoads_AndEatsTheSame()
+    {
+        var w = KillChainTests.Bare();
+        var tile = Map.Step(Map.Step(Map.Of(w).Camp, Direction.West), Direction.West);
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.6, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        var id = Caches.Place(w, tile, CacheKind.BuriedInSnow, new Cause(AgentId.Player, "buried by the player"));
+        TestKit.GivePieces(w.Caches[id].Contents, Resource.RawMeat, 8);
+        double meat = Items.Have(w.Caches[id].Contents, Resource.RawMeat);
+        var fox = w.Agent(Agents.Spawn(w, Species.Fox, tile));
+        TestKit.SetHunger(fox, 0.85);
+        Sim.Advance(w, 2);
+        Assert.True(w.Caches[id].BreakInMinutesSpent is > 0 and < 5, $"break-in at {w.Caches[id].BreakInMinutesSpent}");
+        Assert.Contains(Fauna.MindOf(fox).Sightings ?? [], s => s.Cache == id);
+
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+        Assert.Equal(w.Caches[id].BreakInMinutesSpent, loaded.Caches[id].BreakInMinutesSpent);
+        Ground.SetClassState(loaded, tile, Ground.At(w, tile)); // the snow set down by hand, which the weather would have laid
+        Sim.Advance(w, 30);
+        Sim.Advance(loaded, 30);
+        Assert.True(w.Caches[id].TornOpen);
+        Assert.True(Items.Have(w.Caches[id].Contents, Resource.RawMeat) < meat, "the fox broke in and ate nothing");
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
     }
 }
@@ -181,11 +214,21 @@ public class SaveFixtureTests
         Sim.Step(w, new Wait(P), 2);
         // A caribou on its way to water, the wolf it sensed kept in mind (Fauna.Needs): a stored plan and a sighting.
         var den = new TileId(camp.X + 12, camp.Y);
-        var caribou = (HerdMind)w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y))).Mind;
+        var caribouAgent = w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(camp.X + 15, camp.Y)));
+        var caribou = (HerdMind)caribouAgent.Mind;
+        // A third of the way across to the first tile of its plan: a crossing's progress.
+        caribouAgent.Crossing = new Crossing { From = caribouAgent.Tile, Dir = Direction.East, Pace = Pace.Quick, Covered = Crossing.Whole / 3, ElapsedMinutes = 2 };
         caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
         caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
         // The pack's wolf has the caribou in sight as quarry (Fauna.Sense): a sighting of a herd, by species and count.
-        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1)];
+        // ... and the camp's pile, smelled (Fauna.Sense): kept until it sees the pile gone.
+        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1),
+            new Sensed(null, camp, w.Minute, Pile: true)];
+        // Meat buried in snow beside camp, torn open part way by a digger, and on the wolf's list too (#125).
+        var buried = Caches.Place(w, new TileId(camp.X + 1, camp.Y), CacheKind.BuriedInSnow, new Cause(P, "buried by the player"));
+        TestKit.GivePieces(w.Caches[buried].Contents, Resource.RawMeat, 2);
+        Caches.BreakIn(w.Caches[buried]);
+        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings!.Add(new Sensed(null, new TileId(camp.X + 1, camp.Y), w.Minute, Cache: buried));
         return w;
     }
 
