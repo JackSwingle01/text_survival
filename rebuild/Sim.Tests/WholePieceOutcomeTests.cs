@@ -70,7 +70,7 @@ public class WholePieceOutcomeTests
         Assert.True(checkedPieces > 100, $"only {checkedPieces} inputs checked");
     }
 
-    /// The fourteen whose waste was once written as a share of whole pieces (#289): what failing does.
+    /// Waste on a recipe's whole pieces: several taken lose one, one taken keeps it.
     [Theory]
     [InlineData("hide_belt", Resource.HideStrip, 1)]
     [InlineData("hide_gloves", Resource.HideStrip, 1)]
@@ -93,6 +93,22 @@ public class WholePieceOutcomeTests
         var failure = r.Outcomes.Single(o => o.Kind == OutcomeKind.Fail && !o.Effects.Any(e => e is BreakTool));
         Finish(w, r, failure, heaviest: false);
         Assert.Equal(r.Materials.Single(m => m.AnyOf.Contains(input)).Count - lost, Held(w, input));
+    }
+
+    /// Pieces wasted from an input of alternatives come off the alternatives in order, whichever were held.
+    [Fact]
+    public void WastedPieces_ComeOffTheAlternativesInOrder()
+    {
+        var w = MakeTests.Noon(out var pack);
+        var r = Recipes.Get("hide_tent");
+        var p = new MakeProject { Recipe = r.Id };
+        foreach (var m in r.Materials.Where(m => !m.AnyOf.Contains(Resource.PineBranch))) TestKit.GiveFor(p.Materials, m.AnyOf[0], m);
+        Items.AddPiece(p.Materials, Resource.PineBranch, 1.0);
+        Items.AddPieces(p.Materials, Resource.BirchBranch, [1.0, 1.0, 1.0]);
+        pack.Projects = [p];
+        Making.Complete(w, w.Agent(P), r, Outcomes.Parse("fail:waste_material:PineBranch:2=.05").Single(), []);
+        Assert.Equal(0, Held(w, Resource.PineBranch));
+        Assert.Equal(2, Held(w, Resource.BirchBranch));
     }
 
     [Theory]

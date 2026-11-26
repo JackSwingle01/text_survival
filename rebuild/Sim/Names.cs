@@ -58,8 +58,8 @@ public static class Names
     {
         var parts = o.Effects.Select(e => e switch
         {
-            WasteMaterial w => $"{OfInput(w.Input, w.Amount)} {(Items.IsDiscrete(w.Input) && w.Amount > 1 ? "are" : "is")} wasted",
-            SaveMaterial s => $"{OfInput(s.Input, s.Amount)} {(Items.IsDiscrete(s.Input) && s.Amount > 1 ? "are" : "is")} left over",
+            WasteMaterial w => InputIs(w.Input, w.Amount, "wasted"),
+            SaveMaterial s => InputIs(s.Input, s.Amount, "left over"),
             ExtraProduct x => Items.GearKinds.TryGetValue(x.What, out var g) ? $"an extra {Lower(g.Name)}" : Extra(Enum.Parse<Resource>(x.What), x.Amount),
             Injury j => $"you cut your {Of(j.Target)}",
             BreakTool b => b.Uses is int n ? $"the {Of(b.Capability)} tool loses {n} {(n == 1 ? "use" : "uses")}" : $"the {Of(b.Capability)} tool breaks",
@@ -69,9 +69,9 @@ public static class Names
         return parts.Count == 0 ? head : o.Kind == OutcomeKind.Fail ? $"{head}: {string.Join(", ", parts)}" : $"{head}, but {string.Join(", ", parts)}";
     }
 
-    static string OfInput(Resource r, double amount) =>
-        Items.IsDiscrete(r) ? amount == 1 ? $"one {PieceWord(r)}" : Pieces(r, (int)amount)
-        : amount >= 1 ? $"the {Of(r)}" : $"{Pct(amount)} of the {Of(r)}";
+    static string InputIs(Resource r, double amount, string what) =>
+        !Items.IsDiscrete(r) ? $"{(amount >= 1 ? "the" : Pct(amount) + " of the")} {Of(r)} is {what}"
+        : amount == 1 ? $"one {PieceWord(r)} is {what}" : $"{Pieces(r, (int)amount)} are {what}";
 
     static string Extra(Resource r, double amount) =>
         !Items.IsDiscrete(r) ? $"{Kg(amount)} more {Of(r)}" : amount == 1 ? $"an extra {PieceWord(r)}" : $"{Pieces(r, (int)amount)} more";
