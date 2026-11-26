@@ -49,3 +49,10 @@ export function paceMs(minutes, kind) {
   if (kind === 'walk') return Math.min(1200, Math.max(500, 500 + minutes * 30));
   return Math.min(30000, Math.max(1000, minutes * 300)) / (kind === 'sleep' ? 4 : 1);
 }
+
+/** Where the map's camera looks, in cells, so the player at `pos` sits in the middle of the part of the
+ *  map that nothing covers. `coverPx` is how far in from the map's top, right and bottom edges the drawer
+ *  and the status strip reach; `cellPx` is a cell's width. */
+export function cameraTarget(pos, coverPx, cellPx) {
+  return { x: pos.x + 0.5 + coverPx.right / 2 / cellPx, y: pos.y + 0.5 + (coverPx.bottom - coverPx.top) / 2 / cellPx };
+}

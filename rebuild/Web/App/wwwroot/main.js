@@ -150,6 +150,7 @@ function finishJob(verb, v, startMinute, logFrom) {
 
 function apply(v, { keepDrawer = false } = {}) {
   S.view = v;
+  if (pinned) hideTip();
   if (!S.busy || !S.walking) S.drawPos = { x: v.place.x, y: v.place.y };
   if (!keepDrawer && S.drawer?.kind === 'trip') S.drawer = null;
   render();
@@ -622,16 +623,37 @@ function shake(id) { const b = document.querySelector(`[data-verb="${id}"]`); if
 
 // ---------------------------------------------------------------- tips
 
+// A mouse shows a tip on hover. A finger has no hover: a tap on something that only has a tip (the clock,
+// the light, the vitals) pins it, and the next tap anywhere only puts it away, so it never walks or acts.
 const ftip = $('ftip');
-document.addEventListener('mouseover', e => {
-  const el = e.target.closest('[data-tip]');
-  if (!el) { ftip.hidden = true; return; }
+let pinned = false, swallow = false;
+function showTip(el) {
   const [title, ...lines] = el.dataset.tip.split('|');
   ftip.innerHTML = `<div class="t">${px(title)}</div>${lines.map(l => { const m = /^([gbm]):(.*)$/.exec(l); return `<div class="${m ? m[1] : ''}">${esc(m ? m[2] : l)}</div>`; }).join('')}`;
   ftip.hidden = false;
   const r = el.getBoundingClientRect(), w = ftip.offsetWidth, h = ftip.offsetHeight;
   ftip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
-  ftip.style.top = `${r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8}px`;
+  ftip.style.top = `${Math.min(innerHeight - h - 8, r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8)}px`;
+}
+function hideTip() { ftip.hidden = true; pinned = false; }
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const el = e.target.closest('[data-tip]');
+  if (el) showTip(el); else hideTip();
+});
+// Each touch decides afresh whether it only puts a tip away, so a swipe (a pan ends in pointercancel,
+// with no click to swallow) never leaves the next tap swallowed.
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  swallow = pinned;
+  if (pinned) hideTip();
+}, true);
+document.addEventListener('pointercancel', () => { swallow = false; }, true);
+document.addEventListener('click', e => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('pointerup', e => {
+  if (e.pointerType === 'mouse' || swallow) return;
+  const el = e.target.closest('[data-tip]');
+  if (el && !el.closest('button, [data-verb], [data-open], [data-act], [data-sheet]')) { showTip(el); pinned = true; }
 });
 
 // ---------------------------------------------------------------- the map's hover and click
@@ -666,7 +688,20 @@ function clickTile(t) {
   S.selected = t;
   openDrawer({ kind: 'place', x: t.x, y: t.y });
 }
-const map = createMap($('world'), () => ({ ...S, drawerOpen: !!S.drawer, displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
+/** How far in from the map's edges the drawer (with the margin it keeps from the edge, so it is centred in
+ *  what is left) and a status strip along its top reach, in CSS px (cameraTarget). */
+function mapCoverPx() {
+  const m = $('mapArea').getBoundingClientRect(), c = { top: 0, right: 0, bottom: 0 };
+  const d = $('drawer');
+  if (!d.hidden) {
+    const r = d.getBoundingClientRect();
+    if (r.width > m.width * 0.9) c.bottom = 2 * m.bottom - r.top - r.bottom; else c.right = 2 * m.right - r.left - r.right;
+  }
+  const st = $('status').getBoundingClientRect();
+  if (st.width > m.width / 2 && st.top - m.top < 24) c.top = st.bottom - m.top;
+  return c;
+}
+const map = createMap($('world'), () => ({ ...S, coverPx: mapCoverPx(), displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
 createGrid($('grid'), () => S, {
   onCell: c => {
     const mv = S.view?.combat?.actions.find(a => a.kind === 'fight-move');
