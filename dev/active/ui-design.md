@@ -85,7 +85,7 @@ ui/
 │   │                               # & trend · feels-like breakdown · clothing · skills
 │   ├── place/           [X/click]  # ground & footing · shelter · bedding · cache · fire
 │   │                               # fuel · on the fire · forage · game · water · traps
-│   │                               # · curing · carcass · tracks · people · exits
+│   │                               # · curing · carcass · tracks · people
 │   ├── pack/            [I]        # items · weights · tool condition · capacity
 │   ├── people/          [P]        # activity · needs · opinion · memories
 │   ├── journal/         [J]        # log · discoveries
@@ -227,7 +227,7 @@ animation doesn't run.
 - **Body:** the full vitals with numbers and trends; effects with their modifiers; injuries with a
   pixel body diagram; impaired capacities; the feels-like breakdown; clothing by slot; threats;
   skills.
-- **Place:** for where you stand, everything known about the tile and its exits; for any other tile,
+- **Place:** for where you stand, everything known about the tile; for any other tile,
   the trip preview first, then what's known, marked "as you last saw it" when out of sight.
 - **Pack, People, Journal:** as in the prototype.
 

@@ -331,20 +331,12 @@ function renderHere(d, v) {
       ${action ? `<div class="menu">${menuItem(action)}</div>` : ''}
       ${open ? `<div class="menu">${t.menu.map(x => menuItem(x)).join('')}</div>` : ''}</div>`;
   }).join('');
-  const exits = v.walk.filter(w => !w.careful).map(w => {
-    const careful = walkVerb(v, w.dir, true);
-    return `<button class="exit" data-trip="${w.dir}" ${w.refused ? 'disabled' : ''}><span class="dir">${w.dir[0].toUpperCase()}</span>
-      <span>${esc(w.trip ? cap(w.trip.to) : cap(w.refused ?? ''))}${careful ? '<small class="haz">hazardous ground</small>' : ''}</span>
-      <span class="m">${w.trip ? `${w.trip.totalMinutes}m` : ''}</span></button>`;
-  }).join('');
   $('sideBody').innerHTML = `
     ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}
     ${v.fire ? section('Fire', fireBlock(v)) : ''}
     ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
-    ${section('Exits', `<div class="exits">${exits}</div>`)}
     ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}`;
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-trip]'); if (b && !S.busy) openTrip(b.dataset.trip); });
 
 function renderFire(d, v) {
   const fire = fireFeature(v), light = lightVerb(v);
@@ -374,18 +366,20 @@ function renderTrip(d, v) {
   if (!t) { $('sideBody').innerHTML = `<p class="note">${esc(cap(quick.refused ?? 'You cannot go that way.'))}</p>`; return; }
   const left = v.clock.daylightLeftMinutes;
   const camp = v.map.places.find(p => p.x === v.map.campX && p.y === v.map.campY);
+  // A chance of a fall that shows as 0% is no hazard worth a line.
+  const risk = trip => trip?.risk && Math.round(trip.risk.totalPct * 100) > 0 ? trip.risk : null;
   const rows = (trip) => trip.terms.map((x, i) => `<div class="kv ${i === 0 ? '' : x.minutes > 0 ? 'minus' : 'plus'}"><span></span><span>${esc(x.factor)}</span><span class="v">${i === 0 ? `${x.minutes} min` : signed(x.minutes, ' min')}</span></div>`).join('');
   $('sideBody').innerHTML = `
+    <div class="row">${careful ? `<button class="act quiet" data-verb="${careful.id}">Careful <span class="num">(${careful.trip?.totalMinutes ?? '?'} min)</span></button>` : ''}
+      <button class="act" data-verb="${quick.id}">Go <span class="num">(${t.totalMinutes} min)</span> <span class="key">Enter</span></button></div>
     <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
       <div class="factors">${rows(t)}</div></div>
-    ${t.hazardous || t.risk ? section('Footing', `${t.risk ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.totalPct)}</p>${oddsSheet(t.risk, { title: 'This ground, quickly' })}` : ''}
-      ${t.hazardous ? `<p class="note">Careful is slower${careful?.trip?.risk ? `, with a ${pct(careful.trip.risk.totalPct)} chance of a fall` : ', and safer'}.</p>
+    ${t.hazardous || risk(t) ? section('Footing', `${risk(t) ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.totalPct)}</p>${oddsSheet(t.risk, { title: 'This ground, quickly' })}` : ''}
+      ${t.hazardous ? `<p class="note">Careful is slower${risk(careful?.trip) ? `, with a ${pct(careful.trip.risk.totalPct)} chance of a fall` : ', and safer'}.</p>
       ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}` : ''}`) : ''}
     ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
     ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
-      ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}
-    <div class="row">${careful ? `<button class="act quiet" data-verb="${careful.id}">Careful · ${careful.trip?.totalMinutes ?? '?'} min</button>` : ''}
-      <button class="act" data-verb="${quick.id}">Go <span class="key">Enter</span></button></div>`;
+      ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}`;
 }
 
 function renderPlace(d, v) {
