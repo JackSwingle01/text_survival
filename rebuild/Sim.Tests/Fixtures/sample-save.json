@@ -1767,6 +1767,14 @@
             "Carcass": null,
             "Quarry": "Caribou",
             "Count": 1
+          },
+          {
+            "Who": null,
+            "Tile": "7,42",
+            "Minute": 145,
+            "Carcass": null,
+            "Count": 0,
+            "Pile": true
           }
         ]
       },
