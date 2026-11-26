@@ -169,6 +169,21 @@ public class VerbsTests
         AssertEveryVerbIsTrue(w, P);
     }
 
+    /// Water waiting at the fire is offered by its litres (#290).
+    [Fact]
+    public void WaterWaitingAtTheFire_IsTakenByTheLitre()
+    {
+        var w = Camp(out var camp);
+        var id = new FireId(w.NextFireId++);
+        w.Fires[id] = new FireState { Tile = camp, LastUpdatedMinute = w.Minute };
+        w.Fires[id].BurningKg[Resource.BirchFirewood] = 5;
+        var station = new StationState();
+        Items.Add(station.Ready, Resource.Water, 1.5);
+        w.Stations[id] = station;
+        var pit = Listed(w, LocationFeatureKind.Fire);
+        Assert.Contains(pit.Menu, v => v.Label == "Take 1.5 L water" && v.Activity is TakeFinished);
+    }
+
     /// A thing behind a blocking condition shows it. With no clearing verb yet (step 4.4), the action
     /// shown is the thing's own, refused with the condition's reason.
     [Fact]
