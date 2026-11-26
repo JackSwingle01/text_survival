@@ -223,6 +223,7 @@ def log_excerpt(log):
     around it (the assertion and the top of the stack trace follow the test's name), and the log's end.
     Cut to LOG_CHARS from the front, so a log that fails everywhere still shows its first failures."""
     log = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", log)  # colour codes
+    log = re.split(r"^.*Post job cleanup\.\s*$", log, maxsplit=1, flags=re.MULTILINE)[0]  # then only git's tidying
     lines = [re.sub(r"^\S*\d{4}-\d\d-\d\dT[\d:.]+Z ", "", line) for line in log.splitlines()]
     keep = set(range(max(0, len(lines) - LOG_TAIL_LINES), len(lines)))
     for i, line in enumerate(lines):
