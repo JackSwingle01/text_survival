@@ -1,3 +1,4 @@
+using System.Reflection;
 using ArchUnitNET.Domain;
 using ArchUnitNET.Domain.Dependencies;
 using CompiledCode = ArchUnitNET.Domain.Architecture;
@@ -10,12 +11,31 @@ namespace Survival.Tests;
 /// and tests (ArchUnitNET), not their source. The reads that exist today are listed by member: a ratchet.
 public class CapacityReadTests
 {
-    internal static readonly Lazy<CompiledCode> Compiled = new(() => new ArchUnitNET.Loader.ArchLoader()
-        .LoadAssemblies(typeof(World).Assembly, typeof(Survival.Web.ViewDto).Assembly, typeof(CapacityReadTests).Assembly)
+    /// The projects that use the sim but that Sim.Tests builds without referencing (Sim.Tests.csproj).
+    static readonly (string Project, string Assembly)[] NotReferenced =
+        [("Cli", "Cli"), ("Tools/Tune", "Tune"), ("Tools/TuneViewer", "TuneViewer"), ("Tools/Tune.Tests", "Tune.Tests"), ("Web/Host.Tests", "Host.Tests")];
+
+    /// Its own load context, so a tool's copy of an assembly never stands in for the one the tests run.
+    static readonly System.Runtime.Loader.AssemblyLoadContext Scanned = new(nameof(CapacityReadTests), isCollectible: true);
+
+    /// A project's own build, in this build's configuration: a missing one fails rather than leaving its reads unread.
+    static string BuiltAssembly(string project, string assembly)
+    {
+        string config = typeof(CapacityReadTests).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()!.Configuration;
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Sim", "Sim.csproj"))) dir = dir.Parent;
+        string path = Path.Combine(dir!.FullName, project, "bin", config, "net10.0", assembly + ".dll");
+        return File.Exists(path) ? path : throw new FileNotFoundException($"no build of {project} at {path}");
+    }
+
+    internal static readonly Lazy<CompiledCode> Compiled = new(() => NotReferenced.Aggregate(new ArchUnitNET.Loader.ArchLoader()
+            .LoadAssemblies(typeof(World).Assembly, typeof(Survival.Web.ViewDto).Assembly, typeof(CapacityReadTests).Assembly),
+            (loader, p) => loader.LoadAssemblies(Scanned.LoadFromAssemblyPath(BuiltAssembly(p.Project, p.Assembly))))
         .Build());
 
     static readonly string CapacitiesType = typeof(Capacities).FullName!;
     static readonly string BodyType = typeof(Body).FullName!;
+    static readonly string EffectsType = typeof(Effects).FullName!;
     static readonly HashSet<string> CapacityNames = [.. typeof(Capacities).GetProperties().Select(p => p.Name)];
 
     /// The body's own code: its tiers (BodyTierTests), which derive the capacities, and the screen's read-out of them.
@@ -24,8 +44,8 @@ public class CapacityReadTests
     /// The tiers below the capacities: reading them from outside is reading a capacity by another door.
     static readonly Type[] BelowTheCapacities = [typeof(TissueReads), typeof(BloodAndBreath)];
 
-    /// What one dependency reads: a capacity by name, the whole record, or a region's capacities. Null for
-    /// anything else.
+    /// What one dependency reads: a capacity by name, the whole record, a region's capacities, or the effects'
+    /// per-capacity deltas. Null for anything else.
     const string TheWholeRecord = "Capacities";
 
     static string? ReadBy(ITypeDependency d)
@@ -37,6 +57,8 @@ public class CapacityReadTests
             string name = member is null ? "" : member.Split('(')[0].Replace("get_", "");
             return CapacityNames.Contains(name) ? name : TheWholeRecord;
         }
+        if (d.Target.FullName == EffectsType && d.Origin.FullName != EffectsType && d is IMemberMemberDependency deltas
+            && deltas.TargetMember.Name.StartsWith(nameof(Effects.CapacityDeltas) + "(")) return nameof(Effects.CapacityDeltas);
         if (d.Target.FullName == BodyType && d is IMemberMemberDependency call)
         {
             if (call.TargetMember is MethodMember { ReturnType.FullName: var returns } && returns == CapacitiesType) return TheWholeRecord;
@@ -96,6 +118,7 @@ public class CapacityReadTests
         }
         public static Capacities TheWholeRecord(BodyState b) => Body.GetCapacities(b);
         public static double ARegion(BodyState b) => Body.RegionCapacities(b.Regions[0])[0];
+        public static double EffectDeltas(BodyState b) => Effects.CapacityDeltas(b)[0];
     }
 
     static string Sample(string member) => $"Tests.CapacityReadTests+BreachingSample.{member}";
@@ -104,10 +127,17 @@ public class CapacityReadTests
         CapacityReads(Compiled.Value.Types.Where(t => t.FullName == typeof(BreachingSample).FullName));
 
     [Fact]
+    public void TheToolsAndTheOtherTests_AreRead()
+    {
+        var assemblies = Compiled.Value.Types.Select(t => t.Assembly.Name.Split(',')[0]).ToHashSet();
+        Assert.All(NotReferenced, p => Assert.Contains(p.Assembly, assemblies));
+    }
+
+    [Fact]
     public void EveryKindOfRead_IsFound_UnderTheMemberItIsWrittenIn()
     {
         Assert.Equal(
-            [Sample("ARegion: RegionCapacities"), Sample("InALambda: Moving"), Sample("InALocalFunction: Hearing"),
+            [Sample("ARegion: RegionCapacities"), Sample("EffectDeltas: CapacityDeltas"), Sample("InALambda: Moving"), Sample("InALocalFunction: Hearing"),
              Sample("InAnIterator: Consciousness"), Sample("Listed: Moving"), Sample("TheWholeRecord: Capacities"), Sample("Unlisted: Sight")],
             SampleReads().Order(StringComparer.Ordinal));
     }
@@ -133,13 +163,6 @@ public class CapacityReadTests
     static readonly string[] CapacityReadsToday =
     [
         // The tests.
-        "EffectsPropertyTests.Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
-        "Phase2GateTests.S: Capacities",
-        "Tests.BodyTests.ASkinWound_DoesNotDimTheOrgans: Consciousness, Sight",
-        "Tests.BodyTests.BloodLoss_CollapsesCirculationAtHalf: Consciousness",
-        "Tests.BodyTests.BodyPlans_HumanHasSevenRegions_QuadrupedFourLegs: Moving",
-        "Tests.BodyTests.DestroyedArms_LeaveNoManipulation: Manipulation",
-        "Tests.BodyTests.DestroyedChest_NoBreath_NoConsciousness: Consciousness",
         "Tests.BodyTests.DestroyedLegs_LeaveNoMoving: Moving",
         "Tests.BodyTests.Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeCapacitiesToNothing: Moving",
         "Tests.BodyTests.Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
@@ -150,6 +173,8 @@ public class CapacityReadTests
         "Tests.BodyTests.LostOrgans_TakeTheirCapacityWithThem: Consciousness, RegionCapacities, Sight",
         "Tests.BodyTests.LoweringAnyTissue_NeverRaisesAnyCapacity: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Tests.BodyTests.Unconscious_CannotMoveOrManipulate: Consciousness, Manipulation, Moving",
+        "Tests.DirtyTests.Dirty_TakesNothingOffAnyCapacity: CapacityDeltas",
+        "Tests.SurvivalTests.EveryEffectKind_HasADefinition: CapacityDeltas",
         "Tests.SurvivalTests.Hunger_AnEmptyStomachWithFatToSpare_IsAPang: Consciousness, Manipulation, Moving",
         "Tests.SurvivalTests.Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors: Moving",
         "Tests.SurvivalTests.LowStats_RaiseHungryThirstyTired: Moving",

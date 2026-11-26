@@ -30,7 +30,15 @@ public class BodyTests
         Assert.Equal(7, Baseline().Regions.Count);
         var wolf = BodyState.Create(BodyKind.Quadruped, 40, 0.1, 0.4);
         Assert.Equal(4, wolf.Regions.Count(r => r.Name.Contains("Leg")));
-        Assert.True(Body.GetCapacities(wolf).Moving > 0.9, "Quadruped legs must count toward Moving");
+    }
+
+    [Fact]
+    public void AWolfWithWholeLegs_HasFullSpeed_AndNoneWithThemDestroyed()
+    {
+        var wolf = SpeciesTable.Average(Species.Wolf);
+        Assert.Equal(1, Body.Share(wolf, Species.Wolf, Faculty.Speed), 9);
+        foreach (var leg in wolf.Regions.Where(r => r.Name.Contains("Leg"))) Destroy(leg);
+        Assert.Equal(0, Body.Speed(wolf));
     }
 
     // ---- tissues ----
@@ -164,23 +172,22 @@ public class BodyTests
 
     /// A scalp wound does not dim the eyes: skin carries a limb's work, not the organs'.
     [Fact]
-    public void ASkinWound_DoesNotDimTheOrgans()
+    public void ASkinWound_OnTheHead_LeavesVisionAndPerceptionWhole()
     {
         var b = Baseline();
         RegionOf(b, "Head").Skin.Condition = 0.3;
-        var c = Body.GetCapacities(b);
-        Assert.Equal(1.0, c.Consciousness, 9);
-        Assert.Equal(1.0, c.Sight, 9);
+        Assert.Equal(1.0, Body.Vision(b), 9);
+        Assert.Equal(1.0, Body.Share(b, Species.Human, Faculty.Perception), 9);
     }
 
     [Fact]
-    public void DestroyedChest_NoBreath_NoConsciousness()
+    public void DestroyedChest_NoBreath_SeesAndPerceivesNothing_AndIsDead()
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Chest"));
-        var c = Body.GetCapacities(b);
         Assert.Equal(0, Body.TissueVitality(b));
-        Assert.Equal(0, c.Consciousness); // breath below three tenths
+        Assert.Equal(0, Body.Vision(b)); // breath below three tenths leaves no consciousness
+        Assert.Equal(0, Body.Perception(b));
         Assert.False(Body.IsAlive(b));
     }
 
@@ -225,20 +232,20 @@ public class BodyTests
     }
 
     [Fact]
-    public void DestroyedArms_LeaveNoManipulation()
+    public void DestroyedArms_LeaveNoDexterity()
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Left Arm"));
         Destroy(RegionOf(b, "Right Arm"));
-        Assert.Equal(0, Body.GetCapacities(b).Manipulation);
+        Assert.Equal(0, Body.Dexterity(b));
     }
 
     [Fact]
-    public void BloodLoss_CollapsesCirculationAtHalf()
+    public void BloodLoss_AtThreeQuarters_HalvesVision_AndAtHalfKills()
     {
         var b = Baseline();
         b.BloodPct = 0.75;
-        Assert.Equal(0.5, Body.GetCapacities(b).Consciousness, 6);
+        Assert.Equal(0.5, Body.Vision(b), 6); // whole eyes, half conscious
         b.BloodPct = 0.5;
         Assert.False(Body.IsAlive(b));
     }

@@ -70,3 +70,33 @@ suite; others: `dotnet build` and `dotnet test`).
 When empty: change the `format` job in `.github/workflows/ci.yml` to check every C# file in the
 repository (`dotnet format whitespace . --folder --verify-no-changes`), not only the ones a PR
 touches, and drop its "Ratchet" comment.
+
+## capacity-reads
+
+- **batch:** 8
+
+```bash
+awk '/CapacityReadsToday =$/{f=1;next} f&&/^ *\];/{exit} f' rebuild/Sim.Tests/Architecture/CapacityReadTests.cs |
+  { grep -oP '^\s*"\K[^"]+' || true; }
+```
+
+Each item is a test member that reads a capacity, as `CapacityReadTests` names it in
+`CapacityReadsToday` (`rebuild/Sim.Tests/Architecture/CapacityReadTests.cs`). Rewrite each listed
+test read as an outcome a caller can read: a faculty, vitality, alive, a verb's refusal or the
+minutes it took. For example, "a wolf's legs count toward moving" becomes "a wolf with whole legs
+has full speed". Keep what each test protects; where a test only restated a capacity's formula and
+no outcome differs, delete it and say so in the PR. Then take the entry off the list. Change no sim
+behaviour: the fast suite stays green.
+
+When empty: delete the exception list and its branch in the rule, and hide the capacities type and
+the read that returns it from everything outside the body, the test project included, so the
+compiler holds the rule. The screen's named read-out stays. `Effects.CapacityDeltas` is hidden from
+everything outside the body with them. `internal` alone does not hide them: Sim grants
+InternalsVisibleTo to Sim.Tests, Tune and Host.Tests, so make them visible only to the body's own
+types (`BodyTierTests.TheBodysTypes`), and delete `CapacityReadTests`' own reads of them, its
+breaching sample included, since the compiler then holds the rule. Rename the `Capacity` enum
+(`rebuild/Sim/Body.cs`) to `BodyFunction`, with everything that names it: the save's shape (regenerate
+the fixture by `documentation/save-format.md`), the table in `names.json` and the body screen's
+read-out. `GLOSSARY.md` gains an entry: a body function is what a part of the body supplies, and five
+of them are the capacities. No type or member in the sim is named `Capacity` for the eight; "capacity"
+in code means one of the glossary's five.

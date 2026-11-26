@@ -267,7 +267,7 @@ public class Phase2GateTests(ITestOutputHelper output)
         // A predator has come for the camper: nothing else can be done until the fight is over.
         if (r.Outcome == StepOutcome.Refused && r.InterruptedReason == Sim.InAnEncounter && FightItOut(w)) r = Sim.Step(w, a, minutes);
         if (r.InterruptedReason == "died" || Log != null && r.Events.Any(e => e is Died))
-            Log?.Invoke($"died at {w.Minute} during {a}: core {w.Agent(P).Body.CoreTempF:0.0} kcal {w.Agent(P).Body.CaloriesKcal:0} water {w.Agent(P).Body.HydrationMl:0} blood {w.Agent(P).Body.BloodPct:0.00} caps {Body.GetCapacities(w.Agent(P).Body)} effects {string.Join(",", w.Agent(P).Body.Effects.Select(e => $"{e.Kind}:{e.Severity:0.00}"))}");
+            Log?.Invoke($"died at {w.Minute} during {a}: core {w.Agent(P).Body.CoreTempF:0.0} kcal {w.Agent(P).Body.CaloriesKcal:0} water {w.Agent(P).Body.HydrationMl:0} blood {w.Agent(P).Body.BloodPct:0.00} speed {Body.Speed(w.Agent(P).Body):0.00} dexterity {Body.Dexterity(w.Agent(P).Body):0.00} perception {Body.Perception(w.Agent(P).Body):0.00} vitality {Body.Vitality(w.Agent(P).Body, Species.Human):0.00} effects {string.Join(",", w.Agent(P).Body.Effects.Select(e => $"{e.Kind}:{e.Severity:0.00}"))}");
         return r;
     }
 

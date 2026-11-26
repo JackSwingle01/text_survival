@@ -306,38 +306,45 @@ public class EffectsPropertyTests
 
     // ---- what effects do to the body ----
 
-    /// The readouts are each effect's full-severity row scaled by its severity and summed, and nothing
-    /// from an effect that is not there; the discomforts' losses alone are summed and then saturate,
-    /// x / (1 + (x/0.8)^4)^(1/4).
+    /// The body readouts are each effect's full-severity row scaled by its severity and summed, and nothing
+    /// from an effect that is not there.
     [Fact]
-    public void Readouts_AreSeverityScaledSumsOfTheTable()
+    public void CoreTempAndBleedReadouts_AreSeverityScaledSumsOfTheTable()
     {
         Gens.EffectOps.Check(ops =>
         {
             var b = Gens.BodyAfter(ops);
-            var caps = new double[Enum.GetValues<Capacity>().Length];
-            var discomfort = new double[caps.Length];
-            double core = 0, bleed = 0;
-            foreach (var e in b.Effects)
-            {
-                foreach (var (cap, delta) in Def(e.Kind).Capacities)
-                    if (Def(e.Kind).Discomfort && delta < 0) discomfort[(int)cap] -= delta * e.Severity;
-                    else caps[(int)cap] += delta * e.Severity;
-                core += Def(e.Kind).CoreTempFPerHour * e.Severity;
-                bleed += Def(e.Kind).BleedMlPerHour * e.Severity;
-            }
-            var actual = Effects.CapacityDeltas(b);
-            for (int i = 0; i < caps.Length; i++)
-                Assert.Equal(caps[i] - discomfort[i] / Math.Pow(1 + Math.Pow(discomfort[i] / 0.8, 4), 0.25), actual[i], 12);
+            double core = b.Effects.Sum(e => Def(e.Kind).CoreTempFPerHour * e.Severity);
+            double bleed = b.Effects.Sum(e => Def(e.Kind).BleedMlPerHour * e.Severity);
             Assert.Equal(core, Effects.CoreTempFPerHour(b), 12);
             Assert.Equal(bleed, Effects.BleedMlPerHour(b), 12);
         });
     }
 
-    /// Whatever the curve: worsening any discomfort never raises a capacity, and
-    /// hunger, thirst and tiredness at any severities never take one below a fifth of a whole body.
+    static double[] Shares(BodyState b) => [.. Enum.GetValues<Faculty>().Select(f => Body.Share(b, Species.Human, f))];
+
+    /// Every effect's table only takes from the body: worsening any effect a body has never raises a faculty.
     [Fact]
-    public void Discomforts_AreMonotone_AndNeverTakeAWholeBodyBelowAFifth()
+    public void AWorseEffect_NeverRaisesAFaculty()
+    {
+        Gen.Select(Gens.EffectOps, Gen.Int[0, 1000], Gen.Double[0, 0.5]).Check(t =>
+        {
+            var (ops, pick, by) = t;
+            var b = Gens.BodyAfter(ops);
+            if (b.Effects.Count == 0) return;
+            var kind = b.Effects[pick % b.Effects.Count].Kind;
+            var before = Shares(b);
+            Effects.Set(b, kind, Math.Min(1, Effects.Severity(b, kind) + by));
+            var after = Shares(b);
+            for (int i = 0; i < before.Length; i++)
+                Assert.True(after[i] <= before[i] + 1e-12, $"worse {kind} raised {(Faculty)i}: {before[i]} -> {after[i]}");
+        });
+    }
+
+    /// Whatever the curve: worsening any discomfort never raises a faculty, and hunger, thirst and
+    /// tiredness at any severities never leave a whole body helpless: every faculty stays above a sixth of fresh.
+    [Fact]
+    public void Discomforts_AreMonotone_AndNeverLeaveAWholeBodyHelpless()
     {
         var kinds = new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired };
         var rng = new Random(7);
@@ -345,14 +352,13 @@ public class EffectsPropertyTests
         {
             var b = BodyState.BaselineHuman();
             foreach (var k in kinds) Effects.Set(b, k, rng.NextDouble());
-            var before = Body.GetCapacities(b);
-            foreach (var c in new[] { before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing })
-                Assert.True(c >= 0.2, $"trial {trial}: {c:0.000}");
+            var before = Shares(b);
+            Assert.All(before, share => Assert.True(share > 1 / 6.0, $"trial {trial}: {share:0.000}"));
             var k2 = kinds[rng.Next(kinds.Length)];
             Effects.Set(b, k2, Math.Min(1, Effects.Severity(b, k2) + rng.NextDouble() * 0.3));
-            var after = Body.GetCapacities(b);
-            Assert.True(after.Moving <= before.Moving + 1e-12 && after.Manipulation <= before.Manipulation + 1e-12
-                && after.Consciousness <= before.Consciousness + 1e-12 && after.Sight <= before.Sight + 1e-12, $"trial {trial}: worse {k2} raised a capacity");
+            var after = Shares(b);
+            for (int i = 0; i < before.Length; i++)
+                Assert.True(after[i] <= before[i] + 1e-12, $"trial {trial}: worse {k2} raised {(Faculty)i}");
         }
     }
 
