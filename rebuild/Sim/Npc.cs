@@ -546,7 +546,7 @@ public static class Npc
             {
                 if (WaitFor(EarliestFinish(pit, cooking)) is { } wait) return wait;
                 double cookHours = CookRecipes.First(r => r.Id == cooking[0].Recipe).Minutes / 60.0;
-                if ((Tend(cookHours) ?? NextLeaf(FirePlan(Camp, cookHours), toCamp: false)) is { } fire) return fire;
+                if ((Tend(cookHours) ?? (AtCamp ? NextLeaf(FirePlan(Camp, cookHours), toCamp: false) : null)) is { } fire) return fire;
                 if (IfAllowed(new TakeBack(Id, cooking[0].Input, cooking[0].InputKg)) is { } back) return back;
             }
             return ReadyFood(pack, cookable: true) is Resource rawFood ? Eat(rawFood) : null;
