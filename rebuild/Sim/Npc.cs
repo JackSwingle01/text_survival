@@ -242,7 +242,7 @@ public static class Npc
             Inventory fuel;
             if (site == Here) (pit, fuel) = (PitHere, PackWith(PileHere));
             else (pit, fuel) = (null, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile));
-            bool lit = pit != null ? Fire.IsActive(pit) || pit.HasEmbers : RememberedFireMinutes(site) > ToSite(site).MinutesTo(Here, double.PositiveInfinity);
+            bool lit = pit != null ? Fire.IsActive(pit) || pit.HasEmbers : OutlastsTheWalk(site);
             var starter = Starter ?? (lit && pit == null ? Fire.Starters[0] : null); // fuel goes on a fire still lit: no strike to lack
             return forecasts[(site, hoursWanted)] = (Fire.Forecast(new FireAsk(pit, PitType.Open, fuel, starter, hoursWanted)), lit);
         }
@@ -397,7 +397,9 @@ public static class Npc
         double RememberedFireMinutes(TileId site) => memory.Places.GetValueOrDefault(site) is { FireHours: double h } seen
             ? h * 60 - (world.Minute - (seen.VisitedMinute ?? seen.SeenMinute)) : 0;
 
-        double RememberedLeftAt(TileId site) => site == Here ? 0 : Math.Max(0, RememberedFireMinutes(site) / 60);
+        bool OutlastsTheWalk(TileId site) => RememberedFireMinutes(site) > ToSite(site).MinutesTo(Here, double.PositiveInfinity);
+
+        double RememberedLeftAt(TileId site) => site != Here && OutlastsTheWalk(site) ? RememberedFireMinutes(site) / 60 : 0;
 
         Next? LightOrTend(double hoursWanted) => Light(hoursWanted) ?? Tend(hoursWanted);
 
