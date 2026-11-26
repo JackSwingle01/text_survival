@@ -37,8 +37,7 @@ public static class Carcasses
 {
     const double BaseButcheringMinutes = 30.0, MinutesPerKgYield = 2.75;
 
-    /// Yield factors relative to a careful butcher's. The ledger holds what full processing recovers (Create scales
-    /// it by ThoroughFactor); every mode recovers a share of it, never more than was cut.
+    /// Yields relative to a careful butcher's, over a ledger of what full processing recovers: never more than was cut.
     static readonly IReadOnlyDictionary<ButcherMode, ButcherModeProps> Rows = Content.Tables.Butchering;
 
     public static double ThoroughFactor(Resource r) => Rows[ButcherMode.FullProcessing].YieldFactor.GetValueOrDefault(r, 1);
@@ -124,8 +123,7 @@ public static class Carcasses
         return c;
     }
 
-    /// Index over World.Tiles, built on first use after a load and kept by Put and Remove, the only ways a carcass comes or goes.
-    /// What looks for meat across many tiles walks this, not the map.
+    /// Built on first use after a load and kept by Put and Remove, so a search for meat need not walk the map.
     public static IReadOnlyCollection<TileId> TilesWith(World world) =>
         world.CarcassTiles ??= [.. world.Tiles.Where(t => t.Value.Carcasses != null).Select(t => t.Key)];
 
@@ -186,7 +184,6 @@ public static class Carcasses
     public static double EffectiveHoursNow(World world, TileId tile, Carcass c) =>
         c.EffectiveHours + Remains.EffectiveHours(world, tile, c.LastUpdatedMinute, world.Minute);
 
-    /// How long a carcass found frozen through has lain: long enough to freeze, and the cold has kept it.
     public const int FrozenThroughHours = 24;
 
     /// Frozen through at today's air, its hours dead kept by the cold: only the last minute of them rots it.
@@ -199,7 +196,6 @@ public static class Carcasses
     public static double RawHours(World world, Carcass c) => (world.Minute - c.DiedMinute) / 60.0;
     public static bool IsFrozen(World world, Carcass c) => c.LastKnownTempF < 15 && RawHours(world, c) > 2;
 
-    /// Fresh blood carries furthest.
     public static double Scent(World world, Carcass c)
     {
         double h = RawHours(world, c);
@@ -218,8 +214,7 @@ public static class Carcasses
         c.LastUpdatedMinute = world.Minute;
     }
 
-    /// An animal tears off what a careful butcher would cut, so it eats in careful kilograms (each takes ThoroughFactor
-    /// of the ledger), and the ledger's scale cannot change how long a carcass feeds a pack.
+    /// In careful kilograms, as a butcher would cut: the ledger's scale cannot change how long a carcass feeds a pack.
     public static double EatMeat(Carcass c, double kg)
     {
         if (kg < 0) throw new ArgumentOutOfRangeException(nameof(kg), kg, "Cannot eat a negative amount");
@@ -239,7 +234,6 @@ public static class Carcasses
         c.Remaining.Where(x => CanCut(x.Key, hasCuttingTool)).Sum(x => x.Value) < 0.01;
     public static bool IsButchered(Carcass c) => AllCut(c) && c.Pending.Count == 0;
 
-    /// The setup is charged once per carcass, not once per session (Prepare).
     public static int RemainingMinutes(Carcass c, ButcherMode mode, bool hasCuttingTool = true) =>
         (int)Math.Ceiling((Math.Max(0, BaseButcheringMinutes - c.SetupMinutes) + WorkKg(c, hasCuttingTool) * MinutesPerKgYield) * ModeProps(mode).TimeFactor);
 
@@ -301,9 +295,9 @@ public static class Carcasses
         }
     }
 
-    /// A resource waits on the carcass until it has given a keepable piece (or Settle dropped it). What the pack
-    /// cannot hold goes back with PutBack. Whole pieces: the largest while two pieces' worth waits, the last of it in
-    /// even pieces once none is left to cut (a hide comes off whole); a crumb too small for a piece is not kept.
+    /// Waits until a resource has given a keepable piece. The last of it comes in even pieces once none is left to
+    /// cut, so a hide comes off whole.
+
     public static Inventory TakeReady(Carcass c)
     {
         var ready = new Inventory();
