@@ -40,7 +40,7 @@ public class RepairTests
     [Theory]
     [InlineData("hide_gloves", 40, 72)]       // 50% → 90%
     [InlineData("bear_hide_chest", 135, 147)] // 90% → 98%
-    [InlineData("hide_cap", 72, 78)]          // 90% → 97.5%: 6.4 points, in whole ones
+    [InlineData("hide_cap", 72, 79)]          // 90% → 98.75%: 6.4 points, rounded up (#289)
     public void Mending_RestoresFourFifthsOfTheMissingCondition(string kind, int before, int after)
     {
         var w = Noon(out var pack);
@@ -77,6 +77,26 @@ public class RepairTests
         Assert.Equal("you need something for sewing", Sim.Refusal(w, new Make(P, "mend", "hide_boots"))?.Reason);
         pack.Gear.Add(Items.Make("bone_needle"));
         Assert.Null(Sim.Refusal(w, new Make(P, "mend", "hide_boots")));
+    }
+
+    /// A piece made worn (#265) is offered for mending, and mending it again and again brings it to its kind's maximum.
+    [Fact]
+    public void APieceMadeWorn_IsOfferedForMending_AndMendsToItsKindsMaximum()
+    {
+        var w = Noon(out var pack);
+        var body = w.Agent(P).Body;
+        body.Worn.Clear();
+        var wraps = Items.Make("fur_leg_wraps", 60);
+        body.Worn.Add(wraps);
+        Assert.True(Items.ConditionPct(wraps) < 1);
+        int mends = 0;
+        for (SewingKit(pack); Verbs.At(w, P).Make.Any(v => v.Activity is Make { Recipe: "mend_wrap", Target: "fur_leg_wraps" }); SewingKit(pack))
+        {
+            Repair(w, "mend_wrap", "fur_leg_wraps");
+            Assert.True(++mends < 10, "mending never finishes");
+        }
+        Assert.True(mends > 0, "never offered for mending");
+        Assert.Equal((100, 100), (wraps.Durability, wraps.MaxDurability));
     }
 
     [Fact]

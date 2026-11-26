@@ -44,6 +44,7 @@ public static class Npc
     const double InjuryPriceMinutes = 60;
     /// Half an hour short of the night is a night: the fire forecast is rough.
     const double NightSlackHours = 0.5;
+    const double SharpenAtPct = 0.5;
     /// Tinder for StrikesPerFire expected fires at the strike's odds.
     const double StrikesPerFire = 1.5, LeastStrikePct = 0.05;
     const int MinStrikes = 2, MaxStrikes = 8;
@@ -181,9 +182,14 @@ public static class Npc
             // Health has no rank on the ladder: bleeding badly by a fire with nothing Critical, it sleeps, which mends fastest.
             if (HealthPriority(Body) == Priority.Critical && !PrioritiesNow.Values.Contains(Priority.Critical) && AtCamp && BurningHere && SleepHere() is { } mend)
                 return Chose(mend, Stat.Rest, "bleeding: it mends asleep by the fire");
+            // A sharpen begun holds the blade: it goes on before anything else needs the blade.
+            if (GoOnSharpening() is { } goOn) return Chose(goOn, null, "a sharpen begun holds the blade");
             // A Need met from what is in hand costs minutes, not a trip: it is met on the spot, before the plan goes on.
             foreach (var (stat, priority) in ranked.Where(x => x.Priority >= Priority.Need))
                 if (InHand(stat) is { } quick) return Chose(quick, stat, $"{stat.ToString().ToLowerInvariant()} met first from what is in hand");
+            // With nothing at Need, Health included, a blade at half its uses or less is sharpened on the spot, even with a Want plan held.
+            if (PrioritiesNow.Values.All(p => p < Priority.Need) && HealthPriority(Body) < Priority.Need && BladeToSharpen() is { } edge)
+                return Chose(edge, null, "nothing at Need");
             var kept = mind.Plan;
             if (kept != null && Pursue(kept.Stat, kept.Priority).Step is { } step)
             {
@@ -935,6 +941,24 @@ public static class Npc
             if (Sim.Refusal(world, act) is { } refused) return refused.Missing is MissingState { Lack: Lack.PackRoomKg } ? MakeRoom(leaf.For.AnyOf.ToHashSet()) : null;
             int minutes = act is Butcher ? Verbs.UntilDoneMinutes : Math.Clamp(leaf.WorkMinutes, 1, StintMinutes);
             return new(act, minutes, minutes);
+        }
+
+        static Recipe Sharpening => Recipes.Get("sharpen");
+
+        Next? GoOnSharpening() => (pack.Projects ?? []).FirstOrDefault(p => p.Recipe == Sharpening.Id) is { Target: { } kind }
+            ? SharpenNext(kind) : null;
+
+        Next? BladeToSharpen()
+        {
+            var kinds = Sharpening.Result.Repair!.Kinds;
+            return Making.Held(agent, pack).Where(g => kinds.Contains(g.Kind) && Items.ConditionPct(g) <= SharpenAtPct)
+                .OrderBy(Items.ConditionPct).Select(g => g.Kind).Distinct().Select(k => SharpenNext(k)).FirstOrDefault(n => n != null);
+        }
+
+        Next? SharpenNext(string kind)
+        {
+            var make = new Make(Id, Sharpening.Id, kind);
+            return Sim.Refusal(world, make) == null ? new(make, Verbs.UntilDoneMinutes, Sharpening.Minutes) : null;
         }
 
         /// What it does when nothing is wanted: keep the camp going through the night, washing before it sleeps or rests.

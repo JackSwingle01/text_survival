@@ -16,8 +16,8 @@ public abstract class WorldView
 
 public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
 
-/// A forecast of what a source pays: the stat's units a minute (ml of water, energy minutes), and the kcal each unit costs.
-public readonly record struct Source(double PerMinute, double KcalPerUnit = 0);
+/// A forecast of what a source pays: units a minute (ml of water, energy minutes), kcal a unit, and minutes of work before it pays (a break-in), charged as travel.
+public readonly record struct Source(double PerMinute, double KcalPerUnit = 0, int SetupMinutes = 0);
 
 public sealed record Asking(Stat Stat, Priority Priority, double Amount, double EarnKcalPerMinute, double Cohesion, Func<TileId, bool> KinAt,
     double BestPerMinute = double.PositiveInfinity, double Noise = Planner.Noise);
@@ -51,7 +51,8 @@ public static class Planner
         double Total(TileId t, int minutes)
         {
             if (!careless && view.Threat(t) || sourceAt(t) is not { } s || s.PerMinute <= 0) return double.PositiveInfinity;
-            double total = minutes + ask.Amount / s.PerMinute + (minutes * kcalPerMinute + ask.Amount * s.KcalPerUnit) / ask.EarnKcalPerMinute;
+            int working = minutes + s.SetupMinutes;
+            double total = working + ask.Amount / s.PerMinute + (working * kcalPerMinute + ask.Amount * s.KcalPerUnit) / ask.EarnKcalPerMinute;
             if (ask.Noise > 0) total *= 1 + ask.Noise * (2 * rng.NextDouble() - 1);
             return ask.KinAt(t) ? total : total * (1 + ask.Cohesion);
         }

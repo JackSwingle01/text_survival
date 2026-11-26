@@ -32,7 +32,7 @@ public class KillChainTests
         var camp = Map.Of(w).Camp;
         TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.PineBranch, 1);
         var first = LocationFeatures.PileAt(w, camp)!.Value;
-        Assert.Equal(1, Items.TakeFromPile(w, P, Resource.PineBranch, 1, [], new Inventory()));
+        Assert.Equal(1, Items.TakeFrom(w, P, null, Resource.PineBranch, 1, [], new Inventory()));
         Assert.False(LocationFeatures.Exists(w, first));
         TestKit.Give(Items.PileAt(w, camp, new Cause(P, "put down by the player")), Resource.OakBranch, 1);
         var second = LocationFeatures.PileAt(w, camp)!.Value;

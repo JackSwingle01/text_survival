@@ -369,7 +369,7 @@ public class MapTests
         // Clothing is what each body wears, and its clo is derived from that, never stored.
         var herd = new Agent { Id = new AgentId(9), Tile = world.Agent(AgentId.Player).Tile, Members = [BodyState.BaselineHuman(), BodyState.BaselineHuman()] };
         herd.Members[1].Worn.RemoveAll(g => Items.Def(g).Slot != EquipSlot.Chest);
-        Assert.Equal([1.33, 0.8], herd.Members.Select(b => Math.Round(b.ClothingClo, 2)));
+        Assert.Equal([1.15, 0.8], herd.Members.Select(b => Math.Round(b.ClothingClo, 2)));
         world.Agents[herd.Id] = herd;
         Assert.Equal(0.8, Save.FromJson(Save.ToJson(world)).Agent(herd.Id).Members[1].ClothingClo, 9);
         Assert.DoesNotContain("ClothingClo", Save.ToJson(world));

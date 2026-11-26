@@ -320,6 +320,7 @@ public class ContentTests
     [Theory]
     [InlineData("fire.json", "\"minFireTempF\": 500,", "\"minFireTempF\": 5000,", "is not below peakTempF")]
     [InlineData("items.json", "\"Head\": 0.1,", "\"Head\": 0.2,", "slotCoverage sums to")]
+    [InlineData("items.json", "{ \"kind\": \"fur_leg_wraps\", \"durability\": 60 }", "{ \"kind\": \"fur_leg_wraps\", \"durability\": 101 }", "starting fur_leg_wraps durability 101 is more than whole")]
     [InlineData("species.json", "\"sprintSeconds\": 40, \"runCostJPerKgM\": 3.3", "\"sprintSeconds\": 0, \"runCostJPerKgM\": 3.3", "sprintSeconds and runCostJPerKgM above 0")]
     [InlineData("species.json", "\"topSpeedMps\": 14, \"enduranceSpeedMps\": 8", "\"topSpeedMps\": 7, \"enduranceSpeedMps\": 8", "a top speed above an endurance speed")]
     [InlineData("species.json", "\"autumnFatPct\": { \"min\": 0.15", "\"autumnFatPct\": { \"min\": 0.05", "a range from the build's fat up")]

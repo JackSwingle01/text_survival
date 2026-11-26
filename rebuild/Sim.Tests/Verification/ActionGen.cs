@@ -8,7 +8,7 @@ namespace Survival.Tests.Verification;
 
 /// What the player means to do, before it meets the world: Resolve turns it into a real activity
 /// chosen from what is on the tile, in the pack and in the fire at that moment.
-public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, PutDown, PickUp, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack, StopWork }
+public enum Act { Wait, Rest, Sleep, Travel, Gather, StartFire, AddFuel, LightTorch, Eat, Drink, Wash, PutDown, PickUp, Bury, RepairCache, Butcher, Build, Improve, Fight, Make, Abandon, WalkAbout, PutOn, TakeFinished, TakeBack, StopWork }
 
 /// One scripted activity. Pick chooses among the valid options (a pool, a direction, a fuel); it is
 /// a plain int so that shrinking it walks toward the first option.
@@ -67,7 +67,7 @@ static class ActionGen
             (3, Gen.Const(Act.Wait)), (1, Gen.Const(Act.Rest)), (1, Gen.Const(Act.Sleep)), (3, Gen.Const(Act.Travel)),
             (4, Gen.Const(Act.Gather)), (2, Gen.Const(Act.StartFire)), (2, Gen.Const(Act.AddFuel)), (1, Gen.Const(Act.LightTorch)), (1, Gen.Const(Act.WalkAbout)),
             (1, Gen.Const(Act.Eat)), (1, Gen.Const(Act.Drink)), (1, Gen.Const(Act.Wash)),
-            (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
+            (1, Gen.Const(Act.PutDown)), (1, Gen.Const(Act.PickUp)), (1, Gen.Const(Act.Bury)), (1, Gen.Const(Act.RepairCache)), (2, Gen.Const(Act.Butcher)), (1, Gen.Const(Act.Build)),
             (1, Gen.Const(Act.Improve)), (1, Gen.Const(Act.Fight)), (2, Gen.Const(Act.Make)), (1, Gen.Const(Act.Abandon)),
             (1, Gen.Const(Act.PutOn)), (1, Gen.Const(Act.TakeFinished)), (1, Gen.Const(Act.TakeBack)), (1, Gen.Const(Act.StopWork)))
         .SelectMany(act => Gen.Select(Gen.Int[0, 63], MinutesFor(act, scale), (pick, minutes) => new Intent(act, pick, minutes)));
@@ -158,6 +158,10 @@ static class ActionGen
                     List<Resource> there = pile == null ? [] : Items.KgByResource(pile).Where(kv => kv.Value > 0).Select(kv => kv.Key).ToList();
                     return new PickUp(P, PickOf(there, pick, Resource.Stick), 0.1 + pick % 5 * 0.3);
                 }
+            case Act.Bury:
+                return new Bury(P, PickOf(Held(r => Items.Resources[r].Category == ResourceCategory.Food), pick, Resource.RawMeat), 0.1 + pick % 5 * 0.2);
+            case Act.RepairCache:
+                return new RepairCache(P, Caches.At(w, tile).FirstOrDefault()); // none torn open: refused
             case Act.Butcher:
                 {
                     var here = w.Tiles.GetValueOrDefault(tile)?.Carcasses?.Select(c => c.Id).ToList() ?? [];

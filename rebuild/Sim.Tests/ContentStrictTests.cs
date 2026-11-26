@@ -67,6 +67,21 @@ public class ContentStrictTests
     public void Loader_RefusesAResource_NotCountedAsItsForm(string file, string from, string to, string named) =>
         Assert.Contains(named, BrokenIn(file, from, to));
 
+    /// Waste and saving on a discrete input are whole pieces, no more than the recipe takes; on a continuous one, a
+    /// share (#289). The refusal names the recipe and the outcome.
+    [Theory]
+    [InlineData("\"fail:waste_material:HideStrip:1=.05\"", "\"fail:waste_material:HideStrip:0.5=.05\"", "hide_belt", "fail:waste_material:HideStrip:0.5=0.05", "HideStrip is whole pieces")]
+    [InlineData("\"fail:waste_material:HideStrip:1=.05\"", "\"fail:waste_material:HideStrip:3=.05\"", "hide_belt", "fail:waste_material:HideStrip:3=0.05", "3 pieces of HideStrip, above the 2 it takes")]
+    [InlineData("\"succeed:save_material:Sinew:1=.10\"", "\"succeed:save_material:Sinew:.5=.10\"", "ivory_tipped_spear", "succeed:save_material:Sinew:0.5=0.1", "Sinew is whole pieces")]
+    [InlineData("\"succeed:save_material:Sinew:1=.10\"", "\"succeed:save_material:Sinew:3=.10\"", "ivory_tipped_spear", "succeed:save_material:Sinew:3=0.1", "3 pieces of Sinew, above the 2 it takes")]
+    [InlineData("\"fail:waste_material:PlantFiber:0.5=.08\"", "\"fail:waste_material:PlantFiber:1.5=.08\"", "cordage", "fail:waste_material:PlantFiber:1.5=0.08", "PlantFiber is a share (0-1]")]
+    [InlineData("\"fail:waste_material:Flint:1=.10\"", "\"fail:waste_material:Sinew:1=.10\"", "flint_knife", "fail:waste_material:Sinew:1=0.1", "PlantFiber|Sinew is pieces or an amount")]
+    public void Loader_RefusesWasteOrSaving_NotInTheInputsForm(string from, string to, string recipe, string outcome, string named)
+    {
+        var message = BrokenIn("recipes.json", from, to);
+        Assert.Contains($"recipes.json {recipe}: {outcome}: {named}", message);
+    }
+
     // ---- 1c. a repair works on pieces that wear, each kind by one recipe, none a tool of its own repair (#148) ----
 
     [Theory]
@@ -136,7 +151,7 @@ public class ContentStrictTests
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
     // An axe that left its speed out would chop at some unstated rate (#145).
     [InlineData("items.json", "\"tool\": \"Axe\", \"chopFactor\": 1.5, ", "\"tool\": \"Axe\", ", "flint_axe: axes, and only axes, state their chopFactor")]
-    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.65", "\"tool\": \"Knife\", \"chopFactor\": 1, \"weapon\": { \"damage\": 3.65", "obsidian_knife: axes, and only axes, state their chopFactor")]
+    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.89", "\"tool\": \"Knife\", \"chopFactor\": 1, \"weapon\": { \"damage\": 3.89", "obsidian_knife: axes, and only axes, state their chopFactor")]
     [InlineData("items.json", "\"chopFactor\": 1.5", "\"chopFactor\": 0", "flint_axe: chopFactor 0 (above 0)")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
@@ -187,6 +202,22 @@ public class ContentStrictTests
     [InlineData("\"Omnivore\": [ \"RawMeat\"", "\"Omnivore\": [ \"Tinder\"", "species.json diets Omnivore: Tinder is not a food")]
     public void Loader_RefusesAHerbivoreWithNoGrazingList_OrADietWithNoFoodList(string from, string to, string named) =>
         Assert.Contains(named, BrokenIn("species.json", from, to));
+
+    // ---- 2c. abilities and caches (#125) ----
+
+    [Theory]
+    [InlineData("species.json", "\"abilities\": [ \"Digs\" ]", "\"abilities\": [ \"Swims\" ]", "no Ability 'Swims'")]
+    [InlineData("species.json", "\"abilities\": [ \"Hands\" ]", "\"abilities\": [ ]", "species.json Human: hands are a person's ability")]
+    [InlineData("species.json", "\"abilities\": [ \"Flies\" ]", "\"abilities\": [ \"Flies\", \"Hands\" ]", "species.json Raven: hands are a person's ability")]
+    [InlineData("shelters.json", "\"letsIn\": [ \"Digs\", \"Hands\" ]", "\"letsIn\": [ \"Digs\" ]", "shelters.json caches BuriedInSnow: every cache lets hands in")]
+    [InlineData("shelters.json", "\"capacityKg\": 40", "\"capacityKg\": 0", "shelters.json caches RockCleft: capacityKg above 0")]
+    [InlineData("shelters.json", "\"scentPct\": 0.1", "\"scentPct\": 1.5", "shelters.json caches IceCrevasse: scentPct, insulation")]
+    [InlineData("shelters.json", ", \"buryDepthM\": 0.3", "", "shelters.json caches BuriedInSnow: buryDepthM above 0")]
+    [InlineData("shelters.json", "\"breakInMinutes\": 0, \"scentPct\": 0.3", "\"breakInMinutes\": 0, \"buryDepthM\": 0.3, \"scentPct\": 0.3", "shelters.json caches RockCleft: buryDepthM above 0")]
+    [InlineData("locations.json", "\"cache\": \"RockCleft\" }", "\"cache\": \"RockCleft\", \"chance\": 0.5 }", "cache Rock Cleft is placed when the world is made")]
+    [InlineData("locations.json", "\"cache\": \"RockCleft\"", "\"cache\": \"Rockcleft\"", "no CacheKind 'Rockcleft'")]
+    public void Loader_RefusesBadAbilities_AndBadCaches(string file, string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn(file, from, to));
 
     [Theory]
     [InlineData("forage.json", "\"MixedForest\": [", "\"Orphan\": [ { \"resource\": \"Stone\", \"abundance\": 1, \"minKg\": 0.1, \"maxKg\": 0.2 } ],\n \"MixedForest\": [", "forage.json Orphan: no terrain or cave forages it")]

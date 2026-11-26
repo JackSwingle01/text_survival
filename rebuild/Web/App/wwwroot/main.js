@@ -46,7 +46,7 @@ const KIND_ICON = {
   wait: 'ui/clock', rest: 'ui/energy', sleep: 'ui/moon', fire: 'ui/fire', fuel: 'ui/fuel', torch: 'ui/torch', charcoal: 'ui/charcoal',
   gather: 'ui/foraging', butcher: 'ui/knife', eat: 'ui/food', drink: 'ui/water', wash: 'ui/water', cook: 'ui/meat', melt: 'ui/water', putdown: 'ui/storage',
   take: 'ui/storage', wear: 'ui/equip', takeoff: 'ui/equip', walk: 'ui/follow', build: 'construction', improve: 'ui/shelter', pack: 'ui/backpack',
-  make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', walkabout: 'ui/continue', puton: 'ui/meat', takeback: 'ui/back', stopwork: 'ui/cancel', other: 'ui/inspect',
+  make: 'ui/project', abandon: 'ui/cancel', hunt: 'ui/spear', walkabout: 'ui/continue', puton: 'ui/meat', takeback: 'ui/back', stopwork: 'ui/cancel', repair: 'construction', other: 'ui/inspect',
 };
 const FIGHT_ICON = {
   Wait: 'ui/clock', Advance: 'ui/follow', Retreat: 'ui/back', Attack: 'ui/spear', Throw: 'ui/throw', 'Throw stone': 'ui/throw', Dodge: 'ui/dodge',

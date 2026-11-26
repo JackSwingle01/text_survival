@@ -297,13 +297,14 @@ public class NpcNeedTests(ITestOutputHelper output)
 
     void AssertNoPacing(World w, Agent npc)
     {
+        trace = null;
         var (log, _) = Live(w, npc, PacingMinutes);
         int reversals = Reversals.In(log, npc.Id);
         var told = log.Where(e => e is NeedDropped d && d.Who == npc.Id || e is NeedStuck s && s.Who == npc.Id).ToList();
         output.WriteLine($"reversals {reversals}, alive {Sim.IsAlive(npc)}, dropped {told.Count(e => e is NeedDropped)}, stuck {told.Count(e => e is NeedStuck)}");
         output.WriteLine(string.Join("\n", told.Take(10)));
         if (Tracing)
-            output.WriteLine(string.Join("\n", Trace.Take(60)));
+            output.WriteLine(string.Join("\n", Trace.Take(200)));
         Assert.True(reversals <= MostReversals, $"{reversals} reversals in {PacingMinutes} minutes");
         Assert.DoesNotContain(log, e => e is NeedStuck s && s.Who == npc.Id);
     }

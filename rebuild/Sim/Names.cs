@@ -14,7 +14,7 @@ public static class Names
         typeof(EffectKind), typeof(Capacity), typeof(Species), typeof(ButcherMode), typeof(FirePhase),
         typeof(PitType), typeof(ShelterStat), typeof(Terrain), typeof(Skill),
         typeof(MakeCategory), typeof(Requirement), typeof(TrackMaker), typeof(TrailTier), typeof(Season), typeof(WindDirection),
-        typeof(Direction), typeof(EquipSlot), typeof(ForageFocus),
+        typeof(Direction), typeof(EquipSlot), typeof(ForageFocus), typeof(CacheKind),
     ];
 
     /// Lower case: "birch bark".
@@ -67,8 +67,8 @@ public static class Names
     {
         var parts = o.Effects.Select(e => e switch
         {
-            WasteMaterial w => w.SharePct >= 1 ? $"the {Of(w.Input)} is wasted" : $"{Pct(w.SharePct)} of the {Of(w.Input)} is wasted",
-            SaveMaterial s => $"{Pct(s.SharePct)} of the {Of(s.Input)} is left over",
+            WasteMaterial w => InputIs(w.Input, w.Amount, "wasted"),
+            SaveMaterial s => InputIs(s.Input, s.Amount, "left over"),
             ExtraProduct x => Items.GearKinds.TryGetValue(x.What, out var g) ? $"an extra {Lower(g.Name)}" : Extra(Enum.Parse<Resource>(x.What), x.Amount),
             Injury j => $"you cut your {Of(j.Target)}",
             BreakTool b => b.Uses is int n ? $"the {Of(b.Capability)} tool loses {n} {(n == 1 ? "use" : "uses")}" : $"the {Of(b.Capability)} tool breaks",
@@ -77,6 +77,10 @@ public static class Names
         string head = o.Kind == OutcomeKind.Fail ? "Fails" : "Done";
         return parts.Count == 0 ? head : o.Kind == OutcomeKind.Fail ? $"{head}: {string.Join(", ", parts)}" : $"{head}, but {string.Join(", ", parts)}";
     }
+
+    static string InputIs(Resource r, double amount, string what) =>
+        !Items.IsDiscrete(r) ? $"{(amount >= 1 ? "the" : Pct(amount) + " of the")} {Of(r)} is {what}"
+        : amount == 1 ? $"one {PieceWord(r)} is {what}" : $"{Pieces(r, (int)amount)} are {what}";
 
     static string Extra(Resource r, double amount) =>
         !Items.IsDiscrete(r) ? $"{Weighed(r, amount)} more {Of(r)}" : amount == 1 ? $"an extra {PieceWord(r)}" : $"{Pieces(r, (int)amount)} more";

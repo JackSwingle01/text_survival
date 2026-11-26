@@ -81,7 +81,9 @@ public sealed record Dropped(long Minute, AgentId Who, TileId Tile, string What)
 public sealed record PutOnPile(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, int Pieces = 0) : WorldEvent(Minute, Tile);
 /// Taken: by someone whose camp this was not, as it stood when they took it (Journal.IsNotable).
 /// By: who took it, kept on the event since the taker may die or leave ("taken by a bear").
-public sealed record PickedUp(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken, int Pieces = 0, Cause? By = null) : WorldEvent(Minute, Tile);
+/// From: the kind of station it was taken off (Stations.Eat), null for the pile.
+public sealed record PickedUp(long Minute, AgentId Who, TileId Tile, Resource Resource, double Kg, bool Taken, int Pieces = 0, Cause? By = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StationKind? From = null) : WorldEvent(Minute, Tile);
 /// A hidden pool found by searching. Only this agent now knows it.
 public sealed record PoolDiscovered(long Minute, AgentId Who, PoolId Pool, string Name) : WorldEvent(Minute, Pool.Tile);
 public sealed record TreeFelled(long Minute, AgentId Who, PoolId Pool) : WorldEvent(Minute, Pool.Tile);

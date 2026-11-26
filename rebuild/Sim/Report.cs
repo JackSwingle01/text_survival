@@ -217,7 +217,7 @@ public static class Report
                 {
                     SiteWater x => Invariant($"water: {x.Name}{(x.Frozen ? Invariant($", ice {x.Ice:0.0}") : "")}"),
                     SiteSmallGame x => $"small game: {string.Join(", ", x.Animals.Select(a => a.Animal))}",
-                    SiteCache x => Invariant($"cache: {x.Name}, holds {x.CapacityKg:0} kg"),
+                    SiteCache x => Invariant($"cache: {x.Name}, holds {Caches.Row(x.Cache).CapacityKg:0} kg"),
                     _ => throw new InvalidOperationException($"Look has no line for {f.GetType().Name}"),
                 });
         if (Shelters.Peek(w, p.Tile) is { } shelter) lines.Add($"shelter: {shelter.Name}");

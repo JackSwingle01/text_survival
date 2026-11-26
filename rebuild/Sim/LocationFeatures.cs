@@ -6,7 +6,7 @@ namespace Survival;
 /// Switches over it have no default arm and CS8509 is an error in Sim, so a new kind fails the build
 /// wherever it is not handled.
 [JsonConverter(typeof(JsonStringEnumConverter<LocationFeatureKind>))]
-public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelter, Track, Sign, Item, Trodden, Rack }
+public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelter, Track, Sign, Item, Trodden, Rack, Cache }
 
 /// One location feature in the world. Index must survive save and load and never shift when another is
 /// removed; per kind:
@@ -18,7 +18,7 @@ public enum LocationFeatureKind { Agent, Body, Carcass, Pool, Pile, Fire, Shelte
 /// - Pile: TileState.PileId, new for each pile begun on the tile, so a ref to an emptied pile
 ///   never names the next one. A pile set down by hand in a test has no id: NoId.
 /// - Fire: the FireId of a pit. Carried torches are not on a tile and are not location features.
-/// - Rack: its RackId.
+/// - Rack, Cache: its RackId, its CacheId.
 /// - Shelter: ShelterState.Id, never reused; ShelterState.Unplaced for a find shown before it stands.
 /// - Track: (int)TrackMaker for that maker's prints; TrailIndexBase + (int)Direction for the desire
 ///   path along an edge, named from its west or north end (Trail makes the canonical form).
@@ -90,6 +90,7 @@ public static class LocationFeatures
         foreach (var (id, f) in world.Fires)
             if (f.CarriedBy == null && f.Tile == tile) found.Add(new(LocationFeatureKind.Fire, tile, id.Value));
         foreach (var rack in Stations.RacksAt(world, tile)) found.Add(new(LocationFeatureKind.Rack, tile, rack.Value));
+        foreach (var cache in Caches.At(world, tile)) found.Add(new(LocationFeatureKind.Cache, tile, cache.Value));
         if (ShelterAt(world, tile) is LocationFeature shelter) found.Add(shelter);
         if (state?.Tracks != null)
             foreach (var sign in Tracks.Read(world, tile)) found.Add(new(LocationFeatureKind.Track, tile, (int)sign.Maker));
@@ -118,6 +119,7 @@ public static class LocationFeatures
             LocationFeatureKind.Fire => world.Fires.TryGetValue(new FireId(t.Index), out var f) && f.CarriedBy == null && f.Tile == t.Tile,
             LocationFeatureKind.Shelter => ShelterAt(world, t.Tile) == t,
             LocationFeatureKind.Rack => world.Racks.TryGetValue(new RackId(t.Index), out var rack) && rack.Tile == t.Tile,
+            LocationFeatureKind.Cache => Caches.Find(world, new CacheId(t.Index))?.Tile == t.Tile,
             LocationFeatureKind.Track => t.TrailDirection is Direction dir ? LocationFeature.Trail(t.Tile, dir) == t && TrailTo(world, t.Tile, dir) != TrailTier.None
                 : Enum.IsDefined((TrackMaker)t.Index) && Tracks.Read(world, t.Tile).Any(s => (int)s.Maker == t.Index),
             LocationFeatureKind.Sign => false,
