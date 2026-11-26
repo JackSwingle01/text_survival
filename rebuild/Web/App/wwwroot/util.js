@@ -64,3 +64,21 @@ export function oddsWhy(o, { base = true } = {}) {
     .map(t => `${t.factor.toLowerCase()} ${signed(Math.round(t.deltaPct * 100), '%')}`);
   return base ? [`${o.base.toLowerCase()} ${Math.round(o.basePct * 100)}%`, ...terms] : terms;
 }
+
+/** Where a trip card goes (CSS px in the map), kept 8 px inside it, as { left, top, side }: next to its
+ *  tile on the `prefer`red side ('below' or 'above', away from the player) or else the other, centred on
+ *  the tile; failing those, along the map's top or bottom edge; failing those, beside the tile. The first
+ *  that fits and covers neither the player's tile (`me`) nor its own wins; if none, the first that fits.
+ *  `area.top` is where the map stops being covered (the status strip's bottom). */
+export function cardPlace(tile, card, area, prefer, me = null) {
+  const lo = area.top + 8, hi = area.h - 8 - card.h, clampX = x => Math.max(8, Math.min(area.w - card.w - 8, x)), clampY = y => Math.max(lo, Math.min(hi, y));
+  const cx = clampX(tile.x + tile.size / 2 - card.w / 2), cy = clampY(tile.y + tile.size / 2 - card.h / 2);
+  const vertical = { below: [cx, tile.y + tile.size + 8], above: [cx, tile.y - 8 - card.h] };
+  const order = prefer === 'above' ? ['above', 'below'] : ['below', 'above'];
+  const spots = [...order.map(s => [s, ...vertical[s]]), ['top', cx, lo], ['bottom', cx, hi],
+    ['right', tile.x + tile.size + 8, cy], ['left', tile.x - 8 - card.w, cy]];
+  const fits = ([, x, y]) => x >= 8 && x + card.w <= area.w - 8 && y >= lo && y <= hi;
+  const over = ([, x, y], t) => t && x < t.x + t.size && x + card.w > t.x && y < t.y + t.size && y + card.h > t.y;
+  const [side, left, top] = spots.find(s => fits(s) && !over(s, me) && !over(s, tile)) ?? spots.find(fits) ?? spots[0];
+  return { left: Math.round(left), top: Math.round(top), side };
+}

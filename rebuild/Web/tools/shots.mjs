@@ -60,13 +60,24 @@ const PHONE_LAYOUT = `(() => {
   if (doc.scrollHeight > H || doc.scrollWidth > W) out.push('the page is ' + doc.scrollWidth + '×' + doc.scrollHeight + ' in a ' + W + '×' + H + ' window');
   for (const sel of ['.app', '.top', '.map', '.dock']) { const e = document.querySelector(sel); if (e && shown(e) && !inside(e.getBoundingClientRect())) out.push(sel + ' runs past the window'); }
   const top = document.querySelector('.top'); if (top && top.scrollWidth > top.clientWidth) out.push('the top strip is ' + top.scrollWidth + ' px wide in ' + top.clientWidth + ': it scrolls sideways');
-  for (const b of document.querySelectorAll('.sheets button')) { const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
+  // While a sheet is open the dock gives way to it (its verbs come back when it closes), so only a shown dock is checked.
+  for (const b of document.querySelectorAll('.sheets button')) { if (!shown(b)) continue; const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
   for (const b of document.querySelectorAll('.dock button')) {
     if (!shown(b) || b.closest('.sheets')) continue;
     const sc = scroller(b); if (sc) { const r = b.getBoundingClientRect(), c = sc.getBoundingClientRect(); sc.scrollLeft += r.left - c.left; sc.scrollTop += r.top - c.top; }
     const p = reached(b); if (p) out.push('verb ' + name(b) + ': ' + p);
   }
   if (doc.scrollTop || doc.scrollLeft) out.push('reaching the verbs scrolled the page');
+  const card = document.getElementById('tcard');
+  if (card && shown(card)) {
+    const r = card.getBoundingClientRect(), m = document.querySelector('.map').getBoundingClientRect();
+    if (r.left < m.left - 1 || r.right > m.right + 1 || r.top < m.top - 1 || r.bottom > m.bottom + 1) out.push('the trip card runs off the map');
+    const v = document.querySelector('.vitals')?.getBoundingClientRect();
+    if (v && r.left < v.right && r.right > v.left && r.top < v.bottom && r.bottom > v.top) out.push('the trip card covers the vitals');
+    const me = window.ui.map.screenOf(window.ui.S.view.place.x, window.ui.S.view.place.y);
+    if (me) { const px = m.left + me.x, py = m.top + me.y;
+      if (px < r.right && px + me.size > r.left && py < r.bottom && py + me.size > r.top) out.push('the trip card covers the player'); }
+  }
   const d = document.getElementById('drawer');
   if (d && shown(d)) {
     const m = document.querySelector('.map').getBoundingClientRect(), r = d.getBoundingClientRect();
@@ -86,6 +97,10 @@ const STATES = {
   start: { steps: [] },
   here: { steps: [page.open('here')] },
   trip: { steps: [`(window.ui.openTrip(window.ui.S.view.walk.find(w => !w.refused && !w.careful).dir), true)`] },
+  'trip-north': { steps: [`(window.ui.openTrip('north'), true)`] },
+  'trip-south': { steps: [`(window.ui.openTrip('south'), true)`] },
+  'trip-west': { steps: [`(window.ui.openTrip('west'), true)`] },
+  'trip-east': { steps: [`(window.ui.openTrip('east'), true)`] },
   walk: { steps: [page.run(`v.kind === 'walk' && !v.refused && !v.careful`), page.idle] },
   fire: { scenario: 'supplied', steps: [page.open('fire')] },
   lit: { scenario: 'supplied', steps: ['strike'] },

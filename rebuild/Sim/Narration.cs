@@ -76,7 +76,7 @@ public static class Narration
             Exhausted x => ($"{Is(x.Who)} exhausted.", Tone.Bad),
             FullyRested x => ($"{Is(x.Who)} fully rested.", Tone.Good),
             FireLit x => ($"{Does(x.By, "light")} a fire.", Tone.Good),
-            FireStartFailed x => ($"The fire will not catch ({Pct(x.ChancePct)} chance).", Tone.Bad),
+            FireStartFailed x => ($"The fire fails to catch ({Pct(x.ChancePct)} chance).", Tone.Bad),
             FuelAdded x => ($"{Does(x.By, "add")} {Names.Amount(x.Fuel, x.Kg, x.Pieces)} to the fire.", Tone.Plain),
             FireBurnedToEmbers => ("The fire burns down to embers.", Tone.Bad),
             FireDied => ("The fire goes out.", Tone.Bad),

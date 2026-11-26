@@ -9,7 +9,7 @@ import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
 import { logOptions, withLog } from './playtest.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy } from './util.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy, cardPlace } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -20,7 +20,8 @@ const { client, log } = logging ? withLog(createClient(), { ...logging, build: b
 
 const S = {
   view: null,
-  drawer: null,          // { kind: 'here'|'fire'|'trip'|'place'|'make'|'body'|'pack'|'log'|'save'|'job'|'forage', ... }
+  drawer: null,          // { kind: 'here'|'fire'|'place'|'make'|'body'|'pack'|'log'|'save'|'job'|'forage', ... }
+  trip: null,            // the direction of the trip card open on the map, or null
   forage: { focus: 'anything', mins: 30 }, // the forage screen's choices: the focus (anything is General), how long
   busy: false,
   stop: false,
@@ -91,6 +92,7 @@ async function run(id, extra = {}) {
   const verb = byId(id);
   if (!verb) throw new Error(`No verb ${id} in this view`);
   if (verb.refused) { toast('ui/blocked', cap(verb.refused)); shake(id); return; }
+  S.trip = null;
   S.busy = true; S.stop = false;
   if (S.drawer?.kind === 'job') S.drawer = null; // the last job's result gives way to this one
   if (S.drawer?.kind === 'forage') Object.assign(S.drawer, { done: null, startMinute: S.view.minute, logFrom: new Set(S.view.log.map(logKey)) });
@@ -156,7 +158,6 @@ function apply(v, { keepDrawer = false } = {}) {
   S.view = v;
   if (pinned) hideTip();
   if (!S.busy || !S.walking) S.drawPos = { x: v.place.x, y: v.place.y };
-  if (!keepDrawer && S.drawer?.kind === 'trip') S.drawer = null;
   render();
 }
 
@@ -311,7 +312,7 @@ function renderDrawer() {
   const d = S.drawer, v = S.view;
   $('drawer').hidden = !d || !!v.combat;
   if (!d || v.combat) return;
-  ({ here: renderHere, fire: renderFire, trip: renderTrip, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob, forage: renderForage }[d.kind])(d, v);
+  ({ here: renderHere, fire: renderFire, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob, forage: renderForage }[d.kind])(d, v);
 }
 
 function fireBlock(v) {
@@ -339,7 +340,6 @@ function renderHere(d, v) {
   }).join('');
   $('sideBody').innerHTML = `
     ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
-    ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}
     ${v.fire ? section('Fire', fireBlock(v)) : ''}
     ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}`;
 }
@@ -352,41 +352,67 @@ function renderFire(d, v) {
   const tend = fire ? fire.menu.filter(x => x.kind !== 'fire') : [];
   const striking = light && !v.fire?.burning;
   $('sideBody').innerHTML = `
-    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>${result}</div>` : result}
+    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>
+      ${light.odds ? `<p class="note odds-line"><b>${pct(light.odds.totalPct)}</b> chance it catches · ${esc(oddsWhy(light.odds).join(', '))}</p>` : ''}${result}</div>` : result}
     ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${v.fire ? section('The pit', fireBlock(v)) : ''}
-    ${striking ? `<div class="sec">${light.odds ? oddsSheet(light.odds, { title: 'Chance it catches' }) : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
-      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}</div>` : ''}`;
+    ${striking ? `${light.odds ? '' : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
+      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}` : ''}`;
 }
+
+// ---------------------------------------------------------------- the trip card
+// A neighbouring tile's trip is a card on the map under (or over) that tile, not a sheet: where it goes, how
+// long and why (one bar, a segment a part), the fall risk, and Careful, Go and what you know of the tile.
 
 function openTrip(dir) {
   const v = S.view, w = walkVerb(v, dir);
   if (!w) return;
   S.selected = { x: v.place.x + DIRS[dir][0], y: v.place.y + DIRS[dir][1] };
-  openDrawer({ kind: 'trip', dir });
+  S.trip = dir; S.drawer = null;
+  render();
 }
+function closeTrip() { S.trip = null; S.selected = null; render(); }
 
-function renderTrip(d, v) {
-  const quick = walkVerb(v, d.dir), careful = walkVerb(v, d.dir, true);
-  const t = quick.trip;
-  head('ui/follow', t ? cap(t.to) : `Walk ${d.dir}`, t ? costChip(`${t.totalMinutes} min`) : '');
-  if (!t) { $('sideBody').innerHTML = `<p class="note">${esc(cap(quick.refused ?? 'You cannot go that way.'))}</p>`; return; }
-  const left = v.clock.daylightLeftMinutes;
-  const camp = v.map.places.find(p => p.x === v.map.campX && p.y === v.map.campY);
-  // A chance of a fall that shows as 0% is no hazard worth a line.
+const TRIP_PART = { Walking: ['walking', '#b3a68e'], Terrain: ['terrain', '#8a6a3a'], Pace: ['pace', '#5f7f8f'], 'Snow and ground': ['snow', '#c9d6dc'], Careful: ['careful', '#f5811f'] };
+function renderTripCard() {
+  const card = $('tcard'), v = S.view, dir = S.trip;
+  if (!dir || S.busy || v.combat) { card.hidden = true; return; }
+  const quick = walkVerb(v, dir), careful = walkVerb(v, dir, true), t = quick?.trip;
+  if (!quick) { S.trip = null; card.hidden = true; return; }
   const risk = trip => trip?.risk && Math.round(trip.risk.totalPct * 100) > 0 ? trip.risk : null;
-  const rows = (trip) => trip.terms.map((x, i) => `<div class="kv ${i === 0 ? '' : x.minutes > 0 ? 'minus' : 'plus'}"><span></span><span>${esc(x.factor)}</span><span class="v">${i === 0 ? `${x.minutes} min` : signed(x.minutes, ' min')}</span></div>`).join('');
-  $('sideBody').innerHTML = `
-    <div class="row">${careful ? `<button class="act quiet" data-verb="${careful.id}">Careful <span class="num">(${careful.trip?.totalMinutes ?? '?'} min)</span></button>` : ''}
-      <button class="act" data-verb="${quick.id}">Go <span class="num">(${t.totalMinutes} min)</span> <span class="key">Enter</span></button></div>
-    ${risk(t) ? `<p class="note odds-line">Fall risk <b class="minus">${pct(t.risk.totalPct)}</b> · ${esc(oddsWhy(t.risk).join(', '))}${careful ? ` · careful ${risk(careful.trip) ? pct(careful.trip.risk.totalPct) : 'is safer'}` : ''}</p>`
-      : t.hazardous ? '<p class="note odds-line">Hazardous ground · careful is slower, and safer</p>' : ''}
-    <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
-      <div class="factors">${rows(t)}</div></div>
-    ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
-    ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
-      ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}`;
+  const bar = t ? `<div class="tbar">${t.terms.map((x, i) => `<i style="flex:${x.minutes};background:${(TRIP_PART[x.factor] ?? [, '#888'])[1]}"
+      ${tip(x.factor, [i === 0 ? `${x.minutes} min` : signed(x.minutes, ' min')])}></i>`).join('')}</div>` : '';
+  const note = !t ? `<p class="risk">${esc(cap(quick.refused ?? 'You cannot go that way.'))}</p>`
+    : risk(t) ? `<p class="risk">Fall risk <b>${pct(t.risk.totalPct)}</b>${careful ? ` · careful ${risk(careful.trip) ? pct(careful.trip.risk.totalPct) : 'safer'}` : ''}</p>`
+    : t.hazardous ? '<p class="risk">Hazardous ground · careful is safer</p>' : '';
+  const go = t && !quick.refused ? `<button class="act" data-verb="${quick.id}">Go <span class="num">(${t.totalMinutes} min)</span></button>` : '';
+  const slow = careful?.trip && !careful.refused ? `<button class="act" data-verb="${careful.id}">Careful <span class="num">(${careful.trip.totalMinutes} min)</span></button>` : '';
+  const info = `<button class="act quiet info" data-act="tileinfo" aria-label="What you know here" ${tip('What you know here')}>${img('ui/inspect', '')}</button>`;
+  card.innerHTML = `<div class="h"><b>${px(t ? cap(t.to) : `Walk ${dir}`)}</b><span class="sub">${esc(dir)}${t && !t.toKnown ? ' · unexplored' : ''}</span>
+      ${t ? `<span class="num">${t.totalMinutes} min</span>` : ''}<button class="xbtn" data-act="closetrip" aria-label="Close">✕</button></div>
+    ${bar}${note}<div class="tbtns">${slow}${go}${info}</div>`;
+  card.hidden = false;
+  placeTripCard();
 }
+/** Keeps the card on its tile as the camera moves: every frame while it is open. */
+function placeTripCard() {
+  const card = $('tcard');
+  if (card.hidden || !S.trip || !S.selected) return;
+  const at = map.screenOf(S.selected.x, S.selected.y), m = $('mapArea').getBoundingClientRect();
+  if (!at) return;
+  const st = $('status').getBoundingClientRect();
+  const strip = st.top - m.top < 24 ? st.bottom - m.top : 0; // the vitals along the map's top, however wide
+  const p = cardPlace(at, { w: card.offsetWidth, h: card.offsetHeight }, { w: m.width, h: m.height, top: strip }, S.trip === 'north' ? 'above' : 'below', map.screenOf(S.view.place.x, S.view.place.y));
+  card.style.left = `${p.left}px`; card.style.top = `${p.top}px`; // the tile's brackets mark which tile it is for
+}
+(function follow() { requestAnimationFrame(follow); if (S.trip) placeTripCard(); })();
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act="closetrip"],[data-act="tileinfo"]');
+  if (b?.dataset.act === 'closetrip') return closeTrip();
+  if (b?.dataset.act === 'tileinfo') { const at = S.selected; S.trip = null; return openDrawer({ kind: 'place', x: at.x, y: at.y }); }
+  // A tap anywhere but the card and the map puts the card away (the map's own tap picks another tile).
+  if (S.trip && !e.target.closest('#tcard, #world')) { S.trip = null; S.selected = null; renderTripCard(); }
+});
 
 function renderPlace(d, v) {
   const { x, y } = d, m = v.map, code = m.known[y * m.width + x];
@@ -683,6 +709,7 @@ function hoverTile(t, e) {
 function clickTile(t) {
   if (S.busy || !S.view) return;
   const here = S.view.place;
+  S.trip = null;
   if (t.x === here.x && t.y === here.y) return openDrawer({ kind: 'here' });
   const dir = dirTo(here, t);
   if (dir) return openTrip(dir);
@@ -722,7 +749,7 @@ document.addEventListener('keydown', e => {
     if (does === 'close') { e.preventDefault(); return; }
   }
   if (log && k.toLowerCase() === 'n' && !e.repeat) { markLog(); return; }
-  if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else closeDrawer(); return; }
+  if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else if (S.trip) closeTrip(); else closeDrawer(); return; }
   if (S.busy || v.combat) return;
   const arrows = { ArrowUp: 'north', ArrowRight: 'east', ArrowDown: 'south', ArrowLeft: 'west' };
   if (arrows[k]) {
@@ -732,7 +759,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   const key = k.toLowerCase();
-  if (key === 'enter' && S.drawer?.kind === 'trip') { const w = walkVerb(v, S.drawer.dir); if (w) run(w.id); }
+  if (key === 'enter' && S.trip) { const w = walkVerb(v, S.trip); if (w) run(w.id); }
   else if (key === 'f') {
     const light = lightVerb(v);
     if (S.drawer?.kind === 'fire' && light && !v.fire?.burning) run(light.id); else openDrawer({ kind: 'fire' });
@@ -802,7 +829,7 @@ function renderLogChip() {
 
 function render() {
   if (!S.view) return;
-  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderEnd(); renderLogChip();
+  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderTripCard(); renderEnd(); renderLogChip();
 }
 
 async function newGame(seed) {
@@ -835,4 +862,5 @@ window.ui.loadBytes = loadBytes;
 window.ui.doSave = doSave;
 window.ui.doLoad = doLoad;
 window.ui.openTrip = openTrip;
+window.ui.map = map;
 window.ui.allVerbs = () => allVerbs(S.view);

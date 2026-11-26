@@ -2,7 +2,7 @@
 //   node --test tools/page.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { veilKey, paceMs, cameraTarget, oddsWhy } from '../App/wwwroot/util.js';
+import { veilKey, paceMs, cameraTarget, oddsWhy, cardPlace } from '../App/wwwroot/util.js';
 
 test('a receipt closes on Escape, Space or Enter, and any other key closes it and acts', () => {
   for (const k of ['Escape', ' ', 'Enter']) assert.equal(veilKey('receipt', k), 'close', k);
@@ -43,4 +43,29 @@ test('an odds line names only what moves it, each as the whole percent shown', (
     terms: [{ factor: 'Eyes', deltaPct: -0.2 }, { factor: 'Axe', deltaPct: 0.08 }, { factor: 'Shovel', deltaPct: 0 }] };
   assert.deepEqual(oddsWhy(search, { base: false }), ['eyes −20%', 'axe +8%']);
   assert.deepEqual(oddsWhy({ base: 'Search', basePct: 1, totalPct: 1, terms: [] }, { base: false }), []);
+});
+
+test('a trip card sits on the side of its tile away from the player, inside the map', () => {
+  const area = { w: 402, h: 470, top: 50 };          // the map, and the bottom of the status strip
+  const card = { w: 320, h: 120 };
+  // South of the player: below the tile, centred on it.
+  assert.deepEqual(cardPlace({ x: 177, y: 200, size: 48 }, card, area, 'below'), { left: 41, top: 256, side: 'below' });
+  // North of the player: above the tile.
+  assert.deepEqual(cardPlace({ x: 177, y: 200, size: 48 }, card, area, 'above'), { left: 41, top: 72, side: 'above' });
+  // Too near the bottom to go below: it goes above instead.
+  assert.equal(cardPlace({ x: 177, y: 330, size: 48 }, card, area, 'below').side, 'above');
+  // At the left edge: kept 8 px in.
+  assert.deepEqual(cardPlace({ x: 0, y: 200, size: 48 }, card, area, 'below'), { left: 8, top: 256, side: 'below' });
+});
+
+test('on a short map a trip card goes to an edge, over neither the player nor its tile', () => {
+  // A phone on its side: the map is 634 x 346, the strip ends at 40, the player's tile at (293, 169).
+  const area = { w: 634, h: 346, top: 40 }, card = { w: 320, h: 112 }, me = { x: 293, y: 169, size: 48 };
+  const north = { x: 293, y: 121, size: 48 };
+  const p = cardPlace(north, card, area, 'above', me);
+  const over = t => p.left < t.x + t.size && p.left + card.w > t.x && p.top < t.y + t.size && p.top + card.h > t.y;
+  assert.equal(over(me), false, JSON.stringify(p));
+  assert.equal(over(north), false, JSON.stringify(p));
+  assert.ok(p.left >= 8 && p.left + card.w <= area.w - 8 && p.top >= area.top + 8 && p.top + card.h <= area.h - 8, JSON.stringify(p));
+  assert.equal(p.side, 'bottom'); // above the tile there is no room, below it the player, so the map's bottom edge
 });
