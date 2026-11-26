@@ -158,29 +158,33 @@ public class WorkTests
         Assert.True(foodFocused < fuelFocused * 0.75, $"fuel kept {fuelFocused:0.0} kg under a fuel focus, {foodFocused:0.0} under a food focus");
     }
 
-    /// The old filter (FocusProcessor.ApplyFocus): a focus keeps its whole category and buys nothing more of it.
+    /// #286: a focus turns up more of its category, and the ground thins as fast as it gives. Before #286 a food focus
+    /// kept exactly the food a general search found and bought nothing more (the old FocusProcessor.ApplyFocus).
+    /// Food often enough in an hour that twenty hours of it are many finds, and something besides it to leave.
+    static readonly ForagePool FoodGround = new("forage", 1.0,
+        [new ForageItem(Resource.Berries, 6, 0.1, 0.3), new ForageItem(Resource.Roots, 3, 0.1, 0.2), new ForageItem(Resource.PlantFiber, 3, 0.01, 0.03)]);
+
     [Fact]
-    public void AFocusedSearch_KeepsExactlyWhatAGeneralSearchFindsOfItsCategory_AndNoMoreOfAnything()
+    public void AFoodFocusedHour_BringsInMoreFood_AndLeavesLessFoodOnTheGround()
     {
-        IReadOnlyDictionary<Resource, double> Haul(ForageFocus focus, int seed)
+        (double Food, double FoodLeft) Hour(ForageFocus focus, int seed)
         {
-            var w = WithPools(new ForagePool("forage", 1.0, Pools.MixedForest));
+            var w = WithPools(FoodGround);
             w.Rngs[StreamName.Of("work", P)] = Rng.ForSystem(seed, "work");
-            // Short enough that even a jackpot never fills the pack: a full pack drops what a lighter one keeps.
-            Sim.Step(w, new Gather(P, 0, focus), 20);
-            return Items.KgByResource(Items.Pack(w, P));
+            Sim.Step(w, new Gather(P, 0, focus), 60);
+            static double FoodOf(IEnumerable<KeyValuePair<Resource, double>> kg) =>
+                kg.Where(x => Items.Resources[x.Key].Category == ResourceCategory.Food).Sum(x => x.Value);
+            return (FoodOf(Items.KgByResource(Items.Pack(w, P))), FoodOf(Pools.ExpectedForage(w, new PoolId(Map.Of(w).Camp, 0), 60)));
         }
-        for (int seed = 0; seed < 6; seed++)
+        double generalFood = 0, focusedFood = 0, generalLeft = 0, focusedLeft = 0;
+        for (int seed = 0; seed < 20; seed++)
         {
-            var general = Haul(ForageFocus.General, seed);
-            var food = Haul(ForageFocus.Food, seed);
-            foreach (var r in general.Keys.Union(food.Keys))
-            {
-                double g = general.GetValueOrDefault(r), f = food.GetValueOrDefault(r);
-                if (Items.Resources[r].Category == ResourceCategory.Food) Assert.Equal(g, f, 9);
-                else Assert.True(f <= g + 1e-9, $"{r}: {f} under a food focus, {g} in a general search");
-            }
+            var (gf, gl) = Hour(ForageFocus.General, seed);
+            var (ff, fl) = Hour(ForageFocus.Food, seed);
+            (generalFood, generalLeft, focusedFood, focusedLeft) = (generalFood + gf, generalLeft + gl, focusedFood + ff, focusedLeft + fl);
         }
+        Assert.True(focusedFood > generalFood * 1.2, $"{focusedFood:0.00} kg of food under a food focus, {generalFood:0.00} in general searches");
+        Assert.True(focusedLeft < generalLeft, $"{focusedLeft:0.000} kg of food forecast on the ground after a food focus, {generalLeft:0.000} after general searches");
     }
 
     [Fact]

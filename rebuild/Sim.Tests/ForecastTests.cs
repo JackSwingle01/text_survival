@@ -304,7 +304,8 @@ public class ForecastTests
         }, iter: 8);
     }
 
-    /// A focus turns up 1.5 times its category in a first hour on fresh forest, the rule the same for all four.
+    /// A focus turns up 1.5 times its category in a first hour on fresh forest, the rule the same for all four. Within
+    /// 5%: the extra finds thin the ground within the hour, so a fuel focus reads about 1.44x (Jack, 2026-11-26).
     [Theory]
     [InlineData(ForageFocus.Fuel), InlineData(ForageFocus.Food), InlineData(ForageFocus.Medicine), InlineData(ForageFocus.Materials)]
     public void AFocusedFirstHour_ForecastsHalfAgainItsCategory(ForageFocus focus)
@@ -316,7 +317,44 @@ public class ForecastTests
         var inFocus = general.Keys.Where(r => Work.InFocus(r, focus)).ToList();
         Assert.NotEmpty(inFocus);
         foreach (var r in inFocus)
-            Assert.InRange(focused[r] / general[r], Work.InFocusFindsFactor * 0.98, Work.InFocusFindsFactor * 1.02);
+            Assert.InRange(focused[r] / general[r], Work.InFocusFindsFactor * 0.95, Work.InFocusFindsFactor * 1.05);
+    }
+
+    /// On any ground, under any focus, for any search length, the forecast and the mean of searches agree on what is
+    /// brought in of the focus's category and of the rest (#286: a focus turns up more of its category). Each case
+    /// searches the same hours in all, and a side is judged only on enough finds that 20% is about four spreads.
+    [Fact]
+    [Trait("Category", TestCategories.LongRun)]
+    public void TheGatherForecast_AgreesWithSearching_InFocusAndOff()
+    {
+        const int SearchMinutes = 480 * 60, JudgedFinds = 400;
+        var grounds = Report.HaulGrounds();
+        Gen.Select(Gen.Int[0, grounds.Count - 1], Gen.Enum<ForageFocus>(), Gen.Int[20, 90]).Check(c =>
+        {
+            var (ground, focus, minutes) = c;
+            var pool = grounds[ground].Pool;
+            double[] forecast = new double[2], gathered = new double[2], finds = new double[2]; // [0] in focus, [1] off it
+            var midKg = pool.Items.GroupBy(i => i.Resource).ToDictionary(g => g.Key, g => g.Average(i => (i.MinKg + i.MaxKg) / 2));
+            int Side(Resource r) => focus == ForageFocus.General || Work.InFocus(r, focus) ? 0 : 1;
+            for (int run = 0; run < SearchMinutes / minutes; run++) // the same hours searched whatever the length, so sparse ground is judged on enough finds
+            {
+                var w = At(new ForagePool("forage", 1.0, pool.Items));
+                w.Minute = Clock(9 * 60 + run * 3);
+                foreach (var stream in new[] { "work", "focus", "yield" })
+                    w.Rngs[StreamName.Of(stream, P)] = Rng.ForSystem(run, $"{stream} {ground} {focus} {minutes}"); // each run its own rolls
+                var g = new Gather(P, 0, focus);
+                foreach (var (r, kg) in Work.ExpectedGather(w, Me(w), g, minutes)) { forecast[Side(r)] += kg; finds[Side(r)] += kg / midKg[r]; }
+                var before = Items.KgByResource(Items.Pack(w, P));
+                Sim.Step(w, g, minutes);
+                foreach (var (r, kg) in Items.KgByResource(Items.Pack(w, P))) gathered[Side(r)] += kg - before.GetValueOrDefault(r);
+                if (w.Tiles.GetValueOrDefault(Camp(w))?.Pile is { } pile)
+                    foreach (var (r, kg) in Items.KgByResource(pile)) gathered[Side(r)] += kg;
+            }
+            for (int side = 0; side < 2; side++)
+                if (finds[side] >= JudgedFinds)
+                    Assert.True(gathered[side] >= forecast[side] * 0.8 && gathered[side] <= forecast[side] * 1.2,
+                        $"{grounds[ground].Ground} {focus} {minutes} min, {(side == 0 ? "in focus" : "off it")}: {gathered[side]:0.00} kg gathered, {forecast[side]:0.00} forecast");
+        }, iter: 6);
     }
 
     [Fact]
