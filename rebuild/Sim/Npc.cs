@@ -12,7 +12,7 @@ public sealed partial record NpcMind
     /// The fat this body is used to (Npc.AdaptTargetFat): falling short of it makes food a Need.
     public double TargetFatKg { get; set; }
     public long TargetFatMinute { get; set; }
-    [JsonIgnore] public NpcDecision? LastDecision { get; set; }
+    [JsonIgnore] internal NpcDecision? LastDecision { get; set; }
 }
 
 /// The decision in force (not saved): its minute, the stat its activity serves (null: none), and the stats as ranked then.
@@ -495,7 +495,7 @@ public static class Npc
             double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]);
             if (water is TileId w && WaterTrip(w) < meltMinutes) return WalkTo(w) is { } go ? go with { ForecastMinutes = WaterTrip(w), At = w } : null;
             if (meltMinutes < double.PositiveInfinity) return (Light(MeltFireHours) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : NoStep();
-            return priority < Priority.Need ? default : Explore() is { } look ? look : Pursuit.Lacking("water, with nowhere to look");
+            return LookFor("water", priority);
         }
 
         /// Water as remembered (Work.WaterAt), not snow, which a person melts at camp: the kept source, else the planner's choice.
@@ -557,7 +557,7 @@ public static class Npc
         {
             if (EatToHand() is { } eat) return eat;
             if (FoodSource(FoodReq(MealKcal()), priority) is not var (tile, leaf))
-                return priority < Priority.Need ? default : Explore() is { } look ? look : Pursuit.Lacking("food, with nowhere to look");
+                return LookFor("food", priority);
             var step = tile == Here ? Do(leaf) : WalkTo(tile);
             double trip = FromHere().Minutes[tile] + (ToSite(Camp).Reaches(tile) ? ToSite(Camp).Minutes[tile] : 0) + leaf.WorkMinutes + CookMinutes(leaf);
             return step is { } s ? s with { ForecastMinutes = trip, At = tile } : NoStep();
@@ -895,6 +895,10 @@ public static class Npc
         }
 
         bool packFull;
+
+        /// No source it remembers: a Want is passed over; at Need or Critical it explores, or lacks it with nowhere to look.
+        Pursuit LookFor(string what, Priority priority) =>
+            priority < Priority.Need ? default : Explore() is { } look ? look : Pursuit.Lacking($"{what}, with nowhere to look");
 
         Pursuit NoStep() => packFull ? Pursuit.Cannot("room in the pack, full of what it keeps") : default;
 
