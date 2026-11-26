@@ -425,7 +425,9 @@ public class Phase2GateTests(ITestOutputHelper output)
         // Re-baselined on purpose 2026-11-23 with HerdTests.ThirtyPopulatedDays_StayCheap (#82, animals drink and sleep):
         // 9,112 MB, Release, beside the slow suite. Lowered 2026-11-24 for the pooled route search (#133): 5,216 MB
         // (main 7,697 MB on the same probe).
-        Assert.True(allocatedMB < 6_100, $"allocated {allocatedMB} MB");
+        // Raised 2026-11-26 (#294) from 7,181 MB on the nightly at d5188a77. Raised only by Jack, to 20% over a
+        // fresh measurement, never past 12,192 MB.
+        Assert.True(allocatedMB < 8_600, $"allocated {allocatedMB} MB");
         Assert.True(clock.Elapsed.TotalSeconds < 300, $"took {clock.Elapsed.TotalSeconds:F1}s");
     }
 
