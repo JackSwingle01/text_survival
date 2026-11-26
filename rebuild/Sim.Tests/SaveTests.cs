@@ -91,6 +91,7 @@ public class SaveTests
         Sim.Advance(w, 30);
         Assert.Contains(Fauna.MindOf(bear).Sightings ?? [], s => s.Pile && s.Tile == tile);
         Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < 5, "the bear has not begun to eat");
+        Assert.IsType<Feed>(Fauna.MindOf(bear).Choice);
 
         var loaded = Save.FromJson(Save.ToJson(w));
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));

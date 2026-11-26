@@ -424,11 +424,13 @@ public static partial class Fauna
         return bite;
     }
 
+    static bool EatsAt(World world, Agent animal, TileId tile) => PileBite(world, animal, tile, double.PositiveInfinity).Count > 0;
+
     /// Why it would not eat at the pile on its tile; with events, the people's fire is caught up first (Fire.CatchUpOn).
     static Refusal? PileRefusal(World world, Agent herd, List<WorldEvent>? events)
     {
         if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("nothing here it can reach to eat");
-        if (PileBite(world, herd, herd.Tile, double.PositiveInfinity).Count == 0) return new("nothing in the pile it eats");
+        if (!EatsAt(world, herd, herd.Tile)) return new("nothing in the pile it eats");
         if (!WouldFeedAmong(world, herd, herd.Tile, events)) return new("people it will not come at are here");
         return Access.Refusal(world, herd.Id, pile);
     }
@@ -625,7 +627,6 @@ public static partial class Fauna
         options = options.Where(d => MapGen.Manhattan(Map.Step(herd.Tile, d), threat) == best).ToList();
         return options[world.Rng("herds", herd.Id).NextInt(options.Count)];
     }
-
 
     static bool CanMove(Agent herd) => Mobile(herd.Body);
 

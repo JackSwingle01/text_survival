@@ -142,6 +142,9 @@ public class PileFeedingTests
         foreach (var raven in Agents.SpawnGroup(w, Species.Raven, tile, 4)) TestKit.SetHunger(w.Agent(raven), 0.7);
         Sim.Step(w, new Wait(P), 60);
         Assert.Equal(meat, Have(w, tile, Resource.RawMeat));
+        w.Agent(P).Tile = T(5); // the person walks off, and the same ravens eat
+        Sim.Step(w, new Wait(P), 60);
+        Assert.True(Have(w, tile, Resource.RawMeat) < meat, "the ravens did not eat with nobody there");
     }
 
     /// A starving bear beside a sleeper's pile at night: with no fire it comes and eats; beside a strong fire it does not.
@@ -158,8 +161,10 @@ public class PileFeedingTests
         TestKit.GivePieces(Pile(w, tile), Resource.RawMeat, 3);
         double meat = Have(w, tile, Resource.RawMeat);
         if (fire) w.Fires[new FireId(w.NextFireId++)] = FireDeterrenceTests.Pit(tile, w.Minute, pineKg: 5);
-        Hungry(w, Species.Bear, T(22), hunger: 0.95);
+        var bear = Hungry(w, Species.Bear, T(22), hunger: 0.95);
         Sim.Step(w, new Sleep(P), 120);
         Assert.Equal(!fire, Have(w, tile, Resource.RawMeat) < meat);
+        if (fire) Assert.Contains(Fauna.MindOf(bear).Sightings ?? [], s => s.Pile && s.Tile == tile); // it smelled the pile, and kept off
+        Assert.True(Sim.IsAlive(w.Agent(P)) && Combat.EncounterOf(w, P) == null, "the bear came for the sleeper, not the pile");
     }
 }

@@ -131,12 +131,11 @@ public static partial class Fauna
     static (Activity, int) Eat(World world, Agent animal, HerdMind mind, List<WorldEvent> events)
     {
         double graze = GrazeHere(world, animal)?.PerMinute ?? 0;
-        double carcass = Math.Max(MeatAt(world, animal, mind, animal.Tile), PileAt(world, animal, mind, animal.Tile, events));
-        if (HuntAt(world, animal, mind, animal.Tile, Hunting(world, animal)) is var hunt && hunt > Math.Max(graze, carcass))
+        double feed = Math.Max(MeatAt(world, animal, mind, animal.Tile), PileAt(world, animal, mind, animal.Tile, events));
+        if (HuntAt(world, animal, mind, animal.Tile, Hunting(world, animal)) is var hunt && hunt > Math.Max(graze, feed))
             return QuarryHere(world, animal) is Agent prey && Refusal(world, new Hunt(animal.Id, prey.Id)) == null && !SideFoughtThisMinute(world, animal)
                 ? (new Hunt(animal.Id, prey.Id), 1) : Wait(animal);
-        bool meat = carcass > graze;
-        return meat ? (new Feed(animal.Id), 1) : GrazeRefusal(world, animal) == null ? (new Graze(animal.Id), 1) : Wait(animal);
+        return feed > graze ? (new Feed(animal.Id), 1) : GrazeRefusal(world, animal) == null ? (new Graze(animal.Id), 1) : Wait(animal);
     }
 
     static double FeedKcalPerMinute => FeedKgPerMinute * MeatKcalPerKg;
@@ -499,13 +498,13 @@ public static partial class Fauna
     /// Piles holding what it eats, smelled or on its tile, never seen; one seen to hold nothing it eats is forgotten.
     static bool SensePiles(World world, Agent animal, HerdMind mind, Senses senses)
     {
-        mind.Sightings?.RemoveAll(s => s.Pile && senses.Sees(world, s.Tile) && PileBite(world, animal, s.Tile, double.PositiveInfinity).Count == 0);
+        mind.Sightings?.RemoveAll(s => s.Pile && senses.Sees(world, s.Tile) && !EatsAt(world, animal, s.Tile));
         double reach = Scent.ReachTiles(1, senses.SmellFactor, 2);
         bool found = false;
         foreach (var t in Items.PileTilesOf(world))
         {
             if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(world.Tiles[t].Pile!)))) continue;
-            if (PileSensed(mind, t) || PileBite(world, animal, t, double.PositiveInfinity).Count == 0) continue;
+            if (PileSensed(mind, t) || !EatsAt(world, animal, t)) continue;
             (mind.Sightings ??= []).Add(new Sensed(null, t, world.Minute, Pile: true));
             found = true;
         }
