@@ -309,7 +309,7 @@ public class EffectsPropertyTests
     /// The readouts are each effect's full-severity row scaled by its severity and summed, and nothing
     /// from an effect that is not there; the discomforts' losses alone are summed and then saturate,
     /// x / (1 + (x/0.8)^4)^(1/4). Read through the faculties of a whole human, whose capacities are each
-    /// one less the summed loss: speed is its moving, vision its sight and perception the mean of its sight
+    /// one less the summed loss, held in 0..1: speed is its moving, vision its sight and perception the mean of its sight
     /// and hearing, each times its consciousness for the last two; dexterity is manipulation times half of
     /// one plus consciousness, less what wet hands take. Unconscious, the limbs give nothing.
     [Fact]
@@ -330,17 +330,17 @@ public class EffectsPropertyTests
                 core += Def(e.Kind).CoreTempFPerHour * e.Severity;
                 bleed += Def(e.Kind).BleedMlPerHour * e.Severity;
             }
-            double Left(Capacity cap)
+            double Remaining(Capacity cap)
             {
                 int i = (int)cap;
                 double delta = caps[i] - discomfort[i] / Math.Pow(1 + Math.Pow(discomfort[i] / 0.8, 4), 0.25);
                 return Math.Clamp(1 + Math.Clamp(delta, -1, 1), 0, 1);
             }
-            double conscious = Left(Capacity.Consciousness), limbs = conscious > 0 ? 1 : 0;
-            double sight = Left(Capacity.Sight), hearing = Left(Capacity.Hearing);
+            double conscious = Remaining(Capacity.Consciousness), limbs = conscious > 0 ? 1 : 0;
+            double sight = Remaining(Capacity.Sight), hearing = Remaining(Capacity.Hearing);
             double wetHands = 1 - Math.Max(0, (Effects.Severity(b, EffectKind.Wet) - 0.3) * 0.3);
-            Assert.Equal(Left(Capacity.Moving) * limbs * wholeSpeed, Body.Speed(b), 12);
-            Assert.Equal(Left(Capacity.Manipulation) * limbs * (0.5 + 0.5 * conscious) * wetHands, Body.Dexterity(b), 12);
+            Assert.Equal(Remaining(Capacity.Moving) * limbs * wholeSpeed, Body.Speed(b), 12);
+            Assert.Equal(Remaining(Capacity.Manipulation) * limbs * (0.5 + 0.5 * conscious) * wetHands, Body.Dexterity(b), 12);
             Assert.Equal(sight * conscious, Body.Vision(b), 12);
             Assert.Equal((sight + hearing) * 0.5 * conscious, Body.Perception(b), 12);
             Assert.Equal(core, Effects.CoreTempFPerHour(b), 12);

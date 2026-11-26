@@ -17,3 +17,10 @@ Revised: renamed where the name said capacity: `HealthyBody_AllFacultiesNearAFre
 Evidence:
 - `dotnet test rebuild/Sim.Tests -c Release --filter "Category!=Slow"`: 2200 passed, 2 skipped.
 - The ratchet's remaining command prints eight entries, none of this batch.
+
+Revised (review): perception's share over 0.9 let hearing fall to about 0.82 unseen → the healthy test also holds perception in full darkness (hearing's half alone) above 0.45.
+Revised (review): the 0.18 comment named dexterity alone; vision is 0.19 → it names both. `Left` read as a side of the body → `Remaining`.
+Revised (review): the property test's oracle restates the faculty formulas as well as the effect table, so retuning a faculty breaks it → kept: comparing each faculty with and without each effect cannot tell summing from saturating without the same formulas, and the previous batch's review restored this test for exactly the scaling and the curve.
+Revised (review): `Discomforts_StackWithDiminishingReturns` no longer holds hearing at a fifth on its own → kept: hearing reaches a caller only through perception, whose share is held at 0.18 or more; no test was deleted in this batch.
+
+Follow-up: the Blood deltas of Hypothermia, Frostbite, Hyperthermia and Shock change no faculty and not life (life reads tissue without effects; the lost-blood scale reads BloodPct), so they do nothing in the sim. Pre-existing; for a person to decide whether they should.

@@ -9,7 +9,7 @@ public class BodyTests
     static Tissue OrganOf(BodyState b, string name) => b.Regions.SelectMany(r => r.Organs).Single(o => o.Name == name);
     static Rng TestRng() => Rng.ForSystem(1, "test");
 
-    /// A faculty as its share of the same whole body's, which is the share of the capacity it is a product of when nothing else changed.
+    /// Speed as its share of the same whole body's: moving's share, when nothing else changed.
     static double SpeedShare(BodyState b) => Body.Speed(b) / Body.Speed(Baseline());
 
     static void Destroy(Region r) { r.Skin.Condition = 0; r.Muscle.Condition = 0; r.Bone.Condition = 0; }
@@ -82,6 +82,7 @@ public class BodyTests
         var b = Baseline();
         foreach (var f in Enum.GetValues<Faculty>())
             Assert.True(Body.Share(b, Species.Human, f) > 0.9, $"{f} {Body.Share(b, Species.Human, f)} should be near a fresh body's");
+        Assert.True(Body.Perception(b, new AbilityContext(DarknessLevel: 1.0)) > 0.45); // in the dark, hearing's half alone
         Assert.Equal(1, Body.TissueVitality(b));
     }
 
@@ -214,8 +215,7 @@ public class BodyTests
         double healthy = Body.Dexterity(b);
         SetLayers(RegionOf(b, "Left Arm"), 0.5);
         SetLayers(RegionOf(b, "Right Arm"), 0.5);
-        double damaged = Body.Dexterity(b) / healthy;
-        Assert.InRange(damaged, 0.2, 0.7);
+        Assert.InRange(Body.Dexterity(b) / healthy, 0.2, 0.7);
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public class BodyTests
     }
 
     /// Discomforts stack with diminishing returns. Hunger, thirst and tiredness at full together leave
-    /// every faculty at about a fifth of a fresh body's (dexterity, the product of two capacities, at 0.18);
+    /// every faculty at about a fifth of a fresh body's (dexterity 0.18 and vision 0.19, each a product of two lowered capacities);
     /// each alone is nearly what its row says.
     [Fact]
     public void Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth()
