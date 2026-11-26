@@ -38,7 +38,7 @@ public class NpcBenchReport(ITestOutputHelper output)
         var w = World.New(seed);
         var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
         var agent = w.Agent(npc);
-        int fires = 0, felled = 0, refused = 0, injuries = 0, coldNights = 0, hunts = 0, campMoves = 0;
+        int fires = 0, felled = 0, refused = 0, stuck = 0, dropped = 0, injuries = 0, coldNights = 0, hunts = 0, campMoves = 0;
         double kcal = 0, forageMinutes = 0, lowestCoreF = agent.Body.CoreTempF;
         var reversals = new Reversals(npc);
         var camp = Memories.CampOf(w, agent);
@@ -67,6 +67,8 @@ public class NpcBenchReport(ITestOutputHelper output)
                     case FireLit f when f.By == npc: fires++; break;
                     case TreeFelled t when t.Who == npc: felled++; break;
                     case PlanRefused r when r.Who == npc: refused++; break;
+                    case NeedStuck s when s.Who == npc: stuck++; break;
+                    case NeedDropped x when x.Who == npc: dropped++; break;
                     case Injured i when i.Who == npc: injuries++; break;
                     case Ate a when a.Who == npc: kcal += a.Kcal; break;
                     case EncounterEnded x when x.Agent == npc: hunts++; break;
@@ -87,6 +89,6 @@ public class NpcBenchReport(ITestOutputHelper output)
         return $"seed {seed,7}: {(alive ? "alive" : "dead "),-5} day {lived,5:0.0}{(alive ? "" : $" ({Body.CauseOfDeath(agent.Body).What})"),-18} " +
                $"fat {agent.Body.FatKg,4:0.0} kg, lowest core {lowestCoreF:0.0}F, {kcal / Math.Max(1, lived),5:0} kcal/day, forage {forageMinutes / 60 / Math.Max(1, lived):0.0} h/day, " +
                $"fires {fires}, felled {felled}, fights {hunts}, injuries {injuries}, nights without a flame {coldNights}, " +
-               $"camp moves {campMoves}, reversals {reversals.Count}, refused {refused}";
+               $"camp moves {campMoves}, reversals {reversals.Count}, refused {refused}, stuck {stuck}, dropped {dropped}";
     }
 }

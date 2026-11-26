@@ -41,6 +41,8 @@ namespace Survival;
 [JsonDerivedType(typeof(ShelterCollapsed), "sheltercollapsed")]
 [JsonDerivedType(typeof(ShelterTakenDown), "sheltertakendown")]
 [JsonDerivedType(typeof(PlanRefused), "planrefused")]
+[JsonDerivedType(typeof(NeedDropped), "needdropped")]
+[JsonDerivedType(typeof(NeedStuck), "needstuck")]
 [JsonDerivedType(typeof(SkillLeveledUp), "skillup")]
 [JsonDerivedType(typeof(Noticed), "noticed")]
 [JsonDerivedType(typeof(Made), "made")]

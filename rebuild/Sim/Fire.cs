@@ -792,7 +792,7 @@ public static class Fire
         var burned = burns || strike != null ? Burn(ask.Pit, ask.NewPit, ask.Fuel, strike) : Burned.None;
         double strikePct = burns ? 1 : strike != null ? StartOdds(ask.Starter!.Value, strike.Tinder, ask.FirecraftLevel, ask.DexterityPct).TotalPct : 0;
         var missing = new List<FireNeed>();
-        if (burned.Hours < ask.HoursWanted)
+        if (burned.Hours < ask.HoursWanted - HoursSlack)
         {
             var offer = ask.Fuel;
             var toSearch = burned;
@@ -804,12 +804,13 @@ public static class Fire
                 strike = StrikeFrom(offer, roomKg);
                 toSearch = Burn(ask.Pit, ask.NewPit, offer, strike);
             }
-            if (toSearch.Hours < ask.HoursWanted && FuelNeed(ask, offer, strike, toSearch) is { } need) missing.Add(need);
+            if (toSearch.Hours < ask.HoursWanted - HoursSlack && FuelNeed(ask, offer, strike, toSearch) is { } need) missing.Add(need);
         }
         return new FireForecast(strikePct, burned.Hours, burned.LeastHeatF, missing, burns ? burned.First : null, struck);
     }
 
     const double MostFuelSearchedKg = 200;
+    const double HoursSlack = 1e-9;
 
     /// The surest tinder on offer whose lightest piece fits the pit (Refusal's rule), and a strike's kindling. Null without one.
     static FireStrike? StrikeFrom(Inventory fuel, double roomKg) =>
@@ -844,7 +845,7 @@ public static class Fire
                 var more = Items.CopyResources(offer);
                 double added = Items.AddKg(more, fuel, kg);
                 var tried = Burn(ask.Pit, ask.NewPit, more, strike, ask.HoursWanted, mustTake);
-                if (tried.Hours >= ask.HoursWanted && (mustTake is not Resource m || !tried.Stranded.Contains(m)))
+                if (tried.Hours >= ask.HoursWanted - HoursSlack && (mustTake is not Resource m || !tried.Stranded.Contains(m)))
                     return new FireNeed(kind, [fuel, .. candidates.Where(c => c != fuel)], added);
             }
         }
