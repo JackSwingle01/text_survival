@@ -19,3 +19,4 @@ Revised (review): "no stat at Need or Critical" read as the ladder alone let an 
 Revised (review): no test showed a found flint knife's condition → `AFoundFlintKnife_KeepsItsRolledCondition_OutOfThirty` rolls every loot row that gives one.
 Revised (review): the sharpen choice copies the repair filter `Verbs.At` lists → kept: `Verbs.At` builds every verb on each decision, and `Sim.Refusal` stays the one check; renamed `Sharpen` to `BladeToSharpen` and the test helper `Npc` to `WithNpc`.
 Revised (review): `ContentStrictTests`' chopFactor row matched the obsidian knife by its damage → its text follows 3.65 to 3.89. The first red test class shipped as `BladeWearTests`, not `FlintKnifeWearTests`.
+Revised: the bench follow-up miscounted → 15 of 20 alive at day 60 on the branch, not 16; the bench ran before the Health check was added.
