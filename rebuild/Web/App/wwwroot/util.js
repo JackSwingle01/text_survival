@@ -56,3 +56,11 @@ export function paceMs(minutes, kind) {
 export function cameraTarget(pos, coverPx, cellPx) {
   return { x: pos.x + 0.5 + coverPx.right / 2 / cellPx, y: pos.y + 0.5 + (coverPx.bottom - coverPx.top) / 2 / cellPx };
 }
+
+/** The words of an odds line (an Odds as one line under its buttons): the base, unless `base` is false,
+ *  then each factor that moves it by a whole percent or more as shown, in lower case. */
+export function oddsWhy(o, { base = true } = {}) {
+  const terms = o.terms.filter(t => Math.round(t.deltaPct * 100) !== 0)
+    .map(t => `${t.factor.toLowerCase()} ${signed(Math.round(t.deltaPct * 100), '%')}`);
+  return base ? [`${o.base.toLowerCase()} ${Math.round(o.basePct * 100)}%`, ...terms] : terms;
+}

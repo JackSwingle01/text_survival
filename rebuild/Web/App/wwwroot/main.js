@@ -8,7 +8,7 @@ import { createClient } from './client.js';
 import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs } from './util.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -373,11 +373,10 @@ function renderTrip(d, v) {
   $('sideBody').innerHTML = `
     <div class="row">${careful ? `<button class="act quiet" data-verb="${careful.id}">Careful <span class="num">(${careful.trip?.totalMinutes ?? '?'} min)</span></button>` : ''}
       <button class="act" data-verb="${quick.id}">Go <span class="num">(${t.totalMinutes} min)</span> <span class="key">Enter</span></button></div>
+    ${risk(t) ? `<p class="note odds-line">Fall risk <b class="minus">${pct(t.risk.totalPct)}</b> · ${esc(oddsWhy(t.risk).join(', '))}${careful ? ` · careful ${risk(careful.trip) ? pct(careful.trip.risk.totalPct) : 'is safer'}` : ''}</p>`
+      : t.hazardous ? '<p class="note odds-line">Hazardous ground · careful is slower, and safer</p>' : ''}
     <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
       <div class="factors">${rows(t)}</div></div>
-    ${t.hazardous || risk(t) ? section('Footing', `${risk(t) ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.totalPct)}</p>${oddsSheet(t.risk, { title: 'This ground, quickly' })}` : ''}
-      ${t.hazardous ? `<p class="note">Careful is slower${risk(careful?.trip) ? `, with a ${pct(careful.trip.risk.totalPct)} chance of a fall` : ', and safer'}.</p>
-      ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}` : ''}`) : ''}
     ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
     ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
       ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}`;
@@ -528,6 +527,7 @@ function renderForage(d, v) {
   $('sideBody').innerHTML = `
     <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
       : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="num">(${dur(S.forage.mins)})</span> <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking <span class="num">(5 min)</span> <span class="key">K</span></button>`}</div>
+    ${oddsWhy(f.yield, { base: false }).length ? `<p class="note odds-line">Search speed <b class="${f.yield.totalPct < 1 ? 'minus' : 'plus'}">×${f.yield.totalPct.toFixed(2)}</b> · ${esc(oddsWhy(f.yield, { base: false }).join(' · '))}</p>` : ''}
     <div class="sec"><div class="sec-h"><span class="label">The ground</span><span class="aside">${esc(f.effort)}</span></div>
       <p class="ground">${f.quality ? `Resources look <b>${esc(f.quality)}</b>.` : 'You haven\'t foraged here yet.'}</p></div>
     ${clues ? section('You notice', `<div class="clues">${clues}</div>`) : ''}
@@ -542,7 +542,7 @@ function renderForage(d, v) {
     <div class="found">${finds.length || rare.length ? '' : `<span class="empty">${told.length ? esc(told[told.length - 1].text) : 'Finds appear here as you search.'}</span>`}
       ${rare.map(l => `<div class="item rare">${img(l.icon)}<span>${esc(l.text)}</span></div>`).join('')}
       ${finds.map(x => `<div class="item ${x.category}">${img(stackIcon(x.resource))}${esc(cap(x.name))}<span class="n">×${x.count}</span></div>`).join('')}</div>
-    ${section('Your search', oddsSheet(f.yield, { title: "A minute's search" }))}`;
+`;
 }
 /** The chosen focus, or General where the ground does not offer it. */
 const forageFocus = f => f.foci.find(x => x.focus === S.forage.focus) ?? f.foci[f.foci.length - 1];

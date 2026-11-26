@@ -400,6 +400,9 @@ button { font: inherit; color: inherit; }
 .clue { display: grid; grid-template-columns: 20px 1fr; gap: 6px; align-items: center; text-align: left; padding: 5px 8px; font-size: 16px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; color: inherit; }
 .clue:not(:disabled):hover { border-color: var(--bone-3); }
 .clue.still { cursor: default; border-color: transparent; color: var(--bone-2); }
+/* An odds line: an Odds as one line under the buttons it bears on (fall risk, search speed). */
+.side-body > .odds-line { margin-top: 8px; font-size: 15px; }
+.odds-line b { font-family: var(--f-num); font-weight: 600; } .odds-line b.minus { color: var(--minus); } .odds-line b.plus { color: var(--lichen); }
 .found { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; min-height: 52px; align-content: start; }
 .found .item { display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 16px; }
 .found .item .n { grid-column: 2; font: 600 16px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
@@ -420,6 +423,7 @@ button { font: inherit; color: inherit; }
   .app { height: 100%; height: 100dvh; touch-action: manipulation; }
   .top { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
   .top > div { padding-left: 0; padding-right: 12px; margin-right: 12px; }
+  .top > div:last-child { border-right: 0; margin-right: 0; padding-right: 0; } /* no divider after the last */
   .where-btn { display: none; }
   .dock { overflow: visible; gap: 8px; align-items: stretch; min-height: 0;
     padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
@@ -447,6 +451,11 @@ button { font: inherit; color: inherit; }
   .act .key { display: none; } /* no keyboard */
 }
 @media (max-width: 860px) and (min-height: 501px) {
+  /* The daylight gives way when the upright strip runs short (a later hour, a longer daylight, a colder number):
+     its bar shrinks first, and its words end in an ellipsis only after that. */
+  .t-light { flex: 1 1 0 !important; min-width: 0; } /* the daylight takes what the clock and the temperature leave */
+  .t-light .lbar { flex: 1 1 0; width: auto; min-width: 14px; max-width: 48px; }
+  .t-light .num { flex: 0 0.001 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* shrinks only once the bar is at its least */
   .dock .verbs { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); grid-auto-columns: 122px;
     overflow-x: auto; overflow-y: hidden; mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
   .drawer { inset: auto 0 0 0; width: auto; height: 55%; border-width: 2px 0 0; clip-path: none; }

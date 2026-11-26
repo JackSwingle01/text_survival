@@ -159,7 +159,7 @@ along the map's top. The drawer is a sheet from the bottom over the lower part o
 keeps the player in the part still showing. In landscape the dock is a column on the right, and the
 drawer a panel on the map's right. A finger has no hover: a tap on something that only has a tip (the
 clock, the light, a vital) shows it, and the next tap only puts it away. `tools/shots.mjs --phone`
-checks all of this at 390 × 664, 844 × 390 and 932 × 430.
+checks all of this at 390 × 664, 402 × 714, 844 × 390 and 932 × 430.
 
 ---
 
