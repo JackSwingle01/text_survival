@@ -216,7 +216,7 @@ public static class Npc
                 : Items.Have(pack, Resource.Water) + (PileHere is { } s ? Items.Have(s, Resource.Water) : 0) + (StationHere is { } st ? Items.Have(st.Ready, Resource.Water) : 0);
             return new()
             {
-                [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), ForecastAt(Camp, 0).Hours, TonightHours() - NightSlackHours),
+                [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), RememberedLeftAt(Camp) + ForecastAt(Camp, 0).Hours, TonightHours() - NightSlackHours),
                 [Stat.Water] = WaterPriority(Body.HydrationPct, seeing(Stat.Water), waterToHandL, (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0),
                 [Stat.Rest] = RestPriority(Body.EnergyPct, seeing(Stat.Rest)),
                 [Stat.Food] = FoodPriority(Body, mind.TargetFatKg, seeing(Stat.Food), foodToHand: false),
@@ -233,9 +233,10 @@ public static class Npc
 
         FireForecast ForecastAt(TileId site, double hoursWanted) => SiteForecast(site, hoursWanted).Forecast;
 
-        /// From away, a new pit and the pile as remembered; lit if the fire remembered there outlasts the walk back.
+        /// From away, a new pit and the pile as remembered, for the hours the fire remembered there leaves wanting; lit if it outlasts the walk back.
         (FireForecast Forecast, bool Lit) SiteForecast(TileId site, double hoursWanted)
         {
+            hoursWanted = Math.Max(0, hoursWanted - RememberedLeftAt(site));
             if (forecasts.TryGetValue((site, hoursWanted), out var known)) return known;
             FireState? pit;
             Inventory fuel;
@@ -308,7 +309,7 @@ public static class Npc
             if (!ToSite(site).Reaches(Here)) return Impossible("a way to the site");
             var (forecast, lit) = SiteForecast(site, hoursWanted);
             // A fire burning while it fetches by night: an hour out must bring more than an hour of fire.
-            double shortHours = Math.Max(hoursWanted - forecast.Hours, 1.0 / 60);
+            double shortHours = Math.Max(hoursWanted - RememberedLeftAt(site) - forecast.Hours, 1.0 / 60);
             bool burnsMeanwhile = lit && !Weather.IsDaytime(world.Minute);
             var reqs = new List<Req>();
             foreach (var need in forecast.Missing)
@@ -394,6 +395,8 @@ public static class Npc
 
         double RememberedFireMinutes(TileId site) => memory.Places.GetValueOrDefault(site) is { FireHours: double h } seen
             ? h * 60 - (world.Minute - (seen.VisitedMinute ?? seen.SeenMinute)) : 0;
+
+        double RememberedLeftAt(TileId site) => site == Here ? 0 : Math.Max(0, RememberedFireMinutes(site) / 60);
 
         Next? LightOrTend(double hoursWanted) => Light(hoursWanted) ?? Tend(hoursWanted);
 

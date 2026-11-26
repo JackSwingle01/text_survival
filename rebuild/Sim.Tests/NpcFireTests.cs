@@ -151,6 +151,24 @@ public class NpcFireTests(ITestOutputHelper output)
         StepsToward(w, npc, at, Resource.Stick, ForecastAtCamp(w, npc, 8), Stat.Warmth);
     }
 
+    /// Two tiles from camp by night, warm, with nothing to strike with: the camp fire it remembers outlasting the night
+    /// is fire enough, as it is when it stands beside it.
+    [Fact]
+    public void FromAway_TheCampFireItRemembers_CountsTowardTonight()
+    {
+        var (w, npc) = Alone(15);
+        Nightfall(w);
+        TestKit.Give(MindOf(npc).Pack, Resource.Water, 2);
+        var camp = Map.Of(w).Camp;
+        var away = new TileId(camp.X + 2, camp.Y);
+        Assert.True(Map.Of(w).TerrainAt(away).IsPassable());
+        Burning(w, camp, Resource.Stick, 10); // seen burning from where it stands, so the hours it remembers are kept
+        Memories.Of(npc).Places[camp] = new TileMemory { SeenMinute = w.Minute, VisitedMinute = w.Minute, FireHours = 48 };
+        npc.Tile = away;
+        Npc.Decide(w, npc, []);
+        Assert.NotEqual(Stat.Warmth, MindOf(npc).Plan?.Stat);
+    }
+
     /// Parched by day with no water near and too few sticks for a melt: it goes for the sticks the forecast names.
     [Fact]
     public void Melting_ForTheFuelTheForecastNames()
