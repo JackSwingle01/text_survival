@@ -62,10 +62,10 @@ public class SightTests
         Assert.True(Sight.InView(w, me).Count < Sight.Visible(w, me.Tile, 1).Count);
     }
 
-    /// A fresh person and a fresh wolf, on a fixed tile under a fixed sky: the view each had before vision
-    /// (#291), when it was read from the sight capacity alone. The numbers were taken from that code.
+    /// A fresh body has vision one, so on a fixed tile under a fixed sky its view is what whole eyes see,
+    /// pinned as the person's tile count and a checksum of their coordinates, and the wolf's budget.
     [Fact]
-    public void AFreshPersonAndAFreshWolf_SeeWhatTheySawBeforeVision()
+    public void AFreshPersonAndAFreshWolf_SeeAsFarAsWholeEyes()
     {
         var (w, tile) = CombatTests.Field(17);
         w.FixedWeather = Clear;

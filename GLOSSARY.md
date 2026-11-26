@@ -374,7 +374,7 @@ without sleep or water all lower it.
 _Avoid_: alertness, awareness
 
 **Unconscious**:
-Consciousness is at zero. The limbs give nothing, so speed, dexterity, perception and vision are at zero and
+Consciousness is at zero. The limbs and the eyes give nothing, so speed, dexterity, perception and vision are at zero and
 every verb that needs a faculty is refused; strength stays above zero. Time passes until the body
 comes round or dies.
 _Avoid_: incapacitated, knocked out, downed
