@@ -105,7 +105,8 @@ not fade on its own; washing removes it, with Bloody.
 _Avoid_: sweaty, grimy, unwashed
 
 **Exposed**:
-Of food: reachable by a given animal, because it lies in a pile or in a cache that animal gets into.
+Of food: reachable by a given animal, because it lies in a pile, sits at a station (a fire or a rack, working or
+finished, as what it is now), or is in a cache that animal gets into.
 Worked out each time, never stored.
 _Avoid_: unprotected, unguarded
 

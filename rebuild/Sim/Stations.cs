@@ -357,7 +357,7 @@ public static class Stations
             if (rack.Tile == tile && !Empty(rack.Work)) yield return (new(LocationFeatureKind.Rack, tile, id.Value), rack.Work);
     }
 
-    /// GLOSSARY: Exposed. The tile's pile and what sits at its stations, an input as itself: a fresh copy if any is there.
+    /// GLOSSARY: Exposed. The tile's pile and what sits at its stations, an input as itself. Only read: it may be the pile.
     public static Inventory? ExposedFood(World world, TileId tile)
     {
         var pile = world.Tiles.GetValueOrDefault(tile)?.Pile;
