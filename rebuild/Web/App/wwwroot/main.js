@@ -780,7 +780,7 @@ async function loadBytes(bytes, note) {
 /** A mark in the log, its wall-clock time shown on the chip a while, to say into the voice memo. */
 let markedAt = null, markT = 0;
 function markLog() {
-  markedAt = log.mark().toLocaleTimeString([], { hour12: false });
+  markedAt = log.mark();
   clearTimeout(markT); markT = setTimeout(() => { markedAt = null; renderLogChip(); }, 4000);
   renderLogChip();
 }

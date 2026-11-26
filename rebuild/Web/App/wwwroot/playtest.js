@@ -8,12 +8,19 @@
 // The log lives in memory and downloads as one JSON file. ?log=<url> also posts it there in batches
 // as it grows ({ session, entries }); the memory copy stays whole either way.
 //
-// An entry: { t, op, arg?, minute, place?, job?, lines?, save?, error? }, where t is Date.now() at the
-// call. A mark is { t, op: 'mark', minute }; a drawer opened is { t, op: 'ui', arg: { drawer } }.
+// An entry: { t, op, arg?, minute, clock?, place?, job?, lines?, save?, error? }, where t is Date.now()
+// at the call and clock is the game's ("Day 1 09:16"). A mark is { t, op: 'mark', minute, shown }, shown
+// being the wall-clock time the chip displayed ("22:31:05", the player's own clock), to read into a
+// voice memo; tools/playtest-align.mjs finds it again in the transcript. A drawer opened is
+// { t, op: 'ui', arg: { drawer } }.
 
 const SNAPSHOT_MINUTES = 6 * 60;
 const FLUSH_MS = 5000;
 const REPLAYED = new Set(['newGame', 'act', 'view', 'save', 'load', 'scenario']);
+const two = n => String(n).padStart(2, '0');
+
+/** A wall-clock time as the chip shows it and a player reads it out: 24-hour, local, "22:31:05". */
+export const wallClock = t => { const d = new Date(t); return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`; };
 
 /** null when the URL asks for no log; otherwise where else it goes (null: memory only). */
 export function logOptions(params) {
@@ -66,7 +73,7 @@ export function withLog(inner, { endpoint = null, build = 'unknown', now = Date.
     minute = v.minute;
     const job = v.job && { label: v.job.label, kind: v.job.kind, done: v.job.doneMinutes, finished: v.job.finished,
       ...(v.job.outcome && { outcome: v.job.outcome }), ...(v.job.reason && { reason: v.job.reason }) };
-    return { minute: v.minute, place: v.place.name, ...(job && { job }), ...(lines.length && { lines }),
+    return { minute: v.minute, ...(v.clock && { clock: `Day ${v.clock.day} ${two(Math.floor(v.clock.minuteOfDay / 60))}:${two(v.clock.minuteOfDay % 60)}` }), place: v.place.name, ...(job && { job }), ...(lines.length && { lines }),
       ...(v.outcome !== 'surviving' && { outcome: v.outcome }) }; // the end of the run: died or won
   }
 
@@ -110,8 +117,8 @@ export function withLog(inner, { endpoint = null, build = 'unknown', now = Date.
 
   const log = {
     session, entries, sink,
-    /** The player's mark: a moment to find again in the voice memo. Returns its wall-clock time. */
-    mark() { const t = now(); push({ t, op: 'mark', minute }); return new Date(t); },
+    /** The player's mark: a moment to find again in the voice memo. Returns the time to show and read out. */
+    mark() { const t = now(), shown = wallClock(t); push({ t, op: 'mark', minute, shown }); return shown; },
     /** What the page showed that the game calls do not say: a drawer opened. */
     ui(arg) { push({ t: now(), op: 'ui', minute, arg }); },
     toJSON: () => ({ session, entries }),

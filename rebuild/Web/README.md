@@ -78,8 +78,23 @@ even after Sim has changed and it no longer replays. The session names the commi
 from (`build.txt`, written by `publish.sh`).
 
 A chip at the top of the map (the bottom, on a phone) counts the entries. **Mark** (or `N`) adds a mark
-and shows its wall-clock time for a few seconds: say that time, or "mark", into a voice memo, and the
-memo lines up with the log. **Log file** downloads the whole log as JSON.
+and shows its wall-clock time for a few seconds ("Marked 22:31:05"); the mark keeps that time as shown.
+**Log file** downloads the whole log as JSON.
+
+**Lining up a voice memo.** Start recording, tap Mark, and read the time out ("marked 22:31:05"); mark
+again now and then. Then
+
+```bash
+node tools/playtest-align.mjs playtest-….json transcript.txt -o timeline.md
+```
+
+reads the transcript (`MM:SS  Speaker  text` lines, the time since the recording began), finds each line
+that says a mark's time (`22:31:05`, `10:31` and `22.31` all match), and places every line by the mark
+nearest it in the recording. It writes each line at its wall-clock time and game moment, with what the
+game did since the line before (jobs ended, journal lines, drawers opened, refusals) and the save to load
+to see it. Marks further apart in the log than in the recording are reported (a paused recording). If the
+transcriber spelled the time out in words, it lists the lines that mention a mark: give one by hand with
+`--anchor 00:05=22:31:05` (the transcript time, then the mark as shown).
 
 The log stays in memory. `?log=<url>` (`http(s)://…` or a path such as `/playtest`) also posts it there in
 batches every few seconds as `{ session, entries }`, the first batch with the whole session header and the
@@ -90,8 +105,8 @@ Sim is deterministic from the seed, so the calls are the game: `replay(record, c
 calls again on a **fresh** client (verb ids count views from the host's first, so a client that has
 already started a game refuses them) and throws where the game has changed under the log.
 `node tools/shots.mjs <wwwroot> --run --replay` plays the scripted run with the log on, replays it on a
-fresh client and fails unless the saves match byte for byte. `node --test tools/playtest.test.mjs`
-checks the log against a stand-in game.
+fresh client and fails unless the saves match byte for byte. `node --test tools/playtest.test.mjs
+tools/playtest-align.test.mjs` checks the log against a stand-in game, and the timeline.
 
 ## The map's ground
 

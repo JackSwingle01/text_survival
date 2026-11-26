@@ -21,6 +21,11 @@ POSTs) for a collector later. A mark button/key gives a wall-clock anchor to say
 - Verified: `node --test tools/playtest.test.mjs` (8) and `tools/page.test.mjs` (5) pass; `shots.mjs --run
   --replay` on an interpreter publish replays 224 entries to a byte-identical save; screenshots desktop,
   phone portrait and landscape with `?log=1`; without `?log` there is no chip and `window.ui.log` is null.
+- Revised: Jack's note taker exports `MM:SS  Speaker N  text`, times since the recording began, so the
+  memo is tied to the log by the spoken mark times: marks now keep the time as the chip showed it, which
+  also gives the player's time zone (shown vs UTC) without recording it. `tools/playtest-align.mjs` writes
+  the timeline; checked end to end on a real logged session in a Chicago time zone.
+- Revised: the earlier browser checks ran a stale `playtest.js.br` from the first publish (serve.mjs prefers
+  the .br sibling); rerun on the current files: the replay and the chip pass.
 - Follow-up: none of the web tools' node tests (`page.test.mjs`, `playtest.test.mjs`) run in CI.
-- Follow-up: a collector for `?log=<url>` (a Render web service needs a persistent disk for SQLite), and a
-  tool that lines a transcribed memo up with a log's marks.
+- Follow-up: a collector for `?log=<url>` (a Render web service needs a persistent disk for SQLite).

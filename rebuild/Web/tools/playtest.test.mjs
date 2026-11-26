@@ -77,9 +77,10 @@ test('marks and drawers are logged at the minute last seen', async () => {
   const { client, log } = withLog(fakeGame(), { now: clock() });
   await client.newGame(1);
   await client.act({ verb: 'w', minutes: 15 }); await client.act({ advance: 15 });
-  const at = log.mark();
+  const shown = log.mark();
   log.ui({ drawer: 'fire' });
-  assert.ok(at instanceof Date);
+  assert.match(shown, /^\d\d:\d\d:\d\d$/);
+  assert.equal(log.entries.at(-2).shown, shown, 'the mark keeps the time the chip showed');
   assert.deepEqual(log.entries.slice(-2).map(e => [e.op, e.minute]), [['mark', 15], ['ui', 15]]);
   assert.equal(JSON.parse(JSON.stringify(log)).entries.length, log.entries.length, 'the download is the whole log');
 });
