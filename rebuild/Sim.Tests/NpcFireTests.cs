@@ -48,12 +48,12 @@ public class NpcFireTests(ITestOutputHelper output)
 
     static bool Struck(WorldEvent e, AgentId who) => e is FireLit l && l.By == who || e is FireStartFailed f && f.Who == who;
 
-    /// Struck, or out fetching one of the fuels the forecast named (a step taken, or the fuel gathered or picked up).
+    /// Struck, or picked up one of the fuels the forecast named.
     static void StruckOrFetching(List<WorldEvent> log, AgentId who, FireForecast before)
     {
         var named = before.Missing.SelectMany(m => m.AnyOf).ToHashSet();
         bool struck = log.Any(e => Struck(e, who));
-        bool fetching = before.Missing.Count > 0 && log.Any(e => e is Moved m && m.Who == who || e is Gathered g && g.Who == who);
+        bool fetching = log.Any(e => e is PickedUp p && p.Who == who && named.Contains(p.Resource));
         Assert.True(struck || fetching, $"neither struck nor fetched ({string.Join(", ", before.Missing)}): {string.Join("; ", log.Where(e => e is Moved or Gathered or FireLit or FireStartFailed or PlanRefused).Take(20))}");
     }
 
