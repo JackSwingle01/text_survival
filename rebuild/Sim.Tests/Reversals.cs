@@ -24,6 +24,11 @@ sealed class Reversals(AgentId who)
             case TreeFelled t when t.Who == who:
             case Ate a when a.Who == who:
             case Gathered g when g.Who == who:
+            case Drank d when d.Who == who:
+            case FuelAdded f2 when f2.By == who:
+            case PutOnPile p when p.Who == who:
+            case PickedUp u when u.Who == who:
+            case Washed x when x.Who == who:
                 didSince = true;
                 break;
         }

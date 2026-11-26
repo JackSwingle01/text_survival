@@ -52,7 +52,7 @@ public static class Npc
     /// A sleeper with no fire wakes this far above the Critical line, with hands still good enough to strike with.
     const double ColdSleepBufferF = 0.9;
     const int ThreatMemoryMinutes = 60, ThreatTiles = 2;
-    const double DustKg = 0.01, FullPackKg = 0.3;
+    const double DustKg = 0.01, FullPackKg = 0.6;
     /// With less energy than the walk to camp plus this, it sleeps where it is.
     const double WalkReserveEnergyMinutes = 30;
     const double MeltFireHours = 1, PickUpFuelKg = 3;
