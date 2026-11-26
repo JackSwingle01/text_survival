@@ -340,6 +340,12 @@ Memory, with time run at a chosen rate and people, animals or things placed by h
 the world does.
 _Avoid_: debug mode, god mode, spectator, fog-of-war off
 
+**Playtest log**:
+A record of one play session in the browser (`?log`): every call the page made to the game with its
+wall-clock time, the player's marks and drawers opened, and a save now and then. Replayed on a fresh
+client from its seed, it rebuilds the same world.
+_Avoid_: telemetry, analytics, journal (the journal is the player's own log of the game)
+
 ## Bodies
 
 **Damage**:

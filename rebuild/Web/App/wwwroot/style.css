@@ -238,6 +238,11 @@ button { font: inherit; color: inherit; }
 .verb:hover { border-color: var(--bone-3); }
 .verb[aria-pressed="true"] { border-color: var(--ember); background: #22150c; }
 .verb:disabled { opacity: .35; cursor: not-allowed; }
+/* The playtest log's chip (?log only): top middle of the map, out of the way of the vitals and the drawer. */
+.logchip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 4px 6px; z-index: 3; white-space: nowrap; }
+.logchip .rec { font: 600 14px/1 var(--f-pixel); color: var(--blood); padding: 0 4px; }
+.logchip .rec.marked { color: var(--ember); }
+.logchip .act { padding: 6px 9px; font-size: 15px; }
 .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 8px 12px; display: flex; gap: 8px; align-items: center; font-size: 17px; z-index: 4; animation: drop .3s steps(3); }
 
 /* ---------- always: slim top strip ---------- */
@@ -441,6 +446,7 @@ button { font: inherit; color: inherit; }
   .dock .group, .dock .group.refused { display: contents; }
   /* the vitals and alerts: a strip along the map's top */
   .status { top: 8px; left: 8px; right: 8px; bottom: auto; flex-direction: column; align-items: stretch; gap: 6px; }
+  .logchip { top: auto; bottom: 8px; } /* the vitals have the top */
   .vitals { width: auto; padding: 6px 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   .vbar { grid-template-columns: 16px 1fr; gap: 6px; }
   .vbar .ico { width: 16px; height: 16px; }
