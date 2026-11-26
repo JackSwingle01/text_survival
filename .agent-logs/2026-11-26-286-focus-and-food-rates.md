@@ -1,0 +1,11 @@
+# #286: A focused search finds more of what it looks for, and a day of foraging for food feeds a person
+
+Hypothesis:
+- Changes: Work (a named focus gain beside OffFocusKeepPct, one FocusAbundanceFactor rule), Pools.Forage and Pools.ExpectedForage/ExpectedForageByMinute (take the focus, scale in-focus abundance), Report (food section in HaulText), forage.json and locations.json (Berries, Nuts, Roots abundance x one factor).
+- Affects: a focused search keeps its category whole and nothing more (WorkTests pins "exactly what a general search finds"); a fresh forest hour gives ~143 kcal of food; the NPC planner's forage forecasts (Npc.cs Expected, by focus); bear/fox/raven renewal capacity via Renewal.ForageScore (abundance of what they graze) — reported, not a criterion.
+- Stays green: ForecastTests (forage forecast vs sample, gather forecast vs an hour), HaulReportTests, ContentTests, SaveFixtureTests (no format change; the fixture is not resimulated).
+- First red: a new WorkTests/ForecastTests case: a focused first-hour forecast is 1.5x a general one for in-focus resources, fails at 1.0x.
+
+Revised (review): design review: the ground's one density thins on any find, so a focus that raises abundance thins faster within the hour; fuel is ~10.6 of Forest's ~17.1 abundance → measured before building the rest.
+Revised: AFocusedFirstHour_ForecastsHalfAgainItsCategory on fresh Forest (density 1, ExpectedGatherAt, the spec's mechanism in Pools.Forage and ExpectedForageByMinute): Fuel 1.443 (fails the 1.5 ± 2% criterion); Food, Medicine, Materials pass (review's model: 1.493, 1.483, 1.486) → stopped: the criterion conflicts with "the ground thins for them as fast as it gives" (and with "less food left", which needs that thinning). This is Jack's call.
+Follow-up: options for Jack: (a) keep the mechanism and widen the first-hour criterion to 5% (fuel 1.44, the rest ≥ 1.48); (b) thin the ground at the general search's rate whatever the focus: exactly 1.5x, but a food-focused hour then leaves the same food as a general one (the criterion on less food left fails); (c) judge the 1.5x on the first minute, or on sparse ground, where thinning is negligible. Recommended: (a). The food factor (spec: ~1.55) is set after this, since it reads the focused hour; not yet done.

@@ -304,6 +304,21 @@ public class ForecastTests
         }, iter: 8);
     }
 
+    /// A focus turns up 1.5 times its category in a first hour on fresh forest, the rule the same for all four.
+    [Theory]
+    [InlineData(ForageFocus.Fuel), InlineData(ForageFocus.Food), InlineData(ForageFocus.Medicine), InlineData(ForageFocus.Materials)]
+    public void AFocusedFirstHour_ForecastsHalfAgainItsCategory(ForageFocus focus)
+    {
+        var w = At(Forage(1.0));
+        var id = new PoolId(Camp(w), 0);
+        var general = Work.ExpectedGatherAt(w, Me(w), id, ForageFocus.General, 60, 0, null);
+        var focused = Work.ExpectedGatherAt(w, Me(w), id, focus, 60, 0, null);
+        var inFocus = general.Keys.Where(r => Work.InFocus(r, focus)).ToList();
+        Assert.NotEmpty(inFocus);
+        foreach (var r in inFocus)
+            Assert.InRange(focused[r] / general[r], Work.InFocusFindsFactor * 0.98, Work.InFocusFindsFactor * 1.02);
+    }
+
     [Fact]
     public void TheGatherForecast_AgreesWithAnHourOfForaging()
     {

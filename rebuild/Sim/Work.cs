@@ -111,7 +111,7 @@ public static class Work
         switch (Pools.Def(world, id))
         {
             case ForagePool:
-                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity))
+                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity, g.Focus))
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
             case TreePool:
@@ -138,6 +138,11 @@ public static class Work
     public static bool InFocus(Resource r, ForageFocus focus) => focus != ForageFocus.General && Items.Resources[r].Category == FocusCategory(focus);
 
     const double OffFocusKeepPct = 0.4, OffFocusKeepSpreadPct = 0.2;
+    /// A focused search turns up its category this many times as often as a general search on the same ground.
+    public const double InFocusFindsFactor = 1.5;
+
+    /// What a focus does to a resource's abundance while searching: the search and its forecast (Pools) both read it.
+    public static double FocusAbundanceFactor(Resource r, ForageFocus focus) => InFocus(r, focus) ? InFocusFindsFactor : 1;
 
     static ResourceCategory FocusCategory(ForageFocus focus) => focus switch
     {
@@ -557,7 +562,7 @@ public static class Work
                                 double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
                                 double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
                                 var rng = world.Rng("work", agent.Id);
-                                var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor);
+                                var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor, g.Focus);
                                 var got = new Inventory();
                                 var pieceRng = world.Rng("yield", agent.Id);
                                 foreach (var (r, kg) in Focus(finds, g.Focus, world.Rng("focus", agent.Id)))
