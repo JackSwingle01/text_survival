@@ -21,3 +21,21 @@ Revised: the start test populates seed 17's map over 200 world seeds (a world bu
 shared map, then `Fauna.Populate`), not 200 `World.New`s: map generation is not the subject, and 200 maps
 would make it a Slow test. The placement's draws come from the world seed's "populate" stream, so the
 counts vary as they do across real seeds.
+
+Revised: nothing needed re-pinning. The fast suite passed on the first run after the change (2055 passed,
+2 skipped): no hash or long run in it reads seed 17's megaloceros counts. The Slow tests that name
+megaloceros (`HerdGoldenTests`, `HuntGateTests`, `ForecastTests`) spawn their own groups.
+
+Revised: the sample save's fixture is not regenerated. `SURVIVAL_UPDATE_SAVE_FIXTURE=1` rewrites it (193+/566-),
+but it rewrites it identically with this branch's two Sim changes stashed, on main's code: the drift is
+main's, not this change's (`SampleWorld` places no megaloceros).
+
+Checks: `Megaloceros_StartOneToThreeStrong` and `Megaloceros_ArriveOneToThreeStrong` red ([2, 3]) then green.
+Cohesion gate, four seeds side by side in Release, about 2 minutes each: all pass. Megaloceros alone 2.3 / 30.4 /
+1.0 / 6.7 % on seeds 123 / 17 / 23 / 42 (baselines 2.2 / 2.3 / 9.3 / 0.2 %); seed 17's 30.4 % would have
+failed `BrokenAlonePct` (25 %). Their regroup band is outside on 17, 23 and 42 (0.00 / 0.14 / 0.23), as on
+the baseline (17, 42, 123); biggest-herd and moves bands are within on every seed, as before.
+
+Follow-up: `rebuild/Sim.Tests/Fixtures/sample-save.json` no longer matches what `SaveFixtureTests.SampleWorld`
+generates on main (the round-trip test still passes, since it loads and re-saves the file). Someone should
+check whether that drift is expected.
