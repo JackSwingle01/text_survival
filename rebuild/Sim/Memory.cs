@@ -125,52 +125,54 @@ public static class Sight
     public const int MaxTiles = OpenGroundTiles + MaxVantageBonusTiles;
 
     /// Every tile in view of this person now (Visible's order), from the view their looks keep: cast
-    /// again only when their tile, eyes or the sky's visibility change.
+    /// again only when their tile, vision or the sky's visibility change.
     public static IReadOnlyList<TileId> InView(World world, Agent agent) => ViewOf(world, agent).Tiles;
 
     /// Whether the tile is in view of this person now.
     public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
 
-    /// What this person has in view now, cast from their tile with their eyes and today's sky; kept on
+    /// What this person has in view now, cast from their tile with their vision and today's sky; kept on
     /// their memory while tile and budget hold.
     internal static SightView ViewOf(World world, Agent agent)
     {
-        double sight = Body.GetCapacities(agent.Body).Sight;
-        double budget = BudgetTiles(world, agent.Tile, sight);
+        double vision = Body.Vision(agent.Body);
+        double budget = BudgetTiles(world, agent.Tile, vision);
         var memory = (agent.Mind as PersonMind)?.Memory;
         bool ice = Map.IsIceSeason(world.Minute);
         if (memory?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
-        var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, sight));
+        var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, vision));
         if (memory != null) memory.View = view;
         return view;
     }
 
-    /// The sight budget from a tile on a clear day with sound eyes: 6 in a cave, otherwise open
+    /// The sight budget from a tile on a clear day with whole vision: 6 in a cave, otherwise open
     /// ground plus the tile's vantage (its own visibility, or the hills' if it stands on hills).
     // Regional weather elevation is not a heightmap, so it gives no local vantage.
-    public static int RangeTiles(GeneratedMap m, TileId from, double sightCapacity = 1)
+    public static int RangeTiles(GeneratedMap m, TileId from, double vision = 1)
     {
-        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(sightCapacity, 0, 1));
+        if (m.CaveAt(from) == Cave.Floor) return (int)Math.Round(CaveTiles * Math.Clamp(vision, 0, 1));
         double hills = m.TerrainAt(from) == Terrain.Hills ? Terrain.Hills.Row().Visibility : 0;
-        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), sightCapacity);
+        return VantageRangeTiles(Math.Max(Map.Visibility(m, from), hills), vision);
     }
 
     /// Open ground's budget, plus (vantage - 1.3) x 20 tiles for a high place, at most 8 more.
-    public static int VantageRangeTiles(double vantageVisibility, double sightCapacity = 1)
+    public static int VantageRangeTiles(double vantageVisibility, double vision = 1)
     {
         double bonus = Math.Clamp((vantageVisibility - 1.3) * 20, 0, MaxVantageBonusTiles);
-        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(sightCapacity, 0, 1));
+        return (int)Math.Round((OpenGroundTiles + bonus) * Math.Clamp(vision, 0, 1));
     }
 
     /// The budget now: the range, cut by the weather's visibility.
-    public static double BudgetTiles(World world, TileId from, double sightCapacity = 1) =>
-        RangeTiles(Map.Of(world), from, sightCapacity) * Weather.At(world, world.Minute).VisibilityFactor;
+    public static double BudgetTiles(World world, TileId from, double vision = 1) =>
+        RangeTiles(Map.Of(world), from, vision) * Weather.At(world, world.Minute).VisibilityFactor;
 
-    /// Every tile in view from here now, by column then row. sightCapacity is the eyes' (Capacity.Sight).
-    public static IReadOnlyList<TileId> Visible(World world, TileId from, double sightCapacity = 1)
+    /// Every tile in view from here now, by column then row, for a body of this vision (Body.Vision). At
+    /// vision zero, blind or out cold, nothing is in view, the tile underfoot included.
+    public static IReadOnlyList<TileId> Visible(World world, TileId from, double vision = 1)
     {
+        if (vision <= 0) return [];
         var m = Map.Of(world);
-        double budget = BudgetTiles(world, from, sightCapacity);
+        double budget = BudgetTiles(world, from, vision);
         int range = (int)Math.Ceiling(budget);
         var seen = new List<TileId>();
         for (int x = Math.Max(0, from.X - range); x <= Math.Min(m.Width - 1, from.X + range); x++)

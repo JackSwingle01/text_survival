@@ -265,6 +265,46 @@ public class FacultiesTests
         Assert.Empty(Body.SpeedCrippledBy(oneWeakLeg));
     }
 
+    // ---- vision: how far a body sees ----
+
+    static BodyState WithOrgans(BodyState b, string nameContains, double condition)
+    {
+        foreach (var organ in b.Regions.SelectMany(r => r.Organs).Where(o => o.Name.Contains(nameContains))) organ.Condition = condition;
+        return b;
+    }
+
+    [Fact]
+    public void AWholeBody_HasVisionOne_AWolfToo()
+    {
+        Assert.Equal(1, Body.Vision(Whole()));
+        Assert.Equal(1, Body.Vision(SpeciesTable.Average(Species.Wolf)));
+        Assert.Empty(Body.CrippledBy(Whole(), Faculty.Vision));
+    }
+
+    [Fact]
+    public void Vision_IsTheEyesTimesConsciousness()
+    {
+        Assert.Equal(0.5, Body.Vision(BlowToTheHead(brain: 0.5)), 12);
+        Assert.Equal(0, Body.Vision(BlowToTheHead(brain: 0)));
+        Assert.Equal([CrippledBy.Unconscious], Body.CrippledBy(BlowToTheHead(brain: 0), Faculty.Vision));
+    }
+
+    /// Vision is the eyes alone, not half the ears as perception is: deaf, a body sees as far; blind, it sees nothing.
+    [Fact]
+    public void Vision_ReadsTheEyes_NotTheEars()
+    {
+        var deaf = WithOrgans(Whole(), "Ear", 0);
+        Assert.Equal(1, Body.Vision(deaf));
+        Assert.True(Body.Perception(deaf) < Body.Perception(Whole())); // perception still hears
+
+        foreach (double ears in new[] { 1.0, 0.0 })
+        {
+            var blind = WithOrgans(WithOrgans(Whole(), "Ear", ears), "Eye", 0);
+            Assert.Equal(0, Body.Vision(blind));
+            Assert.Equal([CrippledBy.NoWorkingEye], Body.CrippledBy(blind, Faculty.Vision));
+        }
+    }
+
     // ---- properties over any body ----
 
     static readonly Gen<double> MostlyWhole = Gen.Frequency((1, Gen.Const(1.0)), (1, Condition), (1, Gen.Const(0.0)));
@@ -296,7 +336,7 @@ public class FacultiesTests
         {
             var (b, context) = t;
             foreach (var (name, faculty) in new[] { ("strength", Body.Strength(b)), ("speed", Body.Speed(b, context)),
-                ("dexterity", Body.Dexterity(b, context)), ("perception", Body.Perception(b, context)) })
+                ("dexterity", Body.Dexterity(b, context)), ("perception", Body.Perception(b, context)), ("vision", Body.Vision(b)) })
                 Assert.True(double.IsFinite(faculty) && faculty >= 0, $"{name} {faculty}");
         }, iter: 300);
     }
@@ -312,15 +352,16 @@ public class FacultiesTests
         }, iter: 300);
     }
 
-    /// The same for dexterity and perception, the other faculties a verb needs above zero (Body.CrippledBy).
+    /// The same for dexterity and perception, the other faculties a verb needs above zero (Body.CrippledBy), and vision.
     [Fact]
-    public void DexterityAndPerception_AreAtZero_ExactlyWhenTheyNameAReason_ForAnyBody()
+    public void DexterityPerceptionAndVision_AreAtZero_ExactlyWhenTheyNameAReason_ForAnyBody()
     {
         AnyBody.Check(t =>
         {
             var (b, context) = t;
             Assert.Equal(Body.Dexterity(b, context) == 0, Body.CrippledBy(b, Faculty.Dexterity, context).Count > 0);
             Assert.Equal(Body.Perception(b, context) == 0, Body.CrippledBy(b, Faculty.Perception, context).Count > 0);
+            Assert.Equal(Body.Vision(b) == 0, Body.CrippledBy(b, Faculty.Vision).Count > 0);
         }, iter: 300);
     }
 
