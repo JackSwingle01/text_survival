@@ -149,6 +149,12 @@ tools/publish.sh /tmp/text-survival-web -p:SimProject=/private/tmp/head/rebuild/
 `setup-dotnet` could install `wasm-tools`, but publishing AOT adds minutes to every run. Adding
 `Host` and `Host.Tests` to the solution would put the host tests in CI with no workload.
 
+## Deployed
+
+The Render static site `text-survival-rebuild` (https://text-survival-rebuild.onrender.com) builds
+`main` on every push: its build command is `bash rebuild/Web/tools/render-build.sh`, which installs the
+SDK and `wasm-tools` into the checkout and publishes AOT (about 4 min); it serves `web-out/wwwroot`.
+
 ## Checking it
 
 `tools/shots.mjs` drives the published page in headless Chrome over the DevTools protocol, writes

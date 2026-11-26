@@ -672,7 +672,7 @@ public static partial class Content
         {
             if (!f.Gear.TryGetValue(k.Kind, out var g)) { yield return $"items.json: no gear kind '{k.Kind}' for the starting kit"; continue; }
             if (k.Durability is <= 0) yield return $"items.json: starting {k.Kind} durability {k.Durability}";
-            if (k.Durability is int n && !Items.CanBeWornTo(g, n))
+            if (k.Durability is int n && !g.CanBeWornTo(n))
                 yield return g.MaxDurability <= 0 ? $"items.json: starting {k.Kind} has a durability, and its kind never wears"
                     : $"items.json: starting {k.Kind} durability {n} is more than whole (its kind's maxDurability is {g.MaxDurability})";
         }
