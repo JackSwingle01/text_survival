@@ -123,8 +123,9 @@ public class CombatFlightTests
     public void NotCaught_TheChasersAreGoneToo_AndTheHerdRunsOnAlongTheHeading()
     {
         // Two wolves after a fresh caribou 25 m off: rolled once, away about one chase in a hundred and fifty, so
-        // the scan starts near a seed where it got away (re-pinned when each wolf became its own agent).
-        for (int seed = 150; seed <= 450; seed++)
+        // the scan starts at a seed where it got away (re-pinned to 224, the first such seed on 2026-11-26, when the
+        // scan from 150 passed CI's 5 s limit: each seed builds a whole world).
+        for (int seed = 224; seed <= 524; seed++)
         {
             var (w, t) = CombatTests.Field(World.New(seed));
             var pack = CombatTests.Herd(w, Species.Wolf, 2, t);
