@@ -254,7 +254,6 @@ public class CampBuildsTests
     public void MammothHideTent_IsSewnFromTwoCuredMammothHides()
     {
         var w = Builder(out _, out var pack);
-        pack.Gear.Add(Items.Make("large_bag")); // two mammoth hides and the poles are more than the bare pack holds
         TestKit.GivePieces(pack, Resource.CuredMammothHide, 2);
         TestKit.GivePieces(pack, Resource.Sinew, 4);
         Branches4(pack);

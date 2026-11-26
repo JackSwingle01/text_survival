@@ -608,11 +608,11 @@ public class MakeTests
         var w = Begun("scrape_mammoth_hide", pack =>
         {
             pack.Gear.Add(Items.Make("flint_knife"));
-            Items.AddPieces(pack, Resource.MammothHide, [10.0]);
+            Items.AddPieces(pack, Resource.MammothHide, [3.0]);
         });
         Assert.Equal(Making.MadeIt, Making.Complete(w, w.Agent(P), Recipes.Get("scrape_mammoth_hide"), null, []));
         var pack = Items.Pack(w, P);
-        Assert.Equal(8.0, Assert.Single(pack.Pieces[Resource.ScrapedMammothHide]), 9);
+        Assert.Equal(2.4, Assert.Single(pack.Pieces[Resource.ScrapedMammothHide]), 9);
     }
 
     // ---- processing, lighting and carrying (#150) ----
@@ -809,11 +809,9 @@ public class MakeTests
                 if (!MakeOne(r, 0)) continue;
                 made.Add(r.Id);
                 progress = true;
-                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile, but a bag stays on
-                // (the mammoth hide tent's hides and poles are more than the bare pack holds), and what the land gives goes
-                // back to it, with what no carried recipe takes (a scraped hide, which only a rack does).
-                foreach (var g in pack.Gear.Where(g => Items.Def(g).CapacityBonusKg == 0
-                    && !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
+                // Keep the pack light: what no recipe uses as a tool or input goes on the camp pile, and what the land gives
+                // goes back to it, with what no carried recipe takes (a scraped hide, which only a rack does).
+                foreach (var g in pack.Gear.Where(g => !Recipes.All.Any(x => x.Items.Contains(g.Kind) || x.Tools.Concat(x.Faster).Any(cap => Items.Def(g).Capabilities.Contains(cap)))).ToList())
                 {
                     pack.Gear.Remove(g);
                     Items.PileAt(w, camp).Gear.Add(g);
