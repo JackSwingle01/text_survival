@@ -495,8 +495,7 @@ public static class Npc
 
         Next? WashHere() => Sim.Refusal(world, new Wash(Id)) == null ? new(new Wash(Id), Work.WashMinutes, Work.WashMinutes) : null;
 
-        /// Refused for want of water only, a trip: the kept source, else the planner's choice among tiles it forecasts
-        /// washing water on (Work.WashingWaterAt). Refused for anything else (the dark, its hands), no wash anywhere.
+        /// Refused for want of water only, a trip to where it forecasts washing water (Work.WashingWaterAt).
         Next? ForWash(Priority priority)
         {
             var refused = Sim.Refusal(world, new Wash(Id));
@@ -513,7 +512,6 @@ public static class Npc
             return WalkTo(t) is { } go ? go with { ForecastMinutes = trip, At = t } : null;
         }
 
-        /// Before it idles, dirty at all, it washes where it stands: no trip.
         Next? WashBeforeIdling() => Effects.Severity(Body, EffectKind.Dirty) > 0 ? WashHere() : null;
 
         // ---- food: eat what is in hand, or go and get it ----

@@ -6,7 +6,6 @@ public enum Stat { Warmth, Water, Food, Rest, Dirty }
 /// Least urgent first: a later priority outranks an earlier one (GLOSSARY: Priority). None: nothing to do, not even topping up.
 public enum Priority { None, Want, Need, Critical }
 
-/// Dirty is the NPC's alone: an animal and the player's reader leave it at None.
 public readonly record struct StatPriorities(Priority Warmth, Priority Water, Priority Food, Priority Rest, Priority Dirty = Priority.None)
 {
     public Priority this[Stat stat] => stat switch

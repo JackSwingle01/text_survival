@@ -7,7 +7,7 @@ terms the design and the simulation share.
 
 **Stat**:
 One of the things a body must keep up: warmth, water, food, rest. Every person (player or NPC) has
-all four; an animal has water, food and rest.
+all four; an animal has water, food and rest. An NPC also ranks Dirty, last and never above Want.
 
 **Priority**:
 How urgent a stat is right now: Critical, Need or Want. Priority decides first; within a priority the
