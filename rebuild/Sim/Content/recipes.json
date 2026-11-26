@@ -91,7 +91,7 @@
  // Sharpen: any blade that wears, worked on one held piece with a stone, restoring half its missing condition (#148).
  "sharpen": { "name": "Sharpen", "category": "CuttingTool",
   "inputs": [], "tools": ["Striking"], "requires": [], "minutes": 10,
-  "result": { "repairs": ["crude_edge", "worn_knife", "bone_knife", "obsidian_knife"], "restoresPct": 0.5 },
+  "result": { "repairs": ["crude_edge", "worn_knife", "flint_knife", "bone_knife", "obsidian_knife"], "restoresPct": 0.5 },
   "outcomes": [] },
 
  // ---- fire-starting ----

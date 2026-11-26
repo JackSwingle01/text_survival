@@ -1,0 +1,15 @@
+# #285: The flint knife wears slowly, obsidian hits harder, and an NPC sharpens its blade
+
+Hypothesis:
+- Changes: `items.json` (flint_knife maxDurability 30, obsidian damage 3.89 and its comments), `recipes.json` (sharpen repairs flint_knife), `Npc.cs` (a sharpen step in `Mind.Decide` when no ladder stat is at Need or above), the sample-save fixture (two flint knives -1/-1 become 30/30).
+- Affects: a flint knife wears as a recipe's Cutting tool (`Make.cs` tool use) and on a block (`Combat.cs:848`); `Verbs.At` lists "Sharpen flint knife" once it has lost a use; a found flint knife's loot roll (`Pools.cs:274`) now applies, out of 30; the NPC, which never ran a Make before, may now Make sharpen; fights in the tuner wear the knife on blocks.
+- Stays green: MakeTests, RepairTests, ContentTests, ContentStrictTests, StoneToolsTests, CombatReachTests, NpcFireTests, SaveTests, the fast suite.
+- First red: a new `FlintKnifeWearTests` fails on a made flint knife having Durability -1, not 30.
+Revised: `MakeTests.BreakTool_CostsWholeUses_OrBreaksItOutright` broke a flint knife as the tool that never wears → it now breaks the stone (Striking, never wears) on a flint-tipped spear.
+Revised (review): a sharpen cut short holds the knife inside its project, out of `Making.Held`, so the NPC would never get it back → `GoOnSharpening` resumes a begun sharpen before the Need loop, with no Need gate; tested by `AnNpc_GoesOnWithASharpenCutShort`.
+Revised: placement → the sharpen goes in `Mind.Decide` after the in-hand Needs and before the kept plan, so a held Want plan pauses ten minutes for it; `Keep()` would never be reached by an NPC that always has a Food Want.
+Revised: "no stat at Need" → the four ladder stats (`PrioritiesNow`); Health stays out, as Decide handles it on its own line above. `sharpen` asks for no Light, so the NPC sharpens away from camp and at night too, as the spec allows.
+Revised: the obsidian knife's thrown damage (1.30) → left alone: the spec names only the melee numbers, and "no other blade's numbers change".
+Revised: the NPC tests found a fresh NPC in a bare world holds Warmth at Need (no fuel for tonight) → the test world puts tinder, sticks and oak on the camp's pile.
+Revised: sample-save fixture regenerated: its two flint knives go from -1/-1 to 30/30.
+Revised: the sample save moves more than its two knives: a cache's flint knife now rolls its condition at map generation, which draws from the generator's rng, so seed 17's camp and what the sample steps through shift → regenerated as is.

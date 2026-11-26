@@ -431,14 +431,18 @@ public class MakeTests
         Complete(w, "hide_cap", "fail:break_tool:Sewing:3=0.02", out _);
         Assert.Equal(20 - 1 - 3, needle.Durability); // one use for the work, three for the slip
 
-        var w2 = Begun("stone_club", pack =>
+        var w2 = Begun("flint_tipped_spear", pack =>
         {
             pack.Gear.Add(Items.Make("flint_knife"));
-            ClubKit(pack);
+            pack.Gear.Add(Items.Make("stone"));
+            TestKit.Give(pack, Resource.PineBranch, 1.5);
+            TestKit.Give(pack, Resource.Flint, 0.2);
+            TestKit.Give(pack, Resource.Sinew, 0.05);
         });
-        var knife = Items.Pack(w2, P).Gear.Single(g => g.Kind == "flint_knife");
-        Complete(w2, "stone_club", "fail:break_tool:Cutting=0.02", out _);
-        Assert.False(Items.Works(knife));
+        var stone = Items.Pack(w2, P).Gear.Single(g => g.Kind == "stone");
+        Assert.Equal(-1, stone.MaxDurability);
+        Complete(w2, "flint_tipped_spear", "fail:break_tool:Striking=0.02", out _);
+        Assert.False(Items.Works(stone));
     }
 
     [Fact]

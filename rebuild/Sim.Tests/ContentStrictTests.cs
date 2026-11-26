@@ -136,7 +136,7 @@ public class ContentStrictTests
     [InlineData("items.json", "\"maxDurability\": 3, ", "", "maxDurability")]
     // An axe that left its speed out would chop at some unstated rate (#145).
     [InlineData("items.json", "\"tool\": \"Axe\", \"chopFactor\": 1.5, ", "\"tool\": \"Axe\", ", "flint_axe: axes, and only axes, state their chopFactor")]
-    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.65", "\"tool\": \"Knife\", \"chopFactor\": 1, \"weapon\": { \"damage\": 3.65", "obsidian_knife: axes, and only axes, state their chopFactor")]
+    [InlineData("items.json", "\"tool\": \"Knife\", \"weapon\": { \"damage\": 3.89", "\"tool\": \"Knife\", \"chopFactor\": 1, \"weapon\": { \"damage\": 3.89", "obsidian_knife: axes, and only axes, state their chopFactor")]
     [InlineData("items.json", "\"chopFactor\": 1.5", "\"chopFactor\": 0", "flint_axe: chopFactor 0 (above 0)")]
     [InlineData("discoveries.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "a harvest's item needs respawnHoursPerUnit")]
     [InlineData("locations.json", "\"kgPerUnit\": 0.4, \"respawnHoursPerUnit\": 168", "\"kgPerUnit\": 0.4", "respawnHoursPerUnit")]
