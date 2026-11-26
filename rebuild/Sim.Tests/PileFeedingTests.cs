@@ -62,7 +62,7 @@ public class PileFeedingTests
         Fauna.Decide(w, bear, []);
         Assert.DoesNotContain(Fauna.MindOf(bear).Sightings ?? [], s => s.Pile);
         Assert.NotEqual(tile, Fauna.MindOf(bear).Plan?.At);
-        Assert.Null(Fauna.PileSource(w, bear, tile));
+        Assert.Null(Fauna.PileOrCacheSource(w, bear, tile));
 
         bear.Tile = tile;
         Fauna.MindOf(bear).Plan = null;

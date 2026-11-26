@@ -58,11 +58,12 @@ public sealed record SiteWater(string Name, bool Frozen, double Fish, double Ice
     public double HazardDelta => !Frozen ? 0 : 0.15 + (Ice < 0.4 ? 0.20 : 0);
 }
 
-// Small game, caches and discovery events are carried as data until their systems exist.
+// Small game and discovery events are carried as data until their systems exist.
 public enum SmallGame { Hare, Ptarmigan, Fox }
 public sealed record SmallGameEntry(SmallGame Animal, double Weight);
 public sealed record SiteSmallGame(double Density, IReadOnlyList<SmallGameEntry> Animals, IReadOnlyList<int>? PeakHours = null, double PeakFactor = 1) : SiteFeature;
-public sealed record SiteCache(string Name, double CapacityKg, bool ProtectsFromPredators = false, bool ProtectsFromWeather = false, bool PreservesFood = false) : SiteFeature;
+/// A found cache of its kind (shelters.json caches), placed by Caches when the world is made.
+public sealed record SiteCache(string Name, CacheKind Cache) : SiteFeature;
 public sealed record SiteEvent(string Event) : SiteFeature;
 public sealed record SiteFind(string Find) : SiteFeature;
 /// What it gives now and the most it can be improved to; a cap left out is the kind's (shelters.json kinds). Placed by Shelters.
@@ -364,8 +365,8 @@ public static partial class Content
                     case SiteSmallGame g when g.Density <= 0 || g.Animals.Count == 0 || g.Animals.Any(a => a.Weight <= 0) || g.PeakFactor < 1
                         || g.PeakHours is not (null or [>= 0 and < 24, >= 0 and < 24]):
                         yield return $"{at}: small game needs a density, animals of weight above 0, peak hours [from, to] in 0-23 and a peak factor of 1 or more"; break;
-                    case SiteCache c when c.CapacityKg <= 0:
-                        yield return $"{at}: cache {c.Name} capacity {c.CapacityKg}"; break;
+                    case SiteCache c when c.Chance < 1 || c.RevealAtHours > 0:
+                        yield return $"{at}: cache {c.Name} is placed when the world is made, so always and in sight"; break;
                 }
             }
         }

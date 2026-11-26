@@ -10,6 +10,13 @@
 //   is a material recipes use that cannot be worked into a shelter.
 // beddings: every BeddingKind. qualityPct is sleep efficiency and keeps you off wet ground;
 //   warmthBonusF is felt asleep.
+// caches: every CacheKind (GLOSSARY: Cache). capacityKg, the most it holds; letsIn, the abilities that get in
+//   (species.json abilities; every cache lets hands in); breakInMinutes, what an animal without hands spends
+//   once getting in, after which it lies torn open to everyone until repaired (0 where nothing it lets in
+//   must break in); scentPct, on the scent of what it holds; insulation, overhead and wind, the cover
+//   it gives what it holds, on top of the tile's (Exposure.InCache); buryDepthM, the snow it needs to be made
+//   and to keep shut (buried in snow only). All D (judged), from the work log
+//   .agent-logs/2026-11-26-125-caches.md; the found caches' capacities are the old game's.
 {
  "kinds": {
   "LeanTo": { "insulation": 0.15, "overhead": 0.25, "wind": 0.20, "insulationCap": 0.50, "overheadCap": 0.50, "windCap": 0.50, "isNatural": false, "isSnow": false },
@@ -59,5 +66,11 @@
   "Padded": { "name": "Padded bedding", "qualityPct": 0.8, "warmthBonusF": 0 },
   "MossPadded": { "name": "Moss-padded bedding", "qualityPct": 0.9, "warmthBonusF": 3.0 },
   "SleepingBag": { "name": "Sleeping bag", "qualityPct": 1.0, "warmthBonusF": 5.0 }
+ },
+
+ "caches": {
+  "BuriedInSnow": { "capacityKg": 50, "letsIn": [ "Digs", "Hands" ], "breakInMinutes": 5, "scentPct": 0.2, "insulation": 0.5, "overhead": 1.0, "wind": 1.0, "buryDepthM": 0.3 },
+  "IceCrevasse": { "capacityKg": 50, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentPct": 0.1, "insulation": 0.3, "overhead": 0.9, "wind": 0.9 },
+  "RockCleft": { "capacityKg": 40, "letsIn": [ "Hands" ], "breakInMinutes": 0, "scentPct": 0.3, "insulation": 0.2, "overhead": 0.8, "wind": 0.7 }
  }
 }
