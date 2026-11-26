@@ -434,7 +434,7 @@ public class CombatStateTests
     public void ATurnedBlow_DoesNoHarm_AndDrivesTheDefenderBack_ArmedOrNot(bool spear)
     {
         var (w, t) = CombatTests.Field();
-        var weapon = spear ? Items.Make("wooden_spear", durability: 100_000) : null;
+        var weapon = spear ? Items.Make("wooden_spear") : null;
         int turned = 0;
         for (int i = 0; i < 200; i++)
         {

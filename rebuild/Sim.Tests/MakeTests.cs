@@ -680,7 +680,7 @@ public class MakeTests
         var w = Noon(out var pack);
         TestKit.Give(pack, Resource.Stone, 0.3);
         TestKit.Give(pack, Resource.Stick, 1.0);
-        var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make).ToList(); // then abandoning
+        var make = Verbs.At(w, P).Make.Where(v => v.Activity is Make { Target: null }).ToList(); // then abandoning; a repair names its piece (the worn leg wraps)
         Assert.Equal(Recipes.ByHand.Where(r => r.Result.Repair == null).Select(r => r.Id), make.Select(v => ((Make)v.Activity).Recipe)); // repairs: per piece held (RepairTests)
         var rock = make.Single(v => v.Activity == new Make(P, "crude_edge"));
         Assert.Equal("Make crude edge", rock.Label);

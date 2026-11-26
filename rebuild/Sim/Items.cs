@@ -113,11 +113,14 @@ public static class Items
     public static GearDef Def(Gear g) =>
         GearKinds.TryGetValue(g.Kind, out var d) ? d : throw new KeyNotFoundException($"No gear kind '{g.Kind}'");
 
+    /// A piece of a kind, whole, or worn to the durability given: a worn piece keeps its kind's maximum, so it can be
+    /// mended to it. A durability is from 0 (broken) to the kind's maximum, and only for a kind that wears.
     public static Gear Make(string kind, int? durability = null)
     {
         if (!GearKinds.TryGetValue(kind, out var d)) throw new KeyNotFoundException($"No gear kind '{kind}'");
-        int max = durability ?? d.MaxDurability;
-        return new Gear { Kind = kind, Durability = max, MaxDurability = max };
+        if (durability is int n && (d.MaxDurability <= 0 || n < 0 || n > d.MaxDurability))
+            throw new ArgumentOutOfRangeException(nameof(durability), n, $"{kind} wears from {d.MaxDurability} to 0");
+        return new Gear { Kind = kind, Durability = durability ?? d.MaxDurability, MaxDurability = d.MaxDurability };
     }
 
     public static double ConditionPct(Gear g) => g.MaxDurability <= 0 ? 1.0 : g.Durability <= 0 ? 0.0 : (double)g.Durability / g.MaxDurability;
