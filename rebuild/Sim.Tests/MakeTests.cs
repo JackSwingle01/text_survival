@@ -11,10 +11,10 @@ public class MakeTests
     [Fact]
     public void Parse_ReadsTheKind_TheEffects_AndTheBaseOdds()
     {
-        var o = Assert.Single(Outcomes.Parse("fail:waste_material:Flint:0.5=.08"));
+        var o = Assert.Single(Outcomes.Parse("fail:waste_material:Flint:1=.08"));
         Assert.Equal(OutcomeKind.Fail, o.Kind);
         Assert.Equal(0.08, o.BasePct);
-        Assert.Equal(new Effect[] { new WasteMaterial(Resource.Flint, 0.5) }, o.Effects);
+        Assert.Equal(new Effect[] { new WasteMaterial(Resource.Flint, 1) }, o.Effects);
 
         var plain = Assert.Single(Outcomes.Parse("fail=.05"));
         Assert.Equal(OutcomeKind.Fail, plain.Kind);
@@ -57,7 +57,7 @@ public class MakeTests
     [InlineData("fail:melt:Flint:1=.1")] // no such effect
     [InlineData("fail:waste_material:Flint=.1")] // a missing parameter
     [InlineData("fail:waste_material:Stoned:1=.1")] // no such resource
-    [InlineData("fail:waste_material:Flint:1.5=.1")] // a share above 1
+    [InlineData("fail:waste_material:Flint:0=.1")] // no amount (pieces or a share: the loader checks which)
     [InlineData("fail:injury:Tail:0.1=.1")] // no such body part
     [InlineData("fail:break_tool:Cutting:0=.1")] // no uses lost is not an amount
     [InlineData("fail=1.5")] // odds above 1
@@ -147,7 +147,7 @@ public class MakeTests
     {
         var odds = Making.Odds(Recipes.Get("ivory_tipped_spear"), craftingLevel: 10);
         Assert.Equal(0.03, Chance(odds, "fail=0.05"), 12);
-        Assert.Equal(0.14, Chance(odds, "succeed:save_material:Sinew:0.5=0.1"), 12);
+        Assert.Equal(0.14, Chance(odds, "succeed:save_material:Sinew:1=0.1"), 12);
         Assert.Equal(0.012, Chance(odds, "succeed:injury:RightArm:0.05=0.02"), 12); // an injury is failure-like
         Assert.Equal(1 - (0.03 + 0.14 + 0.024), odds.PlainPct, 12);
         var flint = Making.Odds(Recipes.Get("flint_tipped_spear"), craftingLevel: 10);
@@ -161,7 +161,7 @@ public class MakeTests
     {
         var odds = Making.Odds(Recipes.Get("ivory_tipped_spear"), craftingLevel: 0, dexterityPct: 0.5);
         Assert.Equal(0.075, Chance(odds, "fail=0.05"), 12);
-        Assert.Equal(0.05, Chance(odds, "succeed:save_material:Sinew:0.5=0.1"), 12);
+        Assert.Equal(0.05, Chance(odds, "succeed:save_material:Sinew:1=0.1"), 12);
         // The sheet's terms add up to each total.
         foreach (var o in odds.Outcomes) Assert.Equal(o.Odds.TotalPct, o.Odds.BasePct + o.Odds.Contributions.Sum(c => c.DeltaPct), 12);
     }
@@ -386,8 +386,7 @@ public class MakeTests
             TestKit.Give(pack, Resource.Sinew, 0.05);
         });
         var pack = Items.Pack(w, P);
-        // Half of one flint rounds to the whole of it: a piece is wasted whole, never split.
-        Assert.Equal(Making.Spoiled, Complete(w, "flint_tipped_spear", "fail:waste_material:Flint:0.5=0.08", out var events));
+        Assert.Equal(Making.Spoiled, Complete(w, "flint_tipped_spear", "fail:waste_material:Flint:1=0.08", out var events));
         Assert.Equal(0, Items.Have(pack, Resource.Flint), 9);
         Assert.Equal(0.05, Items.Have(pack, Resource.Sinew), 9);
         Assert.Equal(1.5, Items.Have(pack, Resource.PineBranch), 9);
@@ -409,8 +408,8 @@ public class MakeTests
             Items.AddPieces(pack, Resource.Sinew, [0.05, 0.05]);
         });
         var pack = Items.Pack(w, P);
-        // Half of the two sinews comes back: one whole piece.
-        Assert.Equal(Making.MadeIt, Complete(w, "ivory_tipped_spear", "succeed:save_material:Sinew:0.5=0.1", out _));
+        // One of the two sinews comes back.
+        Assert.Equal(Making.MadeIt, Complete(w, "ivory_tipped_spear", "succeed:save_material:Sinew:1=0.1", out _));
         Assert.Equal(0.05, Items.Have(pack, Resource.Sinew), 9);
         var made = Assert.Single(pack.Gear, g => g.Kind == "ivory_tipped_spear");
         Assert.Equal(new SortedDictionary<Resource, double> { [Resource.PineBranch] = 1.5, [Resource.Ivory] = 0.8, [Resource.Sinew] = 0.05 },
@@ -838,16 +837,12 @@ public class MakeTests
     // ---- review: saving on a resource result, worn-out tools, the cap, the real skill ----
 
     [Fact]
-    public void SavingOnAResourceResult_IsABonus_AndWasteShrinksIt()
+    public void SavingOnAResourceResult_IsABonus()
     {
         var w = Begun("cordage", pack => TestKit.Give(pack, Resource.PlantFiber, 0.3));
         Assert.Equal(Making.MadeIt, Complete(w, "cordage", "succeed:save_material:PlantFiber:0.33=0.1", out _));
         Assert.Equal(0.3 * Recipes.Get("cordage").Result.SharePct, Items.Have(Items.Pack(w, P), Resource.Rope), 9);
         Assert.Equal(0.099, Items.Have(Items.Pack(w, P), Resource.PlantFiber), 9);
-
-        var w2 = Begun("scrape_hide", pack => { pack.Gear.Add(Items.Make("flint_knife")); TestKit.Give(pack, Resource.Hide, 1.0); });
-        Assert.Equal(Making.MadeIt, Complete(w2, "scrape_hide", "succeed:waste_material:Hide:0.25=0.05", out _));
-        Assert.Equal(0.8, Items.Have(Items.Pack(w2, P), Resource.ScrapedHide), 9); // a quarter of one hide is none of it
     }
 
     /// A tool worn out by the finishing work is the one a broken-tool outcome breaks, not the next.

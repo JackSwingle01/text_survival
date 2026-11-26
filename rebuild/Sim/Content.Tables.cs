@@ -438,6 +438,7 @@ public static partial class Content
                     {
                         case WasteMaterial w when !inputResources.Contains(w.Input): problems.Add($"{at}: {w.Input} is not an input"); break;
                         case SaveMaterial s when !inputResources.Contains(s.Input): problems.Add($"{at}: {s.Input} is not an input"); break;
+                        case WasteMaterial or SaveMaterial when AmountProblem(e, materials, resources) is string bad: problems.Add($"{at}: {o.Text}: {bad}"); break;
                         case BreakTool b when !row.Tools.Contains(b.Capability) && !faster.Contains(b.Capability):
                             problems.Add($"{at}: {b.Capability} is not a tool it uses"); break;
                         case ExtraProduct x when !gear.ContainsKey(x.What) && !Enum.GetNames<Resource>().Contains(x.What, StringComparer.Ordinal):
@@ -489,6 +490,19 @@ public static partial class Content
             yield return $"{at}: a station-worked recipe makes, as a sharePct (0-1] of its input, one piece of a discrete resource from a piece, an amount from an amount, or a share of its weight in a continuous one from a piece";
     }
 
+    /// An outcome never leaves a fraction of a piece (#289): waste or saving on a discrete input is whole pieces, no
+    /// more than the recipe takes; on a continuous one a share (0-1]; on an input of both forms, never.
+    static string? AmountProblem(Effect e, List<MaterialInput> materials, IReadOnlyDictionary<Resource, ResourceDef> resources)
+    {
+        var (input, amount) = e switch { WasteMaterial w => (w.Input, w.Amount), SaveMaterial s => (s.Input, s.Amount), _ => throw new NotSupportedException(e.GetType().Name) };
+        var m = materials.First(m => m.AnyOf.Contains(input));
+        var forms = m.AnyOf.Select(x => resources[x].Discrete).Distinct().ToList();
+        if (forms.Count > 1) return $"{string.Join('|', m.AnyOf)} is pieces or an amount: waste or saving on it would be both";
+        if (!forms[0]) return amount <= 1 ? null : $"{input} is a share (0-1] of its amount";
+        if (amount != Math.Floor(amount)) return $"{input} is whole pieces";
+        return amount <= m.Count ? null : $"{amount} pieces of {input}, above the {m.Count} it takes";
+    }
+
     /// The lightest and heaviest one input can be: for each alternative, its count of the lightest or heaviest
     /// pieces, or its grams; null heaviest for nothing to bound it.
     static (double Lightest, double Heaviest) InputKg(MaterialInput m, IReadOnlyDictionary<Resource, ResourceDef> resources, int? pieces = null)
@@ -511,15 +525,16 @@ public static partial class Content
         if (r.Resource is not Resource made) yield break;
         foreach (var o in outcomes.Prepend(null))
         {
-            double ShareOf(Resource? input, IEnumerable<Effect> effects) => effects.Where(e => e is WasteMaterial w && w.Input == input || e is SaveMaterial s && s.Input == input)
-                .Sum(e => e is WasteMaterial w ? w.SharePct : ((SaveMaterial)e).SharePct);
+            // A share of the input: pieces over the pieces it takes, or the share of an amount.
+            double ShareOf(MaterialInput m, Resource? input, IEnumerable<Effect> effects) => effects.Where(e => e is WasteMaterial w && w.Input == input || e is SaveMaterial s && s.Input == input)
+                .Sum(e => e is WasteMaterial w ? w.Amount : ((SaveMaterial)e).Amount) / (m.Count > 0 ? m.Count : 1);
             var effects = o?.Effects ?? [];
             if (o?.Kind == OutcomeKind.Fail) continue;
             double lo = 0, hi = 0, saved = 0;
             foreach (var m in materials)
             {
-                double share = Math.Min(1, m.AnyOf.Sum(x => ShareOf(x, effects.OfType<WasteMaterial>())));
-                double kept = m.AnyOf.Sum(x => ShareOf(x, effects.OfType<SaveMaterial>()));
+                double share = Math.Min(1, m.AnyOf.Sum(x => ShareOf(m, x, effects.OfType<WasteMaterial>())));
+                double kept = m.AnyOf.Sum(x => ShareOf(m, x, effects.OfType<SaveMaterial>()));
                 var (l, h) = InputKg(m, resources);
                 lo += l * (1 - share);
                 hi += h;
