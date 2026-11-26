@@ -9,7 +9,7 @@ import { CELL } from './terrain-core.js';
 import { createGround, worldState } from './ground-state.js';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** state(): { view, drawPos: {x,y}, cover: {top,right,bottom} (cameraTarget), selected: {x,y}|null }. */
+/** state(): { view, drawPos: {x,y}, coverPx: {top,right,bottom} (cameraTarget), selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
   const TS = CELL, terrain = createTerrain(), ground = createGround(code => TERRAIN[code]);
@@ -55,7 +55,7 @@ export function createMap(canvas, state, { onHover, onClick }) {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0d1216'; ctx.fillRect(0, 0, w, h);
-    const { x: tx, y: ty } = cameraTarget(S.drawPos, S.cover, TS);
+    const { x: tx, y: ty } = cameraTarget(S.drawPos, S.coverPx, TS);
     if (!cam) cam = { x: tx, y: ty };
     cam.x += (tx - cam.x) * Math.min(1, dt * 5); cam.y += (ty - cam.y) * Math.min(1, dt * 5);
     const ox = Math.round(w / 2 - cam.x * TS), oy = Math.round(h / 2 - cam.y * TS);

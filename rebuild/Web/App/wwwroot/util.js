@@ -51,8 +51,8 @@ export function paceMs(minutes, kind) {
 }
 
 /** Where the map's camera looks, in cells, so the player at `pos` sits in the middle of the part of the
- *  map that nothing covers. `cover` is how far in from the map's top, right and bottom edges the drawer
- *  and the status strip reach, in CSS px; `cell` is a cell's width in CSS px. */
-export function cameraTarget(pos, cover, cell) {
-  return { x: pos.x + 0.5 + cover.right / 2 / cell, y: pos.y + 0.5 + (cover.bottom - cover.top) / 2 / cell };
+ *  map that nothing covers. `coverPx` is how far in from the map's top, right and bottom edges the drawer
+ *  and the status strip reach; `cellPx` is a cell's width. */
+export function cameraTarget(pos, coverPx, cellPx) {
+  return { x: pos.x + 0.5 + coverPx.right / 2 / cellPx, y: pos.y + 0.5 + (coverPx.bottom - coverPx.top) / 2 / cellPx };
 }

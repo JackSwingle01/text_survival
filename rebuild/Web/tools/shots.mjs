@@ -35,6 +35,9 @@ const page = {
   open: (kind, extra = '') => `(window.ui.openDrawer({ kind: '${kind}'${extra} }), true)`,
   key: k => `(document.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', bubbles: true })), true)`,
   view: `window.ui.S.view`,
+  drawer: `window.ui.S.drawer?.kind ?? null`,
+  centreOf: sel => `(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`,
+  tip: `(() => { const t = document.getElementById('ftip'); return t.hidden ? null : t.textContent; })()`,
 };
 
 /** On a phone, the page fits the screen (#315): it never scrolls; every verb is in the window or in a
@@ -53,7 +56,6 @@ const PHONE_LAYOUT = `(() => {
   for (const b of document.querySelectorAll('.sheets button')) { const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
   for (const b of document.querySelectorAll('.dock button')) {
     if (!shown(b) || b.closest('.sheets')) continue;
-    scroller(b)?.scrollTo?.({ left: 0, top: 0 });
     const sc = scroller(b); if (sc) { const r = b.getBoundingClientRect(), c = sc.getBoundingClientRect(); sc.scrollLeft += r.left - c.left; sc.scrollTop += r.top - c.top; }
     const p = reached(b); if (p) out.push('verb ' + name(b) + ': ' + p);
   }
@@ -203,10 +205,8 @@ async function tap(cdp, x, y) {
   const at = [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await new Promise(r => setTimeout(r, 400));
+  await new Promise(r => setTimeout(r, 400)); // the click after the touch, and the page's answer to it
 }
-const centreOf = sel => `(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`;
-const tipShown = `(() => { const t = document.getElementById('ftip'); return t.hidden ? null : t.textContent; })()`;
 
 /** On a phone, a tap shows what a mouse would hover (#315): the clock's tap shows the day and the weather;
  *  the next tap only puts it away, so a tap on the map walks nowhere; a tap on a verb leaves no tip up. */
@@ -214,17 +214,17 @@ async function phoneTaps(cdp) {
   await size(cdp, 390, 664, true);
   await goto(cdp, `${url}?seed=${seed}`);
   const problems = [];
-  await tap(cdp, ...await cdp.evaluate(centreOf('.t-clock')));
-  const shown = await cdp.evaluate(tipShown);
-  if (!/Day \d/.test(shown ?? '')) problems.push(`a tap on the clock showed ${JSON.stringify(shown)}, not the day and weather`);
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.t-clock')));
+  const shown = await cdp.evaluate(page.tip);
+  if (!/Day \d.*Air .*Wind /.test(shown ?? '')) problems.push(`a tap on the clock showed ${JSON.stringify(shown)}, not the day and weather`);
   const [mx, my] = await cdp.evaluate(`(() => { const r = document.getElementById('world').getBoundingClientRect(); return [r.left + 30, r.bottom - 30]; })()`);
   await tap(cdp, mx, my);
-  if (await cdp.evaluate(tipShown)) problems.push('a second tap left the tip up');
-  if (await cdp.evaluate(`window.ui.S.drawer?.kind ?? null`)) problems.push('the tap that put the tip away also acted on the map');
+  if (await cdp.evaluate(page.tip)) problems.push('a second tap left the tip up');
+  if (await cdp.evaluate(page.drawer)) problems.push('the tap that put the tip away also acted on the map');
   await cdp.evaluate(`(document.querySelector('.dock .verb[data-open="make"]').scrollIntoView({ block: 'nearest', inline: 'nearest' }), true)`);
-  await tap(cdp, ...await cdp.evaluate(centreOf('.dock .verb[data-open="make"]')));
-  if (await cdp.evaluate(tipShown)) problems.push('a tap on a verb left its tip up');
-  if (await cdp.evaluate(`window.ui.S.drawer?.kind ?? null`) !== 'make') problems.push('a tap on Make did not open it');
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.dock .verb[data-open="make"]')));
+  if (await cdp.evaluate(page.tip)) problems.push('a tap on a verb left its tip up');
+  if (await cdp.evaluate(page.drawer) !== 'make') problems.push('a tap on Make did not open it');
   return problems;
 }
 

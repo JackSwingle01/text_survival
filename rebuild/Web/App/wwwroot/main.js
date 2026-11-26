@@ -685,19 +685,20 @@ function clickTile(t) {
   S.selected = t;
   openDrawer({ kind: 'place', x: t.x, y: t.y });
 }
-/** How far in from the map's edges the drawer and a status strip along its top reach (cameraTarget). */
-function cover() {
+/** How far in from the map's edges the drawer (with the margin it keeps from the edge, so it is centred in
+ *  what is left) and a status strip along its top reach, in CSS px (cameraTarget). */
+function mapCoverPx() {
   const m = $('mapArea').getBoundingClientRect(), c = { top: 0, right: 0, bottom: 0 };
   const d = $('drawer');
   if (!d.hidden) {
     const r = d.getBoundingClientRect();
-    if (r.width > m.width * 0.9) c.bottom = m.bottom - r.top; else c.right = m.right - r.left;
+    if (r.width > m.width * 0.9) c.bottom = 2 * m.bottom - r.top - r.bottom; else c.right = 2 * m.right - r.left - r.right;
   }
   const st = $('status').getBoundingClientRect();
   if (st.width > m.width / 2 && st.top - m.top < 24) c.top = st.bottom - m.top;
   return c;
 }
-const map = createMap($('world'), () => ({ ...S, cover: cover(), displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
+const map = createMap($('world'), () => ({ ...S, coverPx: mapCoverPx(), displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
 createGrid($('grid'), () => S, {
   onCell: c => {
     const mv = S.view?.combat?.actions.find(a => a.kind === 'fight-move');
