@@ -4,7 +4,7 @@
 //   node shots.mjs <wwwroot> --run                 the scripted run: walk, fire, forage, make a staff, save, load
 //   node shots.mjs <wwwroot> --shot fire [--shot make ...] [--phone]   one state each (see STATES)
 //   node shots.mjs <wwwroot> --all [--phone]        every state
-// --phone also shoots each state on phones (portrait 390×664, landscape 844×390 and 932×430, touch on) and
+// --phone also shoots each state on phones (portrait 390×664 and 402×714, landscape 844×390 and 932×430, touch on) and
 // fails when the layout does not fit the screen there (PHONE_LAYOUT).
 // Options: --out <dir> (default rebuild/Web/shots), --seed <n>, --chrome <path>.
 import { spawn } from 'node:child_process';
@@ -71,7 +71,8 @@ const PHONE_LAYOUT = `(() => {
   return out;
 })()`;
 
-const PHONES = [[390, 664, '-phone'], [844, 390, '-land'], [932, 430, '-land-max']];
+// An iPhone 13 and an iPhone 18 (402 × 714: Safari's page between its bars) upright, and phones on their side.
+const PHONES = [[390, 664, '-phone'], [402, 714, '-iphone18'], [844, 390, '-land'], [932, 430, '-land-max']];
 
 /** Each state: a URL scenario (Host Scenarios) and the steps that drive the page there. */
 const STATES = {

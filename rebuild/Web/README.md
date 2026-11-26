@@ -166,7 +166,7 @@ node tools/shots.mjs /tmp/text-survival-web/wwwroot --shot fire    # one state; 
 node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state, desktop and phones; fails if a phone layout scrolls
 ```
 
-`--phone` shoots each state at 390 × 664, 844 × 390 and 932 × 430 with touch on, and fails when the page
+`--phone` shoots each state at 390 × 664, 402 × 714 (an iPhone 18 in Safari), 844 × 390 and 932 × 430 with touch on, and fails when the page
 scrolls there, a verb or sheet button is out of reach, or an open drawer leaves less than a third of the
 map; it also taps the clock, the map and a verb (`PHONE_LAYOUT`, `phoneTaps`). On Linux pass
 `--chrome <path>` (as root, Chrome gets `--no-sandbox`).
