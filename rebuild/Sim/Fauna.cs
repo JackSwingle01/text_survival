@@ -389,13 +389,15 @@ public static partial class Fauna
     const double FeedKgPerMinute = 0.1;
 
     /// No faster than FeedKgPerMinute a head, never past its room: carcasses, a body (an opportunist), else StoreAt's pick: break-in, then Bite.
+    /// A scavenger at a kill a predator holds leaves its flesh alone: a pile or cache there is what it feeds on (MeatAt reads the same).
     static void FeedMinute(World world, Agent herd, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
         double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, FeedKgPerMinute * herd.Members.Count), eaten = 0;
-        foreach (var c in Edible(world, herd))
+        bool held = HeldKill(world, herd);
+        foreach (var c in held ? [] : Edible(world, herd))
             if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
-        if (want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Opportunist)
+        if (!held && want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Opportunist)
             foreach (var body in PickableBodies(world, herd))
                 if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
         double kcal = eaten * MeatKcalPerKg;

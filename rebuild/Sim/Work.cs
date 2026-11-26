@@ -273,14 +273,19 @@ public static class Work
                 if (CacheHere(world, agent, into) is not { } putIn) return new("no such cache here");
                 if (Access.Refusal(world, agent.Id, putIn) is { } putInBarred) return putInBarred;
                 if (Caches.RoomKg(world.Caches[into]) <= 0) return new($"the {Names.Of(world.Caches[into].Kind)} is full");
-                return Items.Have(pack, s.Resource) > 0 ? null : new($"no {Names.Of(s.Resource)} to put in", new MissingResource(s.Resource, s.Kg));
+                if (Items.Have(pack, s.Resource) <= 0) return new($"no {Names.Of(s.Resource)} to put in", new MissingResource(s.Resource, s.Kg));
+                return CacheRoomRefusal(pack, s.Resource, Caches.RoomKg(world.Caches[into]), $"the {Names.Of(world.Caches[into].Kind)}");
             case Bury b:
                 if (b.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), b.Kg, "Bury a positive amount");
                 if (Items.Resources[b.Resource].Category != ResourceCategory.Food) return new("only food is buried in the snow");
                 if (Ground.Underfoot(world, agent.Tile).SnowDepthM < Caches.Row(CacheKind.BuriedInSnow).BuryDepthM)
                     return new("the snow here is too thin to bury anything in");
-                if (Caches.BuriedAt(world, agent.Tile) is CacheId buried && Caches.RoomKg(world.Caches[buried]) <= 0) return new("the snow cache here is full");
-                return Items.Have(pack, b.Resource) > 0 ? null : new($"no {Names.Of(b.Resource)} to bury", new MissingResource(b.Resource, b.Kg));
+                double snowRoom = Caches.BuriedAt(world, agent.Tile) is CacheId buried
+                    ? Caches.RoomKg(world.Caches[buried])
+                    : Caches.Row(CacheKind.BuriedInSnow).CapacityKg;
+                if (snowRoom <= 0) return new("the snow cache here is full");
+                if (Items.Have(pack, b.Resource) <= 0) return new($"no {Names.Of(b.Resource)} to bury", new MissingResource(b.Resource, b.Kg));
+                return CacheRoomRefusal(pack, b.Resource, snowRoom, "the snow cache here");
             case RepairCache r:
                 if (CacheHere(world, agent, r.Cache) is not { } mend) return new("no such cache here");
                 if (!world.Caches[r.Cache].TornOpen) return new("it is not torn open");
@@ -331,6 +336,10 @@ public static class Work
             ? new($"no room in your pack for a whole {Names.PieceWord(r)}", new MissingState(Lack.PackRoomKg, pieceKg, room))
             : null;
     }
+
+    /// A put-in or bury moves whole pieces only (Items.Move), so a least piece too big for the cache's room refuses.
+    static Refusal? CacheRoomRefusal(Inventory pack, Resource r, double roomKg, string cache) =>
+        Items.LightestKg(pack, r) is double pieceKg && pieceKg > roomKg + 1e-9 ? new($"no room in {cache} for a whole {Names.PieceWord(r)}") : null;
 
     /// Up to the cache's room; what does not fit stays in the pack.
     static void PutIn(World world, Agent agent, Inventory pack, Resource r, double kg, CacheId id, List<WorldEvent> events)

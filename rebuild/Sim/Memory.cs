@@ -33,9 +33,11 @@ public sealed class Memory
 
 /// The tiles in view from one tile with one budget (Sight.ViewOf), and the ones among them that a
 /// look always has something to note on: standing timber's pools and water to drink, which the ice season changes.
-sealed class SightView(TileId from, double budgetTiles, bool iceSeason, IReadOnlyList<TileId> tiles)
+sealed class SightView(TileId from, double budgetTiles, bool sees, bool iceSeason, IReadOnlyList<TileId> tiles)
 {
     public bool IceSeason { get; } = iceSeason;
+    /// Whether the body had any vision: at a budget of none it still sees its own tile, out cold it sees nothing.
+    public bool Sees { get; } = sees;
     public TileId From { get; } = from;
     public double BudgetTiles { get; } = budgetTiles;
     public IReadOnlyList<TileId> Tiles { get; } = tiles;
@@ -132,15 +134,16 @@ public static class Sight
     public static bool InSight(World world, Agent agent, TileId tile) => ViewOf(world, agent).Set.Contains(tile);
 
     /// What this person has in view now, cast from their tile with their vision and today's sky; kept on
-    /// their memory while tile and budget hold.
+    /// their memory while tile, budget, whether it sees at all, and the season hold.
     internal static SightView ViewOf(World world, Agent agent)
     {
         double vision = Body.Vision(agent.Body);
         double budget = BudgetTiles(world, agent.Tile, vision);
         var memory = (agent.Mind as PersonMind)?.Memory;
-        bool ice = Map.IsIceSeason(world.Minute);
-        if (memory?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.IceSeason == ice) return kept;
-        var view = new SightView(agent.Tile, budget, ice, Visible(world, agent.Tile, vision));
+        bool ice = Map.IsIceSeason(world.Minute), sees = vision > 0;
+        if (memory?.View is { } kept && kept.From == agent.Tile && kept.BudgetTiles == budget && kept.Sees == sees && kept.IceSeason == ice)
+            return kept;
+        var view = new SightView(agent.Tile, budget, sees, ice, Visible(world, agent.Tile, vision));
         if (memory != null) memory.View = view;
         return view;
     }

@@ -505,6 +505,30 @@ public class KillChainTests
         }
     }
 
+    /// A starving fox on a kill a pack holds, beside a pile of meat: the pile is what makes it feed, so it eats the
+    /// pile and leaves the pack's carcass alone (review of #295).
+    [Fact]
+    public void A_StarvingFox_OnAHeldKill_EatsThePileBesideIt_NotTheCarcass()
+    {
+        var w = Bare();
+        var camp = Map.Of(w).Camp;
+        var tile = Map.Step(Map.Step(camp, Direction.East), Direction.East);
+        Caribou(w, tile);
+        var wolves = Animals.Spawn(w, Species.Wolf, tile, 3);
+        TestKit.GivePieces(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 3);
+        double pile = Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat);
+        var fox = Animals.Spawn(w, Species.Fox, tile, 1);
+        double carcass = Fauna.MeatHere(w, tile);
+        for (int i = 0; i < 10; i++)
+        {
+            foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
+            foreach (var b in w.Agent(fox).Members) (b.CaloriesKcal, b.FatKg) = (0, Priorities.StarvingFatPct * b.WeightKg);
+            Sim.Advance(w, 1);
+        }
+        Assert.Equal(carcass, Fauna.MeatHere(w, tile), 9);
+        Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < pile, "the fox did not eat the pile");
+    }
+
     [Fact]
     public void Ravens_FollowAPredator_AndReadAsRavensOverIt()
     {
