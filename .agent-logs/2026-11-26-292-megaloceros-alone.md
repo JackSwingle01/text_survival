@@ -39,3 +39,10 @@ the baseline (17, 42, 123); biggest-herd and moves bands are within on every see
 Follow-up: `rebuild/Sim.Tests/Fixtures/sample-save.json` no longer matches what `SaveFixtureTests.SampleWorld`
 generates on main (the round-trip test still passes, since it loads and re-saves the file). Someone should
 check whether that drift is expected.
+
+Revised (review): the gate's two alone checks read one list, `AloneLimited` (`OpenGroup` without megaloceros),
+in place of `MayBeAlone` tested twice; the arrival test reaches midnight as the file's other tests do. Not taken:
+reading the start size off the arrival row (caribou and bison already repeat theirs; out of this ticket's scope).
+
+Follow-up: Populate's start sizes for caribou, bison and megaloceros repeat their arrival rows' bounds by hand
+(`5 + NextInt(11)` against 5-15, and so on); one source would keep them from drifting.

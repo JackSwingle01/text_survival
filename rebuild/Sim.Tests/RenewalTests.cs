@@ -206,7 +206,7 @@ public class RenewalTests
     public void Megaloceros_ArriveOneToThreeStrong()
     {
         var w = Bare();
-        w.Minute = Days(1) - Weather.MinuteOfDay(w.Minute) + w.Minute;
+        w.Minute += 1440 - Weather.MinuteOfDay(w.Minute); // midnight, when arrivals come (Fauna.Renew)
         Assert.True(Fauna.ValleyCapacity(w, Species.Megaloceros) >= 3 && Fauna.Capacity(w, Species.Megaloceros) >= 3);
         var sizes = new HashSet<int>();
         for (int night = 0; night < 2000; night++)
