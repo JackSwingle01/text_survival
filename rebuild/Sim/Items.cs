@@ -113,8 +113,7 @@ public static class Items
     public static GearDef Def(Gear g) =>
         GearKinds.TryGetValue(g.Kind, out var d) ? d : throw new KeyNotFoundException($"No gear kind '{g.Kind}'");
 
-    /// A piece of a kind, whole, or worn to the durability given: a worn piece keeps its kind's maximum, so it can be
-    /// mended to it. A durability is from 0 (broken) to the kind's maximum, and only for a kind that wears.
+    /// A piece of a kind, whole or worn to the durability given; a worn piece keeps its kind's maximum.
     public static Gear Make(string kind, int? durability = null)
     {
         if (!GearKinds.TryGetValue(kind, out var d)) throw new KeyNotFoundException($"No gear kind '{kind}'");
@@ -123,7 +122,6 @@ public static class Items
         return new Gear { Kind = kind, Durability = durability ?? d.MaxDurability, MaxDurability = d.MaxDurability };
     }
 
-    /// A piece of this kind can be at this durability: the kind wears, and it is from broken to whole.
     public static bool CanBeWornTo(GearDef d, int durability) => d.MaxDurability > 0 && durability >= 0 && durability <= d.MaxDurability;
 
     public static double ConditionPct(Gear g) => g.MaxDurability <= 0 ? 1.0 : g.Durability <= 0 ? 0.0 : (double)g.Durability / g.MaxDurability;
@@ -403,17 +401,47 @@ public static class Items
     static Inventory PileOrNew(World world, TileId tile, out TileState state)
     {
         if (!world.Tiles.TryGetValue(tile, out state!)) world.Tiles[tile] = state = new TileState();
+        if (state.Pile == null) PileTiles(world).Add(tile);
         return state.Pile ??= new Inventory();
     }
 
-    /// Move's rule, from the tile's pile into an inventory; a tile left with nothing on it leaves World.Tiles.
-    public static double MoveFromPile(World world, TileId tile, Inventory to, Resource r, double kg, double limitKg = double.PositiveInfinity)
+    /// Index over World.Tiles, built on first use after a load and kept by PileOrNew and TidyPile, the only ways a pile comes or goes.
+    /// What looks for piles across many tiles walks this, not the map.
+    public static IReadOnlyCollection<TileId> PileTilesOf(World world) => PileTiles(world);
+
+    static SortedSet<TileId> PileTiles(World world) =>
+        world.PileTiles ??= [.. world.Tiles.Where(t => t.Value.Pile != null).Select(t => t.Key)];
+
+    /// The one way anything leaves a pile, for people and animals alike, raising PickedUp with who took it. Into a pack
+    /// (into): Move's rule, within limitKg. Into a mouth (into null): kg torn off the lightest pieces, what would be left
+    /// under a least piece going too. Taken: not at the taker's own camp.
+    public static double TakeFromPile(World world, AgentId who, Resource r, double kg, List<WorldEvent> events,
+        Inventory? into = null, double limitKg = double.PositiveInfinity)
     {
-        var state = world.Tiles.GetValueOrDefault(tile);
-        if (state?.Pile is not Inventory pile) return 0;
-        double moved = Move(pile, to, r, kg, limitKg);
+        var taker = world.Agent(who);
+        var tile = taker.Tile;
+        if (world.Tiles.GetValueOrDefault(tile)?.Pile is not Inventory pile) return 0;
+        var to = into ?? new Inventory();
+        int had = Count(pile, r);
+        double moved = into == null && IsDiscrete(r) ? Bite(pile, to, r, kg) : Move(pile, to, r, kg, into == null ? kg : limitKg);
+        int pieces = Math.Max(0, had - Count(pile, r));
         TidyPile(world, tile);
+        if (moved <= 0) return 0;
+        bool taken = taker.Mind is not PersonMind || Memories.CampOf(world, taker) != tile;
+        events.Add(new PickedUp(world.Minute, who, tile, r, moved, taken, into == null ? 0 : pieces, new Cause(who, $"taken by {Cause.Describe(world, who)}")));
         return moved;
+    }
+
+    /// Whole pieces while they fit, then the rest off the next lightest; what that would leave under a least piece goes too.
+    static double Bite(Inventory from, Inventory to, Resource r, double kg)
+    {
+        double moved = Move(from, to, r, kg, kg);
+        if (kg - moved <= RangeSlackKg || !from.Pieces.TryGetValue(r, out var pieces)) return moved;
+        double piece = pieces[0], bite = kg - moved;
+        TakePieces(from, r, 1);
+        if (InRange(r, piece - bite)) AddPiece(from, r, piece - bite);
+        else bite = piece;
+        return moved + bite;
     }
 
     public static void TidyPile(World world, TileId tile)
@@ -422,6 +450,7 @@ public static class Items
         state.Pile = null;
         state.PileCause = null;
         state.PileId = null;
+        world.PileTiles?.Remove(tile);
         Map.Tidy(world, tile);
     }
 

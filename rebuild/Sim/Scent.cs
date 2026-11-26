@@ -34,10 +34,15 @@ public static class Scent
         if (Effects.Has(agent.Body, EffectKind.Bleeding)) level += BleedingLevel;
         level += BloodyLevel * Effects.Severity(agent.Body, EffectKind.Bloody);
         level += DirtyLevel * Effects.Severity(agent.Body, EffectKind.Dirty);
+        return Math.Min(1, level + OfFoodIn(person.Pack));
+    }
+
+    public static double OfFoodIn(Inventory inv)
+    {
         double food = 0;
-        foreach (var (r, kg) in Items.Totals(person.Pack))
+        foreach (var (r, kg) in Items.Totals(inv))
             if (kg > 0) food = Math.Max(food, OfFood(r) * Math.Min(1, kg));
-        return Math.Min(1, level + food);
+        return food;
     }
 
     static (int X, int Y) Offset(WindDirection d) => d switch

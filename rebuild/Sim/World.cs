@@ -73,6 +73,7 @@ public sealed class World
     internal List<TileId>? OpenLandCache;
     internal double? MeanForageDensityCache;
     internal SortedSet<TileId>? CarcassTiles;
+    internal SortedSet<TileId>? PileTiles;
     internal NearbyIndex? Nearby;
     /// Owned by Trip.Routes: one search's working state, reused by the next.
     internal Trip.RouteScratch? RouteScratch;

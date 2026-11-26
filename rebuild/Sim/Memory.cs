@@ -516,6 +516,13 @@ public static class Journal
                 Memories.Hurt(who, hurt.Tile, hurt.Minute);
             if (!Files(e) || !Staked(world, e.Tile)) continue;
             if (!world.Journal.TryGetValue(e.Tile, out var list)) world.Journal[e.Tile] = list = [];
+            // An animal feeding takes a little each minute: its run of takes of one thing is one entry, kept from its first minute.
+            if (e is PickedUp u && list is [.., PickedUp last] && last.Who == u.Who && last.Resource == u.Resource
+                && world.Agents.GetValueOrDefault(u.Who)?.Mind is HerdMind)
+            {
+                list[^1] = last with { Kg = last.Kg + u.Kg, Pieces = last.Pieces + u.Pieces };
+                continue;
+            }
             list.Add(e);
             if (list.Count > MaxEntriesPerTile) list.RemoveAt(Evicted(world, list));
         }

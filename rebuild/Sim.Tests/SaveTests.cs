@@ -67,7 +67,7 @@ public class SaveTests
         Assert.Contains("enum Hare=0,Wolf=1\n", d);                // enum names and numbers
         Assert.Contains("enum Calm=0,Storm=1 via System.Text.Json.Serialization.JsonStringEnumConverter`1[", d); // and its own converter
         Assert.Contains("converter Survival.AgentIdConverter", d); // a type written by its own converter
-        Assert.Contains("raid=Survival.Raid", d);                 // a derived activity by its discriminator
+        Assert.Contains("feed=Survival.Feed", d);                 // a derived activity by its discriminator
         Assert.Contains("Minute:System.Int32", d);                // the element type inside a map of lists
     }
 
@@ -79,19 +79,24 @@ public class SaveTests
         Assert.Equal(Save.Fingerprint(d, "#1 a"), Save.Fingerprint(d, "#1 a"));
     }
 
-    /// A raid lasts a minute, so nothing saves one today; this keeps one saveable if it ever lasts longer.
+    /// A bear part way through a pile it smelled from afar, the pile on its sightings list: saved and loaded, it eats on the same.
     [Fact]
-    public void AHerdMidRaid_SavesAndLoads()
+    public void AnAnimalMidFeed_AtAPileItSensed_SavesAndLoads_AndEatsTheSame()
     {
-        var w = World.New(17);
-        var tile = Map.Step(Map.Of(w).Camp, Direction.West);
+        var w = KillChainTests.Bare();
+        var tile = Map.Step(Map.Step(Map.Of(w).Camp, Direction.West), Direction.West);
         TestKit.Give(Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player")), Resource.RawMeat, 5);
-        var raven = Agents.SpawnGroup(w, Species.Raven, tile, 4)[0];
-        w.Agent(raven).Doing = new Doing { Plain = new Raid(raven), MinutesLeft = 1 };
+        var bear = w.Agent(Agents.Spawn(w, Species.Bear, Map.Step(tile, Direction.West)));
+        TestKit.SetHunger(bear, 0.85);
+        Sim.Advance(w, 30);
+        Assert.Contains(Fauna.MindOf(bear).Sightings ?? [], s => s.Pile && s.Tile == tile);
+        Assert.True(Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat) < 5, "the bear has not begun to eat");
+        Assert.IsType<Feed>(Fauna.MindOf(bear).Choice);
 
         var loaded = Save.FromJson(Save.ToJson(w));
-
-        Assert.Equal(new Raid(raven), loaded.Agent(raven).Doing?.Activity);
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+        Sim.Advance(w, 60);
+        Sim.Advance(loaded, 60);
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
     }
 }
@@ -185,7 +190,9 @@ public class SaveFixtureTests
         caribou.Plan = new Plan(Stat.Water, Priority.Need, new TileId(camp.X + 17, camp.Y), [new TileId(camp.X + 16, camp.Y), new TileId(camp.X + 17, camp.Y)]);
         caribou.Sightings = [new Sensed(Fauna.AnimalsAt(w, den).First().Id, den, w.Minute)];
         // The pack's wolf has the caribou in sight as quarry (Fauna.Sense): a sighting of a herd, by species and count.
-        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1)];
+        // ... and the camp's pile, smelled (Fauna.Sense): kept until it sees the pile gone.
+        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1),
+            new Sensed(null, camp, w.Minute, Pile: true)];
         return w;
     }
 

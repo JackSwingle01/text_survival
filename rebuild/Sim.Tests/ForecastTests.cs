@@ -535,6 +535,27 @@ public class ForecastTests
 
     static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat;
 
+    /// A hungry wolf on a pile of meat and berries eats what Fauna.PileSource says: a minute's 0.1 kg of the richest food its
+    /// diet takes there (the meat, torn off a cut), less its burn; the berries stay.
+    [Fact]
+    public void APile_AgreesWithWhatTheAnimalEatsThere()
+    {
+        var w = PlannerTests.Strip();
+        var tile = new TileId(20, 2);
+        var pile = Items.PileAt(w, tile, new Cause(AgentId.Player, "put down by the player"));
+        TestKit.GivePieces(pile, Resource.RawMeat, 2);
+        Items.Add(pile, Resource.Berries, 1);
+        var wolf = PlannerTests.Animal(w, Species.Wolf, tile);
+        TestKit.SetHunger(wolf, 0.6);
+        var source = Assert.IsType<Source>(Fauna.PileSource(w, wolf, tile));
+        Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
+        double kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body), meat = Items.Have(pile, Resource.RawMeat);
+        Sim.Advance(w, 1);
+        Assert.Equal(kcal - burn + source.PerMinute, KcalHeld(wolf.Body), 3);
+        Assert.Equal(meat - 0.1, Items.Have(w.Tiles[tile].Pile!, Resource.RawMeat), 9);
+        Assert.Equal(1, Items.Have(w.Tiles[tile].Pile!, Resource.Berries));
+    }
+
     /// A thirsty caribou beside a lake drinks what Fauna.WaterHere says, for nothing, less the minute's loss.
     [Fact]
     public void Water_FromALake_AgreesWithWhatTheAnimalDrinks()
