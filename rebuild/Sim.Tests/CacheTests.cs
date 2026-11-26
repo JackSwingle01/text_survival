@@ -182,6 +182,24 @@ public class CacheTests
         Assert.Equal(Math.Min(carried + meat, Caches.Row(CacheKind.BuriedInSnow).CapacityKg), Meat(w, buried), 9);
     }
 
+    /// A cache with room left, but less than the least piece carried, refuses the put-in and the bury: Items.Move
+    /// moves only whole pieces, so the minute would be spent moving nothing.
+    [Fact]
+    public void ACacheWithRoomForLessThanAWholePiece_RefusesThePutIn_AndTheBury()
+    {
+        var w = SnowyStrip();
+        var me = PlayerAt(w, T(20));
+        var pack = Items.PackOf(me)!;
+        double pieceKg = Items.Resources[Resource.RawMeat].MaxPieceKg;
+        Items.AddPiece(pack, Resource.RawMeat, pieceKg);
+        foreach (var kind in new[] { CacheKind.RockCleft, CacheKind.BuriedInSnow })
+            Items.Add(w.Caches[Caches.Place(w, T(20), kind)].Contents, Resource.Water, Caches.Row(kind).CapacityKg - pieceKg / 2);
+        var cleft = Assert.Single(Caches.At(w, T(20)), c => w.Caches[c].Kind == CacheKind.RockCleft);
+        string piece = Names.PieceWord(Resource.RawMeat);
+        Assert.Equal($"no room in the {Names.Of(CacheKind.RockCleft)} for a whole {piece}", Work.Refusal(w, new PutDown(P, Resource.RawMeat, pieceKg, cleft))?.Reason);
+        Assert.Equal($"no room in the snow cache here for a whole {piece}", Work.Refusal(w, new Bury(P, Resource.RawMeat, pieceKg))?.Reason);
+    }
+
     /// Calm air, six tiles: a bear smells 3 kg of raw meat in a pile (6 x 0.6 x 3 = 10.8 tiles), but buried in snow the scent
     /// is x0.2 (2.2 tiles), and it does not.
     [Fact]

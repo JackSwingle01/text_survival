@@ -50,6 +50,24 @@ public class SightTests
         Assert.Equal(0, Senses.Now(w, w.Agent(wolves.Ids[0])).SightBudgetTiles);
     }
 
+    /// A body barely awake sees only its own tile (a budget that rounds to none); out cold on that same tile it
+    /// sees nothing, though the budget is none either way, and waking again it sees its tile once more.
+    [Fact]
+    public void FallingOutCold_OnTheSameTile_LeavesNothingInView_AndWakingSeesTheTileAgain()
+    {
+        var (w, _) = CombatTests.Field(17);
+        w.FixedWeather = Clear;
+        var me = w.Agent(AgentId.Player);
+        var brain = me.Body.Regions.SelectMany(r => r.Organs).Single(o => o.Name == "Brain");
+        brain.Condition = 0.03;
+        Assert.Equal([me.Tile], Sight.InView(w, me));
+        brain.Condition = 0;
+        Assert.Empty(Sight.InView(w, me));
+        Assert.False(Sight.InSight(w, me, me.Tile));
+        brain.Condition = 0.03;
+        Assert.Equal([me.Tile], Sight.InView(w, me));
+    }
+
     /// Half awake, half the budget: the open ground's eleven tiles fall to six (5.5, rounded).
     [Fact]
     public void HalfConscious_SeesHalfAsFar()
