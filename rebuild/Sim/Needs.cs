@@ -1,10 +1,12 @@
 namespace Survival;
 
-/// A threat (Who) or a herd of quarry (Quarry, Count), kept KeepSightingMinutes, or a carcass, kept until seen bare or gone.
+/// A threat (Who) or quarry (Quarry, Count), kept KeepSightingMinutes; a carcass or a pile (Pile), until seen bare or gone.
 public sealed record Sensed(AgentId? Who, TileId Tile, long Minute, int? Carcass = null,
     [property: System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<Species>))]
     [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    Species? Quarry = null, int Count = 0);
+    Species? Quarry = null, int Count = 0,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    bool Pile = false);
 
 /// Water, rest and food on the shared planner: the top stat at Need or above gets a plan.
 public static partial class Fauna
@@ -84,7 +86,7 @@ public static partial class Fauna
         }
         bool sensed = mind.Plan == null || arrived || world.Minute % SenseEveryMinutes == 0;
         bool foodSeen = sensed && Sense(world, animal, mind);
-        if (arrived && stat == Stat.Food) mind.Plan = mind.Plan! with { PerMinute = FoodAt(world, animal, mind, animal.Tile)?.PerMinute ?? 0 };
+        if (arrived && stat == Stat.Food) mind.Plan = mind.Plan! with { PerMinute = FoodAt(world, animal, mind, animal.Tile, events)?.PerMinute ?? 0 };
         if (Interrupt(world, animal, mind, stat, priority, foodSeen, events) is string why)
         {
             if (!sensed) Sense(world, animal, mind);
@@ -92,7 +94,7 @@ public static partial class Fauna
             TileId? theirs = why == KinLeaving && Following(world, animal) is (var way, var lead)
                 ? MindOf(lead).Plan is { At: TileId at } && at != animal.Tile ? at : Map.Step(animal.Tile, way) : null;
             if (stat == Stat.Food) Disperse(world, animal, mind);
-            mind.Plan = PlanFor(world, animal, mind, new AnimalView(world, mind), stat, priority, theirs);
+            mind.Plan = PlanFor(world, animal, mind, new AnimalView(world, mind), stat, priority, events, theirs);
         }
         var plan = mind.Plan!;
         if (plan.Route.Count > 0) return (new Travel(animal.Id, Way(animal.Tile, plan.Route[0])), UntilArrived);
@@ -105,7 +107,7 @@ public static partial class Fauna
         return stat switch
         {
             Stat.Rest => Rest(animal),
-            Stat.Food => Eat(world, animal, mind),
+            Stat.Food => Eat(world, animal, mind, events),
             _ => (new Watering(animal.Id), 1),
         };
     }
@@ -125,10 +127,11 @@ public static partial class Fauna
         return (new Travel(animal.Id, away), UntilArrived);
     }
 
-    /// At its source: the hunt if the quarry here pays best, else the meat if a carcass pays better than grazing, else grazing.
-    static (Activity, int) Eat(World world, Agent animal, HerdMind mind)
+    /// At its source: the hunt if the quarry here pays best, else feeding if a carcass or the pile pays better than grazing, else grazing.
+    static (Activity, int) Eat(World world, Agent animal, HerdMind mind, List<WorldEvent> events)
     {
-        double graze = GrazeHere(world, animal)?.PerMinute ?? 0, carcass = MeatAt(world, animal, mind, animal.Tile);
+        double graze = GrazeHere(world, animal)?.PerMinute ?? 0;
+        double carcass = Math.Max(MeatAt(world, animal, mind, animal.Tile), PileAt(world, animal, mind, animal.Tile, events));
         if (HuntAt(world, animal, mind, animal.Tile, Hunting(world, animal)) is var hunt && hunt > Math.Max(graze, carcass))
             return QuarryHere(world, animal) is Agent prey && Refusal(world, new Hunt(animal.Id, prey.Id)) == null && !SideFoughtThisMinute(world, animal)
                 ? (new Hunt(animal.Id, prey.Id), 1) : Wait(animal);
@@ -150,9 +153,36 @@ public static partial class Fauna
         return 0;
     }
 
-    static Source? FoodAt(World world, Agent animal, HerdMind mind, TileId tile, HuntingParty? hunting = null)
+    /// A forecast: the kcal a minute a pile here or sensed there pays it (PileBite); none among people it would not come at.
+    public static Source? PileSource(World world, Agent animal, TileId tile) =>
+        PileAt(world, animal, MindOf(animal), tile, events: null) is var rate and > 0 ? new Source(rate) : null;
+
+    static double PileAt(World world, Agent animal, HerdMind mind, TileId tile, List<WorldEvent>? events)
     {
-        double rate = Math.Max(MeatAt(world, animal, mind, tile), GrazeAt(world, animal, tile)?.PerMinute ?? 0);
+        if (tile == animal.Tile)
+        {
+            if (PileRefusal(world, animal, events) != null) return 0;
+        }
+        else if (!PileSensed(mind, tile) || !WouldFeedAmong(world, animal, tile, events)) return 0;
+        double kcal = 0;
+        foreach (var (r, kg) in PileBite(world, animal, tile, double.PositiveInfinity)) kcal += kg * Items.Resources[r].KcalPerKg;
+        return kcal;
+    }
+
+    static bool PileSensed(HerdMind mind, TileId tile)
+    {
+        if (mind.Sightings is not { } seen) return false;
+        for (int i = 0; i < seen.Count; i++)
+            if (seen[i].Pile && seen[i].Tile == tile) return true;
+        return false;
+    }
+
+    /// The most a minute at a pile could pay it: FeedKgPerMinute of the richest food its diet takes.
+    static double RichestBiteKcal(Species s) => Eats(s) is [var richest, ..] ? FeedKgPerMinute * Items.Resources[richest].KcalPerKg : 0;
+
+    static Source? FoodAt(World world, Agent animal, HerdMind mind, TileId tile, List<WorldEvent>? events, HuntingParty? hunting = null)
+    {
+        double rate = Math.Max(Math.Max(MeatAt(world, animal, mind, tile), PileAt(world, animal, mind, tile, events)), GrazeAt(world, animal, tile)?.PerMinute ?? 0);
         // Quarry away from its tile is a source only when its pack is ready to go together.
         if (mind.Sightings != null && Combat.Hunts(animal.Species) && (hunting ?? Hunting(world, animal)) is var party && (party.Together || tile == animal.Tile))
             rate = Math.Max(rate, HuntAt(world, animal, mind, tile, party));
@@ -337,7 +367,7 @@ public static partial class Fauna
             if (stat == Stat.Water) return WaterHere(world, animal) == null ? "the source is gone" : null;
             if (stat != Stat.Food) return null;
             // Grazed down or crowded, it weighs going on: leaving falls out of the choice (spec "Grazing").
-            double rate = FoodAt(world, animal, mind, animal.Tile)?.PerMinute ?? 0;
+            double rate = FoodAt(world, animal, mind, animal.Tile, events)?.PerMinute ?? 0;
             return rate <= 0 ? "the source is gone" : rate * Planner.StayFactor < plan.PerMinute ? "the source has thinned" : null;
         }
         var next = plan.Route[0];
@@ -345,7 +375,7 @@ public static partial class Fauna
             || HeldOff(world, animal, next, events) ? "the next step is refused" : null;
     }
 
-    static Plan PlanFor(World world, Agent animal, HerdMind mind, WorldView view, Stat stat, Priority priority, TileId? only = null)
+    static Plan PlanFor(World world, Agent animal, HerdMind mind, WorldView view, Stat stat, Priority priority, List<WorldEvent> events, TileId? only = null)
     {
         var body = animal.Body;
         var row = SpeciesTable.Of(animal.Species);
@@ -356,27 +386,28 @@ public static partial class Fauna
             Stat.Food => RoomKcal(animal, body),
             _ => (Priorities.RestedPct - body.EnergyPct) * Body.MaxEnergyMinutes,
         });
-        double best = stat == Stat.Food ? Math.Max(row.GrazeKcalPerMinute, IsPrey(animal.Species) ? 0 : FeedKcalPerMinute) : double.PositiveInfinity;
+        double best = stat == Stat.Food ? Math.Max(Math.Max(row.GrazeKcalPerMinute, IsPrey(animal.Species) ? 0 : FeedKcalPerMinute), RichestBiteKcal(animal.Species))
+            : double.PositiveInfinity;
         var hunting = stat == Stat.Food && Combat.Hunts(animal.Species) ? Hunting(world, animal) with { Together = PackReady(world, animal, priority) } : default;
         var ask = new Asking(stat, priority, amount, earn, row.Cohesion, t => KinAt(world, animal, t), best);
         var den = mind.Den;
         Func<TileId, Source?> sourceAt = stat switch
         {
             Stat.Water => t => Work.WaterAt(view, t, body),
-            Stat.Food => t => FoodAt(world, animal, mind, t, hunting),
+            Stat.Food => t => FoodAt(world, animal, mind, t, events, hunting),
             _ => t => t == animal.Tile || t == den ? new Source(RestPerMinute(animal, t)) : null,
         };
-        // Rest is here or at a den; food elsewhere is grazing, or a carcass or quarry sensed (else a meat-eater roams).
+        // Rest is here or at a den; food elsewhere is grazing, or a carcass, pile or quarry sensed (else a meat-eater roams).
         bool routeAway = CanMove(animal) && stat switch
         {
             Stat.Water => true,
-            Stat.Food => row.GrazeKcalPerMinute > 0 || mind.Sightings?.Exists(s => s.Carcass != null || s.Quarry != null) == true,
+            Stat.Food => row.GrazeKcalPerMinute > 0 || mind.Sightings?.Exists(s => s.Carcass != null || s.Pile || s.Quarry != null) == true,
             _ => den != null && den != animal.Tile,
         };
         // Hunting together: a pack animal whose food is due joins the food trip a packmate on its tile has set out on.
         if (stat == Stat.Food && IsClosedGroup(animal.Species) && PackmatesTrip(world, animal) is TileId joining
             && Planner.Toward(world, animal.Id, view, stat, priority, joining) is { } join)
-            return join with { PerMinute = FoodAt(world, animal, mind, joining, hunting)?.PerMinute ?? 0 };
+            return join with { PerMinute = FoodAt(world, animal, mind, joining, events, hunting)?.PerMinute ?? 0 };
         var plan = Planner.Choose(world, animal.Id, view, ask, sourceAt, routeAway, only);
         return plan.At == null && stat == Stat.Food && CanMove(animal) && Roams(animal) && hunting.Together ? Roam(world, animal, view, priority) ?? plan : plan;
     }
@@ -400,10 +431,10 @@ public static partial class Fauna
         return false;
     }
 
-    /// Prey sense predators and people, a pack its rivals, hunters quarry, meat-eaters carcasses (Senses); true: food anew.
+    /// Prey sense predators and people, a pack its rivals, hunters quarry, meat-eaters carcasses and piles (Senses); true: food anew.
     static bool Sense(World world, Agent animal, HerdMind mind)
     {
-        mind.Sightings?.RemoveAll(s => s.Carcass == null && world.Minute - s.Minute > KeepSightingMinutes);
+        mind.Sightings?.RemoveAll(s => s.Carcass == null && !s.Pile && world.Minute - s.Minute > KeepSightingMinutes);
         var behavior = BehaviorOf(animal.Species);
         bool prey = behavior == HerdBehavior.Prey, foodSeen = false;
         bool rivals = IsClosedGroup(animal.Species), hunts = !prey && Combat.Hunts(animal.Species);
@@ -424,6 +455,7 @@ public static partial class Fauna
                     foodSeen = true;
                 }
             }
+            if (Eats(animal.Species).Count > 0) foodSeen |= SensePiles(world, animal, mind, senses);
         }
         if (!prey && !rivals && !hunts) return Done();
         List<Sensed>? herds = null;
@@ -462,6 +494,22 @@ public static partial class Fauna
             if (mind.Sightings?.Count == 0) mind.Sightings = null;
             return foodSeen;
         }
+    }
+
+    /// Piles holding what it eats, smelled or on its tile, never seen; one seen to hold nothing it eats is forgotten.
+    static bool SensePiles(World world, Agent animal, HerdMind mind, Senses senses)
+    {
+        mind.Sightings?.RemoveAll(s => s.Pile && senses.Sees(world, s.Tile) && PileBite(world, animal, s.Tile, double.PositiveInfinity).Count == 0);
+        double reach = Scent.ReachTiles(1, senses.SmellFactor, 2);
+        bool found = false;
+        foreach (var t in Items.PileTilesOf(world))
+        {
+            if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(world.Tiles[t].Pile!)))) continue;
+            if (PileSensed(mind, t) || PileBite(world, animal, t, double.PositiveInfinity).Count == 0) continue;
+            (mind.Sightings ??= []).Add(new Sensed(null, t, world.Minute, Pile: true));
+            found = true;
+        }
+        return found;
     }
 
     static bool HasMeat(World world, TileId tile, int carcass) =>
