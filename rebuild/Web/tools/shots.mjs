@@ -53,6 +53,7 @@ const PHONE_LAYOUT = `(() => {
   const doc = document.scrollingElement;
   if (doc.scrollHeight > H || doc.scrollWidth > W) out.push('the page is ' + doc.scrollWidth + '×' + doc.scrollHeight + ' in a ' + W + '×' + H + ' window');
   for (const sel of ['.app', '.top', '.map', '.dock']) { const e = document.querySelector(sel); if (e && shown(e) && !inside(e.getBoundingClientRect())) out.push(sel + ' runs past the window'); }
+  const top = document.querySelector('.top'); if (top && top.scrollWidth > top.clientWidth) out.push('the top strip is ' + top.scrollWidth + ' px wide in ' + top.clientWidth + ': it scrolls sideways');
   for (const b of document.querySelectorAll('.sheets button')) { const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
   for (const b of document.querySelectorAll('.dock button')) {
     if (!shown(b) || b.closest('.sheets')) continue;
