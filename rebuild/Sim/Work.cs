@@ -89,13 +89,15 @@ public static class Work
     }
 
     /// The same for a pool elsewhere, starting there in startInMinutes, on the ground as remembered (null: as it is).
-    /// What only being there can refuse (trees all felled, the pool unseen) is the caller's to know.
+    /// What only being there can refuse (trees all felled, the pool unseen) is the caller's to know; the tool and the pack's
+    /// room for a trunk's next piece refuse it here as there, so a place does not look better from a step away.
     public static IReadOnlyDictionary<Resource, double> ExpectedGatherAt(World world, Agent agent, PoolId id, ForageFocus focus, int minutes,
         int startInMinutes, double? rememberedDensity)
     {
         var def = Pools.Def(world, id);
         var g = new Gather(agent.Id, id.Index, focus);
-        if (Items.PackOf(agent) is not { } pack || ToolRefusal(def, pack) != null) return new SortedDictionary<Resource, double>();
+        if (Items.PackOf(agent) is not { } pack || ToolRefusal(def, pack) != null || PieceRefusal(world, id, agent, pack) != null)
+            return new SortedDictionary<Resource, double>();
         if (NeedsLight(world, def, g)) minutes = Math.Min(minutes, MinutesUntilTooDarkAt(world, agent, id.Tile, startInMinutes));
         double perception = Body.Perception(agent.Body, new AbilityContext(Items.EncumbrancePct(agent), Weather.DarknessLevel(world, id.Tile), false));
         return Expected(world, agent, id, g, minutes, ForageYield(agent, pack, perception).TotalPct, rememberedDensity, []); // a place out of sight shows no clues
@@ -234,8 +236,7 @@ public static class Work
                         StockPool s when !Pools.HasStock(world, id) => new($"the {s.Name} is picked clean"),
                         StockPool when Pools.MissingTool(world, id, pack) is ToolType t => new($"you need {Names.A(Names.Of(t))}", new MissingTool(t)),
                         TreePool when ToolRefusal(def, pack) is { } noAxe => noAxe,
-                        TreePool when Pools.NextPieceKg(world, id) is double kg && kg > RoomKg(agent, pack) + 1e-9 =>
-                            new(PackFull, new MissingState(Lack.PackRoomKg, kg, RoomKg(agent, pack))),
+                        TreePool when PieceRefusal(world, id, agent, pack) is { } noRoom => noRoom,
                         _ => ToolRefusal(def, pack),
                     };
                 }
@@ -309,6 +310,10 @@ public static class Work
                 throw new NotSupportedException($"{activity.GetType().Name} is not work");
         }
     }
+
+    /// A felled tree's next piece the pack has no room for.
+    static Refusal? PieceRefusal(World world, PoolId id, Agent agent, Inventory pack) =>
+        Pools.NextPieceKg(world, id) is double kg && kg > RoomKg(agent, pack) + 1e-9 ? new(PackFull, new MissingState(Lack.PackRoomKg, kg, RoomKg(agent, pack))) : null;
 
     static double RoomKg(Agent agent, Inventory pack) => Items.CapacityKg(pack) - Items.CarriedKg(agent);
 
