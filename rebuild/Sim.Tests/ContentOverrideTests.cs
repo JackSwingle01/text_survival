@@ -25,7 +25,7 @@ public class ContentOverrideTests
         Assert.Equal(9, t.Species[Species.Wolf].MoveAllowanceM);
         Assert.Equal(0.8, t.Gear["wooden_spear"].Weapon!.Damage);
         Assert.Equal(3.5, t.Sightings.Alert[1]);
-        Assert.Equal(Content.Tables.Species[Species.Bear], t.Species[Species.Bear]);
+        Assert.Equivalent(Content.Tables.Species[Species.Bear], t.Species[Species.Bear], strict: true);
         Assert.Equal(Content.Tables.Species[Species.Wolf].Threat, t.Species[Species.Wolf].Threat);
         Assert.Equal(Content.Tables.Gear["ground_stone_axe"].Weapon, t.Gear["ground_stone_axe"].Weapon);
     }

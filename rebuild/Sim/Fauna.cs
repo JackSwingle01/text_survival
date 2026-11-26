@@ -3,7 +3,7 @@ namespace Survival;
 /// An opportunist (ravens, foxes) neither hunts nor holds a carcass, and eats what it finds (Scavenging.cs).
 public enum HerdBehavior { Prey, Pack, Solitary, Scavenger, Opportunist }
 
-public enum Diet { Carnivore, Omnivore, Browser, Grazer }
+public enum Diet { Carnivore, Omnivore, Herbivore }
 
 /// Its hunger is its body's calorie store (Fauna.Hunger), never stored apart from it.
 public sealed record HerdMind : Mind
@@ -55,7 +55,7 @@ public static partial class Fauna
 
     public static Diet DietOf(Species s) => SpeciesTable.Of(s).Diet;
 
-    public static IReadOnlyList<Resource> Eats(Diet d) => Content.Tables.Diets[d];
+    public static IReadOnlyList<Resource> Grazes(Species s) => SpeciesTable.Of(s).Grazes;
 
     const double FearDecayPerMinute = 0.015;
     /// Field metabolism over basal: 1.6-3 times (research §1; Nagy 1999), the low end, since fights and flight charge their own.
@@ -240,10 +240,9 @@ public static partial class Fauna
         if (kcal <= 0) return;
         Body.Eat(body, kcal);
         MindOf(animal).LastFedMinute = world.Minute;
-        var diet = DietOf(animal.Species);
         if (ForageHere(world, animal.Tile) is not (PoolId id, ForagePool pool)) return;
-        double dietFactor = diet == Diet.Omnivore ? 5.0 : 1.0;
-        foreach (var r in Eats(diet).Where(r => pool.Items.Any(i => i.Resource == r)))
+        double dietFactor = DietOf(animal.Species) == Diet.Omnivore ? 5.0 : 1.0;
+        foreach (var r in Grazes(animal.Species).Where(r => pool.Items.Any(i => i.Resource == r)))
         {
             double level = Pools.GrazedLevel(world, id, r);
             if (level >= 0.95) continue;
@@ -254,13 +253,13 @@ public static partial class Fauna
     /// A forecast: the kcal a minute's grazing pays it where it stands (GrazeAt).
     public static Source? GrazeHere(World world, Agent animal) => GrazeAt(world, animal, animal.Tile);
 
-    /// Its full rate by what is left of its diet's forage, times min(1, capacity / load); null where nothing it eats grows.
+    /// Its full rate by what is left of the forage it grazes, times min(1, capacity / load); null where nothing it eats grows.
     /// A meat-eater's grazing is the small game it lives on between kills, on any ground at an average tile's capacity.
     static Source? GrazeAt(World world, Agent animal, TileId tile)
     {
         double rate = SpeciesTable.Of(animal.Species).GrazeKcalPerMinute;
         if (rate <= 0) return null;
-        var eats = Eats(DietOf(animal.Species));
+        var eats = Grazes(animal.Species);
         double left = 1, density = 0;
         ForagePool? pool = null;
         if (eats.Count > 0)
@@ -318,15 +317,15 @@ public static partial class Fauna
     /// Its intake and that of the living on and stepping onto the tile that graze what it would there.
     static double Load(World world, Agent animal, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool)
     {
-        Span<bool?> sharesByDiet = stackalloc bool?[DietCount];
-        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool, sharesByDiet);
-        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool, sharesByDiet);
+        Span<bool?> sharesBySpecies = stackalloc bool?[SpeciesCount];
+        double load = Intake(animal) + LoadOn(world, animal, tile, tile, eats, pool, sharesBySpecies);
+        foreach (var d in Map.Directions) load += LoadOn(world, animal, Map.Step(tile, d), tile, eats, pool, sharesBySpecies);
         return load;
     }
 
-    static readonly int DietCount = Enum.GetValues<Diet>().Length;
+    static readonly int SpeciesCount = Enum.GetValues<Species>().Max(s => (int)s) + 1;
 
-    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool, Span<bool?> sharesByDiet)
+    static double LoadOn(World world, Agent animal, TileId on, TileId tile, IReadOnlyList<Resource> eats, ForagePool? pool, Span<bool?> sharesBySpecies)
     {
         var here = Nearby.At(world, on);
         double load = 0;
@@ -337,7 +336,7 @@ public static partial class Fauna
             var row = SpeciesTable.Of(other.Species);
             if (row.GrazeKcalPerMinute <= 0
                 || !(other.Crossing is { } c ? Map.Step(c.From, c.Dir) == tile : other.Tile == tile) || !Sim.IsAlive(other)) continue;
-            if (sharesByDiet[(int)row.Diet] ??= Shares(eats, Eats(row.Diet), pool)) load += Intake(other);
+            if (sharesBySpecies[(int)other.Species] ??= Shares(eats, row.Grazes, pool)) load += Intake(other);
         }
         return load;
     }
@@ -358,7 +357,7 @@ public static partial class Fauna
     static Refusal? GrazeRefusal(World world, Agent herd)
     {
         if (GrazeHere(world, herd) == null) return new("nothing here it eats");
-        return ForageHere(world, herd.Tile) is (PoolId id, _) && Eats(DietOf(herd.Species)).Count > 0
+        return ForageHere(world, herd.Tile) is (PoolId id, _) && Grazes(herd.Species).Count > 0
             ? Access.Refusal(world, herd.Id, new LocationFeature(LocationFeatureKind.Pool, id.Tile, id.Index)) : null;
     }
 

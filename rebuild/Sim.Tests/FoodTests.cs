@@ -37,6 +37,21 @@ public class FoodTests
         Assert.Equal(0, caribou.Body.CaloriesKcal);
     }
 
+    /// A hare is a herbivore: it grazes what its list names where that grows, and finds nothing on bare ground (#122).
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AHare_Grazes_OnlyWhereWhatItGrazesGrows(bool pasture)
+    {
+        var w = pasture ? Pasture() : PlannerTests.Strip();
+        var hare = Hungry(w, Species.Hare, T(20));
+        Assert.Equal(Diet.Herbivore, Fauna.DietOf(Species.Hare));
+        Assert.Equal(pasture, Fauna.GrazeHere(w, hare) != null);
+        Sim.Advance(w, 30);
+        Assert.Equal(pasture, hare.Body.CaloriesKcal > 0);
+        Assert.Equal(pasture, Pools.GrazedLevel(w, new PoolId(T(20), 0), Resource.Usnea) > 0);
+    }
+
     /// A pair of hungry caribou on a lichen tile: grazed down, going on beats staying; fresh, staying does.
     [Theory]
     [InlineData(0.9, true)]
@@ -150,7 +165,7 @@ public class FoodTests
         double mKcal = Fauna.GrazeHere(w, mammoth)!.Value.PerMinute, cKcal = Fauna.GrazeHere(w, caribou)!.Value.PerMinute;
         Sim.Advance(w, 1);
         Assert.Equal((T(30), T(5)), (mammoth.Tile, caribou.Tile));
-        double Grazed(Agent a) => Fauna.Eats(SpeciesTable.Of(a.Species).Diet).Max(r => Pools.GrazedLevel(w, new PoolId(a.Tile, 0), r));
+        double Grazed(Agent a) => Fauna.Grazes(a.Species).Max(r => Pools.GrazedLevel(w, new PoolId(a.Tile, 0), r));
         Assert.Equal(Grazed(mammoth) / mKcal, Grazed(caribou) / cKcal, 9);
         Assert.True(Grazed(mammoth) / Grazed(caribou) < 10, "the mammoth grazed its tile down by its mass");
     }

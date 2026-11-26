@@ -122,11 +122,10 @@ public static partial class Fauna
     /// Generation's forage, so cached and never saved; for a meat-eater the living prey now.
     static double ValleyScore(World world, Species species)
     {
-        var diet = DietOf(species);
-        if (diet == Diet.Carnivore)
+        if (DietOf(species) == Diet.Carnivore)
             return world.Agents.Values.Where(a => a.Mind is HerdMind && IsQuarry(a.Species) && Sim.IsAlive(a)).Sum(a => a.Body.WeightKg);
         var cache = world.ValleyForageCache ??= [];
-        if (!cache.TryGetValue(diet, out double score)) cache[diet] = score = OpenLand(world).Sum(t => ForageScore(world, t, diet));
+        if (!cache.TryGetValue(species, out double score)) cache[species] = score = OpenLand(world).Sum(t => ForageScore(world, t, species));
         return score;
     }
 
@@ -145,10 +144,10 @@ public static partial class Fauna
         RenewalOf(species) is RenewalRow row ? ValleyScore(world, species) * row.CapacityPerScore : 0;
 
     /// Generation's, not today's: grazing regrows and herds move on, so renewal reads the land, not this week's grass.
-    public static double ForageScore(World world, TileId tile, Diet diet)
+    public static double ForageScore(World world, TileId tile, Species species)
     {
         if (ForageHere(world, tile) is not (_, ForagePool pool)) return 0;
-        var eats = Eats(diet);
+        var eats = Grazes(species);
         return pool.Items.Where(i => eats.Contains(i.Resource)).Sum(i => pool.Density * i.Abundance);
     }
 

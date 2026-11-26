@@ -12,8 +12,12 @@
 //   where the research gives none). attackDamage is on the weapons' scale (units of tissue condition), what
 //   an average member's blow does: a wolf's bite does not get through a person's flesh, a spear's thrust does.
 //   temperament: what makes its herd come at a target (a name in temperaments).
-//   behavior: how its herd lives (old HerdBehaviorType; Opportunist: a small scavenger, neither predator nor prey). diet: what its herd grazes (a name in diets).
-//   Humans and hares never form herds of their own; theirs are the old defaults, Prey and Carnivore.
+//   behavior: how its herd lives (old HerdBehaviorType; Opportunist: a small scavenger, neither predator nor prey).
+//   diet: which foods it eats from piles, caches and carcasses (a name in diets).
+//   grazes (optional, nothing): what it grazes off a tile's forage, in order (old AnimalDietExtensions.GetConsumedResources);
+//     every herbivore has one. A meat-eater that grazes with no list lives on small game, on any ground (Fauna.GrazeAt).
+//     Stick is twigs, and Tinder grass, as dried plant matter. Starting lists, to be balanced (#116).
+//   Humans never form herds of their own; theirs are the old defaults, Prey and Carnivore.
 //   How it runs (documentation/species-stats-research.md §5.3), fresh and unladen: topSpeedMps, flat out;
 //   enduranceSpeedMps, the pace it holds for 20 minutes or more; sprintSeconds, the seconds at top speed
 //   that empty a full sprint reserve; runCostJPerKgM, the net cost of running a metre (Taylor 1982, a
@@ -46,7 +50,7 @@
 //
 // temperaments: base, a bonus per member, hunger (hungryAt, starvingAt, hungerBonus), defending a kill
 //   or den (defendBonus), and a ceiling (cap). Cap 0 never starts a fight.
-// diets: what each Diet takes off a tile's forage, in order (old AnimalDietExtensions.GetConsumedResources).
+// diets: the foods each Diet eats from piles, caches and carcasses (GLOSSARY: Diet); a herbivore eats none of them.
 // sightings: how watchful a stalked animal is, by what its herd is doing; one is picked at random
 //   (old HuntingSightings' DetectionModifier values, pool by pool, in their order).
 {
@@ -72,7 +76,7 @@
   // Running: Top speed V (secondary), endurance R, the rest D; intake D: the old forage-to-hunger ratio at Kleiber's burn.
   "Bear": { "body": "Quadruped", "weightKg": 250, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
    "attackDamage": 3.22, "attackType": "Sharp", "threat": 2.5, "boldness": 1.6, "aggression": 0.4, "cohesion": 0, "group": "Open", "moveAllowanceM": 5, "reachM": 1.0,
-   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore",
+   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 13, "enduranceSpeedMps": 4, "sprintSeconds": 20, "runCostJPerKgM": 1.8, "burstPct": 0.08, "grazeKcalPerMinute": 18, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 10, "activity": "Diurnal", "smellFactor": 3, "scentLevel": 0.4, "stealthFactor": 0.7 },
   // A den defender, not a predator: mostly herbivorous (R, Bocherens), dangerous in or near its den (its
   // temperament: no base boldness, no hunger, all of it from defending). Mass V (Christiansen 1999, the sexes
@@ -80,7 +84,7 @@
   // Running: Running all D; intake the brown bear's, scaled by Kleiber (D).
   "CaveBear": { "body": "Quadruped", "weightKg": 400, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
    "attackDamage": 2.10, "attackType": "Sharp", "threat": 3.0, "boldness": 1.8, "aggression": 0.4, "cohesion": 0, "group": "Open", "moveAllowanceM": 4, "reachM": 1.0,
-   "temperament": "caveBear", "behavior": "Solitary", "diet": "Omnivore",
+   "temperament": "caveBear", "behavior": "Solitary", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 11, "enduranceSpeedMps": 3.5, "sprintSeconds": 20, "runCostJPerKgM": 1.5, "burstPct": 0.08, "grazeKcalPerMinute": 25, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 12, "activity": "Diurnal", "smellFactor": 3, "scentLevel": 0.4, "stealthFactor": 0.7 },
   // Homotherium latidens, the Eurasian scimitar-tooth (the old generic 300 kg sabre-tooth). Mass V (Illinois State
   // Museum), fat and muscle D.
@@ -99,31 +103,31 @@
   // Running: Top speed R, endurance and sprint D, running cost V; intake D from winter lichen (research §4.1).
   "Caribou": { "body": "Quadruped", "weightKg": 110, "fatPct": 0.08, "musclePct": 0.47, "role": "Prey", "isSmall": false,
    "attackDamage": 0.60, "attackType": "Blunt", "threat": 0.3, "boldness": 0.3, "aggression": 0.05, "cohesion": 1, "group": "Open", "moveAllowanceM": 3, "reachM": 0.8,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "temperament": "never", "behavior": "Prey", "diet": "Herbivore", "grazes": [ "Usnea", "Stick", "BirchPolypore" ],
    "topSpeedMps": 16, "enduranceSpeedMps": 7, "sprintSeconds": 20, "runCostJPerKgM": 2.4, "burstPct": 0.10, "grazeKcalPerMinute": 13, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 4, "activity": "Diurnal", "smellFactor": 1.5, "scentLevel": 0.3 },
   // Mass V (summaries); fat and muscle D, by red deer and elk.
   // Running: Running and intake all D, by red deer and elk.
   "Megaloceros": { "body": "Quadruped", "weightKg": 550, "fatPct": 0.12, "musclePct": 0.45, "role": "DangerousPrey", "isSmall": false,
    "attackDamage": 1.20, "attackType": "Blunt", "threat": 0.5, "boldness": 0.4, "aggression": 0.1, "cohesion": 1, "group": "Open", "moveAllowanceM": 3, "reachM": 1.5,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "temperament": "never", "behavior": "Prey", "diet": "Herbivore", "grazes": [ "Usnea", "Stick", "BirchPolypore" ],
    "topSpeedMps": 15, "enduranceSpeedMps": 6, "sprintSeconds": 20, "runCostJPerKgM": 1.4, "burstPct": 0.08, "grazeKcalPerMinute": 20, "strikeBackResolve": -0.2, "chaseLimitSeconds": 20, "sleepHoursPerDay": 4, "activity": "Crepuscular", "smellFactor": 1.5, "scentLevel": 0.3 },
   // Steppe bison, the herd's average (bulls 850, cows 500). Mass V (summaries), fat and muscle D.
   // Running: Top speed R, the rest D; intake D from V grams a minute (Hudson & Frank 1987; Raynor 2015).
   "Bison": { "body": "Quadruped", "weightKg": 600, "fatPct": 0.12, "musclePct": 0.45, "role": "DangerousPrey", "isSmall": false,
    "attackDamage": 1.50, "attackType": "Pierce", "threat": 1.8, "boldness": 0.5, "aggression": 0.1, "cohesion": 2, "group": "Open", "moveAllowanceM": 3, "reachM": 0.8,
-   "temperament": "never", "behavior": "Prey", "diet": "Grazer",
+   "temperament": "never", "behavior": "Prey", "diet": "Herbivore", "grazes": [ "Tinder" ],
    "topSpeedMps": 15, "enduranceSpeedMps": 6, "sprintSeconds": 25, "runCostJPerKgM": 1.3, "burstPct": 0.08, "grazeKcalPerMinute": 35, "strikeBackResolve": -0.2, "chaseLimitSeconds": 20, "sleepHoursPerDay": 4, "activity": "Diurnal", "smellFactor": 1.5, "scentLevel": 0.3 },
   // A family group's average (bulls 6 t, cows 4 t; R, check Larramendi 2016). Fat V/R (an 8 cm layer), muscle D.
   // Running: Top speed V (Hutchinson 2003, elephants), endurance R, sprint seconds a guess (D); intake D, by elephants.
   "Mammoth": { "body": "Quadruped", "weightKg": 5000, "fatPct": 0.10, "musclePct": 0.40, "role": "DangerousPrey", "isSmall": false,
    "attackDamage": 3.50, "attackType": "Pierce", "threat": 3.5, "boldness": 1.0, "aggression": 0.1, "cohesion": 2, "group": "Open", "moveAllowanceM": 3, "reachM": 2.5,
-   "temperament": "never", "behavior": "Prey", "diet": "Browser",
+   "temperament": "never", "behavior": "Prey", "diet": "Herbivore", "grazes": [ "Usnea", "Stick", "BirchPolypore" ],
    "topSpeedMps": 6.5, "enduranceSpeedMps": 3, "sprintSeconds": 90, "runCostJPerKgM": 0.7, "burstPct": 0.05, "grazeKcalPerMinute": 90, "strikeBackResolve": -0.2, "chaseLimitSeconds": 20, "sleepHoursPerDay": 4, "activity": "Diurnal", "smellFactor": 1.2, "scentLevel": 0.4 },
   // The mountain hare. Mass R, fat and muscle D.
   // Running: Top speed R (unverified), the rest D.
   "Hare": { "body": "Quadruped", "weightKg": 3, "fatPct": 0.05, "musclePct": 0.50, "role": "Prey", "isSmall": true,
    "attackDamage": 0.05, "attackType": "Blunt", "threat": 0.05, "boldness": 0.1, "aggression": 0.0, "cohesion": 1, "group": "Open", "moveAllowanceM": 3, "reachM": 0.1,
-   "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
+   "temperament": "never", "behavior": "Prey", "diet": "Herbivore", "grazes": [ "Usnea", "Stick", "BirchPolypore" ],
    "topSpeedMps": 17, "enduranceSpeedMps": 4, "sprintSeconds": 10, "runCostJPerKgM": 7.5, "burstPct": 0.15, "grazeKcalPerMinute": 0.4, "strikeBackResolve": -0.2, "chaseLimitSeconds": 10, "sleepHoursPerDay": 8, "activity": "Crepuscular", "smellFactor": 1, "scentLevel": 0.1 },
   // The red fox: walks, alone or a pair, and lives on what it finds: carrion, berries and roots (Omnivore), and the
   // small game it catches between them. It never starts a fight and runs from one.
@@ -131,7 +135,7 @@
   // Running: Top speed R, the rest D; its foraging the bear's intake scaled by Kleiber (D).
   "Fox": { "body": "Quadruped", "weightKg": 6, "fatPct": 0.10, "musclePct": 0.45, "role": "Scavenger", "isSmall": true,
    "attackDamage": 0.25, "attackType": "Pierce", "threat": 0.15, "boldness": 0.4, "aggression": 0.1, "cohesion": 0, "group": "Open", "moveAllowanceM": 3, "reachM": 0.2,
-   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore",
+   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 1.1, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 10, "activity": "Crepuscular", "smellFactor": 2, "scentLevel": 0.2 },
   // The common raven: flies, keeps to a loose flock, follows killers and fires to what they leave, and forages
   // berries, fungi and roots between kills (Omnivore). It never starts a fight and flies from one. It has no
@@ -140,7 +144,7 @@
   // Running: Its pace on the wing R (about 14 m/s flat out), the rest D; its foraging the bear's intake scaled by Kleiber (D).
   "Raven": { "body": "Quadruped", "weightKg": 1.2, "fatPct": 0.08, "musclePct": 0.40, "role": "Scavenger", "isSmall": true,
    "attackDamage": 0.05, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "group": "Open", "moveAllowanceM": 6, "reachM": 0.1,
-   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore",
+   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 14, "enduranceSpeedMps": 10, "sprintSeconds": 30, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0.33, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 10, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.05,
    "flightMinutesPerTile": 1, "perceptionFactor": 2 }
  },
@@ -156,12 +160,9 @@
  },
 
  "diets": {
-  "Carnivore": [],
-  "Omnivore": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
-  // Old Stick: twigs.
-  "Browser": [ "Usnea", "Stick", "BirchPolypore" ],
-  // Grass, as dried plant matter.
-  "Grazer": [ "Tinder" ]
+  "Carnivore": [ "RawMeat", "CookedMeat", "DriedMeat", "RawFish", "CookedFish", "DriedFish" ],
+  "Omnivore": [ "RawMeat", "CookedMeat", "DriedMeat", "RawFish", "CookedFish", "DriedFish", "Berries", "DriedBerries", "Nuts", "Roots", "Honey" ],
+  "Herbivore": []
  },
 
  "sightings": {
