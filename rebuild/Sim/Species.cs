@@ -131,6 +131,13 @@ public static class SpeciesTable
 
     public const double MinSpeedPct = 0.1;
 
+    /// Body.Speed under the load, held at MinSpeedPct of a fresh body's unloaded speed, the floor running has too; zero stays zero.
+    public static double WalkingSpeed(Species species, BodyState body, double encumbrancePct = 0)
+    {
+        double speed = Body.Speed(body, new AbilityContext(EncumbrancePct: encumbrancePct));
+        return speed > 0 ? Math.Max(speed, MinSpeedPct * FreshSpeed(species, body.Sex)) : 0;
+    }
+
     /// A share of a fresh member's strength, so a species' or weapon's damage is what an average one does:
     /// Strength's kilogram terms are a person's.
     public static double StrengthPct(Species species, BodyState body)

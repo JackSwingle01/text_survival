@@ -92,7 +92,8 @@ public class LameTests
         AssertRefusedFor(w, CrippledBy.Load, "load");
     }
 
-    /// One leg gone and the other at a hundredth: still offered the walk, and a crossing far longer than a whole body's.
+    /// One leg gone and the other at a hundredth: still offered the walk, and a crossing far longer than a whole body's,
+    /// though no more than ten times it: the walk is held at a tenth of a fresh body's speed (#288).
     [Fact]
     public void OneLegAtAHundredth_IsOfferedTheWalk_AndItsCrossingIsFarLonger()
     {
@@ -107,8 +108,7 @@ public class LameTests
 
         var whole = With(BodyState.BaselineHuman());
         var wholeVerb = Verbs.At(whole, P).Walk.First(v => v.Activity == walk);
-        Assert.True(verb.Trip!.TotalMinutes > 10 * wholeVerb.Trip!.TotalMinutes,
-            $"{verb.Trip.TotalMinutes} min on the weak leg, {wholeVerb.Trip.TotalMinutes} whole");
+        Assert.InRange(verb.Trip!.TotalMinutes, 2 * wholeVerb.Trip!.TotalMinutes + 1, 10 * wholeVerb.Trip.TotalMinutes); // a whole body may be on the five-minute floor
     }
 
     [Fact]

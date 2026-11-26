@@ -475,7 +475,7 @@
           "StructuralKg": 34,
           "FatKg": 8.398298720057722,
           "MuscleKg": 25.84,
-          "CoreTempF": 98.65841953094215,
+          "CoreTempF": 98.62584642757277,
           "CaloriesKcal": 1997.6331838888889,
           "EnergyMinutes": 755,
           "HydrationMl": 2748.2638888888596,
@@ -503,7 +503,7 @@
             {
               "Kind": "fur_leg_wraps",
               "Durability": 60,
-              "MaxDurability": 60
+              "MaxDurability": 100
             },
             {
               "Kind": "worn_hide_boots",
@@ -605,8 +605,8 @@
             },
             {
               "Kind": "flint_knife",
-              "Durability": -1,
-              "MaxDurability": -1
+              "Durability": 29,
+              "MaxDurability": 30
             },
             {
               "Kind": "bone_needle",
@@ -1160,12 +1160,12 @@
           "StructuralKg": 34,
           "FatKg": 11.449394004618185,
           "MuscleKg": 25.84,
-          "CoreTempF": 98.3366318312845,
+          "CoreTempF": 97.99503567300391,
           "CaloriesKcal": 1234.5702322222253,
           "EnergyMinutes": 4,
           "HydrationMl": 2749.3055555555266,
           "MinutesWithoutHunger": 145,
-          "ClothingHeatBufferPct": 0.021357949560517425,
+          "ClothingHeatBufferPct": 0,
           "Effects": [
             {
               "Kind": 8,
@@ -1198,7 +1198,7 @@
             {
               "Kind": "fur_leg_wraps",
               "Durability": 60,
-              "MaxDurability": 60
+              "MaxDurability": 100
             },
             {
               "Kind": "worn_hide_boots",
@@ -1259,8 +1259,8 @@
             },
             {
               "Kind": "flint_knife",
-              "Durability": -1,
-              "MaxDurability": -1
+              "Durability": 30,
+              "MaxDurability": 30
             }
           ]
         },
@@ -2446,7 +2446,14 @@
           }
         ]
       },
-      "Crossing": null
+      "Crossing": {
+        "From": "22,42",
+        "Dir": 1,
+        "Pace": 0,
+        "Covered": 366503875925,
+        "ElapsedMinutes": 2,
+        "RiskPct": 0
+      }
     }
   },
   "Rngs": {

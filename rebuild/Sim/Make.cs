@@ -5,11 +5,11 @@ namespace Survival;
 public enum OutcomeKind { Succeed, Fail }
 
 /// One effect an outcome has (emergent-world-design §3.7). A closed list: a new kind is a code and
-/// loader change. Shares are 0-1 of the named input's kilos.
+/// loader change. An Amount of an input is whole pieces of a discrete one, or a share (0-1] of a continuous one's kilos.
 public abstract record Effect;
-public sealed record WasteMaterial(Resource Input, double SharePct) : Effect;
-/// That share of the input named comes back to the pack instead of going into the result.
-public sealed record SaveMaterial(Resource Input, double SharePct) : Effect;
+public sealed record WasteMaterial(Resource Input, double Amount) : Effect;
+/// That much of the input named comes back to the pack instead of going into the result.
+public sealed record SaveMaterial(Resource Input, double Amount) : Effect;
 public sealed record ExtraProduct(string What, double Amount) : Effect;
 /// A cut, through Body.Damage: Amount in DamageInfo's units of tissue condition.
 public sealed record Injury(BodyTarget Target, double Amount) : Effect;
@@ -57,8 +57,9 @@ public static class Outcomes
                 case "save_material":
                     {
                         var inputs = Alternatives("resource").Select(r => Named<Resource>(line, r)).ToList();
-                        double share = Share(line, Param("share"));
-                        effects.Add([.. inputs.Select(r => name == "waste_material" ? (Effect)new WasteMaterial(r, share) : new SaveMaterial(r, share))]);
+                        double amount = Number(line, Param("amount"));
+                        if (amount <= 0) throw Bad(line, $"{name} amount {amount}");
+                        effects.Add([.. inputs.Select(r => name == "waste_material" ? (Effect)new WasteMaterial(r, amount) : new SaveMaterial(r, amount))]);
                         break;
                     }
                 case "extra_product":
@@ -110,8 +111,8 @@ public static class Outcomes
 
     static string Spelling(Effect e) => e switch
     {
-        WasteMaterial w => $"waste_material:{w.Input}:{w.SharePct.ToString(CultureInfo.InvariantCulture)}",
-        SaveMaterial s => $"save_material:{s.Input}:{s.SharePct.ToString(CultureInfo.InvariantCulture)}",
+        WasteMaterial w => $"waste_material:{w.Input}:{w.Amount.ToString(CultureInfo.InvariantCulture)}",
+        SaveMaterial s => $"save_material:{s.Input}:{s.Amount.ToString(CultureInfo.InvariantCulture)}",
         ExtraProduct x => $"extra_product:{x.What}:{x.Amount.ToString(CultureInfo.InvariantCulture)}",
         Injury j => $"injury:{j.Target}:{j.Amount.ToString(CultureInfo.InvariantCulture)}",
         BreakTool b => b.Uses is int n ? $"break_tool:{b.Capability}:{n}" : $"break_tool:{b.Capability}",
@@ -249,11 +250,11 @@ public static class Making
         Held(agent, pack).Where(g => g.Kind == kind && g.MaxDurability > 0 && g.Durability < g.MaxDurability)
             .OrderBy(Items.ConditionPct).FirstOrDefault();
 
-    /// Restores the share of the missing condition, in whole points, at least one.
+    /// Restores the share of the missing condition, rounded up to whole points.
     public static void Restore(Gear g, double sharePct)
     {
         int now = Math.Max(0, g.Durability), missing = g.MaxDurability - now;
-        g.Durability = Math.Min(g.MaxDurability, now + Math.Max(1, (int)Math.Round(missing * sharePct, MidpointRounding.AwayFromZero)));
+        g.Durability = Math.Min(g.MaxDurability, now + (int)Math.Ceiling(missing * sharePct - 1e-9));
     }
 
 
@@ -317,7 +318,7 @@ public static class Making
 
     /// "2 stones", "300 g of plant fibre or 1 sinew".
     public static string Words(MaterialInput m) => string.Join(" or ",
-        m.AnyOf.Select(x => Items.IsDiscrete(x) ? Names.Pieces(x, m.Count) : $"{Names.Grams(m.Kg)} of {Names.Of(x)}"));
+        m.AnyOf.Select(x => Items.IsDiscrete(x) ? Names.Pieces(x, m.Count) : $"{Names.Measure(x, m.Kg)} of {Names.Of(x)}"));
 
     static Refusal? MissingMaterial(Inventory pack, Recipe r)
     {
@@ -604,20 +605,25 @@ public static class Making
         var extraGear = new List<string>();
         var gained = new Inventory();
 
-        // Waste and saving act on the whole input they name, whichever alternative went in: a share of an amount,
-        // or that share of the pieces rounded to whole ones, lightest first (a quarter of one hide is none of it).
+        // Waste and saving act on the whole input they name, whichever alternative went in: whole pieces, lightest
+        // first through the alternatives in order, or a share of each amount.
         double inputKg = Items.Totals(materials).Sum(x => x.Kg);
         double wastedKg = 0;
         foreach (var e in effects)
         {
-            var (named, share, waste) = e switch { WasteMaterial w => (w.Input, w.SharePct, true), SaveMaterial s => (s.Input, s.SharePct, false), _ => (default(Resource?), 0.0, false) };
+            var (named, amount, waste) = e switch { WasteMaterial w => (w.Input, w.Amount, true), SaveMaterial s => (s.Input, s.Amount, false), _ => (default(Resource?), 0.0, false) };
             if (named is not Resource input) continue;
+            int pieces = (int)amount;
             foreach (var res in r.Materials.First(m => m.AnyOf.Contains(input)).AnyOf)
             {
                 var part = new Inventory();
                 if (Items.IsDiscrete(res))
-                    Items.AddPieces(part, res, Items.TakePieces(materials, res, (int)Math.Round(Items.Count(materials, res) * share, MidpointRounding.AwayFromZero)));
-                else Items.Add(part, res, Items.Take(materials, res, Items.Have(materials, res) * share));
+                {
+                    var taken = Items.TakePieces(materials, res, pieces);
+                    pieces -= taken.Count;
+                    Items.AddPieces(part, res, taken);
+                }
+                else Items.Add(part, res, Items.Take(materials, res, Items.Have(materials, res) * amount));
                 double kg = Items.Have(part, res);
                 if (kg <= 0) continue;
                 if (waste) { spent[res] = spent.GetValueOrDefault(res) + kg; wastedKg += kg; }

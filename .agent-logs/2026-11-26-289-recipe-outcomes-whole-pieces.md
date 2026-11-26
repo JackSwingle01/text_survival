@@ -1,0 +1,19 @@
+# #289: Recipe outcomes on whole pieces name whole pieces, and sharpening rounds up
+
+Hypothesis:
+- Changes: `Make.cs` (WasteMaterial/SaveMaterial carry an Amount: whole pieces of a discrete input, a share of a continuous one; `Making.Complete` takes that many pieces across the input's alternatives; `Making.Restore` rounds up), `Content.Tables.cs` (`MakeRecipes` refuses a fractional or too-large piece count; `WeightProblems` reads pieces as pieces over the input's count), `Names.Outcome` (pieces worded as pieces), `recipes.json` (the fourteen lines and `ivory_tipped_spear`'s save).
+- Affects: a failed sewing of a several-piece garment loses 1 piece (as today); the six one-piece recipes keep it (as today, now a plain fail); `ivory_tipped_spear` saves 1 Sinew (as today); sharpening and mending restore the share rounded up (mending's 6.4 points become 7: a change).
+- Stays green: ConservationMakeTests, MakeTests, RepairTests (bar the rounding rows), ContentStrictTests, WorkSlowingTests.
+- First red: ContentStrictTests `Loader_Refuses...` new rows load without a problem (a share of a discrete input is accepted today).
+
+Revised (review): `PlantFiber|Sinew` and `PlantFiber|Sinew|Rope` inputs mix both forms, so pieces-or-share has no answer there → the loader refuses waste or saving on an input of both forms (no recipe has one today).
+Revised (review): `Making.Restore` is shared by sharpening and mending, and the spec names only sharpening → rounded up for both, one rule for a repair's share; mending's hide_cap row in `RepairTests` goes 72→79 (was 78), the only change visible in play. Reversible: a per-recipe rounding if Jack wants mending to keep rounding to the nearest.
+Revised (review): `Names.Outcome` cannot see the recipe, so "the stone is wasted" cannot tell "all of it" from "one piece" → discrete waste and saving read "one stone is wasted", "2 hide strips are wasted"; `NamesTests.AnOutcome_ReadsInWords` changed to match.
+Revised: `Outcomes.Parse` no longer refuses an amount above 1 (pieces may be more), only a non-positive one; the loader checks the form → `MakeTests.Parse_RefusesBadLines`' "a share above 1" row became "no amount" (0).
+Revised: `MakeTests.Fail_LosesTheTime...` and `SavedMaterial_ComesBack...` named `Flint:0.5` and `Sinew:0.5`, which relied on the deleted rounding → now `:1`; `SavingOnAResourceResult_IsABonus_AndWasteShrinksIt` lost its scrape-hide half ("a quarter of one hide is none of it": the rounding deleted) and is renamed `SavingOnAResourceResult_IsABonus`; `MakeTests` odds rows read `Sinew:1`.
+Revised: `ivory_tipped_spear`'s `save_material:Sinew:.5` (2 sinews; saves one today) is refused by the new rule and not in the issue's table → rewritten `Sinew:1`, saving the one piece it saves today.
+Revised: the issue's property test leaves its seam open → `WholePieceOutcomeTests` builds the project holding exactly the inputs (first alternative, all lightest, then all heaviest) and calls `Making.Complete` directly for every by-hand, unplaced recipe and each outcome plus the plain result; a mutation (one piece more taken) fails it and all eight several-piece rows.
+Revised: `Names.cs` fell under the comment-hygiene limit once its doc line went (the ratchet had flagged it over) → its `CommentHygieneTests` exception entry is removed, as the ratchet asks.
+Revised (review): the property test holds only each input's first alternative, so taking pieces across alternatives went untested → `WastedPieces_ComeOffTheAlternativesInOrder` (1 pine and 3 birch, 2 wasted: the pine and a birch).
+Revised (review): `Names` chose "is"/"are" in both effect arms → one `InputIs` words the amount and the verb; a history-style test comment reworded.
+Revised (review): naming `Amount` for pieces-or-share breaks the units-in-names rule → kept: `ExtraProduct.Amount` beside it is already pieces or kilos by the resource's form, and two fields would let a discrete input carry a share again.

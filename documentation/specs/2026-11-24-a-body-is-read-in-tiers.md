@@ -193,8 +193,15 @@ longer drains your strength through vitality, and losing blood still weakens you
 - A work verb's time is its whole-body time divided by (a half plus half of the faculty's ratio). That
   runs from one to two times the whole-body time. It replaces the two steps at one half.
 - Where a verb is slowed by two faculties, the lower ratio sets the time.
-- Walking keeps its present rule: crossing time is proportional to speed. The floor on speed in that
-  division is removed, because a body at zero is refused before any time is computed.
+- Walking keeps its present rule: crossing time is proportional to speed. A body at zero is refused before
+  any time is computed. A body above zero walks at no less than a tenth of a fresh body's speed of its
+  species and sex, its load counted (`SpeciesTable.MinSpeedPct`, the floor running uses too). Without it, a
+  body just above zero would owe a crossing of days, and an animal whose leg mends within a minute would go on
+  owing it (#288).
+- A crossing goes at the walker's speed each minute: each minute walked covers one over the minutes the whole
+  crossing would take at that minute's speed, load, pace and weather, so a wound, a load dropped or a leg
+  mended part way across counts from that minute. A forecast agrees with the walk for a body and world that do
+  not change on the way.
 - Anything that turns a faculty into a time asks whether the body can do it first. This holds for
   forecasts and for route planning, which compute times without stepping a verb.
 - A chase keeps its floor on running speed for a body that can run. Running speed and burst cost are

@@ -430,18 +430,18 @@ public static partial class Fauna
     static bool EatsFrom(Inventory? store, Agent animal) => store != null && Bite(store, animal, double.PositiveInfinity).Count > 0;
 
     static Inventory? StoreContents(World world, TileId tile, CacheId? cache) =>
-        cache is CacheId id ? Caches.Find(world, id)?.Contents : world.Tiles.GetValueOrDefault(tile)?.Pile;
+        cache is CacheId id ? Caches.Find(world, id)?.Contents : Stations.ExposedFood(world, tile);
 
-    static IEnumerable<(LocationFeature Feature, CacheId? Cache)> StoresOn(World world, TileId tile)
+    static IEnumerable<(LocationFeature Feature, CacheId? Cache)> StoresOn(World world, Agent animal, TileId tile)
     {
-        if (LocationFeatures.PileAt(world, tile) is LocationFeature pile) yield return (pile, null);
+        if ((LocationFeatures.PileAt(world, tile) ?? Stations.FeatureWith(world, tile, Eats(animal.Species))) is LocationFeature pile) yield return (pile, null);
         foreach (var id in Caches.At(world, tile)) yield return (new LocationFeature(LocationFeatureKind.Cache, tile, id.Value), id);
     }
 
     /// Why it would eat at no pile or cache on its tile; with events, the people's fire is caught up first (Fire.CatchUpOn).
     static Refusal? StoreRefusal(World world, Agent herd, List<WorldEvent>? events)
     {
-        var stores = StoresOn(world, herd.Tile).ToList();
+        var stores = StoresOn(world, herd, herd.Tile).ToList();
         if (stores.Count == 0) return new("nothing here it can reach to eat");
         var eaten = stores.Where(s => EatsFrom(StoreContents(world, herd.Tile, s.Cache), herd)).ToList();
         if (eaten.Count == 0) return new("nothing in the pile or cache it eats");

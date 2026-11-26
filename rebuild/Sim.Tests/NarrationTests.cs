@@ -73,7 +73,24 @@ public class NarrationTests
     {
         Assert.Equal("The fire was roaring. Now it is embers.", Narration.Change(new Change(ChangeKind.Fire, "fire", "Roaring", "Embers")));
         Assert.Equal("The birch bark in the pile is gone.", Narration.Change(new Change(ChangeKind.Pile, "BirchBark", "1.0", null)));
+        Assert.Equal("The pile's birch bark: 1.0 kg, now 2.5 kg.", Narration.Change(new Change(ChangeKind.Pile, "BirchBark", "1.0", "2.5")));
+        Assert.Equal("1.0 kg birch bark in the pile.", Narration.Change(new Change(ChangeKind.Pile, "BirchBark", null, "1.0")));
+        Assert.Equal("The pile's water: 1 L, now 2.5 L.", Narration.Change(new Change(ChangeKind.Pile, "Water", "1.0", "2.5")));
+        Assert.Equal("1 L water in the pile.", Narration.Change(new Change(ChangeKind.Pile, "Water", null, "1.0")));
         var sign = new TrackSign(TrackMaker.Paw, 0.9, 3, TrafficPattern.Heading, Direction.North, 60, 0.02, 3, 0);
         Assert.Equal("Paw prints, heading north, fresh.", Narration.Sign(sign));
+    }
+
+    /// Water reads in litres wherever an amount of it is worded: gathered, put down, taken, waiting at the fire (#290).
+    [Fact]
+    public void WaterLines_ReadInLitres()
+    {
+        var w = TestWorlds.Bare(17);
+        var camp = Map.Of(w).Camp;
+        var got = new Inventory();
+        Items.Add(got, Resource.Water, 0.25);
+        Assert.Equal("You gather 0.25 L water.", Narration.ForPlayer(w, new Gathered(0, P, camp, Items.Describe(got)))!.Text);
+        Assert.Equal("You put down 1 L water.", Narration.ForPlayer(w, new PutOnPile(0, P, camp, Resource.Water, 1, 0))!.Text);
+        Assert.Equal("You pick up 0.5 L water.", Narration.ForPlayer(w, new PickedUp(0, P, camp, Resource.Water, 0.5, false))!.Text);
     }
 }

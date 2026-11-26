@@ -171,7 +171,7 @@ public static partial class Fauna
         bool here = tile == animal.Tile;
         if (here && StoreRefusal(world, animal, events) != null) return null;
         Store? best = null;
-        foreach (var (feature, cache) in StoresOn(world, tile))
+        foreach (var (feature, cache) in StoresOn(world, animal, tile))
         {
             if (here ? Access.Refusal(world, animal.Id, feature) != null : !StoreSensed(mind, tile, cache) || !Access.GetsInto(world, animal.Id, feature)) continue;
             double kcal = 0;
@@ -523,10 +523,11 @@ public static partial class Fauna
         mind.Sightings?.RemoveAll(s => s.Pile && senses.Sees(world, s.Tile) && !EatsFrom(StoreContents(world, s.Tile, null), animal));
         double reach = Scent.ReachTiles(1, senses.SmellFactor, 2);
         bool found = false;
-        foreach (var t in Items.PileTilesOf(world))
+        foreach (var t in Items.PileTilesOf(world).Concat(Stations.FoodTiles(world)))
         {
-            if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(world.Tiles[t].Pile!)))) continue;
-            if (StoreSensed(mind, t, null) || !EatsFrom(world.Tiles[t].Pile, animal)) continue;
+            var food = Stations.ExposedFood(world, t)!;
+            if (t != animal.Tile && (MapGen.Manhattan(t, animal.Tile) > reach || !senses.Smells(t, Scent.OfFoodIn(food)))) continue;
+            if (StoreSensed(mind, t, null) || !EatsFrom(food, animal)) continue;
             (mind.Sightings ??= []).Add(new Sensed(null, t, world.Minute, Pile: true));
             found = true;
         }

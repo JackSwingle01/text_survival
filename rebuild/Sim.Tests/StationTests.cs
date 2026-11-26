@@ -287,7 +287,7 @@ public class StationTests
         Assert.Equal(0, WaterAt(w, id));
         var litre = Sim.Advance(w, 1).OfType<TransformationFinished>().Single();
         Assert.Equal(1, WaterAt(w, id), 9);
-        Assert.Equal("1.0 kg water waits at the fire.", Narration.ForPlayer(w, litre)!.Text);
+        Assert.Equal("1 L water waits at the fire.", Narration.ForPlayer(w, litre)!.Text);
         Sim.Advance(w, 20);
         Assert.Equal(3, WaterAt(w, id), 9);
         Assert.Equal(0, Items.Have(Items.Pack(w, P), Resource.Water));

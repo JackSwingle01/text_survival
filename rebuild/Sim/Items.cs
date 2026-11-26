@@ -113,12 +113,16 @@ public static class Items
     public static GearDef Def(Gear g) =>
         GearKinds.TryGetValue(g.Kind, out var d) ? d : throw new KeyNotFoundException($"No gear kind '{g.Kind}'");
 
+    /// A piece of a kind, whole or worn to the durability given; a worn piece keeps its kind's maximum.
     public static Gear Make(string kind, int? durability = null)
     {
         if (!GearKinds.TryGetValue(kind, out var d)) throw new KeyNotFoundException($"No gear kind '{kind}'");
-        int max = durability ?? d.MaxDurability;
-        return new Gear { Kind = kind, Durability = max, MaxDurability = max };
+        if (durability is int n && !CanBeWornTo(d, n))
+            throw new ArgumentOutOfRangeException(nameof(durability), n, $"{kind} wears from {d.MaxDurability} to 0");
+        return new Gear { Kind = kind, Durability = durability ?? d.MaxDurability, MaxDurability = d.MaxDurability };
     }
+
+    public static bool CanBeWornTo(GearDef d, int durability) => d.MaxDurability > 0 && durability >= 0 && durability <= d.MaxDurability;
 
     public static double ConditionPct(Gear g) => g.MaxDurability <= 0 ? 1.0 : g.Durability <= 0 ? 0.0 : (double)g.Durability / g.MaxDurability;
     public static bool Works(Gear g) => g.Durability != 0;
@@ -410,28 +414,37 @@ public static class Items
 
     /// The one way anything leaves a pile or a cache (from), for people and animals alike, raising PickedUp with who took it.
     /// Into a pack (into): Move's rule, within limitKg. Into a mouth (into null): kg torn off the lightest pieces, what would
-    /// be left under a least piece going too. Taken: not at the taker's own camp.
+    /// be left under a least piece going too, then (a pile) off the tile's stations (Stations.Eat). Taken: not at the taker's own camp.
     public static double TakeFrom(World world, AgentId who, CacheId? from, Resource r, double kg, List<WorldEvent> events,
         Inventory? into = null, double limitKg = double.PositiveInfinity)
     {
         var taker = world.Agent(who);
         var tile = taker.Tile;
-        var pile = from is CacheId id ? Caches.Find(world, id) is { } c && c.Tile == tile ? c.Contents : null : world.Tiles.GetValueOrDefault(tile)?.Pile;
-        if (pile == null) return 0;
-        var to = into ?? new Inventory();
-        int had = Count(pile, r);
-        double moved = into == null && IsDiscrete(r) ? Bite(pile, to, r, kg) : Move(pile, to, r, kg, into == null ? kg : limitKg);
-        int pieces = Math.Max(0, had - Count(pile, r));
-        if (from is CacheId emptied) Caches.Tidy(world, emptied);
-        else TidyPile(world, tile);
-        if (moved <= 0) return 0;
         bool taken = taker.Mind is not PersonMind || Memories.CampOf(world, taker) != tile;
-        events.Add(new PickedUp(world.Minute, who, tile, r, moved, taken, into == null ? 0 : pieces, new Cause(who, $"taken by {Cause.Describe(world, who)}")));
+        var by = new Cause(who, $"taken by {Cause.Describe(world, who)}");
+        double moved = 0;
+        var pile = from is CacheId id ? Caches.Find(world, id) is { } c && c.Tile == tile ? c.Contents : null : world.Tiles.GetValueOrDefault(tile)?.Pile;
+        if (pile != null)
+        {
+            var to = into ?? new Inventory();
+            int had = Count(pile, r);
+            moved = into == null && IsDiscrete(r) ? Bite(pile, to, r, kg) : Move(pile, to, r, kg, into == null ? kg : limitKg);
+            int pieces = Math.Max(0, had - Count(pile, r));
+            if (from is CacheId emptied) Caches.Tidy(world, emptied);
+            else TidyPile(world, tile);
+            if (moved > 0) events.Add(new PickedUp(world.Minute, who, tile, r, moved, taken, into == null ? 0 : pieces, by));
+        }
+        if (into != null || from != null || kg - moved <= SliverKg) return moved;
+        foreach (var (at, ate) in Stations.Eat(world, tile, r, kg - moved))
+        {
+            events.Add(new PickedUp(world.Minute, who, tile, r, ate, taken, 0, by, at));
+            moved += ate;
+        }
         return moved;
     }
 
     /// Whole pieces while they fit, then the rest off the next lightest; what that would leave under a least piece goes too.
-    static double Bite(Inventory from, Inventory to, Resource r, double kg)
+    internal static double Bite(Inventory from, Inventory to, Resource r, double kg)
     {
         double moved = Move(from, to, r, kg, kg);
         if (kg - moved <= RangeSlackKg || !from.Pieces.TryGetValue(r, out var pieces)) return moved;

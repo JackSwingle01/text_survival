@@ -30,10 +30,12 @@ public class ItemsTests
     {
         var w = TestWorlds.Bare(17);
         var player = w.Agent(P);
-        Assert.Equal(1.33, player.Body.ClothingClo, 9);        // old Inventory.ClothingClo
-        Assert.Equal(3.05, player.Body.ClothingWeightKg, 9);   // old TotalEquipmentWeightKg
-        Assert.Equal(4.43 - 0.2, Items.CarriedKg(player), 9);  // old CurrentWeightKg, less the 0.2 kg the hand drill lost to its lightest inputs (#142)
-        Assert.Equal(4.23 / 15, Items.EncumbrancePct(player), 9);
+        // The old kit, less what its leg wraps lose for being worn, 60 of their kind's 100 (#265): the old game
+        // made them 60 of 60, whole. Their 0.45 clo is 0.27 at 60%, and their 1 kg is 0.9.
+        Assert.Equal(1.33 - 0.18, player.Body.ClothingClo, 9);        // old Inventory.ClothingClo
+        Assert.Equal(3.05 - 0.1, player.Body.ClothingWeightKg, 9);    // old TotalEquipmentWeightKg
+        Assert.Equal(4.43 - 0.2 - 0.1, Items.CarriedKg(player), 9);   // old CurrentWeightKg, less the 0.2 kg the hand drill lost to its lightest inputs (#142)
+        Assert.Equal(4.13 / 15, Items.EncumbrancePct(player), 9);
     }
 
     [Fact]
@@ -47,6 +49,28 @@ public class ItemsTests
         var unbreakable = Items.Make("ground_stone_axe");
         Assert.True(Items.Use(unbreakable));
         Assert.Equal(-1, unbreakable.Durability);
+    }
+
+    /// A piece made worn (#265) is worn of its kind's own maximum; one made with no durability is whole, as before.
+    [Fact]
+    public void Make_WithADurability_IsWornOfItsKindsMaximum()
+    {
+        var whole = Items.Make("fur_leg_wraps");
+        Assert.Equal((100, 100, 1.0), (whole.Durability, whole.MaxDurability, Items.ConditionPct(whole)));
+        var axe = Items.Make("ground_stone_axe");
+        Assert.Equal((-1, -1), (axe.Durability, axe.MaxDurability));
+        var worn = Items.Make("fur_leg_wraps", 60);
+        Assert.Equal((60, 100, 0.6), (worn.Durability, worn.MaxDurability, Items.ConditionPct(worn)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Items.Make("fur_leg_wraps", 101)); // more than whole
+        Assert.Throws<ArgumentOutOfRangeException>(() => Items.Make("fur_leg_wraps", -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Items.Make("ground_stone_axe", 10)); // never wears
+    }
+
+    [Fact]
+    public void StartingLegWraps_AreWorn_SixtyOfTheirKindsMaximum()
+    {
+        var wraps = TestWorlds.Bare(17).Agent(P).Body.Worn.Single(g => g.Kind == "fur_leg_wraps");
+        Assert.Equal((60, 100), (wraps.Durability, wraps.MaxDurability));
     }
 
     /// Old WarmthTests.Coverage_IsAreaWeighted_NotSummed.
@@ -68,8 +92,9 @@ public class ItemsTests
         pack.Gear.Add(Items.Make("large_bag"));
         pack.Gear.Add(Items.Make("rope_belt"));
         Assert.Equal(28, Items.CapacityKg(pack), 12);                // old: max 28
-        // old: carried 5.63, less the hand drill's 0.2 kg (#142), the bag's 0.29 and the belt's 0.2 (#150: no heavier than their inputs)
-        Assert.Equal(5.63 - 0.2 - 0.29 - 0.2, Items.CarriedKg(w.Agent(P)), 9);
+        // old: carried 5.63, less the hand drill's 0.2 kg (#142), the bag's 0.29 and the belt's 0.2 (#150: no heavier than their inputs),
+        // and the 0.1 kg the leg wraps lose for being worn (#265)
+        Assert.Equal(5.63 - 0.2 - 0.29 - 0.2 - 0.1, Items.CarriedKg(w.Agent(P)), 9);
     }
 
     /// Each made carrying thing adds what the spec says it does, and all of them together add up (#150).
@@ -248,5 +273,15 @@ public class ItemsTests
         Assert.Null(Sim.Step(w, new GatherCharcoal(P), 1).InterruptedReason);
         Assert.Equal(0.4, Items.Have(Items.Pack(w, P), Resource.Charcoal), 12);
         Assert.Equal(0, w.Fires[id].CharcoalKg);
+    }
+
+    /// A piece outside its kind's range is refused: a mammoth hide weighs at most 3 kg (#287).
+    [Fact]
+    public void AMammothHide_HeavierThanThreeKilos_IsRefused()
+    {
+        var inv = new Inventory();
+        Items.AddPiece(inv, Resource.MammothHide, 3.0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Items.AddPiece(inv, Resource.MammothHide, 3.1));
+        Assert.Equal(1, Items.Count(inv, Resource.MammothHide));
     }
 }

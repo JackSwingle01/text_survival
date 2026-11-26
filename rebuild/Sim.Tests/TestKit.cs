@@ -36,6 +36,9 @@ static class TestKit
     {
         var b = BodyState.Create(BodyKind.Human, 75, 0.15, 0.30);
         b.Worn.AddRange(Items.StartingClothes());
+        // The old game made its leg wraps 60 of 60, whole; today's kit makes them 60 of their kind's 100, worn (#265).
+        var wraps = b.Worn.FindIndex(g => g.Kind == "fur_leg_wraps");
+        b.Worn[wraps] = new Gear { Kind = "fur_leg_wraps", Durability = 60, MaxDurability = 60 };
         return b;
     }
 
@@ -59,9 +62,9 @@ static class TestKit
         [Resource.ScrapedHide] = 0.8,
         [Resource.CuredHide] = 0.7,
         [Resource.HideStrip] = 0.3,
-        [Resource.MammothHide] = 10,
-        [Resource.ScrapedMammothHide] = 8,
-        [Resource.CuredMammothHide] = 7.2,
+        [Resource.MammothHide] = 3,
+        [Resource.ScrapedMammothHide] = 2.4,
+        [Resource.CuredMammothHide] = 2.16,
         [Resource.RawMeat] = 0.5,
         [Resource.CookedMeat] = 0.5,
         [Resource.DriedMeat] = 0.5,

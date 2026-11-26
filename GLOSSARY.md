@@ -7,7 +7,7 @@ terms the design and the simulation share.
 
 **Stat**:
 One of the things a body must keep up: warmth, water, food, rest. Every person (player or NPC) has
-all four; an animal has water, food and rest.
+all four; an animal has water, food and rest. An NPC also ranks Dirty, last and never above Want.
 
 **Priority**:
 How urgent a stat is right now: Critical, Need or Want. Priority decides first; within a priority the
@@ -106,7 +106,8 @@ not fade on its own; washing removes it, with Bloody.
 _Avoid_: sweaty, grimy, unwashed
 
 **Exposed**:
-Of food: reachable by a given animal, because it lies in a pile or in a cache that animal gets into.
+Of food: reachable by a given animal, because it lies in a pile, sits at a station (a fire or a rack, working or
+finished, as what it is now), or is in a cache that animal gets into.
 Worked out each time, never stored.
 _Avoid_: unprotected, unguarded
 
@@ -375,19 +376,20 @@ without sleep or water all lower it.
 _Avoid_: alertness, awareness
 
 **Unconscious**:
-Consciousness is at zero. The limbs give nothing, so speed, dexterity and perception are at zero and
+Consciousness is at zero. The limbs and the eyes give nothing, so speed, dexterity, perception and vision are at zero and
 every verb that needs a faculty is refused; strength stays above zero. Time passes until the body
 comes round or dies.
 _Avoid_: incapacitated, knocked out, downed
 
 **Faculty**:
 What a body can do right now, from its capacities and its build: strength, speed, dexterity,
-perception. Faculties are all that anything outside a body reads of it: a verb is refused when the
-faculty it needs is at zero, and slowed by how far that faculty is below whole.
+perception, vision. Faculties are all that anything outside a body reads of it: a verb is refused when the
+faculty it needs is at zero, and slowed by how far that faculty is below whole. Vision is how far a
+body sees, from its eyes and its consciousness; no verb needs it, and vitality leaves it out.
 _Avoid_: ability (that is what a species can get at), stat (that is a need), attribute, skill
 
 **Vitality**:
-One overall read of what a body can do right now, taken from its four faculties against a fresh
+One overall read of what a body can do right now, taken from its faculties but vision against a fresh
 body of its kind. Nothing inside a body reads it; it is for whoever is
 looking at the body. Whether a body is alive is a separate matter, read from its heart, lungs and
 brain alone.

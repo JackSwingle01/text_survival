@@ -30,6 +30,7 @@ public static class Crippled
         Faculty.Speed => Traversal.CannotWalkPrefix,
         Faculty.Dexterity => "you cannot use your hands: ",
         Faculty.Perception => "you cannot make anything out: ",
+        Faculty.Vision => "you cannot see: ",
         _ => throw new ArgumentOutOfRangeException(nameof(faculty), faculty, null),
     };
 
@@ -41,6 +42,7 @@ public static class Crippled
         CrippledBy.Load => "the load",
         CrippledBy.Build => "too frail a build",
         CrippledBy.BlindAndDeaf => "blind and deaf",
+        CrippledBy.NoWorkingEye => "no working eye",
         _ => throw new ArgumentOutOfRangeException(nameof(why), why, null),
     };
 }
