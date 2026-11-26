@@ -38,6 +38,18 @@ public sealed class Doing
 /// waits a minute and decides again.
 public sealed record PlanRefused(long Minute, AgentId Who, TileId Tile, string Activity, string Reason) : WorldEvent(Minute, Tile);
 
+/// An NPC's mind passed over a stat at Need or Critical, and why: what it lacks and cannot look for, what makes it
+/// impossible, or what it chose first. Not filed in tile journals, so never saved.
+public sealed record NeedDropped(long Minute, AgentId Who, TileId Tile,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<Stat>))] Stat Stat,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<Priority>))] Priority Priority, string Reason) : WorldEvent(Minute, Tile);
+
+/// An NPC's pursuit of a stat at Need or Critical gave no step, named nothing it lacks, and gave no reason it is
+/// impossible: a hole in the mind. It explores instead. Plan is the plan it held. Not filed, so never saved.
+public sealed record NeedStuck(long Minute, AgentId Who, TileId Tile,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<Stat>))] Stat Stat,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<Priority>))] Priority Priority, NpcPlan? Plan) : WorldEvent(Minute, Tile);
+
 public static class Sim
 {
     /// Runs an activity minute by minute until done or interrupted. A refused activity returns at

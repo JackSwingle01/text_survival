@@ -112,6 +112,9 @@ public class WoodTests(ITestOutputHelper output)
         Assert.NotNull(Pools.NextPieceKg(w, id));
         Assert.Equal(Work.PackFull, Sim.Refusal(w, new Gather(P, 0))?.Reason);
         Assert.True(Pools.HasTrees(w, id));
+        // The forecast from a step away says the same as the one here, or each trunk looks better from beside the other (#271).
+        Assert.Empty(Work.ExpectedGather(w, w.Agent(P), new Gather(P, 0), 60));
+        Assert.Empty(Work.ExpectedGatherAt(w, w.Agent(P), id, ForageFocus.Fuel, 60, 10, rememberedDensity: null));
     }
 
     [Fact]

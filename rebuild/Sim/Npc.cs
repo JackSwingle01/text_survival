@@ -12,7 +12,11 @@ public sealed partial record NpcMind
     /// The fat this body is used to (Npc.AdaptTargetFat): falling short of it makes food a Need.
     public double TargetFatKg { get; set; }
     public long TargetFatMinute { get; set; }
+    [JsonIgnore] internal NpcDecision? LastDecision { get; set; }
 }
+
+/// The decision in force (not saved): its minute, the stat its activity serves (null: none), and the stats as ranked then.
+public sealed record NpcDecision(long Minute, Stat? Serves, IReadOnlyList<(Stat Stat, Priority Priority)> Ranked);
 
 /// A committed plan: the stat, the priority it was taken at, the minutes the forecast gave it, and the source chosen (At).
 public sealed record NpcPlan(
@@ -52,6 +56,9 @@ public static class Npc
     /// With less energy than the walk to camp plus this, it sleeps where it is.
     const double WalkReserveEnergyMinutes = 30;
     const double MeltFireHours = 1, PickUpFuelKg = 3;
+    /// A fire's source is kept until another is this many times quicker: here is judged as seen, away as remembered.
+    const double KeepSourceFactor = 2;
+    const double StrikeReserveKg = Verbs.KindlingKg + MaxStrikes * Verbs.TinderKg;
     public const double TargetFatHalfLifeDays = 3;
 
     // ---- spawning ----
@@ -94,6 +101,15 @@ public static class Npc
 
     readonly record struct Next(Activity Activity, int Minutes, double ForecastMinutes, TileId? At = null);
 
+    /// A step, or what it lacks with nowhere to look, or why it is impossible. None of the three is a hole (NeedStuck).
+    readonly record struct Pursuit(Next? Step, string? Lacks = null, string? Impossible = null)
+    {
+        public static implicit operator Pursuit(Next? step) => new(step);
+        public static Pursuit Lacking(string what) => new(null, Lacks: what);
+        public static Pursuit Cannot(string why) => new(null, Impossible: why);
+        public string? Reason => Lacks is { } l ? $"lacks {l}" : Impossible is { } i ? $"impossible: {i}" : null;
+    }
+
     /// An "all of" child: an amount of any of these resources, each kilo worth PerKg units of it. Counted: what is
     /// to hand is already in the amount, so only sources away fill it. UsedPerHour: what the time spent getting it
     /// uses up of it, so a source must bring more than its trip takes.
@@ -108,6 +124,8 @@ public static class Npc
     {
         public List<Leaf> Leaves { get; } = [];
         public List<string> Missing { get; } = [];
+        /// Why no fire can be had at all: in Missing too, for every other reader.
+        public string? Impossible { get; set; }
         public double ForecastMinutes { get; set; }
     }
 
@@ -153,33 +171,72 @@ public static class Npc
 
         // ---- the decision ----
 
+        /// A stat at Need or Critical passed over is told (NeedDropped); no answer is a hole (NeedStuck), and it explores.
         public Next Decide()
         {
-            if (Threat() is TileId threat && !BurningHere && Flee(threat) is { } flee) return flee;
+            ranked = [.. Ranked()];
+            if (Threat() is TileId threat && !BurningHere && Flee(threat) is { } flee) return Chose(flee, null, "a predator close by");
             if (mind.Plan is { } worse && PrioritiesNow[worse.Stat] > worse.Priority) mind.Plan = worse with { Priority = PrioritiesNow[worse.Stat] };
             if (mind.Plan is { } held && Interrupt(held) != null) (mind.Plan, priorities) = (null, null);
+            ranked = [.. Ranked()];
             // Health has no rank on the ladder: bleeding badly by a fire with nothing Critical, it sleeps, which mends fastest.
-            if (HealthPriority(Body) == Priority.Critical && !PrioritiesNow.Values.Contains(Priority.Critical) && AtCamp && BurningHere && SleepHere() is { } mend) return mend;
+            if (HealthPriority(Body) == Priority.Critical && !PrioritiesNow.Values.Contains(Priority.Critical) && AtCamp && BurningHere && SleepHere() is { } mend)
+                return Chose(mend, Stat.Rest, "bleeding: it mends asleep by the fire");
             // A sharpen begun holds the blade: it goes on before anything else needs the blade.
-            if (GoOnSharpening() is { } goOn) return goOn;
+            if (GoOnSharpening() is { } goOn) return Chose(goOn, null, "a sharpen begun holds the blade");
             // A Need met from what is in hand costs minutes, not a trip: it is met on the spot, before the plan goes on.
-            foreach (var (stat, priority) in Ranked().Where(x => x.Priority >= Priority.Need))
-                if (InHand(stat) is { } quick) return quick;
+            foreach (var (stat, priority) in ranked.Where(x => x.Priority >= Priority.Need))
+                if (InHand(stat) is { } quick) return Chose(quick, stat, $"{stat.ToString().ToLowerInvariant()} met first from what is in hand");
             // With nothing at Need, Health included, a blade at half its uses or less is sharpened on the spot, even with a Want plan held.
-            if (PrioritiesNow.Values.All(p => p < Priority.Need) && HealthPriority(Body) < Priority.Need && BladeToSharpen() is { } edge) return edge;
-            if (mind.Plan is { } kept && Pursue(kept.Stat, kept.Priority) is { } step)
+            if (PrioritiesNow.Values.All(p => p < Priority.Need) && HealthPriority(Body) < Priority.Need && BladeToSharpen() is { } edge)
+                return Chose(edge, null, "nothing at Need");
+            var kept = mind.Plan;
+            if (kept != null && Pursue(kept.Stat, kept.Priority).Step is { } step)
             {
                 mind.Plan = kept with { At = step.At };
-                return step;
+                return Chose(step, kept.Stat, $"held to its {kept.Stat.ToString().ToLowerInvariant()} plan");
             }
             mind.Plan = null;
-            foreach (var (stat, priority) in Ranked())
-                if (Pursue(stat, priority) is { } next)
+            foreach (var (stat, priority) in ranked)
+            {
+                var pursuit = Pursue(stat, priority);
+                if (pursuit.Step is { } next)
                 {
                     mind.Plan = new NpcPlan(stat, priority, world.Minute, (int)Math.Max(MinBudgetMinutes, BudgetFactor * next.ForecastMinutes), next.At);
-                    return next;
+                    return Chose(next, stat, null);
                 }
-            return Keep();
+                if (priority < Priority.Need) continue;
+                if (pursuit.Reason is { } why)
+                {
+                    Drop(stat, priority, why);
+                    continue;
+                }
+                events.Add(new NeedStuck(world.Minute, Id, Here, stat, priority, kept));
+                if (Explore() is { } look)
+                {
+                    mind.Plan = new NpcPlan(stat, priority, world.Minute, MinBudgetMinutes);
+                    return Chose(look, stat, null);
+                }
+                Drop(stat, priority, "stuck, with nowhere to explore");
+            }
+            return Chose(Keep(), null, "nothing else to do");
+        }
+
+        List<(Stat Stat, Priority Priority)> ranked = [];
+        readonly HashSet<Stat> dropped = [];
+
+        void Drop(Stat stat, Priority priority, string reason)
+        {
+            if (dropped.Add(stat)) events.Add(new NeedDropped(world.Minute, Id, Here, stat, priority, reason));
+        }
+
+        /// The step taken, serving this stat (null: none): every stat at Need or Critical ranked above it is passed over for the reason.
+        Next Chose(Next next, Stat? serves, string? reason)
+        {
+            foreach (var (stat, priority) in ranked.TakeWhile(x => x.Stat != serves).Where(x => x.Priority >= Priority.Need && !dropped.Contains(x.Stat)))
+                Drop(stat, priority, reason ?? throw new InvalidOperationException($"{Id} passes over {stat} at {priority} with no reason"));
+            mind.LastDecision = new NpcDecision(world.Minute, serves, ranked);
+            return next;
         }
 
         /// The interrupts: a worse priority, the time budget run out, the walk to camp turned dangerous, the plan done.
@@ -204,7 +261,7 @@ public static class Npc
             _ => null,
         };
 
-        Next? Pursue(Stat stat, Priority priority) => stat switch
+        Pursuit Pursue(Stat stat, Priority priority) => stat switch
         {
             Stat.Warmth => ForWarmth(priority),
             Stat.Water => ForWater(priority),
@@ -299,14 +356,21 @@ public static class Npc
 
         // ---- warmth: a fire at the site that lasts the night, and a core warmed beside it ----
 
-        Next? ForWarmth(Priority priority)
+        Pursuit ForWarmth(Priority priority)
         {
             var camp = Camp;
             if (mind.Plan?.Stat != Stat.Warmth) mind.Camp = ChooseSite(priority);
             var plan = FirePlan(Camp, HoursWanted(priority));
-            var step = AtFire(plan, priority) ?? NextLeaf(plan) ?? (plan.Missing.Count > 0 ? Explore() : null);
-            if (step == null) mind.Camp = camp;
-            return step is { } s ? s with { ForecastMinutes = plan.ForecastMinutes } : null;
+            var step = AtFire(plan, priority) ?? NextLeaf(plan);
+            if (step == null && priority >= Priority.Need && plan.Impossible is { } impossible)
+            {
+                mind.Camp = camp;
+                return Pursuit.Cannot($"a fire, without {impossible}");
+            }
+            step ??= plan.Missing.Count > 0 ? Explore() : null;
+            if (step is { } s) return s with { ForecastMinutes = plan.ForecastMinutes };
+            mind.Camp = camp;
+            return plan.Missing.Count > 0 ? Pursuit.Lacking($"{string.Join(", ", plan.Missing)}, with nowhere to look") : NoStep();
         }
 
         double HoursWanted(Priority priority) => TonightHours() + (priority == Priority.Want ? SpareFireHours : 0);
@@ -428,7 +492,7 @@ public static class Npc
 
         // ---- water: drink to the satisfied line, or carry a day's water ----
 
-        Next? ForWater(Priority priority)
+        Pursuit ForWater(Priority priority)
         {
             if (InHand(Stat.Water) is { } quick) return quick;
             // One of: snow melted on a fire at camp, or, to drink now, a walk to water it remembers (the planner's choice).
@@ -439,8 +503,8 @@ public static class Npc
             // Both trips end at camp, so each step toward one makes the other dearer: no turning back and forth.
             double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]);
             if (water is TileId w && WaterTrip(w) < meltMinutes) return WalkTo(w) is { } go ? go with { ForecastMinutes = WaterTrip(w), At = w } : null;
-            if (meltMinutes < double.PositiveInfinity) return (Light(MeltFireHours) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : null;
-            return priority >= Priority.Need ? Explore() : null;
+            if (meltMinutes < double.PositiveInfinity) return (Light(MeltFireHours) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : NoStep();
+            return LookFor("water", priority);
         }
 
         /// Water as remembered (Work.WaterAt), not snow, which a person melts at camp: the kept source, else the planner's choice.
@@ -465,9 +529,9 @@ public static class Npc
 
         // ---- rest: sleep at camp, by its fire where there is one ----
 
-        Next? ForRest(Priority priority)
+        Pursuit ForRest(Priority priority)
         {
-            if (priority == Priority.Want && Weather.IsDaytime(world.Minute)) return null;
+            if (priority == Priority.Want && Weather.IsDaytime(world.Minute)) return default;
             if (!AtCamp)
             {
                 double walk = ToSite(Camp).MinutesTo(Here, double.PositiveInfinity);
@@ -477,10 +541,10 @@ public static class Npc
                 var ask = Ask(Stat.Rest, priority, (RestedPct - Body.EnergyPct) * Survival.Body.MaxEnergyMinutes);
                 var plan = Planner.Choose(world, Id, View, ask, t => t == Camp || t == Here && !canWalk ? rest : null, only: Camp);
                 if (plan.At == Camp && WalkTo(Camp) is { } home) return home with { ForecastMinutes = walk, At = Camp };
-                return SleepHere();
+                return SleepHere() is { } there ? there : Pursuit.Cannot("sleep here, too cold with no fire");
             }
             if (LightOrTend(HoursToSunrise()) is { } fire) return fire;
-            return SleepHere();
+            return SleepHere() is { } sleep ? sleep : Pursuit.Cannot("sleep, too cold with no fire");
         }
 
         /// As long as the fire allows, or with no fire, as the cold allows.
@@ -521,13 +585,14 @@ public static class Npc
 
         // ---- food: eat what is in hand, or go and get it ----
 
-        Next? ForFood(Priority priority)
+        Pursuit ForFood(Priority priority)
         {
             if (EatToHand() is { } eat) return eat;
-            if (FoodSource(FoodReq(MealKcal()), priority) is not var (tile, leaf)) return priority >= Priority.Need ? Explore() : null;
+            if (FoodSource(FoodReq(MealKcal()), priority) is not var (tile, leaf))
+                return LookFor("food", priority);
             var step = tile == Here ? Do(leaf) : WalkTo(tile);
             double trip = FromHere().Minutes[tile] + (ToSite(Camp).Reaches(tile) ? ToSite(Camp).Minutes[tile] : 0) + leaf.WorkMinutes + CookMinutes(leaf);
-            return step is { } s ? s with { ForecastMinutes = trip, At = tile } : null;
+            return step is { } s ? s with { ForecastMinutes = trip, At = tile } : NoStep();
         }
 
         /// Each tile's quickest leaf (Offers) pays its units over its work: the kept source, else the planner's choice.
@@ -657,7 +722,7 @@ public static class Npc
 
         static Tree Impossible(string what)
         {
-            var plan = new Tree();
+            var plan = new Tree { Impossible = what };
             plan.Missing.Add(what);
             return plan;
         }
@@ -688,7 +753,11 @@ public static class Npc
                 while (left > 1e-6)
                 {
                     double roomKg = freeKg - plan.Leaves.Where(l => l.Tile != site).Sum(l => l.Kg);
-                    if (roomKg <= FullPackKg) break;
+                    if (roomKg <= FullPackKg)
+                    {
+                        plan.Missing.Add($"room in the pack for {req.Name}");
+                        break;
+                    }
                     if (Quickest(req, left, site, plan) is not { } found)
                     {
                         plan.Missing.Add(req.Name);
@@ -715,7 +784,7 @@ public static class Npc
             return plan;
         }
 
-        /// The one of: fewest minutes a unit, walks and work counted, among sources the survival forecast passes.
+        /// The one of: fewest minutes a unit, walks and work counted, among sources the survival forecast passes; the plan's At kept.
         (Leaf Leaf, double Travel)? Quickest(Req req, double want, TileId site, Tree plan)
         {
             var here = FromHere();
@@ -723,9 +792,10 @@ public static class Npc
             if (!back.Reaches(Here)) return null;
             double legHome = back.Minutes[Here], best = double.PositiveInfinity;
             var offers = new List<(Leaf Leaf, double Travel, double PerUnit)>();
+            TileId? held = mind.Plan?.At is TileId at && here.Reaches(at) ? at : null;
             foreach (var (t, outMinutes) in here.Minutes.OrderBy(x => x.Value).ThenBy(x => x.Key))
             {
-                if ((outMinutes - legHome) / want >= best) break;
+                if ((outMinutes - legHome) / want >= best && (held is not TileId h || here.Minutes[h] < outMinutes)) break;
                 double travel = t == site || plan.Leaves.Any(l => l.Tile == t) ? 0 : outMinutes + back.MinutesTo(t, outMinutes) - legHome;
                 foreach (var leaf in Offers(t, req, want, (int)outMinutes, site))
                 {
@@ -736,7 +806,7 @@ public static class Npc
                     best = Math.Min(best, perUnit);
                 }
             }
-            foreach (var o in offers.OrderBy(o => o.PerUnit).ThenBy(o => o.Leaf.Tile))
+            foreach (var o in offers.OrderBy(o => o.Leaf.Tile == held && o.PerUnit <= KeepSourceFactor * best ? 0 : 1).ThenBy(o => o.PerUnit).ThenBy(o => o.Leaf.Tile))
                 if (Survives(o.Leaf.Tile, o.Leaf.WorkMinutes, ActivityFor(o.Leaf), site)) return (o.Leaf, o.Travel);
             return null;
         }
@@ -829,7 +899,7 @@ public static class Npc
             {
                 var here = FromHere();
                 var next = away.OrderBy(l => here.MinutesTo(l.Tile, double.PositiveInfinity)).ThenBy(l => l.Tile).First();
-                return next.Tile == Here ? Do(next) : WalkTo(next.Tile);
+                return (next.Tile == Here ? Do(next) : WalkTo(next.Tile)) is { } step ? step with { At = next.Tile } : null;
             }
             if (plan.Leaves.FirstOrDefault(l => l.Tile == Here) is { } atHand) return Do(atHand);
             return toCamp && !AtCamp && (plan.Leaves.Count > 0 || plan.Missing.Count == 0) ? WalkTo(Camp) : null;
@@ -839,20 +909,36 @@ public static class Npc
         Next? Take(Resource r, double kg, IEnumerable<Resource> wanted)
         {
             var take = new PickUp(Id, r, kg);
-            if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
-            {
-                var keep = wanted.Append(r).ToHashSet();
-                var put = HeaviestToPutDown(keep);
-                return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
-            }
+            if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg }) return MakeRoom(wanted.Append(r).ToHashSet());
             return Sim.Refusal(world, take) == null ? new(take, 1, 1) : null;
         }
+
+        /// The heaviest thing not kept in hand goes down; with none, a strike's makings beyond StrikeReserveKg.
+        Next? MakeRoom(ISet<Resource> keep)
+        {
+            if (HeaviestToPutDown(keep) is Resource r) return new(new PutDown(Id, r, Items.Have(pack, r)), 1, 1);
+            var (spare, kg) = Items.KgByResource(pack).Where(x => !keep.Contains(x.Key) && Fire.IsStrikeMaking(x.Key))
+                .Select(x => (x.Key, Kg: Math.Max(0, x.Value - StrikeReserveKg)))
+                .Select(x => (x.Key, Kg: x.Kg > 0 ? Items.WouldMoveKg(pack, x.Key, x.Kg) : 0))
+                .OrderByDescending(x => x.Kg).ThenBy(x => x.Key).FirstOrDefault();
+            if (kg > FullPackKg && new PutDown(Id, spare, kg) is var put && Sim.Refusal(world, put) == null) return new(put, 1, 1);
+            packFull = true;
+            return null;
+        }
+
+        bool packFull;
+
+        /// No source it remembers: a Want is passed over; at Need or Critical it explores, or lacks it with nowhere to look.
+        Pursuit LookFor(string what, Priority priority) =>
+            priority < Priority.Need ? default : Explore() is { } look ? look : Pursuit.Lacking($"{what}, with nowhere to look");
+
+        Pursuit NoStep() => packFull ? Pursuit.Cannot("room in the pack, full of what it keeps") : default;
 
         Next? Do(Leaf leaf)
         {
             var act = ActivityFor(leaf);
             if (act is PickUp take) return PileHere is { } s && Items.Have(s, take.Resource) > DustKg ? Take(take.Resource, Math.Min(take.Kg, Items.Have(s, take.Resource)), leaf.For.AnyOf) : null;
-            if (Sim.Refusal(world, act) != null) return null;
+            if (Sim.Refusal(world, act) is { } refused) return refused.Missing is MissingState { Lack: Lack.PackRoomKg } ? MakeRoom(leaf.For.AnyOf.ToHashSet()) : null;
             int minutes = act is Butcher ? Verbs.UntilDoneMinutes : Math.Clamp(leaf.WorkMinutes, 1, StintMinutes);
             return new(act, minutes, minutes);
         }

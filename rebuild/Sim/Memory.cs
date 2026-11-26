@@ -505,7 +505,7 @@ public static class Journal
 
     /// What is worth telling: things that happened to the place, not a body's own changes, a walk
     /// through, or a step's tally (which depends on how the work was chunked into steps).
-    public static bool Files(WorldEvent e) => e is not (Moved or PlanRefused or EffectStarted or EffectEnded or Exhausted
+    public static bool Files(WorldEvent e) => e is not (Moved or PlanRefused or NeedDropped or NeedStuck or EffectStarted or EffectEnded or Exhausted
         or FullyRested or Gathered or Dropped or Butchered or Drank or Washed or SkillLeveledUp or Noticed);
 
     /// Files events[filed..] and moves filed past them. Once a day it forgets what is older than KeepMinutes.

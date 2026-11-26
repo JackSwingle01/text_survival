@@ -39,10 +39,9 @@ public class NpcBenchReport(ITestOutputHelper output)
         var w = World.New(seed);
         var npc = NpcBench.Spawn(w, Map.Of(w).Camp);
         var agent = w.Agent(npc);
-        int fires = 0, felled = 0, refused = 0, injuries = 0, reversals = 0, coldNights = 0, hunts = 0, campMoves = 0, kills = 0, washes = 0;
+        int fires = 0, felled = 0, refused = 0, stuck = 0, dropped = 0, injuries = 0, coldNights = 0, hunts = 0, campMoves = 0, kills = 0, washes = 0;
         double kcal = 0, forageMinutes = 0, lowestCoreF = agent.Body.CoreTempF;
-        (long Minute, TileId From)? lastMove = null;
-        bool didSince = false;
+        var reversals = new Reversals(npc);
         var camp = Memories.CampOf(w, agent);
         long until = days * 1440L;
         var trace = Environment.GetEnvironmentVariable("NPC_BENCH_TRACE") is { Length: > 0 } dir ? new StreamWriter(Path.Combine(dir, $"trace-{seed}.txt")) : null;
@@ -61,23 +60,21 @@ public class NpcBenchReport(ITestOutputHelper output)
             if (Sim.ActivityOf(agent) is Gather { Focus: ForageFocus.Food }) forageMinutes++;
             foreach (var e in Sim.Advance(w, 1))
             {
+                reversals.Read(e);
                 if (trace != null && e is not (Moved or EffectStarted or EffectEnded) && e.ToString()!.Contains(npc.ToString()))
                     trace.WriteLine($"{w.Minute / 1440.0,6:0.00}        {e}");
                 switch (e)
                 {
-                    case Moved m when m.Who == npc:
-                        if (lastMove is { } l && m.To == l.From && m.Minute - l.Minute <= 30 && !didSince) reversals++;
-                        (lastMove, didSince) = ((m.Minute, m.From), false);
-                        break;
-                    case FireLit f when f.By == npc: fires++; didSince = true; break;
-                    case TreeFelled t when t.Who == npc: felled++; didSince = true; break;
+                    case FireLit f when f.By == npc: fires++; break;
+                    case TreeFelled t when t.Who == npc: felled++; break;
                     case PlanRefused r when r.Who == npc: refused++; break;
+                    case NeedStuck s when s.Who == npc: stuck++; break;
+                    case NeedDropped x when x.Who == npc: dropped++; break;
                     case Injured i when i.Who == npc: injuries++; break;
-                    case Ate a when a.Who == npc: kcal += a.Kcal; didSince = true; break;
+                    case Ate a when a.Who == npc: kcal += a.Kcal; break;
                     case EncounterEnded x when x.Agent == npc: hunts++; break;
                     case Killed k when k.By == npc: kills++; break;
                     case Washed x when x.Who == npc: washes++; break;
-                    case Gathered g when g.Who == npc: didSince = true; break;
                 }
             }
             lowestCoreF = Math.Min(lowestCoreF, agent.Body.CoreTempF);
@@ -95,6 +92,6 @@ public class NpcBenchReport(ITestOutputHelper output)
         return $"seed {seed,7}: {(alive ? "alive" : "dead "),-5} day {lived,5:0.0}{(alive ? "" : $" ({Body.CauseOfDeath(agent.Body).What})"),-18} " +
                $"fat {agent.Body.FatKg,4:0.0} kg, lowest core {lowestCoreF:0.0}F, {kcal / Math.Max(1, lived),5:0} kcal/day, forage {forageMinutes / 60 / Math.Max(1, lived):0.0} h/day, " +
                $"fires {fires}, felled {felled}, fights {hunts}, injuries {injuries}, nights without a flame {coldNights}, " +
-               $"camp moves {campMoves}, reversals {reversals}, refused {refused}, kills {kills}, washes {washes}, dirty {Effects.Severity(agent.Body, EffectKind.Dirty):0.00}";
+               $"camp moves {campMoves}, reversals {reversals.Count}, refused {refused}, stuck {stuck}, dropped {dropped}, kills {kills}, washes {washes}, dirty {Effects.Severity(agent.Body, EffectKind.Dirty):0.00}";
     }
 }

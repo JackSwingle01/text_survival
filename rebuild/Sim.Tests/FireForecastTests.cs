@@ -27,6 +27,21 @@ public class FireForecastTests
         return more;
     }
 
+    /// Hours wanted that land on a whole minute by way of a subtraction (the NPC asks for tonight less the fire it remembers):
+    /// a forecast short of them still names what to fetch, though a burn stopped at that minute reads an ulp short of it (#271).
+    [Fact]
+    public void HoursWantedOnAWholeMinute_ShortOfThem_NamesWhatToFetch()
+    {
+        var fuel = Offer((Resource.Tinder, 0.23), (Resource.Stick, 0.97), (Resource.BirchFirewood, 8.1));
+        foreach (int leftMinutes in new[] { 301, 299, 290, 287, 263 })
+        {
+            double wanted = 20 - leftMinutes / 60.0;
+            var f = Ask(fuel, wanted, starter: ToolType.HandDrill);
+            Assert.True(f.Hours < wanted, $"{fuel} burns {f.Hours:0.00} h, not short of {wanted}");
+            Assert.True(f.Missing.Count > 0, $"short of {wanted} h ({f.Hours:0.00} h), and names nothing to fetch");
+        }
+    }
+
     /// The two states the NPCs died in (#258): the plan counted the fuel and the strike was refused.
     [Fact]
     public void TheTwoStates_FromTheNpcDeaths()
