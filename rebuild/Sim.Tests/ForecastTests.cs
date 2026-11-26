@@ -556,6 +556,27 @@ public class ForecastTests
         Assert.Equal(1, Items.Have(w.Tiles[tile].Pile!, Resource.Berries));
     }
 
+    /// A hungry wolf at a rack with meat drying and berries on it, no pile: it eats what Fauna.PileSource says, 0.1 kg of
+    /// the meat a minute, less its burn; the piece keeps drying, smaller, and the berries stay.
+    [Fact]
+    public void AStation_AgreesWithWhatTheAnimalEatsThere()
+    {
+        var w = PlannerTests.Strip();
+        var tile = new TileId(20, 2);
+        var work = w.Racks[Stations.Build(w, tile)].Work;
+        work.Working.Add(new Transformation { Recipe = "dry_meat", Input = Resource.RawMeat, InputKg = 1, SetBy = AgentId.Player });
+        work.Working.Add(new Transformation { Recipe = "dry_berries", Input = Resource.Berries, InputKg = 0.5, SetBy = AgentId.Player });
+        var wolf = PlannerTests.Animal(w, Species.Wolf, tile);
+        TestKit.SetHunger(wolf, 0.6);
+        var source = Assert.IsType<Source>(Fauna.PileSource(w, wolf, tile));
+        Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
+        double kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body);
+        Sim.Advance(w, 1);
+        Assert.Equal(kcal - burn + source.PerMinute, KcalHeld(wolf.Body), 3);
+        Assert.Equal([(Resource.RawMeat, 0.9), (Resource.Berries, 0.5)], work.Working.Select(t => (t.Input, Math.Round(t.InputKg, 9))));
+        Assert.All(work.Working, t => Assert.True(t.DonePct > 0, "the eaten piece lost its progress"));
+    }
+
     /// A thirsty caribou beside a lake drinks what Fauna.WaterHere says, for nothing, less the minute's loss.
     [Fact]
     public void Water_FromALake_AgreesWithWhatTheAnimalDrinks()
