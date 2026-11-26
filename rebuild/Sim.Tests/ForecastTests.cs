@@ -540,7 +540,7 @@ public class ForecastTests
 
     static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat;
 
-    /// A hungry wolf on a pile of meat and berries eats what Fauna.PileSource says: a minute's 0.1 kg of the richest food its
+    /// A hungry wolf on a pile of meat and berries eats what Fauna.PileOrCacheSource says: a minute's 0.1 kg of the richest food its
     /// diet takes there (the meat, torn off a cut), less its burn; the berries stay.
     [Fact]
     public void APile_AgreesWithWhatTheAnimalEatsThere()
@@ -552,7 +552,7 @@ public class ForecastTests
         Items.Add(pile, Resource.Berries, 1);
         var wolf = PlannerTests.Animal(w, Species.Wolf, tile);
         TestKit.SetHunger(wolf, 0.6);
-        var source = Assert.IsType<Source>(Fauna.PileSource(w, wolf, tile));
+        var source = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, wolf, tile));
         Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
         double kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body), meat = Items.Have(pile, Resource.RawMeat);
         Sim.Advance(w, 1);
@@ -561,7 +561,40 @@ public class ForecastTests
         Assert.Equal(1, Items.Have(w.Tiles[tile].Pile!, Resource.Berries));
     }
 
-    /// A hungry wolf at a rack with meat drying and berries on it, no pile: it eats what Fauna.PileSource says, 0.1 kg of
+    /// A hungry bear on meat buried in snow: Fauna.PileOrCacheSource's setup is the cache's break-in, minutes it spends digging
+    /// and eating nothing; then the cache lies torn open and a minute pays the forecast's 0.1 kg of meat.
+    [Fact]
+    public void ACacheWithABreakIn_AgreesWithWhatTheAnimalDoesThere()
+    {
+        var w = PlannerTests.Strip();
+        var tile = new TileId(20, 2);
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.5, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        var id = Caches.Place(w, tile, CacheKind.BuriedInSnow);
+        var cache = w.Caches[id].Contents;
+        TestKit.GivePieces(cache, Resource.RawMeat, 4);
+        var bear = PlannerTests.Animal(w, Species.Bear, tile);
+        TestKit.SetHunger(bear, 0.6);
+        var source = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, tile));
+        Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
+        Assert.Equal(5, source.SetupMinutes);
+        double meat = Items.Have(cache, Resource.RawMeat);
+        for (int i = 0; i < source.SetupMinutes; i++)
+        {
+            double held = KcalHeld(bear.Body), burn = Fauna.BurnKcalPerMinute(bear.Body);
+            Assert.False(w.Caches[id].TornOpen);
+            Sim.Advance(w, 1);
+            Assert.Equal(held - burn, KcalHeld(bear.Body), 3);
+        }
+        Assert.True(w.Caches[id].TornOpen);
+        Assert.Equal(meat, Items.Have(cache, Resource.RawMeat));
+        Assert.Equal(0, Assert.IsType<Source>(Fauna.PileOrCacheSource(w, bear, tile)).SetupMinutes);
+        double kcal = KcalHeld(bear.Body), burnNow = Fauna.BurnKcalPerMinute(bear.Body);
+        Sim.Advance(w, 1);
+        Assert.Equal(kcal - burnNow + source.PerMinute, KcalHeld(bear.Body), 3);
+        Assert.Equal(meat - 0.1, Items.Have(cache, Resource.RawMeat), 9);
+    }
+
+    /// A hungry wolf at a rack with meat drying and berries on it, no pile: it eats what Fauna.PileOrCacheSource says, 0.1 kg of
     /// the meat a minute, less its burn; the piece keeps drying, smaller, and the berries stay.
     [Fact]
     public void AStation_AgreesWithWhatTheAnimalEatsThere()
@@ -573,7 +606,7 @@ public class ForecastTests
         work.Working.Add(new Transformation { Recipe = "dry_berries", Input = Resource.Berries, InputKg = 0.5, SetBy = AgentId.Player });
         var wolf = PlannerTests.Animal(w, Species.Wolf, tile);
         TestKit.SetHunger(wolf, 0.6);
-        var source = Assert.IsType<Source>(Fauna.PileSource(w, wolf, tile));
+        var source = Assert.IsType<Source>(Fauna.PileOrCacheSource(w, wolf, tile));
         Assert.Equal(0.1 * Items.Resources[Resource.RawMeat].KcalPerKg, source.PerMinute, 6);
         double kcal = KcalHeld(wolf.Body), burn = Fauna.BurnKcalPerMinute(wolf.Body);
         Sim.Advance(w, 1);

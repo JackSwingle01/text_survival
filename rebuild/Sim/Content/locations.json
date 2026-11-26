@@ -680,7 +680,7 @@
       { "animal": "Fox", "weight": 0.3 }
      ]
     },
-    { "kind": "cache", "name": "Rock Cleft", "capacityKg": 40, "protectsFromWeather": true },
+    { "kind": "cache", "name": "Rock Cleft", "cache": "RockCleft" },
     { "kind": "trees", "name": "Hardwood Stand", "wood": "OakFirewood", "minutesToFell": 180 }
    ]
   },
@@ -1208,7 +1208,7 @@
       { "resource": "Tinder", "abundance": 0.3, "minKg": 0.016, "maxKg": 0.064 }
      ]
     },
-    { "kind": "cache", "name": "Ice Crevasse", "capacityKg": 50, "protectsFromPredators": true, "protectsFromWeather": true, "preservesFood": true }
+    { "kind": "cache", "name": "Ice Crevasse", "cache": "IceCrevasse" }
    ]
   },
   {

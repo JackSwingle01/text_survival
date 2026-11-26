@@ -144,8 +144,8 @@ public class SubstrateTests
         // The pile keeps its maker while it stands; emptied, it is gone with its cause.
         TestKit.Give(Items.PileAt(w, camp, new Cause(npc, "put down by a person")), Resource.OakBranch, 1);
         Assert.Equal(P, w.Tiles[camp].PileCause!.Value.Who);
-        Items.TakeFromPile(w, P, Resource.PineBranch, 9, [], new Inventory());
-        Items.TakeFromPile(w, P, Resource.OakBranch, 9, [], new Inventory());
+        Items.TakeFrom(w, P, null, Resource.PineBranch, 9, [], new Inventory());
+        Items.TakeFrom(w, P, null, Resource.OakBranch, 9, [], new Inventory());
         Assert.Null(w.Tiles.GetValueOrDefault(camp)?.PileCause);
 
         for (int i = 0; i < 20 && Fire.PitAt(w, camp) == null; i++)

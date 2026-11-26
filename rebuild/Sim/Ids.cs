@@ -151,3 +151,20 @@ sealed class PoolIdConverter : JsonConverter<PoolId>
         return new(TileIdConverter.Parse(parts[0]), int.Parse(parts[1], System.Globalization.CultureInfo.InvariantCulture));
     }
 }
+
+/// A cache (Caches): never reused (World.NextCacheId).
+[JsonConverter(typeof(CacheIdConverter))]
+public readonly record struct CacheId(int Value) : IComparable<CacheId>
+{
+    public int CompareTo(CacheId o) => Value.CompareTo(o.Value);
+}
+
+sealed class CacheIdConverter : JsonConverter<CacheId>
+{
+    public override CacheId Read(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) => new(r.GetInt32());
+    public override void Write(Utf8JsonWriter w, CacheId id, JsonSerializerOptions o) => w.WriteNumberValue(id.Value);
+    public override CacheId ReadAsPropertyName(ref Utf8JsonReader r, Type t, JsonSerializerOptions o) =>
+        new(int.Parse(r.GetString() ?? throw new JsonException("CacheId key is null")));
+    public override void WriteAsPropertyName(Utf8JsonWriter w, CacheId id, JsonSerializerOptions o) =>
+        w.WritePropertyName(id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+}

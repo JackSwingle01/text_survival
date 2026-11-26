@@ -53,6 +53,9 @@ public sealed class World
     public SortedDictionary<FireId, StationState> Stations { get; init; } = [];
     public SortedDictionary<RackId, RackState> Racks { get; init; } = [];
     public int NextRackId { get; set; }
+    /// Owned by Caches.
+    public SortedDictionary<CacheId, CacheState> Caches { get; init; } = [];
+    public int NextCacheId { get; set; }
     /// Shelter finds waiting for a taken tile: the index of the pool (Pools.At). Owned by Shelters.
     public SortedDictionary<TileId, int> WaitingShelters { get; init; } = [];
     /// Owned by Journal.
@@ -97,6 +100,7 @@ public sealed class World
         Survival.Shelters.PlaceBedding(world, map.Camp, BeddingKind.Camp);
         Items.LayStartingCamp(world, map.Camp);
         Map.PlaceSiteShelters(world);
+        Survival.Caches.PlaceSites(world);
         beforeAnimals?.Invoke(world);
         Fauna.Populate(world);
         // The map opens on what is in view, not on nothing. A burning fire placed by generation would report events here, and this throws to say so.

@@ -412,10 +412,10 @@ public static class Items
     static SortedSet<TileId> PileTiles(World world) =>
         world.PileTiles ??= [.. world.Tiles.Where(t => t.Value.Pile != null).Select(t => t.Key)];
 
-    /// The one way anything leaves a pile, for people and animals alike, raising PickedUp with who took it. Into a pack
-    /// (into): Move's rule, within limitKg. Into a mouth (into null): kg torn off the lightest pieces, what would be left
-    /// under a least piece going too, then off the tile's stations (Stations.Eat). Taken: not at the taker's own camp.
-    public static double TakeFromPile(World world, AgentId who, Resource r, double kg, List<WorldEvent> events,
+    /// The one way anything leaves a pile or a cache (from), for people and animals alike, raising PickedUp with who took it.
+    /// Into a pack (into): Move's rule, within limitKg. Into a mouth (into null): kg torn off the lightest pieces, what would
+    /// be left under a least piece going too, then (a pile) off the tile's stations (Stations.Eat). Taken: not at the taker's own camp.
+    public static double TakeFrom(World world, AgentId who, CacheId? from, Resource r, double kg, List<WorldEvent> events,
         Inventory? into = null, double limitKg = double.PositiveInfinity)
     {
         var taker = world.Agent(who);
@@ -423,16 +423,18 @@ public static class Items
         bool taken = taker.Mind is not PersonMind || Memories.CampOf(world, taker) != tile;
         var by = new Cause(who, $"taken by {Cause.Describe(world, who)}");
         double moved = 0;
-        if (world.Tiles.GetValueOrDefault(tile)?.Pile is Inventory pile)
+        var pile = from is CacheId id ? Caches.Find(world, id) is { } c && c.Tile == tile ? c.Contents : null : world.Tiles.GetValueOrDefault(tile)?.Pile;
+        if (pile != null)
         {
             var to = into ?? new Inventory();
             int had = Count(pile, r);
             moved = into == null && IsDiscrete(r) ? Bite(pile, to, r, kg) : Move(pile, to, r, kg, into == null ? kg : limitKg);
             int pieces = Math.Max(0, had - Count(pile, r));
-            TidyPile(world, tile);
+            if (from is CacheId emptied) Caches.Tidy(world, emptied);
+            else TidyPile(world, tile);
             if (moved > 0) events.Add(new PickedUp(world.Minute, who, tile, r, moved, taken, into == null ? 0 : pieces, by));
         }
-        if (into != null || kg - moved <= SliverKg) return moved;
+        if (into != null || from != null || kg - moved <= SliverKg) return moved;
         foreach (var (at, ate) in Stations.Eat(world, tile, r, kg - moved))
         {
             events.Add(new PickedUp(world.Minute, who, tile, r, ate, taken, 0, by, at));

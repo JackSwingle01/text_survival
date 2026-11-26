@@ -394,7 +394,7 @@ public static class Stations
         return null;
     }
 
-    /// An animal's bite past the pile (Items.TakeFromPile), as a pile's is torn: a piece being worked keeps working, smaller;
+    /// An animal's bite past the pile (Items.TakeFrom), as a pile's is torn: a piece being worked keeps working, smaller;
     /// a finished amount eaten away frees its places.
     internal static List<(StationKind At, double Kg)> Eat(World world, TileId tile, Resource r, double kg)
     {

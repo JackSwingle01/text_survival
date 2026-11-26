@@ -126,6 +126,15 @@ public sealed record Exposure(
             FallsOn(Surface(world, tile, minute), shelter.OverheadLevel) ? sky.Precipitation : Precipitation.None);
     }
 
+    /// What a cache holds: standing on its tile, the cache's cover added to the tile's shelter, each level 1 at most.
+    public static StandingExposure InCache(World world, CacheState c, long minute)
+    {
+        var tile = Shelters.CoverNow(world, c.Tile, stationary: true);
+        var own = Caches.Row(c.Kind).Cover;
+        return Standing(world, c.Tile, minute, null, new ShelterCover(Math.Min(1, tile.InsulationLevel + own.InsulationLevel),
+            Math.Min(1, tile.OverheadLevel + own.OverheadLevel), Math.Min(1, tile.WindLevel + own.WindLevel)));
+    }
+
     public static double SnowfallWeSince(World world, TileId tile, long minute) =>
         (Tracks.SnowfallWeAt(world, world.Minute) - Tracks.SnowfallWeAt(world, minute)) * (1 - Map.OverheadCover(Map.Of(world), tile));
 

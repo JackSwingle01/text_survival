@@ -37,8 +37,9 @@
 //     watches less and is warier (Fauna.ActiveNow); the spec's list, with the hare crepuscular (D).
 //   perceptionFactor (optional, 1): its sight budget against a person's, for sensing what moves (Fauna.Sense).
 //   stealthFactor (optional, 1): how hard a hunter of its kind is to notice coming (Fauna.PreyNotices; the old herd stealth).
-//   hands (optional, false): it has the hands ability, so it eats and drinks with its hands and needs dexterity
-//     for it; without, it eats with its mouth and needs speed (Crippled.ToEat). People only.
+//   abilities (optional, none): what its body lets it do to get at food (GLOSSARY: Ability): flies, climbs, digs,
+//     strong, hands. A cache lets in the abilities it lists (caches.json). Hands: it eats and drinks with its
+//     hands and needs dexterity for it; without, it eats with its mouth and needs speed (Crippled.ToEat). People only.
 //   smellFactor: its sense of smell, scaling how far it smells a scent (Scent; a nose of 1 smells a full scent
 //     Scent.FullReachTiles in calm air). scentLevel: the scent its body gives off, 0-1, low for people (spec).
 //     Both D: bears out-smell dogs, wolves and hyenas close behind, ravens find food by sight (R); see the
@@ -62,7 +63,7 @@
   "Human": { "body": "Human", "weightKg": 68, "fatPct": 0.12, "musclePct": 0.38, "role": "Human", "isSmall": false,
    "attackDamage": 0.05, "attackType": "Blunt", "threat": 1.0, "boldness": 1.0, "aggression": 1.0, "cohesion": 0.5, "group": "Open", "moveAllowanceM": 3, "reachM": 0.8,
    "temperament": "never", "behavior": "Prey", "diet": "Carnivore",
-   "topSpeedMps": 8.5, "enduranceSpeedMps": 3.3, "sprintSeconds": 15, "runCostJPerKgM": 4.0, "burstPct": 0.12, "grazeKcalPerMinute": 0, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 8, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.1, "hands": true,
+   "topSpeedMps": 8.5, "enduranceSpeedMps": 3.3, "sprintSeconds": 15, "runCostJPerKgM": 4.0, "burstPct": 0.12, "grazeKcalPerMinute": 0, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 8, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.1, "abilities": [ "Hands" ],
    "autumnFatPct": { "min": 0.15, "max": 0.18 },
    "female": { "weightKg": 55, "fatPct": 0.22, "musclePct": 0.31, "topSpeedMps": 7.3, "enduranceSpeedMps": 2.9,
     "autumnFatPct": { "min": 0.25, "max": 0.28 } } },
@@ -76,7 +77,7 @@
   // Running: Top speed V (secondary), endurance R, the rest D; intake D: the old forage-to-hunger ratio at Kleiber's burn.
   "Bear": { "body": "Quadruped", "weightKg": 250, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
    "attackDamage": 3.22, "attackType": "Sharp", "threat": 2.5, "boldness": 1.6, "aggression": 0.4, "cohesion": 0, "group": "Open", "moveAllowanceM": 5, "reachM": 1.0,
-   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
+   "temperament": "bear", "behavior": "Solitary", "diet": "Omnivore", "abilities": [ "Digs", "Strong" ], "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 13, "enduranceSpeedMps": 4, "sprintSeconds": 20, "runCostJPerKgM": 1.8, "burstPct": 0.08, "grazeKcalPerMinute": 18, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 10, "activity": "Diurnal", "smellFactor": 3, "scentLevel": 0.4, "stealthFactor": 0.7 },
   // A den defender, not a predator: mostly herbivorous (R, Bocherens), dangerous in or near its den (its
   // temperament: no base boldness, no hunger, all of it from defending). Mass V (Christiansen 1999, the sexes
@@ -84,7 +85,7 @@
   // Running: Running all D; intake the brown bear's, scaled by Kleiber (D).
   "CaveBear": { "body": "Quadruped", "weightKg": 400, "fatPct": 0.25, "musclePct": 0.40, "role": "Predator", "isSmall": false,
    "attackDamage": 2.10, "attackType": "Sharp", "threat": 3.0, "boldness": 1.8, "aggression": 0.4, "cohesion": 0, "group": "Open", "moveAllowanceM": 4, "reachM": 1.0,
-   "temperament": "caveBear", "behavior": "Solitary", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
+   "temperament": "caveBear", "behavior": "Solitary", "diet": "Omnivore", "abilities": [ "Strong" ], "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 11, "enduranceSpeedMps": 3.5, "sprintSeconds": 20, "runCostJPerKgM": 1.5, "burstPct": 0.08, "grazeKcalPerMinute": 25, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 12, "activity": "Diurnal", "smellFactor": 3, "scentLevel": 0.4, "stealthFactor": 0.7 },
   // Homotherium latidens, the Eurasian scimitar-tooth (the old generic 300 kg sabre-tooth). Mass V (Illinois State
   // Museum), fat and muscle D.
@@ -135,7 +136,7 @@
   // Running: Top speed R, the rest D; its foraging the bear's intake scaled by Kleiber (D).
   "Fox": { "body": "Quadruped", "weightKg": 6, "fatPct": 0.10, "musclePct": 0.45, "role": "Scavenger", "isSmall": true,
    "attackDamage": 0.25, "attackType": "Pierce", "threat": 0.15, "boldness": 0.4, "aggression": 0.1, "cohesion": 0, "group": "Open", "moveAllowanceM": 3, "reachM": 0.2,
-   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
+   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "abilities": [ "Digs" ], "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 13.5, "enduranceSpeedMps": 5, "sprintSeconds": 15, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 1.1, "strikeBackResolve": -0.2, "chaseLimitSeconds": 60, "sleepHoursPerDay": 10, "activity": "Crepuscular", "smellFactor": 2, "scentLevel": 0.2 },
   // The common raven: flies, keeps to a loose flock, follows killers and fires to what they leave, and forages
   // berries, fungi and roots between kills (Omnivore). It never starts a fight and flies from one. It has no
@@ -144,7 +145,7 @@
   // Running: Its pace on the wing R (about 14 m/s flat out), the rest D; its foraging the bear's intake scaled by Kleiber (D).
   "Raven": { "body": "Quadruped", "weightKg": 1.2, "fatPct": 0.08, "musclePct": 0.40, "role": "Scavenger", "isSmall": true,
    "attackDamage": 0.05, "attackType": "Pierce", "threat": 0.05, "boldness": 0.3, "aggression": 0.0, "cohesion": 1, "group": "Open", "moveAllowanceM": 6, "reachM": 0.1,
-   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
+   "temperament": "never", "behavior": "Opportunist", "diet": "Omnivore", "abilities": [ "Flies" ], "grazes": [ "BirchPolypore", "Chaga", "Amadou", "Berries", "RoseHip", "JuniperBerry", "Nuts", "Roots", "Honey" ],
    "topSpeedMps": 14, "enduranceSpeedMps": 10, "sprintSeconds": 30, "runCostJPerKgM": 6.0, "burstPct": 0.10, "grazeKcalPerMinute": 0.33, "strikeBackResolve": -0.2, "chaseLimitSeconds": 30, "sleepHoursPerDay": 10, "activity": "Diurnal", "smellFactor": 0.3, "scentLevel": 0.05,
    "flightMinutesPerTile": 1, "perceptionFactor": 2 }
  },

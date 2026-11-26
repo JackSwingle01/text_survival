@@ -371,7 +371,7 @@ public static class Sim
         var (activityFactor, fireProximityFactor, sleeping, stationary) = activity switch
         {
             Sleep => (0.5, 2.0, true, true),
-            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Wear or TakeOff => (1.0, 2.0, false, true),
+            Wait or Rest or StartFire or AddFuel or LightTorch or GatherCharcoal or PutDown or PickUp or Bury or RepairCache or Wear or TakeOff => (1.0, 2.0, false, true),
             Eat or Drink or Wash or PutOn or TakeFinished or TakeBack or StopWork => (1.0, 2.0, false, true), // eating, washing, tending the fire
             ImproveShelter or PackTent or Make or Abandon => (1.0, 2.0, false, true), // crafting
             Travel or WalkAbout => (1.5, 0.0, false, false), // walking: away from the fire's radiant heat

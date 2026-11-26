@@ -203,6 +203,22 @@ public class ContentStrictTests
     public void Loader_RefusesAHerbivoreWithNoGrazingList_OrADietWithNoFoodList(string from, string to, string named) =>
         Assert.Contains(named, BrokenIn("species.json", from, to));
 
+    // ---- 2c. abilities and caches (#125) ----
+
+    [Theory]
+    [InlineData("species.json", "\"abilities\": [ \"Digs\" ]", "\"abilities\": [ \"Swims\" ]", "no Ability 'Swims'")]
+    [InlineData("species.json", "\"abilities\": [ \"Hands\" ]", "\"abilities\": [ ]", "species.json Human: hands are a person's ability")]
+    [InlineData("species.json", "\"abilities\": [ \"Flies\" ]", "\"abilities\": [ \"Flies\", \"Hands\" ]", "species.json Raven: hands are a person's ability")]
+    [InlineData("shelters.json", "\"letsIn\": [ \"Digs\", \"Hands\" ]", "\"letsIn\": [ \"Digs\" ]", "shelters.json caches BuriedInSnow: every cache lets hands in")]
+    [InlineData("shelters.json", "\"capacityKg\": 40", "\"capacityKg\": 0", "shelters.json caches RockCleft: capacityKg above 0")]
+    [InlineData("shelters.json", "\"scentPct\": 0.1", "\"scentPct\": 1.5", "shelters.json caches IceCrevasse: scentPct, insulation")]
+    [InlineData("shelters.json", ", \"buryDepthM\": 0.3", "", "shelters.json caches BuriedInSnow: buryDepthM above 0")]
+    [InlineData("shelters.json", "\"breakInMinutes\": 0, \"scentPct\": 0.3", "\"breakInMinutes\": 0, \"buryDepthM\": 0.3, \"scentPct\": 0.3", "shelters.json caches RockCleft: buryDepthM above 0")]
+    [InlineData("locations.json", "\"cache\": \"RockCleft\" }", "\"cache\": \"RockCleft\", \"chance\": 0.5 }", "cache Rock Cleft is placed when the world is made")]
+    [InlineData("locations.json", "\"cache\": \"RockCleft\"", "\"cache\": \"Rockcleft\"", "no CacheKind 'Rockcleft'")]
+    public void Loader_RefusesBadAbilities_AndBadCaches(string file, string from, string to, string named) =>
+        Assert.Contains(named, BrokenIn(file, from, to));
+
     [Theory]
     [InlineData("forage.json", "\"MixedForest\": [", "\"Orphan\": [ { \"resource\": \"Stone\", \"abundance\": 1, \"minKg\": 0.1, \"maxKg\": 0.2 } ],\n \"MixedForest\": [", "forage.json Orphan: no terrain or cave forages it")]
     [InlineData("discoveries.json", "\"finds\": {", "\"finds\": {\n  \"Orphan\": { \"name\": \"Orphan\", \"work\": \"Salvage\", \"minutes\": 5, \"items\": [ { \"resource\": \"Stone\", \"kgPerUnit\": 0.2 } ] },", "discoveries.json finds Orphan: no draw finds it")]
