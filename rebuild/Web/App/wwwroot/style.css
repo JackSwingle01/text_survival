@@ -17,7 +17,7 @@
   --lichen: #9fbb86;     /* factors that add */
   --frost: #8fa6b7;      /* cold */
   --night: #0d1216;
-  --f-pixel: "Pixelify Sans", "Courier New", monospace;
+  --f-pixel: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* one font: the pixel art is the look, the words stay legible */
   --f-body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-num: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* numbers: legible, tabular */
   --notch: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
@@ -84,7 +84,7 @@ button { font: inherit; color: inherit; }
 .top .grow { flex: 1; border-right: 0; }
 
 .feels { display: flex; align-items: baseline; justify-content: space-between; }
-.feels .big { font: 600 34px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.feels .big { font: 600 22px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .thermo { position: relative; height: 12px; background: linear-gradient(90deg, #3b5568, #6f8796 40%, #8a7a62 60%, #c46a2c); clip-path: var(--notch-s); }
 .thermo b { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--bone); box-shadow: 0 0 0 1px var(--ink); }
 .thermo s { position: absolute; top: 3px; height: 6px; width: 2px; background: rgba(13,18,22,.7); }
@@ -121,8 +121,8 @@ button { font: inherit; color: inherit; }
 /* odds sheet */
 .odds { display: grid; gap: 8px; }
 .odds-top { display: flex; align-items: baseline; justify-content: space-between; }
-.odds-total { font: 600 50px/0.9 var(--f-num); font-variant-numeric: tabular-nums; }
-.odds-total small { font-size: 24px; color: var(--bone-2); }
+.odds-total { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.odds-total small { font-size: inherit; color: inherit; }
 .oddsbar { position: relative; height: 14px; background: var(--ink-3); clip-path: var(--notch-s); overflow: hidden; }
 .oddsbar .seg { position: absolute; top: 0; bottom: 0; }
 .oddsbar .seg.base { background: var(--bone-2); }
@@ -160,7 +160,7 @@ button { font: inherit; color: inherit; }
 @keyframes pop { 0% { transform: scaleY(2.4); } 100% { transform: none; } }
 
 /* buttons */
-.act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 10px 14px; font: 500 19px/1 var(--f-pixel); letter-spacing: .03em; background: var(--ember); color: #1e1006; border: none; clip-path: var(--notch); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 10px 14px; font: 600 19px/1 var(--f-pixel); letter-spacing: .03em; background: var(--ember); color: #1e1006; border: none; clip-path: var(--notch); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
 .act:hover { filter: brightness(1.08); }
 .act:active { box-shadow: inset 0 3px 0 rgba(0,0,0,.25); }
 .act:disabled { background: var(--ink-3); color: var(--bone-3); cursor: not-allowed; box-shadow: none; }
@@ -274,7 +274,7 @@ button { font: inherit; color: inherit; }
 .xbtn { background: var(--ink-3); border: 1px solid var(--seam); border-bottom-width: 2px; color: var(--bone-2); font: 500 13px/1 var(--f-pixel); padding: 4px 6px; cursor: pointer; }
 .xbtn:hover { color: var(--bone); }
 .preview { display: grid; gap: 8px; padding: 10px 12px; background: var(--ink-2); clip-path: var(--notch-s); }
-.preview .big { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.preview .big { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .preview .head { display: flex; align-items: baseline; justify-content: space-between; }
 .stale { font-size: 14px; color: var(--bone-3); padding: 4px 8px; background: var(--ink-3); clip-path: var(--notch-s); }
 
@@ -321,10 +321,10 @@ button { font: inherit; color: inherit; }
 .result-line { font: 500 19px/1.2 var(--f-pixel); }
 .result-line.bad { color: var(--minus); } .result-line.good { color: var(--ochre); }
 .tween { color: var(--bone-2); font-size: 16px; }
-.big-stat { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.big-stat { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .end { width: min(520px, 100%); display: grid; text-align: center; }
 .end header { padding: 22px 22px 14px; display: grid; gap: 8px; justify-items: center; background: var(--ink-2); border-bottom: 2px solid var(--seam); }
-.end h3 { margin: 0; font: 500 38px/1 var(--f-pixel); }
+.end h3 { margin: 0; font: 600 30px/1 var(--f-pixel); }
 .end.died h3 { color: var(--minus); } .end.crossed h3 { color: var(--ochre); }
 .end .lines { padding: 14px 22px; text-align: left; }
 .end footer { padding: 12px 18px 18px; display: flex; gap: 8px; justify-content: center; }
@@ -401,7 +401,7 @@ button { font: inherit; color: inherit; }
 .clue:not(:disabled):hover { border-color: var(--bone-3); }
 .clue.still { cursor: default; border-color: transparent; color: var(--bone-2); }
 /* An odds line: an Odds as one line under the buttons it bears on (fall risk, search speed). */
-.side-body > .odds-line { margin-top: 8px; font-size: 15px; }
+.side-body > .odds-line, .sec > .odds-line { margin: 0; font-size: 15px; } .side-body > .odds-line { margin-top: 8px; }
 .odds-line b { font-family: var(--f-num); font-weight: 600; } .odds-line b.minus { color: var(--minus); } .odds-line b.plus { color: var(--lichen); }
 .found { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; min-height: 52px; align-content: start; }
 .found .item { display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 16px; }
@@ -448,6 +448,8 @@ button { font: inherit; color: inherit; }
   .alerts { flex-direction: row; flex-wrap: wrap; }
   .alert { padding: 5px 9px 5px 7px; font-size: 15px; }
   .end { max-height: 100%; overflow: auto; }
+  /* An open sheet takes the dock's place: its verbs come back when it closes. */
+  .app:has(#drawer:not([hidden])) .dock { display: none; }
   .act .key { display: none; } /* no keyboard */
 }
 @media (max-width: 860px) and (min-height: 501px) {
@@ -463,6 +465,7 @@ button { font: inherit; color: inherit; }
 }
 @media (max-height: 500px) and (max-width: 1000px) {
   .app { grid-template-columns: minmax(0, 1fr) 212px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top top" "map dock"; }
+  .app:has(#drawer:not([hidden])) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "map"; } /* the sheet sits where the verbs were */
   .top > div { padding-top: 4px; padding-bottom: 4px; }
   .t-clock .clock-time { font-size: 24px; }
   .dock { flex-direction: column; border-top: 0; border-left: 2px solid var(--seam); padding-left: 8px; }

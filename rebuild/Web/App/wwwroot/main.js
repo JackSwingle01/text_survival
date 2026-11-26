@@ -346,11 +346,12 @@ function renderFire(d, v) {
   const tend = fire ? fire.menu.filter(x => x.kind !== 'fire') : [];
   const striking = light && !v.fire?.burning;
   $('sideBody').innerHTML = `
-    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>${result}</div>` : result}
+    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>
+      ${light.odds ? `<p class="note odds-line"><b>${pct(light.odds.totalPct)}</b> chance it catches · ${esc(oddsWhy(light.odds).join(', '))}</p>` : ''}${result}</div>` : result}
     ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${v.fire ? section('The pit', fireBlock(v)) : ''}
-    ${striking ? `<div class="sec">${light.odds ? oddsSheet(light.odds, { title: 'Chance it catches' }) : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
-      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}</div>` : ''}`;
+    ${striking ? `${light.odds ? '' : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
+      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}` : ''}`;
 }
 
 // ---------------------------------------------------------------- the trip card

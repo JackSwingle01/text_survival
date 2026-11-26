@@ -54,7 +54,8 @@ const PHONE_LAYOUT = `(() => {
   if (doc.scrollHeight > H || doc.scrollWidth > W) out.push('the page is ' + doc.scrollWidth + '×' + doc.scrollHeight + ' in a ' + W + '×' + H + ' window');
   for (const sel of ['.app', '.top', '.map', '.dock']) { const e = document.querySelector(sel); if (e && shown(e) && !inside(e.getBoundingClientRect())) out.push(sel + ' runs past the window'); }
   const top = document.querySelector('.top'); if (top && top.scrollWidth > top.clientWidth) out.push('the top strip is ' + top.scrollWidth + ' px wide in ' + top.clientWidth + ': it scrolls sideways');
-  for (const b of document.querySelectorAll('.sheets button')) { const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
+  // While a sheet is open the dock gives way to it (its verbs come back when it closes), so only a shown dock is checked.
+  for (const b of document.querySelectorAll('.sheets button')) { if (!shown(b)) continue; const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
   for (const b of document.querySelectorAll('.dock button')) {
     if (!shown(b) || b.closest('.sheets')) continue;
     const sc = scroller(b); if (sc) { const r = b.getBoundingClientRect(), c = sc.getBoundingClientRect(); sc.scrollLeft += r.left - c.left; sc.scrollTop += r.top - c.top; }
