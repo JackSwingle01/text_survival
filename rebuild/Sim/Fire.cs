@@ -770,6 +770,12 @@ public static class Fire
     public static readonly IReadOnlyList<Resource> Tinders =
         [.. new[] { Resource.ResinTinder, Resource.Amadou, Resource.BirchBark, Resource.Usnea, Resource.Tinder, Resource.Chaga }.OrderByDescending(r => Props[r].IgnitionBonusPct)];
 
+    public static bool IsStrikeMaking(Resource r) => r == Resource.Stick || Tinders.Contains(r);
+
+    /// A forecast's strike made from the pack alone: its tinder if the pack holds enough (else the pack's surest), the sticks it holds.
+    public static StartFire StrikeFromPack(AgentId who, ToolType tool, Inventory pack, FireStrike s) =>
+        new(who, tool, Items.Have(pack, s.Tinder) >= s.TinderKg - 1e-9 ? s.Tinder : TinderToStrike(pack, s.TinderKg), s.TinderKg, Items.WouldMoveKg(pack, Resource.Stick, s.KindlingKg));
+
     /// The surest catch the pack holds enough of; plain tinder, the one a person plans to find, if none.
     public static Resource TinderToStrike(Inventory pack, double kg) => Tinders.FirstOrDefault(r => Items.Have(pack, r) >= kg, Resource.Tinder);
 

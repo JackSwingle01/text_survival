@@ -509,6 +509,29 @@ public class WhereThingsGoTests
             $"Choose an activity and let Sim.Step run it; read the world through verbs, refusals, forecasts and memory ({Guide}, Agent behaviour)"));
     }
 
+    // ---- NpcNamesNoFuel ----
+
+    /// Places in Npc.cs that name a fuel or read the fire's tables: none. What a fire needs is Fire.Forecast's to say.
+    static readonly Dictionary<string, string> NpcFireRules = new();
+
+    static readonly Regex FireTables = new(@"\bFire\.(?:Props|Tinders|FuelHours)\b");
+
+    [Fact]
+    public void NpcNamesNoFuel()
+    {
+        var code = CodeOf(Path.Combine(ArchitectureTests.SimSourceDir(), "Npc.cs"));
+        var fuels = new Regex($@"\bResource\.(?:{string.Join("|", Fire.Props.Keys.Select(r => r.ToString()))})\b");
+        var found = new List<(string Key, string Detail)>();
+        foreach (var rx in new[] { fuels, FireTables })
+            foreach (Match m in rx.Matches(code))
+            {
+                int line = LineOf(code, m.Index);
+                found.Add(($"Npc.cs:{m.Value}", $"Npc.cs:{line} names {m.Value}: {LineAt(code, line)}"));
+            }
+        AssertNone(SetRatchet(found.DistinctBy(f => f.Key), NpcFireRules, nameof(NpcFireRules),
+            $"Ask Fire.Forecast what a fire needs and what goes on next, and do what it says ({Guide}, Forecast)"));
+    }
+
     // ---- RefusalsAreData ----
 
     /// Every refusal in the Sim, by member name: methods named for a refusal, and the fields and properties

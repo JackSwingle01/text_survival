@@ -105,13 +105,11 @@ public static class Npc
 
     sealed class Tree
     {
-        public static readonly Tree None = new();
         public List<Leaf> Leaves { get; } = [];
         public List<string> Missing { get; } = [];
         public double ForecastMinutes { get; set; }
     }
 
-    static readonly Resource[] FuelResources = [.. Fire.Props.Keys.Where(r => !Fire.Tinders.Contains(r)).Order()];
     static readonly Resource[] FoodResources = [.. Items.Resources.Where(x => x.Value.Category == ResourceCategory.Food).Select(x => x.Key).Order()];
 
     /// The fire's recipes as its verbs offer them: those that cook food from a piece put on, and the one that melts snow.
@@ -119,9 +117,9 @@ public static class Npc
     static Recipe MeltRecipe => Stations.FireRecipes.Single(r => Stations.FromNothing(r) && r.Result.Resource == Resource.Water);
     static bool Cookable(Resource r) => CookRecipes.Any(c => Stations.InputOf(c) == r);
 
-    static Req FuelReq(double hours, double usedPerHour) => new("fuel", FuelResources, r => Fire.FuelHours(r, 1), hours, ForageFocus.Fuel, Counted: true, usedPerHour);
-    static Req TinderReq(double kg) => new("tinder", Fire.Tinders, _ => 1, kg, ForageFocus.Fuel);
-    static Req StickReq(double kg) => new("sticks", [Resource.Stick], _ => 1, kg, ForageFocus.Fuel);
+    /// What the fire forecast says is missing, to fetch: any of its fuels, by weight. Counted: the pack and pile are in the forecast.
+    static Req NeedReq(FireNeed need, double kg, double usedPerHour) =>
+        new(need.Kind.ToString().ToLowerInvariant(), need.AnyOf, _ => 1, kg, ForageFocus.Fuel, Counted: true, usedPerHour);
     static Req FoodReq(double kcal) => new("food", FoodResources, r => Items.Resources[r].KcalPerKg, kcal, ForageFocus.Food);
 
     static Req Of(MissingResource m) => new(string.Join("/", m.AnyOf), m.AnyOf, _ => 1, m.Kg,
@@ -141,6 +139,7 @@ public static class Npc
         Inventory? PileHere => world.Tiles.GetValueOrDefault(Here)?.Pile;
         FireState? PitHere => Fire.CurrentPitAt(world, Here);
         bool BurningHere => PitHere is { } p && Fire.IsActive(p);
+        bool LitHere => BurningHere || PitHere is { HasEmbers: true };
         double? fireHereHours;
         double FireHereHours => fireHereHours ??= BurningHere ? Fire.HoursItWillBurn(PitHere!) : 0;
         bool Cold => CorePriority(Body.CoreTempF, mind.Plan?.Stat == Stat.Warmth) >= Priority.Need;
@@ -192,7 +191,7 @@ public static class Npc
 
         Next? InHand(Stat stat) => stat switch
         {
-            Stat.Warmth => AtCamp && Cold ? Light(Tree.None, now: true) ?? (BurningHere ? Stoke(HoursToSunrise()) : null) : null,
+            Stat.Warmth => AtCamp && Cold ? LightOrTend(HoursToSunrise()) : null,
             Stat.Water => Sim.Refusal(world, new Drink(Id)) == null ? new(new Drink(Id), Work.DrinkMinutes, Work.DrinkMinutes)
                 : PileHere is { } s && Items.Have(s, Resource.Water) > DustKg ? Take(Resource.Water, Items.Have(s, Resource.Water), [])
                 : MeltHere(),
@@ -217,7 +216,7 @@ public static class Npc
                 : Items.Have(pack, Resource.Water) + (PileHere is { } s ? Items.Have(s, Resource.Water) : 0) + (StationHere is { } st ? Items.Have(st.Ready, Resource.Water) : 0);
             return new()
             {
-                [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), UsableHoursAt(Camp), TonightHours() - NightSlackHours),
+                [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), RememberedLeftAt(Camp) + ForecastAt(Camp, 0).Hours, TonightHours() - NightSlackHours),
                 [Stat.Water] = WaterPriority(Body.HydrationPct, seeing(Stat.Water), waterToHandL, (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0),
                 [Stat.Rest] = RestPriority(Body.EnergyPct, seeing(Stat.Rest)),
                 [Stat.Food] = FoodPriority(Body, mind.TargetFatKg, seeing(Stat.Food), foodToHand: false),
@@ -230,15 +229,23 @@ public static class Npc
 
         double HoursUntil(int hourOfDay) => (hourOfDay * 60 - Weather.MinuteOfDay(world.Minute) + 1440) % 1440 / 60.0;
 
-        /// From away, the fire as last seen beside it and the pile as it left it.
-        double UsableHoursAt(TileId site)
-        {
-            if (Here == site) return FireHere().Hours;
-            return FireLeftHoursAt(site) + Fire.Forecast(new FireAsk(null, PitType.Open, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile), Starter, 0)).Hours;
-        }
+        readonly Dictionary<(TileId, double), (FireForecast Forecast, bool Lit)> forecasts = [];
 
-        FireForecast? fireHere;
-        FireForecast FireHere() => fireHere ??= Fire.Forecast(new FireAsk(PitHere, PitType.Open, PackWith(PileHere), Starter, 0));
+        FireForecast ForecastAt(TileId site, double hoursWanted) => SiteForecast(site, hoursWanted).Forecast;
+
+        /// From away, a new pit and the pile as remembered, for the hours the fire remembered there leaves wanting; lit if it outlasts the walk back.
+        (FireForecast Forecast, bool Lit) SiteForecast(TileId site, double hoursWanted)
+        {
+            hoursWanted = Math.Max(0, hoursWanted - RememberedLeftAt(site));
+            if (forecasts.TryGetValue((site, hoursWanted), out var known)) return known;
+            FireState? pit;
+            Inventory fuel;
+            if (site == Here) (pit, fuel) = (PitHere, PackWith(PileHere));
+            else (pit, fuel) = (null, PackWithRemembered(memory.Places.GetValueOrDefault(site)?.Pile));
+            bool lit = pit != null ? Fire.IsActive(pit) || pit.HasEmbers : OutlastsTheWalk(site);
+            var starter = Starter ?? (lit && pit == null ? Fire.Starters[0] : null); // fuel goes on a fire still lit: no strike to lack
+            return forecasts[(site, hoursWanted)] = (Fire.Forecast(new FireAsk(pit, PitType.Open, fuel, starter, hoursWanted)), lit);
+        }
 
         ToolType? Starter => Fire.Starters.Where(t => Items.Tool(pack, t) != null).Cast<ToolType?>().FirstOrDefault();
 
@@ -255,13 +262,6 @@ public static class Npc
             var all = Items.CopyResources(pack);
             foreach (var (r, kg) in pile ?? new Dictionary<Resource, double>()) Items.AddKg(all, r, kg);
             return all;
-        }
-
-        double FireLeftHoursAt(TileId site)
-        {
-            if (Here == site) return FireHereHours;
-            var seen = memory.Places.GetValueOrDefault(site);
-            return seen is { FireHours: double h } ? Math.Max(0, h - (world.Minute - (seen.VisitedMinute ?? seen.SeenMinute)) / 60.0) : 0;
         }
 
         double CoreAtCampF() => AtCamp ? Body.CoreTempF : CoreAfterF(WalkLegs(Here, Camp));
@@ -303,36 +303,40 @@ public static class Npc
 
         double HoursWanted(Priority priority) => TonightHours() + (priority == Priority.Want ? SpareFireHours : 0);
 
-        /// The all of a fire: lit if out by the time it is back (tinder for the odds, kindling, what the refusal names), then fuel.
+        /// The all of a fire: what the fire forecast names missing (tinder for StrikesPerFire strikes), and a refused strike's lack.
         Tree FirePlan(TileId site, double hoursWanted)
         {
             // A site it cannot walk to has no fire for it: a lame body makes its fire where it lies.
             if (!ToSite(site).Reaches(Here)) return Impossible("a way to the site");
-            double backMinutes = ToSite(site).Minutes[Here];
-            var reqs = new List<Req>();
-            if (FireLeftHoursAt(site) * 60 < backMinutes + 1)
-            {
-                if (Strike() is not { } strike) return Impossible("a fire starter");
-                double odds = Math.Max(LeastStrikePct, Fire.StartOdds(world, agent, strike.Tool, strike.Tinder).TotalPct);
-                reqs.Add(TinderReq(Verbs.TinderKg * Math.Clamp(StrikesPerFire / odds, MinStrikes, MaxStrikes)));
-                reqs.Add(StickReq(Verbs.KindlingKg));
-                if (Here == site && Sim.Refusal(world, strike)?.Missing is MissingResource m && !m.AnyOf.Any(r => Fire.Tinders.Contains(r) || r == Resource.Stick))
-                    reqs.Add(Of(m));
-            }
+            var (forecast, lit) = SiteForecast(site, hoursWanted);
             // A fire burning while it fetches by night: an hour out must bring more than an hour of fire.
-            reqs.Add(FuelReq(Math.Max(0, hoursWanted - UsableHoursAt(site)), !Weather.IsDaytime(world.Minute) && FireLeftHoursAt(site) > 0 ? 1 : 0));
+            double shortHours = Math.Max(hoursWanted - RememberedLeftAt(site) - forecast.Hours, 1.0 / 60);
+            bool burnsMeanwhile = lit && !Weather.IsDaytime(world.Minute);
+            var reqs = new List<Req>();
+            foreach (var need in forecast.Missing)
+                switch (need.Kind)
+                {
+                    case FireNeedKind.Starter or FireNeedKind.Tinder when lit: break;
+                    case FireNeedKind.Starter: return Impossible("a fire starter");
+                    case FireNeedKind.Tinder:
+                        double odds = Math.Max(LeastStrikePct, Starter is ToolType tool ? Fire.StartOdds(world, agent, tool, Fire.TinderToStrike(pack, need.Kg)).TotalPct : 0);
+                        reqs.Add(NeedReq(need, need.Kg * Math.Clamp(StrikesPerFire / odds, MinStrikes, MaxStrikes), 0));
+                        break;
+                    default:
+                        reqs.Add(NeedReq(need, need.Kg, burnsMeanwhile ? need.Kg / shortHours : 0));
+                        break;
+                }
+            if (!lit && forecast.Strike != null && Here == site && StrikeHere(forecast) is { } strike && Sim.Refusal(world, strike) is { } refused)
+            {
+                if (refused.Missing is not MissingResource m) return Impossible("a strike it may make");
+                if (!(PileHere is { } pile && Items.Have(pile, forecast.Strike.Tinder) > DustKg)) reqs.Add(Of(m));
+            }
+            if (!lit && forecast.Strike == null && forecast.Missing.Count == 0) return Impossible("room to strike a fire");
             return Build(site, reqs);
         }
 
-        StartFire? Strike()
-        {
-            if (Starter is not ToolType tool) return null;
-            var tinder = Fire.TinderToStrike(pack, Verbs.TinderKg);
-            return new StartFire(Id, tool, tinder, Verbs.TinderKg, Math.Min(Verbs.KindlingKg, Items.Have(pack, Resource.Stick)));
-        }
-
-        /// A strike it can make whose fire, by the fire forecast, outlasts the strike's own flame.
-        bool CanLight => Strike() is { } s && Sim.Refusal(world, s) == null && FireHere().Hours > Fire.ForecastLight(world, s).FlameHours;
+        StartFire? StrikeHere(FireForecast forecast) =>
+            Starter is ToolType tool && forecast.Strike is { } s ? Fire.StrikeFromPack(Id, tool, pack, s) : null;
 
         /// The fire's site is a one of: the camp, here, or one of the nearest places it remembers trees, by the walk
         /// there plus the tree there. Committing to the plan there moves the camp.
@@ -359,47 +363,58 @@ public static class Npc
         {
             if (!AtCamp) return null;
             bool wanted = Cold || !Weather.IsDaytime(world.Minute);
-            if (wanted && Light(plan, now: Cold) is { } light) return light;
-            if (BurningHere && wanted && Stoke(HoursWanted(priority)) is { } stoke) return stoke;
+            if (wanted && Light(HoursWanted(priority)) is { } light) return light;
+            if (wanted && Tend(HoursWanted(priority)) is { } tend) return tend;
             if (BurningHere && Cold) return new(new Rest(Id), StintMinutes, StintMinutes);
             return plan.Leaves.FirstOrDefault(l => l.Tile == Here && l.Via == Via.PickUp) is { } makings ? Do(makings) : null;
         }
 
-        /// The all of's consuming step: struck once this trip's list is in hand or the pack is full, or now.
-        Next? Light(Tree plan, bool now)
+        /// No fire lit at camp: struck when the forecast lacks nothing, or, cold, gives any hours; tinder on the pile taken first.
+        Next? Light(double hoursWanted)
         {
-            if (!AtCamp || BurningHere || !CanLight) return null;
-            bool gathering = plan.Leaves.Any(l => l.Tile != Here) && RoomKg > FullPackKg;
-            return now || !gathering ? new(Strike()!, 1, 1) : null;
+            if (!AtCamp || LitHere) return null;
+            var forecast = ForecastAt(Here, hoursWanted);
+            if (!(forecast.Missing.Count == 0 || Cold && forecast.Hours > 0) || StrikeHere(forecast) is not { } strike) return null;
+            var refused = Sim.Refusal(world, strike);
+            if (refused == null) return new(strike, 1, 1);
+            var tinder = forecast.Strike!.Tinder;
+            return refused.Missing is MissingResource && PileHere is { } pile && Items.Have(pile, tinder) > DustKg ? Take(tinder, Items.Have(pile, tinder), []) : null;
         }
 
-        /// The fuel with most hours a kilo the fire takes now: kindling while it is too cool for logs.
-        Next? Stoke(double hoursWanted)
+        /// A lit fire here short of the hours wanted: the fire forecast's Next goes on, from the pack or picked up off the pile.
+        Next? Tend(double hoursWanted)
         {
-            var pit = PitHere!;
-            if (FireHereHours >= hoursWanted) return null;
-            foreach (var r in FuelResources.Where(r => Items.Have(pack, r) > DustKg).OrderByDescending(r => Fire.FuelHours(r, 1)).ThenBy(r => r))
+            if (!LitHere || FireHereHours >= hoursWanted || ForecastAt(Here, 0).Next is not { } next) return null;
+            if (Items.Have(pack, next.Fuel) > DustKg)
             {
-                var add = new AddFuel(Id, r, Math.Min(Verbs.FuelKg, Items.Have(pack, r)));
-                var refused = Sim.Refusal(world, add);
-                if (refused == null) return new(add, 1, 1);
-                if (refused.Missing is MissingState { Lack: Lack.FireRoomKg }) return null;
+                var add = new AddFuel(Id, next.Fuel, Math.Min(next.Kg, Items.Have(pack, next.Fuel)));
+                if (Sim.Refusal(world, add) == null) return new(add, 1, 1);
             }
-            if (PileHere is not { } pile) return null;
-            var take = FuelResources.Where(r => Items.Have(pile, r) > DustKg && Fire.WillCatch(pit, r, Verbs.FuelKg))
-                .OrderByDescending(r => Fire.FuelHours(r, 1)).ThenBy(r => r).Cast<Resource?>().FirstOrDefault();
-            if (take is not Resource fuel) return null;
-            var pickUp = new PickUp(Id, fuel, Math.Min(Items.Have(pile, fuel), Math.Clamp(RoomKg, Verbs.FuelKg, PickUpFuelKg)));
-            return Sim.Refusal(world, pickUp) == null ? new(pickUp, 1, 1) : null;
+            if (PileHere is not { } pile || Items.Have(pile, next.Fuel) <= DustKg) return null;
+            return Take(next.Fuel, Math.Min(Items.Have(pile, next.Fuel), Math.Max(next.Kg, Math.Min(RoomKg, PickUpFuelKg))), []);
         }
+
+        double RememberedFireMinutes(TileId site) => memory.Places.GetValueOrDefault(site) is { FireHours: double h } seen
+            ? h * 60 - (world.Minute - (seen.VisitedMinute ?? seen.SeenMinute)) : 0;
+
+        bool OutlastsTheWalk(TileId site) => RememberedFireMinutes(site) > ToSite(site).MinutesTo(Here, double.PositiveInfinity);
+
+        double RememberedLeftAt(TileId site) => site != Here && OutlastsTheWalk(site) ? RememberedFireMinutes(site) / 60 : 0;
+
+        Next? LightOrTend(double hoursWanted) => Light(hoursWanted) ?? Tend(hoursWanted);
+
+        Resource? HeaviestToPutDown(ISet<Resource> keep) => Items.KgByResource(pack).Where(x => x.Value > DustKg && !keep.Contains(x.Key) && !KeptInHand(x.Key))
+            .OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
+
+        static bool KeptInHand(Resource r) => Fire.IsStrikeMaking(r) || r == Resource.Water || FoodResources.Contains(r);
 
         /// Short of room for the trip: what it is not carrying home goes down, heaviest first; fuel on the pile still counts.
         Next? PutDownFor(Tree plan)
         {
             double wantedKg = plan.Leaves.Where(l => l.Tile != Here).Sum(l => l.Kg);
             if (!AtCamp || wantedKg + FullPackKg < RoomKg) return null;
-            var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).Concat(Fire.Tinders).Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).ToHashSet();
-            var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !kept.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
+            var kept = plan.Leaves.Where(l => !l.For.Counted).SelectMany(l => l.For.AnyOf).ToHashSet();
+            var put = HeaviestToPutDown(kept);
             return put is Resource r ? new(new PutDown(Id, r, Items.Have(pack, r)), 1, 1) : null;
         }
 
@@ -416,7 +431,7 @@ public static class Npc
             // Both trips end at camp, so each step toward one makes the other dearer: no turning back and forth.
             double WaterTrip(TileId t) => here.Minutes[t] + ToSite(Camp).MinutesTo(t, here.Minutes[t]);
             if (water is TileId w && WaterTrip(w) < meltMinutes) return WalkTo(w) is { } go ? go with { ForecastMinutes = WaterTrip(w), At = w } : null;
-            if (meltMinutes < double.PositiveInfinity) return (Light(fire, now: true) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : null;
+            if (meltMinutes < double.PositiveInfinity) return (Light(MeltFireHours) ?? NextLeaf(fire)) is { } step ? step with { ForecastMinutes = meltMinutes } : null;
             return priority >= Priority.Need ? Explore() : null;
         }
 
@@ -456,8 +471,7 @@ public static class Npc
                 if (plan.At == Camp && WalkTo(Camp) is { } home) return home with { ForecastMinutes = walk, At = Camp };
                 return SleepHere();
             }
-            if (!BurningHere && CanLight && UsableHoursAt(Here) > 0) return new(Strike()!, 1, 1);
-            if (BurningHere && Stoke(HoursToSunrise()) is { } stoke) return stoke;
+            if (LightOrTend(HoursToSunrise()) is { } fire) return fire;
             return SleepHere();
         }
 
@@ -531,7 +545,8 @@ public static class Npc
             if (FireIdHere is FireId pit && StationHere is { } here && here.Working.Where(t => CookRecipes.Any(r => r.Id == t.Recipe)).ToList() is { Count: > 0 } cooking)
             {
                 if (WaitFor(EarliestFinish(pit, cooking)) is { } wait) return wait;
-                if (BurningHere && Stoke(MeltFireHours) is { } stoke) return stoke;
+                double cookHours = CookRecipes.First(r => r.Id == cooking[0].Recipe).Minutes / 60.0;
+                if ((Tend(cookHours) ?? (AtCamp ? NextLeaf(FirePlan(Camp, cookHours), toCamp: false) : null)) is { } fire) return fire;
                 if (IfAllowed(new TakeBack(Id, cooking[0].Input, cooking[0].InputKg)) is { } back) return back;
             }
             return ReadyFood(pack, cookable: true) is Resource rawFood ? Eat(rawFood) : null;
@@ -569,9 +584,9 @@ public static class Npc
             if (TakeWater(st) is { } take) return take;
             var melt = MeltRecipe;
             if (st.Ongoing.FirstOrDefault(o => o.Recipe == melt.Id) is { } under)
-                return WaitFor(Stations.Forecast(world, id, under)) ?? (BurningHere ? Stoke(MeltFireHours) : null);
-            if (!BurningHere) return null;
-            if (Stations.FinishMinute(world, id, melt, 0) == null) return Stoke(MeltFireHours);
+                return WaitFor(Stations.Forecast(world, id, under)) ?? Tend(MeltFireHours);
+            if (!BurningHere) return Tend(MeltFireHours);
+            if (Stations.FinishMinute(world, id, melt, 0) == null) return Tend(double.PositiveInfinity);
             var put = new PutOn(Id, melt.Id);
             var refused = Sim.Refusal(world, put);
             if (refused == null) return AtTheFire(put);
@@ -623,7 +638,7 @@ public static class Npc
             var packLeft = new Dictionary<Resource, double>(Items.KgByResource(pack));
             var pileLeft = new Dictionary<Resource, double>((Here == site ? (PileHere is { } p0 ? Items.KgByResource(p0) : null) : memory.Places.GetValueOrDefault(site)?.Pile) ?? new SortedDictionary<Resource, double>());
             // Logs carried go down at camp before a trip: their room counts, wherever the plan is made from.
-            double freeKg = RoomKg + Items.Totals(pack).Where(x => IsLog(x.Resource)).Sum(x => x.Kg);
+            double freeKg = RoomKg + Items.Totals(pack).Where(x => Fire.IsFuel(x.Resource) && !KeptInHand(x.Resource)).Sum(x => x.Kg);
             double tripMinutes = 0, awayWanted = 0, awayPlanned = 0;
             foreach (var req in reqs)
             {
@@ -789,16 +804,14 @@ public static class Npc
             return toCamp && !AtCamp && (plan.Leaves.Count > 0 || plan.Missing.Count == 0) ? WalkTo(Camp) : null;
         }
 
-        static bool IsLog(Resource r) => FuelResources.Contains(r) && Fire.Props[r].MinFireTempF > 0;
-
         /// A full pack makes room first: the heaviest thing that is not makings, water, food or what the same requirement wants goes down.
         Next? Take(Resource r, double kg, IEnumerable<Resource> wanted)
         {
             var take = new PickUp(Id, r, kg);
             if (Sim.Refusal(world, take)?.Missing is MissingState { Lack: Lack.PackRoomKg })
             {
-                var keep = Fire.Tinders.Append(Resource.Stick).Append(Resource.Water).Concat(FoodResources).Append(r).Concat(wanted).ToHashSet();
-                var put = Items.KgByResource(pack).Where(x => x.Value > DustKg && !keep.Contains(x.Key)).OrderByDescending(x => x.Value).ThenBy(x => x.Key).Select(x => (Resource?)x.Key).FirstOrDefault();
+                var keep = wanted.Append(r).ToHashSet();
+                var put = HeaviestToPutDown(keep);
                 return put is Resource down ? new(new PutDown(Id, down, Items.Have(pack, down)), 1, 1) : null;
             }
             return Sim.Refusal(world, take) == null ? new(take, 1, 1) : null;
@@ -820,8 +833,7 @@ public static class Npc
             if (StopMelting() is { } stop) return stop;
             if (!Weather.IsDaytime(world.Minute))
             {
-                if (!BurningHere && CanLight && UsableHoursAt(Here) > 0) return new(Strike()!, 1, 1);
-                if (BurningHere && Stoke(HoursToSunrise()) is { } stoke) return stoke;
+                if (LightOrTend(HoursToSunrise()) is { } fire) return fire;
                 if (SleepHere() is { } sleep) return sleep;
             }
             return new(new Rest(Id), StintMinutes, StintMinutes);
