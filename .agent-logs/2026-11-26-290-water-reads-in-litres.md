@@ -13,3 +13,8 @@ Revised: the pile change line's `Change` carries the kilos as text ("1.0") from 
 Revised: the Drank line formatted its litres itself ("0.##" L) → it reads `Names.Litres` too, so water has one rule; a sip under 0.005 L now reads "<0.01 L" where it read "0 L".
 Revised: `CommentHygieneTests` ratchet put Names.cs at 14% with doc comments on the new helpers → dropped them (the names say it), Names.cs fell to 10%, and it comes off `OverCommentLimit` as the ratchet asks.
 Follow-up: the web page's job row shows a forage's `foundKg` as "N kg" (main.js), a total over every resource found, water included; worded by weight on purpose here, as it sums unlike things. A ticket could word it per resource through `Names.Amount`.
+Revised (review): the Drank line above said "under 0.005 L"; the cutoff is under 0.01 L → a sip from 0 to 0.01 L reads "<0.01 L" where it read "0 L" or "0.01 L".
+Revised (review): the new identifiers spelled `Litres` beside the code's `Liters`/`WashLiters` → renamed `Names.Liters`/`InLiters`, parameter `kg` (a litre to a kilo); the player still reads "L".
+Revised (review): the litres-or-kilos choice was written out in `Kg(kg, r)` and `Extra` → one private `Names.Weighed`; the pile change line parsed its resource twice → `Narration.PileChange` parses once.
+Revised (review): `ViewBuilder`'s recipe result repeated `Names.Amount`'s discrete check → it calls `Names.Amount` with the count.
+Revised (review): the spec review flagged the pile line's one-decimal kilos (0.25 L would read "0.3 L", a crumb "0 L") → no change: Memory rounds piles to `PilePrecisionKg` (0.1) and keeps only amounts above 0, so neither case arises, and the ticket leaves pile lines otherwise alone.
