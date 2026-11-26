@@ -167,14 +167,6 @@ public class CapacityReadTests
     static readonly string[] CapacityReadsToday =
     [
         // The tests.
-        "EffectsPropertyTests.Readouts_AreSeverityScaledSumsOfTheTable: CapacityDeltas",
-        "Tests.BodyTests.Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeCapacitiesToNothing: Moving",
-        "Tests.BodyTests.Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth: Consciousness, Hearing, Manipulation, Moving, Sight",
-        "Tests.BodyTests.Effects_DisableButNeverKill: Consciousness",
-        "Tests.BodyTests.Effects_ModifyCapacities: Moving",
-        "Tests.BodyTests.HalfDamagedArm_RoughlyHalvesItsManipulation: RegionCapacities",
-        "Tests.BodyTests.HealthyBody_AllCapacitiesNearPerfect: Consciousness, Hearing, Manipulation, Moving, Sight",
-        "Tests.BodyTests.LostOrgans_TakeTheirCapacityWithThem: Consciousness, RegionCapacities, Sight",
         "Tests.BodyTests.LoweringAnyTissue_NeverRaisesAnyCapacity: Consciousness, Hearing, Manipulation, Moving, Sight",
         "Tests.BodyTests.Unconscious_CannotMoveOrManipulate: Consciousness, Manipulation, Moving",
         "Tests.DirtyTests.Dirty_TakesNothingOffAnyCapacity: CapacityDeltas",
