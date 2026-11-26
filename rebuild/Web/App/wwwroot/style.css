@@ -105,7 +105,10 @@ button { font: inherit; color: inherit; }
 .side-head { padding: 12px 16px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--seam); }
 .side-head h2 { margin: 0; font: 500 23px/1 var(--f-pixel); flex: 1; text-wrap: balance; }
 .side-head .cost { font-size: 16px; color: var(--bone-2); display: flex; gap: 5px; align-items: center; }
-.side-body { padding: 14px 16px 18px; overflow-y: auto; display: grid; gap: 14px; align-content: start; min-height: 0; flex: 1; }
+.side-body { padding: 14px 16px 18px; overflow-y: auto; display: block; min-height: 0; flex: 1; }
+/* Plain block flow, not a grid: Safari sized a wrapping row (the forage finds) inside a grid row by its
+   unwrapped height, and the next section drew over it. */
+.side-body > * + * { margin-top: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; cursor: pointer; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); font-size: 17px; }
 .chip small { color: var(--bone-3); font-size: 14px; }
@@ -397,16 +400,15 @@ button { font: inherit; color: inherit; }
 .clue { display: grid; grid-template-columns: 20px 1fr; gap: 6px; align-items: center; text-align: left; padding: 5px 8px; font-size: 16px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; color: inherit; }
 .clue:not(:disabled):hover { border-color: var(--bone-3); }
 .clue.still { cursor: default; border-color: transparent; color: var(--bone-2); }
-.found { display: flex; flex-wrap: wrap; gap: 6px; min-height: 52px; align-content: flex-start; }
-.found .item { flex: 0 1 112px; }
+.found { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; min-height: 52px; align-content: start; }
 .found .item { display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 16px; }
 .found .item .n { grid-column: 2; font: 600 16px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
 .found .item.fuel { box-shadow: inset 3px 0 0 var(--ember); } .found .item.food { box-shadow: inset 3px 0 0 var(--lichen); }
 .found .item.medicine { box-shadow: inset 3px 0 0 var(--frost); } .found .item.material { box-shadow: inset 3px 0 0 var(--bone-3); }
-.found .item.rare { flex-basis: 100%; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
+.found .item.rare { grid-column: 1 / -1; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
 .mood { font: 500 14px/1 var(--f-pixel); padding: 4px 7px; letter-spacing: .04em; clip-path: var(--notch-s); }
 .mood.good { background: #33300f; color: var(--ochre); } .mood.thin { background: #2a2f33; color: var(--frost); } .mood.wait { background: var(--ink-3); color: var(--bone-3); }
-.found .empty { color: var(--bone-3); font-size: 16px; align-self: center; flex-basis: 100%; }
+.found .empty { color: var(--bone-3); font-size: 16px; align-self: center; grid-column: 1 / -1; }
 
 /* ---------- phones: the page fits the screen and never scrolls ----------
    Portrait: the top strip, the map, then a dock of verbs in two rows that scroll sideways beside the
