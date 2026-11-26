@@ -529,9 +529,10 @@ public class ShelterTests
         Items.Pack(w, P).Gear.Add(Items.Make("bone_shovel"));
         w.Agent(P).Body.CoreTempF = 98.6;
         var r = Sim.Step(w, new Make(P, "snow_shelter"), 200);
-        // 135 minutes, doubled, and a minute more: the cold has reached the hands, and dexterity slows building.
+        // 135 minutes, doubled, and two minutes more: the cold has reached the hands, and dexterity slows building.
+        // (A minute more before the starting leg wraps were worn, #265.)
         Assert.True(Body.Share(w.Agent(P).Body, Species.Human, Faculty.Dexterity) < 1);
-        Assert.Equal(("built", 69), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(("built", 70), (r.InterruptedReason, r.MinutesElapsed));
         Assert.Equal(ShelterKind.SnowShelter, Shelters.At(w, tile, [])!.Kind);
     }
 
