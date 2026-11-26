@@ -38,11 +38,18 @@ public static class Names
     public static string Kg(double kg) =>
         kg > 0 && kg < 0.005 ? "<0.01 kg" : kg.ToString(kg < 1 ? "0.##" : "0.#", CultureInfo.InvariantCulture) + " kg";
 
-    public static string Kg(double kg, Resource r) => $"{Kg(kg)} {Of(r)}";
+    public static string Kg(double kg, Resource r) => $"{(InLitres(r) ? Litres(kg) : Kg(kg))} {Of(r)}";
 
     /// "3 stones"; "120 g plant fibre", "1.2 kg plant fibre".
     public static string Amount(Resource r, double kg, int pieces) =>
-        Items.IsDiscrete(r) ? Pieces(r, pieces) : $"{Grams(kg)} {Of(r)}";
+        Items.IsDiscrete(r) ? Pieces(r, pieces) : $"{Measure(r, kg)} {Of(r)}";
+
+    public static string Measure(Resource r, double kg) => InLitres(r) ? Litres(kg) : Grams(kg);
+
+    public static bool InLitres(Resource r) => r == Resource.Water;
+
+    public static string Litres(double l) =>
+        l > 0 && l < 0.01 ? "<0.01 L" : l.ToString("0.##", CultureInfo.InvariantCulture) + " L";
 
     public static string PieceWord(Resource r) => Pieces(r, 1)[2..];
 
@@ -70,7 +77,7 @@ public static class Names
     }
 
     static string Extra(Resource r, double amount) =>
-        !Items.IsDiscrete(r) ? $"{Kg(amount)} more {Of(r)}" : amount == 1 ? $"an extra {PieceWord(r)}" : $"{Pieces(r, (int)amount)} more";
+        !Items.IsDiscrete(r) ? $"{(InLitres(r) ? Litres(amount) : Kg(amount))} more {Of(r)}" : amount == 1 ? $"an extra {PieceWord(r)}" : $"{Pieces(r, (int)amount)} more";
 
     public static string Pct(double share) => (share * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
 }

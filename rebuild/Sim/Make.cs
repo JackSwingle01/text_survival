@@ -317,7 +317,7 @@ public static class Making
 
     /// "2 stones", "300 g of plant fibre or 1 sinew".
     public static string Words(MaterialInput m) => string.Join(" or ",
-        m.AnyOf.Select(x => Items.IsDiscrete(x) ? Names.Pieces(x, m.Count) : $"{Names.Grams(m.Kg)} of {Names.Of(x)}"));
+        m.AnyOf.Select(x => Items.IsDiscrete(x) ? Names.Pieces(x, m.Count) : $"{Names.Measure(x, m.Kg)} of {Names.Of(x)}"));
 
     static Refusal? MissingMaterial(Inventory pack, Recipe r)
     {

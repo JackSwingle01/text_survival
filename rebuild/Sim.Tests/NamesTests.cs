@@ -36,9 +36,21 @@ public class NamesTests
     [InlineData(Resource.PlantFiber, 0.12, 0, "120 g plant fibre")]
     [InlineData(Resource.PlantFiber, 1.2, 0, "1.2 kg plant fibre")]
     [InlineData(Resource.PlantFiber, 0.4996, 0, "0.5 kg plant fibre")]
-    [InlineData(Resource.Water, 0.0002, 0, "<1 g water")]
     public void AnAmount_IsACountOrAWeight_ByTheResourcesForm(Resource r, double kg, int pieces, string words) =>
         Assert.Equal(words, Names.Amount(r, kg, pieces));
+
+    /// Water reads in litres, a litre to a kilo, to the hundredth the drinking line uses (#290).
+    [Theory]
+    [InlineData(1.0, "1 L water")]
+    [InlineData(0.25, "0.25 L water")]
+    [InlineData(2.5, "2.5 L water")]
+    [InlineData(0.005, "<0.01 L water")]
+    [InlineData(0.0002, "<0.01 L water")]
+    public void Water_ReadsInLitres(double kg, string words)
+    {
+        Assert.Equal(words, Names.Amount(Resource.Water, kg, 0));
+        Assert.Equal(words, Names.Kg(kg, Resource.Water));
+    }
 
     /// names.json must name every value of every table it keeps: a value added in code with no words fails at load.
     [Fact]
