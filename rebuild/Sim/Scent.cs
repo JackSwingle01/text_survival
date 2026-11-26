@@ -37,6 +37,8 @@ public static class Scent
         return Math.Min(1, level + OfFoodIn(person.Pack));
     }
 
+    public static double OfCache(CacheState c) => OfFoodIn(c.Contents) * Caches.Row(c.Kind).ScentMultiplier;
+
     public static double OfFoodIn(Inventory inv)
     {
         double food = 0;

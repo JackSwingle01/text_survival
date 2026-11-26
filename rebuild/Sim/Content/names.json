@@ -322,5 +322,10 @@
   "Food": "food",
   "Medicine": "medicine",
   "Materials": "materials"
+ },
+ "CacheKind": {
+  "BuriedInSnow": "food buried in snow",
+  "IceCrevasse": "ice crevasse",
+  "RockCleft": "rock cleft"
  }
 }

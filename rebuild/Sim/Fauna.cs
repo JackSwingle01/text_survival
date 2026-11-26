@@ -187,7 +187,7 @@ public static partial class Fauna
         if (agent.Mind is not HerdMind) return new("only a herd does that");
         if (activity is Graze or Feed or Watering && MouthRefusal(world, agent) is { } crippled) return crippled;
         if (activity is Graze) return GrazeRefusal(world, agent);
-        if (activity is Feed) return CanFeed(world, agent) ? null : PileRefusal(world, agent, events: null);
+        if (activity is Feed) return CanFeed(world, agent) ? null : StoreRefusal(world, agent, events: null);
         if (activity is Watering) return WaterHere(world, agent) == null ? new("no water here") : null;
         if (activity is not Hunt h) return null;
         if (h.Prey == h.Who || !world.Agents.TryGetValue(h.Prey, out var prey) || prey.Tile != agent.Tile || !Sim.IsAlive(prey))
@@ -388,7 +388,7 @@ public static partial class Fauna
 
     const double FeedKgPerMinute = 0.1;
 
-    /// No faster than FeedKgPerMinute a head, never past its room: carcasses, a body (an opportunist), else the pile (PileBite).
+    /// No faster than FeedKgPerMinute a head, never past its room: carcasses, a body (an opportunist), else StoreAt's pick: break-in, then Bite.
     static void FeedMinute(World world, Agent herd, List<WorldEvent> events)
     {
         var mind = MindOf(herd);
@@ -399,18 +399,21 @@ public static partial class Fauna
             foreach (var body in PickableBodies(world, herd))
                 if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
         double kcal = eaten * MeatKcalPerKg;
-        if (eaten <= 0 && PileRefusal(world, herd, events) == null)
-            foreach (var (r, kg) in PileBite(world, herd, herd.Tile, RoomKcal(herd), herd.Members.Count))
-                kcal += Items.TakeFromPile(world, herd.Id, r, kg, events) * Items.Resources[r].KcalPerKg;
+        if (eaten <= 0 && StoreAt(world, herd, mind, herd.Tile, events) is { } store)
+        {
+            if (store.BreakInMinutes > 0) Caches.BreakIn(world.Caches[store.Cache!.Value]);
+            else
+                foreach (var (r, kg) in Bite(StoreContents(world, herd.Tile, store.Cache)!, herd, RoomKcal(herd), herd.Members.Count))
+                    kcal += Items.TakeFrom(world, herd.Id, store.Cache, r, kg, events) * Items.Resources[r].KcalPerKg;
+        }
         Nourish(herd, kcal);
         if (kcal > 0) mind.LastFedMinute = world.Minute;
     }
 
-    /// A minute's take at a pile, richest first, up to FeedKgPerMinute a head and roomKcal: PileSource and FeedMinute both read it.
-    static List<(Resource Resource, double Kg)> PileBite(World world, Agent animal, TileId tile, double roomKcal, int heads = 1)
+    /// A minute's take at a pile or cache, richest first, up to FeedKgPerMinute a head and roomKcal: StoreAt and FeedMinute both read it.
+    static List<(Resource Resource, double Kg)> Bite(Inventory pile, Agent animal, double roomKcal, int heads = 1)
     {
         var bite = new List<(Resource, double)>();
-        if (world.Tiles.GetValueOrDefault(tile)?.Pile is not Inventory pile) return bite;
         double kgLeft = FeedKgPerMinute * heads;
         foreach (var r in Eats(animal.Species))
         {
@@ -424,15 +427,33 @@ public static partial class Fauna
         return bite;
     }
 
-    static bool EatsAt(World world, Agent animal, TileId tile) => PileBite(world, animal, tile, double.PositiveInfinity).Count > 0;
+    static bool EatsFrom(Inventory? store, Agent animal) => store != null && Bite(store, animal, double.PositiveInfinity).Count > 0;
 
-    /// Why it would not eat at the pile on its tile; with events, the people's fire is caught up first (Fire.CatchUpOn).
-    static Refusal? PileRefusal(World world, Agent herd, List<WorldEvent>? events)
+    static Inventory? StoreContents(World world, TileId tile, CacheId? cache) =>
+        cache is CacheId id ? Caches.Find(world, id)?.Contents : world.Tiles.GetValueOrDefault(tile)?.Pile;
+
+    static IEnumerable<(LocationFeature Feature, CacheId? Cache)> StoresOn(World world, TileId tile)
     {
-        if (LocationFeatures.PileAt(world, herd.Tile) is not LocationFeature pile) return new("nothing here it can reach to eat");
-        if (!EatsAt(world, herd, herd.Tile)) return new("nothing in the pile it eats");
+        if (LocationFeatures.PileAt(world, tile) is LocationFeature pile) yield return (pile, null);
+        foreach (var id in Caches.At(world, tile)) yield return (new LocationFeature(LocationFeatureKind.Cache, tile, id.Value), id);
+    }
+
+    /// Why it would eat at no pile or cache on its tile; with events, the people's fire is caught up first (Fire.CatchUpOn).
+    static Refusal? StoreRefusal(World world, Agent herd, List<WorldEvent>? events)
+    {
+        var stores = StoresOn(world, herd.Tile).ToList();
+        if (stores.Count == 0) return new("nothing here it can reach to eat");
+        var eaten = stores.Where(s => EatsFrom(StoreContents(world, herd.Tile, s.Cache), herd)).ToList();
+        if (eaten.Count == 0) return new("nothing in the pile or cache it eats");
         if (!WouldFeedAmong(world, herd, herd.Tile, events)) return new("people it will not come at are here");
-        return Access.Refusal(world, herd.Id, pile);
+        Refusal? first = null;
+        foreach (var s in eaten)
+        {
+            var barred = Access.Refusal(world, herd.Id, s.Feature);
+            if (barred == null) return null;
+            first ??= barred;
+        }
+        return first;
     }
 
     /// Food on a tile with people is gone for as engagement is: its resolve toward them, fire included (Combat.WouldEnter).
@@ -590,7 +611,7 @@ public static partial class Fauna
     {
         double hunger = Hunger(animal);
         if (!IsPrey(animal.Species) && hunger > SatedHunger && CanFeed(world, animal) && !HeldKill(world, animal)) return (new Feed(animal.Id), 1);
-        if (hunger > SatedHunger && PileRefusal(world, animal, events) == null) return (new Feed(animal.Id), 1);
+        if (hunger > SatedHunger && StoreRefusal(world, animal, events) == null) return (new Feed(animal.Id), 1);
         if (hunger > (mind.Choice is Graze ? StopsEatingHunger : StartsEatingHunger) && GrazeRefusal(world, animal) == null) return (new Graze(animal.Id), 1);
         return ActiveNow(world, animal.Species) ? Wait(animal) : Rest(animal);
     }

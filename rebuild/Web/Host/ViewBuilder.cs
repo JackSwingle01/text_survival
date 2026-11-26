@@ -116,6 +116,8 @@ sealed class ViewBuilder(World world, int gen)
         Wash => "wash",
         PutDown => "putdown",
         PickUp => "take",
+        Bury => "putdown",
+        RepairCache => "repair",
         Wear => "wear",
         TakeOff => "takeoff",
         Fight => "fight",

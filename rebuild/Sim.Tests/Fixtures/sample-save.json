@@ -1775,6 +1775,14 @@
             "Carcass": null,
             "Count": 0,
             "Pile": true
+          },
+          {
+            "Who": null,
+            "Tile": "8,42",
+            "Minute": 145,
+            "Carcass": null,
+            "Count": 0,
+            "Cache": 0
           }
         ]
       },
@@ -2621,6 +2629,29 @@
     }
   },
   "NextRackId": 1,
+  "Caches": {
+    "0": {
+      "Tile": "8,42",
+      "Kind": "BuriedInSnow",
+      "Contents": {
+        "Amounts": {},
+        "Pieces": {
+          "RawMeat": [
+            0.5,
+            0.5
+          ]
+        },
+        "Gear": []
+      },
+      "TornOpen": false,
+      "BreakInMinutes": 1,
+      "Cause": {
+        "Who": 0,
+        "What": "buried by the player"
+      }
+    }
+  },
+  "NextCacheId": 1,
   "WaitingShelters": {},
   "Journal": {
     "7,42": [

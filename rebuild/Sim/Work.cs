@@ -43,7 +43,7 @@ public static class Work
     public const string NoWashingWater = "no water or snow here";
     public const double ChopMinutesPerAxeUse = 60;
 
-    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or PutDown or PickUp or Wear or TakeOff or WalkAbout;
+    public static bool Handles(Activity a) => a is Gather or Butcher or Eat or Drink or Wash or PutDown or PickUp or Bury or RepairCache or Wear or TakeOff or WalkAbout;
 
     /// Keep Walking: five minutes walking the ground to notice new clues.
     public const int WalkAboutMinutes = 5;
@@ -267,6 +267,28 @@ public static class Work
                 return WashingWater(world, agent, pack) == null
                     ? new(NoWashingWater, new MissingResource(Resource.Water, WashLiters - Items.Have(pack, Resource.Water)))
                     : null;
+            case PutDown { Into: CacheId into } s:
+                if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Put in a positive amount");
+                if (CacheHere(world, agent, into) is not { } putIn) return new("no such cache here");
+                if (Access.Refusal(world, agent.Id, putIn) is { } putInBarred) return putInBarred;
+                if (Caches.RoomKg(world.Caches[into]) <= 0) return new($"the {Names.Of(world.Caches[into].Kind)} is full");
+                return Items.Have(pack, s.Resource) > 0 ? null : new($"no {Names.Of(s.Resource)} to put in", new MissingResource(s.Resource, s.Kg));
+            case Bury b:
+                if (b.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), b.Kg, "Bury a positive amount");
+                if (Items.Resources[b.Resource].Category != ResourceCategory.Food) return new("only food is buried in the snow");
+                if (Ground.Underfoot(world, agent.Tile).SnowDepthM < Caches.Row(CacheKind.BuriedInSnow).BuryDepthM)
+                    return new("the snow here is too thin to bury anything in");
+                if (Caches.BuriedAt(world, agent.Tile) is CacheId buried && Caches.RoomKg(world.Caches[buried]) <= 0) return new("the snow cache here is full");
+                return Items.Have(pack, b.Resource) > 0 ? null : new($"no {Names.Of(b.Resource)} to bury", new MissingResource(b.Resource, b.Kg));
+            case RepairCache r:
+                if (CacheHere(world, agent, r.Cache) is not { } mend) return new("no such cache here");
+                if (!world.Caches[r.Cache].TornOpen) return new("it is not torn open");
+                return Access.Refusal(world, agent.Id, mend);
+            case PickUp { From: CacheId from } u:
+                if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
+                if (CacheHere(world, agent, from) is not { } takeFrom) return new("no such cache here");
+                if (Items.Have(world.Caches[from].Contents, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} in the {Names.Of(world.Caches[from].Kind)}");
+                return Access.Refusal(world, agent.Id, takeFrom) ?? PackRoomRefusal(world.Caches[from].Contents, u.Resource, agent, pack);
             case PutDown s:
                 if (s.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), s.Kg, "Put down a positive amount");
                 // Putting down, on a pile already here or the first thing that makes one: one gate.
@@ -276,13 +298,7 @@ public static class Work
                 if (u.Kg <= 0) throw new ArgumentOutOfRangeException(nameof(activity), u.Kg, "Take a positive amount");
                 var pile = world.Tiles.GetValueOrDefault(agent.Tile)?.Pile;
                 if (pile == null || Items.Have(pile, u.Resource) <= 0) return new($"no {Names.Of(u.Resource)} in the pile here");
-                if (Access.Refusal(world, agent.Id, LocationFeatures.PileAt(world, agent.Tile)!.Value) is { } pickUpBarred) return pickUpBarred;
-                if (Items.CarriedKg(agent) >= Items.CapacityKg(pack))
-                    return new("your pack is full", new MissingState(Lack.PackRoomKg, Have: Items.CapacityKg(pack) - Items.CarriedKg(agent)));
-                return Items.LightestKg(pile, u.Resource) is double pieceKg && pieceKg > Items.CapacityKg(pack) - Items.CarriedKg(agent) + 1e-9
-                    ? new($"no room in your pack for a whole {Names.PieceWord(u.Resource)}",
-                        new MissingState(Lack.PackRoomKg, pieceKg, Items.CapacityKg(pack) - Items.CarriedKg(agent)))
-                    : null;
+                return Access.Refusal(world, agent.Id, LocationFeatures.PileAt(world, agent.Tile)!.Value) ?? PackRoomRefusal(pile, u.Resource, agent, pack);
             case Wear w:
                 var gear = pack.Gear.FirstOrDefault(x => x.Kind == w.Gear);
                 if (gear == null) return new($"no {(Items.GearKinds.ContainsKey(w.Gear) ? Names.GearWords(w.Gear) : w.Gear)} in your pack", new MissingGear(w.Gear));
@@ -299,6 +315,28 @@ public static class Work
     public static readonly Refusal Dark = new(TooDark, new MissingState(Lack.Light));
 
     /// The tool a pool's work needs whatever is there: an axe for trees. A stock's items each say their own (Pools.CanWork).
+    static LocationFeature? CacheHere(World world, Agent agent, CacheId id) =>
+        Caches.Find(world, id)?.Tile == agent.Tile ? new LocationFeature(LocationFeatureKind.Cache, agent.Tile, id.Value) : null;
+
+    /// A take from a pile or cache into the pack: a full pack, or a least piece too big for what room is left, refuses.
+    static Refusal? PackRoomRefusal(Inventory from, Resource r, Agent agent, Inventory pack)
+    {
+        double room = Items.CapacityKg(pack) - Items.CarriedKg(agent);
+        if (room <= 0) return new("your pack is full", new MissingState(Lack.PackRoomKg, Have: room));
+        return Items.LightestKg(from, r) is double pieceKg && pieceKg > room + 1e-9
+            ? new($"no room in your pack for a whole {Names.PieceWord(r)}", new MissingState(Lack.PackRoomKg, pieceKg, room))
+            : null;
+    }
+
+    /// Up to the cache's room; what does not fit stays in the pack.
+    static void PutIn(World world, Agent agent, Inventory pack, Resource r, double kg, CacheId id, List<WorldEvent> events)
+    {
+        var c = world.Caches[id];
+        int had = Items.Count(pack, r);
+        double moved = Items.Move(pack, c.Contents, r, kg, Caches.RoomKg(c));
+        events.Add(new PutOnPile(world.Minute, agent.Id, agent.Tile, r, moved, had - Items.Count(pack, r)));
+    }
+
     static Refusal? ToolRefusal(PoolDef def, Inventory pack) => def switch
     {
         TreePool => Items.Tool(pack, ToolType.Axe) == null ? new("you need an axe to fell trees", new MissingTool(ToolType.Axe)) : null,
@@ -419,6 +457,9 @@ public static class Work
                     events.Add(new Drank(world.Minute, agent.Id, agent.Tile, liters));
                     return new WorkSession { Activity = activity, TargetMinutes = DrinkMinutes };
                 }
+            case PutDown { Into: CacheId into } s:
+                PutIn(world, agent, pack, s.Resource, s.Kg, into, events);
+                return new WorkSession { Activity = activity };
             case PutDown s:
                 {
                     int had = Items.Count(pack, s.Resource);
@@ -428,9 +469,18 @@ public static class Work
                 }
             case PickUp u:
                 {
-                    Items.TakeFromPile(world, agent.Id, u.Resource, u.Kg, events, pack, Items.CapacityKg(pack) - Items.CarriedKg(agent));
+                    Items.TakeFrom(world, agent.Id, u.From, u.Resource, u.Kg, events, pack, Items.CapacityKg(pack) - Items.CarriedKg(agent));
                     return new WorkSession { Activity = activity };
                 }
+            case Bury b:
+                {
+                    var id = Caches.BuriedAt(world, agent.Tile) ?? Caches.Place(world, agent.Tile, CacheKind.BuriedInSnow, new Cause(agent.Id, $"buried by {Cause.Describe(world, agent.Id)}"));
+                    PutIn(world, agent, pack, b.Resource, b.Kg, id, events);
+                    return new WorkSession { Activity = activity };
+                }
+            case RepairCache r:
+                Caches.Repair(world.Caches[r.Cache]);
+                return new WorkSession { Activity = activity };
             case Wear w:
                 {
                     var gear = pack.Gear.First(x => x.Kind == w.Gear);
@@ -544,7 +594,7 @@ public static class Work
                     events.Add(new Washed(world.Minute, agent.Id, agent.Tile, source));
                     return WashedReason;
                 }
-            case PutDown or PickUp or Wear or TakeOff:
+            case PutDown or PickUp or Bury or RepairCache or Wear or TakeOff:
                 return null; // done on the first minute; the agent waits out the rest
             case WalkAbout:
                 Pools.Search(world, agent, Traversal.TravelSearchPct * Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent)) / 60.0, events);

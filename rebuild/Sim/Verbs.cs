@@ -119,7 +119,13 @@ public static class Verbs
                 if (kg > 0 && Items.Resources[r].Category == ResourceCategory.Food)
                     carried.Add(($"Eat {Names.Of(r)}", new Eat(who, r, Items.WouldMoveKg(pack, r, Portion(agent.Body, r, kg))), Work.EatMinutes));
             foreach (var (r, kg) in Items.Totals(pack))
-                if (kg > 0) carried.Add(($"Put down {Names.Of(r)}", new PutDown(who, r, kg), 1));
+                if (kg > 0)
+                {
+                    carried.Add(($"Put down {Names.Of(r)}", new PutDown(who, r, kg), 1));
+                    foreach (var c in Caches.At(world, agent.Tile))
+                        if (Caches.Row(world.Caches[c].Kind).BuryDepthM == null) carried.Add(($"Put {Names.Of(r)} in the {Names.Of(world.Caches[c].Kind)}", new PutDown(who, r, kg, c), 1));
+                    if (Items.Resources[r].Category == ResourceCategory.Food) carried.Add(($"Bury {Names.Of(r)} in the snow", new Bury(who, r, kg), 1));
+                }
             // By kind: Wear and TakeOff name a kind, so two of one kind are one verb.
             foreach (var kind in pack.Gear.Where(g => Items.Def(g).Slot != null).Select(g => g.Kind).Distinct())
                 carried.Add(($"Wear {Names.GearWords(kind)}", new Wear(who, kind), 1));
@@ -194,7 +200,7 @@ public static class Verbs
     {
         LocationFeatureKind.Agent or LocationFeatureKind.Body => t.Index != who.Value,
         LocationFeatureKind.Pool => Pools.Knows(world, who, new PoolId(t.Tile, t.Index)) && !Pools.LaysItsOwnFeature(Pools.Def(world, new PoolId(t.Tile, t.Index))),
-        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item or LocationFeatureKind.Trodden or LocationFeatureKind.Rack => true,
+        LocationFeatureKind.Carcass or LocationFeatureKind.Pile or LocationFeatureKind.Fire or LocationFeatureKind.Shelter or LocationFeatureKind.Track or LocationFeatureKind.Sign or LocationFeatureKind.Item or LocationFeatureKind.Trodden or LocationFeatureKind.Rack or LocationFeatureKind.Cache => true,
     };
 
     /// What a thing on a tile is called, the same whoever looks (and with no one there to look).
@@ -211,6 +217,7 @@ public static class Verbs
             : $"{Names.Of((TrackMaker)t.Index)} prints",
         LocationFeatureKind.Trodden => "trodden ground",
         LocationFeatureKind.Rack => "curing rack",
+        LocationFeatureKind.Cache => Names.Of(world.Caches[new CacheId(t.Index)].Kind),
         LocationFeatureKind.Sign => throw new InvalidOperationException("LocationFeatures.At listed a sign, which has no ids yet"),
         LocationFeatureKind.Item => throw new InvalidOperationException("LocationFeatures.At listed an item, which has no ids yet"),
     };
@@ -229,8 +236,18 @@ public static class Verbs
             LocationFeatureKind.Fire => FireVerbs(world, who, t, pack, have),
             LocationFeatureKind.Shelter => ShelterVerbs(world, who, t, have),
             LocationFeatureKind.Rack => StationVerbs(world, who, StationKind.Rack, world.Racks[new(t.Index)].Work, new(t.Index), pack),
+            LocationFeatureKind.Cache => CacheVerbs(world, who, new CacheId(t.Index)),
             LocationFeatureKind.Sign or LocationFeatureKind.Item => throw new InvalidOperationException($"LocationFeatures.At listed a {t.Kind}, which has no ids yet"),
         });
+    }
+
+    /// Take each thing in it; repair it once torn open. Putting in is offered with what is carried.
+    static List<(string, Activity, int)> CacheVerbs(World world, AgentId who, CacheId id)
+    {
+        var c = world.Caches[id];
+        List<(string, Activity, int)> menu = [.. Items.Totals(c.Contents).Select(x => ($"Take {Names.Of(x.Resource)}", (Activity)new PickUp(who, x.Resource, x.Kg, id), 1))];
+        if (c.TornOpen) menu.Add(("Repair it", new RepairCache(who, id), 1));
+        return menu;
     }
 
     static List<(string, Activity, int)> PoolVerbs(World world, AgentId who, LocationFeature t)

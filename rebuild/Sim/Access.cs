@@ -1,6 +1,6 @@
 namespace Survival;
 
-/// Every refusal asks here first, so buried, occupied, frozen-in and across-the-water mean the same everywhere.
+/// Every refusal asks here first, so buried, occupied, frozen-in, across-the-water and shut in a cache mean the same everywhere.
 public static class Access
 {
     [Flags]
@@ -18,7 +18,7 @@ public static class Access
     public const Gate Wired = Gate.None;
 
     public const string BuriedReason = "it is buried under the snow", FrozenInReason = "it is frozen in",
-        AcrossWaterReason = "there is open water in the way", OutOfReach = "it is out of reach";
+        AcrossWaterReason = "there is open water in the way", OutOfReach = "it is out of reach", ShutReason = "it is shut in a cache it cannot get into";
 
     /// confronting: the activity is the encounter with the occupant, so the occupant is no bar.
     public static Refusal? Refusal(World world, AgentId who, LocationFeature t, bool confronting = false) =>
@@ -42,16 +42,24 @@ public static class Access
             if (MapGen.Manhattan(actor.Tile, t.Tile) != 1) return new Block(Gate.None, OutOfReach);
             if (gates.HasFlag(Gate.AcrossWater) && AcrossWater(world, actor.Tile, t.Tile)) return new Block(Gate.AcrossWater, AcrossWaterReason);
         }
+        if (!GetsInto(world, who, t)) return new Block(Gate.None, ShutReason);
         if ((gates & (Gate.Buried | Gate.Occupied | Gate.FrozenIn)) == 0) return null;
         var tags = Tags.Of(world, t, who);
         var caps = Items.PackOf(actor) is { } pack ? Capabilities.Of(pack) : Capability.None;
-        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging))
+        if (gates.HasFlag(Gate.Buried) && tags.HasFlag(Tag.Buried) && !caps.HasFlag(Capability.Digging) && !AbilitiesOf(actor).HasFlag(Ability.Digs))
             return new Block(Gate.Buried, BuriedReason, new MissingCapability(Capability.Digging));
         if (gates.HasFlag(Gate.Occupied) && !confronting && tags.HasFlag(Tag.Occupied)) return new Block(Gate.Occupied, OccupiedReason(world, t, who));
         if (gates.HasFlag(Gate.FrozenIn) && tags.HasFlag(Tag.FrozenIn) && (caps & FreesIce) == 0)
             return new Block(Gate.FrozenIn, FrozenInReason, new MissingCapability(FreesIce));
         return null;
     }
+
+    /// The one check of who gets into what, always on: a cache by the abilities it lists unless it lies open; anything else, anyone.
+    public static bool GetsInto(World world, AgentId who, LocationFeature t) =>
+        t.Kind != LocationFeatureKind.Cache || world.Caches[new CacheId(t.Index)] is var c
+            && (Caches.Open(world, c) || (Caches.Row(c.Kind).LetsIn & AbilitiesOf(world.Agent(who))) != 0);
+
+    static Ability AbilitiesOf(Agent a) => SpeciesTable.Of(a.Species).Abilities;
 
     public const Capability FreesIce = Capability.Striking | Capability.Cutting;
 

@@ -91,7 +91,8 @@ _Avoid_: stash, supplies, ground items
 **Cache**:
 A location feature that holds food up to a capacity and keeps out every animal except those with an
 ability it lists (flies, climbs, digs, strong, hands). Built or found; food buried in snow is a cache that
-diggers get into.
+diggers and hands get into. An animal without hands breaks in once, which leaves it **torn open**: it lets
+everyone in until a person repairs it.
 _Avoid_: storage, stash, camp storage
 
 **Ability**:

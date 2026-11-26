@@ -99,6 +99,34 @@ public class SaveTests
         Sim.Advance(loaded, 60);
         Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
     }
+
+    /// A fox part way into a buried cache it found, then a torn-open one: saved and loaded, the cache, its contents, its
+    /// break-in and the sighting come back, and it digs and eats on the same.
+    [Fact]
+    public void AnAnimalBreakingIntoACache_SavesAndLoads_AndEatsTheSame()
+    {
+        var w = KillChainTests.Bare();
+        var tile = Map.Step(Map.Step(Map.Of(w).Camp, Direction.West), Direction.West);
+        TestKit.EditGround(w, tile, (g, _) => g.Layers.Add(new SurfaceLayer { Material = SurfaceMaterial.Snow, ThicknessM = 0.6, CompactionPct = 0.3, FrozenFractionPct = 1 }));
+        var id = Caches.Place(w, tile, CacheKind.BuriedInSnow, new Cause(AgentId.Player, "buried by the player"));
+        TestKit.GivePieces(w.Caches[id].Contents, Resource.RawMeat, 8);
+        double meat = Items.Have(w.Caches[id].Contents, Resource.RawMeat);
+        var fox = w.Agent(Agents.Spawn(w, Species.Fox, tile));
+        TestKit.SetHunger(fox, 0.85);
+        Sim.Advance(w, 2);
+        Assert.True(w.Caches[id].BreakInMinutes is > 0 and < 5, $"break-in at {w.Caches[id].BreakInMinutes}");
+        Assert.Contains(Fauna.MindOf(fox).Sightings ?? [], s => s.Cache == id);
+
+        var loaded = TestWorlds.Load(Save.ToJson(w));
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+        Assert.Equal(w.Caches[id].BreakInMinutes, loaded.Caches[id].BreakInMinutes);
+        Ground.SetClassState(loaded, tile, Ground.At(w, tile)); // the snow set down by hand, which the weather would have laid
+        Sim.Advance(w, 30);
+        Sim.Advance(loaded, 30);
+        Assert.True(w.Caches[id].TornOpen);
+        Assert.True(Items.Have(w.Caches[id].Contents, Resource.RawMeat) < meat, "the fox broke in and ate nothing");
+        Assert.Equal(Save.ToJson(w), Save.ToJson(loaded));
+    }
 }
 
 /// The committed sample save (Fixtures/sample-save.json), in the current format. Loading it and saving again must give the
@@ -193,6 +221,11 @@ public class SaveFixtureTests
         // ... and the camp's pile, smelled (Fauna.Sense): kept until it sees the pile gone.
         Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings = [new Sensed(null, new TileId(camp.X + 15, camp.Y), w.Minute, Quarry: Species.Caribou, Count: 1),
             new Sensed(null, camp, w.Minute, Pile: true)];
+        // Meat buried in snow beside camp, torn open part way by a digger, and on the wolf's list too (#125).
+        var buried = Caches.Place(w, new TileId(camp.X + 1, camp.Y), CacheKind.BuriedInSnow, new Cause(P, "buried by the player"));
+        TestKit.GivePieces(w.Caches[buried].Contents, Resource.RawMeat, 2);
+        Caches.BreakIn(w.Caches[buried]);
+        Fauna.MindOf(Fauna.AnimalsAt(w, den).First()).Sightings!.Add(new Sensed(null, new TileId(camp.X + 1, camp.Y), w.Minute, Cache: buried));
         return w;
     }
 

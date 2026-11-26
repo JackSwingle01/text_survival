@@ -23,7 +23,7 @@ public static class Crippled
     }
 
     /// With the hands ability a body eats and drinks with them; without, it reaches its food with its mouth, on its legs.
-    public static Faculty ToEat(Species species) => SpeciesTable.Of(species).Hands ? Faculty.Dexterity : Faculty.Speed;
+    public static Faculty ToEat(Species species) => SpeciesTable.Of(species).Abilities.HasFlag(Ability.Hands) ? Faculty.Dexterity : Faculty.Speed;
 
     static string Prefix(Faculty faculty) => faculty switch
     {
