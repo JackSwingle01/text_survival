@@ -559,7 +559,7 @@ public class MakeTests
         for (int i = 0; i < runs; i++)
         {
             KeepTheFireUp(w, pack);
-            (agent.Body.EnergyMinutes, agent.Body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+            (agent.Body.EnergyMinutes, agent.Body.HydrationMl, agent.Body.CaloriesKcal) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl, Body.CaloriesCapacityKcal(agent.Body));
             ((PersonMind)agent.Mind).Skills.Clear();
             agent.Body.Effects.Clear();
             pack.Gear[0].Durability = Items.Def(pack.Gear[0]).MaxDurability;

@@ -170,7 +170,7 @@ public class ContentStrictTests
     [InlineData("locations.json", "\"hazard\": 0.2,", "\"hazard\": 1.2,", "hazard 1.2 is not in 0-1")]
     [InlineData("effects.json", "\"bleedMlPerHour\": 3000", "\"bleedMlPerHour\": -3000", "bleedMlPerHour -3000")]
     [InlineData("effects.json", "\"Pain\": { \"severityPerHour\": -0.15", "\"Pain\": { \"severityPerHour\": 0.15", "severityPerHour 0.15 grows by itself")]
-    [InlineData("effects.json", "\"Moving\": -0.35", "\"Moving\": 0.35", "Moving 0.35 is not a loss")]
+    [InlineData("effects.json", "\"Sight\": -0.4", "\"Sight\": 0.4", "Sight 0.4 is not a loss")]
     // An effect names a capacity, blood or breath, and nothing else: not the gut, not the old names.
     [InlineData("effects.json", "\"Blood\": -0.3", "\"Digestion\": -0.3", "effects.json Shock capacities: Digestion is not a capacity, blood or breath")]
     [InlineData("effects.json", "\"Blood\": -0.3", "\"BloodPumping\": -0.3", "effects.json Shock capacities: no Capacity 'BloodPumping'")]

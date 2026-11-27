@@ -272,7 +272,7 @@ public class BodyTests
         Assert.InRange(baseline, 0.7, 1.0);
         Assert.True(Body.Speed(Custom(100, 0.35, 0.20)) < 0.8, "Obesity slows");
         Assert.True(Body.Speed(Custom(680, 0.12, 0.38)) < baseline, "Large is slower");
-        Assert.True(Body.Speed(Custom(6.8, 0.12, 0.38)) > baseline, "Small is faster");
+        Assert.True(Body.Speed(Custom(40, 0.12, 0.38)) > baseline, "Small is faster"); // reserves enough not to read as starving
     }
 
     [Fact]
@@ -288,8 +288,8 @@ public class BodyTests
     public void Effects_DisableButNeverKill()
     {
         var b = Baseline();
-        foreach (var kind in new[] { EffectKind.Tired, EffectKind.Thirsty, EffectKind.Hungry, EffectKind.Hypothermia })
-            Effects.Add(b, kind, 1.0);
+        Deprive.Wholly(b);
+        Effects.Add(b, EffectKind.Hypothermia, 1.0);
         foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed })
             Effects.Add(b, kind, 0.8);
         Assert.Equal(0, Body.Perception(b));
@@ -297,32 +297,37 @@ public class BodyTests
         Assert.True(Body.IsAlive(b));
     }
 
-    /// Discomforts stack with diminishing returns. Hunger, thirst and tiredness at full together leave
-    /// every faculty at about a fifth of a fresh body's (dexterity 0.18 and vision 0.19, each a product of two lowered capacities);
-    /// each alone is nearly what its row says.
+    /// Deprivations stack with diminishing returns. Thirst and tiredness at full, with an empty stomach's
+    /// pang, leave every faculty at about a fifth of a fresh body's or more (vision 0.21, a product of two
+    /// lowered capacities); each alone is nearly what its sizes say. Full hunger comes only with wasting
+    /// (#332: read from the stores), so it is not here.
     [Fact]
-    public void Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth()
+    public void Deprivations_StackWithDiminishingReturns_NeverBelowAboutAFifth()
     {
         var b = Baseline();
-        foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
+        Deprive.Thirsty(b, 1);
+        Deprive.Tired(b, 1);
+        b.CaloriesKcal = 0;
         foreach (var f in Enum.GetValues<Faculty>())
-            Assert.True(Body.Share(b, Species.Human, f) >= 0.18, $"{f} {Body.Share(b, Species.Human, f):0.000}");
-        Assert.InRange(SpeedShare(b), 0.2, 0.25);
+            Assert.True(Body.Share(b, Species.Human, f) >= 0.2, $"{f} {Body.Share(b, Species.Human, f):0.000}");
+        Assert.InRange(SpeedShare(b), 0.28, 0.30);
 
         var tired = Baseline();
-        Effects.Add(tired, EffectKind.Tired, 1.0);
+        Deprive.Tired(tired, 1.0);
         Assert.InRange(SpeedShare(tired), 0.55, 0.57); // -0.45 alone, a hair less
     }
 
-    /// Only discomfort saturates: wounds, blood loss and the cold's effects still take what they take,
+    /// Only deprivation saturates: wounds, blood loss and the cold's effects still take what they take,
     /// on top of it, to nothing.
     [Fact]
-    public void Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeSpeedToNothing()
+    public void Deprivations_Saturate_ButDamageBloodLossAndColdStillTakeSpeedToNothing()
     {
         BodyState Miserable()
         {
             var b = Baseline();
-            foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
+            Deprive.Thirsty(b, 1);
+            Deprive.Tired(b, 1);
+            b.CaloriesKcal = 0;
             return b;
         }
         var bled = Miserable();
@@ -333,8 +338,8 @@ public class BodyTests
         Destroy(RegionOf(lame, "Right Leg"));
         Assert.True(SpeedShare(lame) < 0.02);
         var frozen = Miserable();
-        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full below the fifth
-        Assert.InRange(SpeedShare(frozen), 0.06, 0.10);
+        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full on top
+        Assert.InRange(SpeedShare(frozen), 0.12, 0.16);
     }
 
     /// Body review B5: a body that dies is named after the damage that took it over the line, as it
@@ -369,7 +374,7 @@ public class BodyTests
         // The scenario from a playtest: Hypothermia 98%, Tired 65%, plus 0.088 more = -0.87 consciousness.
         var b = Baseline();
         Effects.Add(b, EffectKind.Hypothermia, 0.98);
-        Effects.Add(b, EffectKind.Tired, 0.65);
+        Deprive.Tired(b, 0.65);
         Effects.Add(b, EffectKind.Shock, 0.22); // stands in for the old Fever 22%: -0.4 consciousness each
         // The mean of the faculties, not the least of them (#200): strength and speed keep their build.
         Assert.True(Body.Vitality(b, Species.Human) < 0.40, $"Vitality {Body.Vitality(b, Species.Human):P0}");

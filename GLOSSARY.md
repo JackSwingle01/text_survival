@@ -54,8 +54,9 @@ three.
 _Avoid_: status, debuff
 
 **Deprivation**:
-An effect from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
-without harming it, and it lifts when the need is met; nothing treats it.
+What an unmet need for food, water or rest does to a body: hungry, thirsty, tired. Not an effect: it
+is read from the body's stores each minute, never stored. It wears a body down without harming it, and
+it lifts the moment the need is met; nothing treats it.
 _Avoid_: discomfort, debuff, need effect
 
 **Condition**:

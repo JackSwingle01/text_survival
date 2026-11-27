@@ -23,6 +23,8 @@ public static class Narration
         {
             EffectStarted x => x.Who == me,
             EffectEnded x => x.Who == me,
+            DeprivationStarted x => x.Who == me,
+            DeprivationEnded x => x.Who == me,
             Died x => x.Who == me || x.Tile == here,
             Exhausted x => x.Who == me,
             FullyRested x => x.Who == me,
@@ -72,6 +74,8 @@ public static class Narration
             EffectStarted { Kind: EffectKind.Dirty } or EffectEnded { Kind: EffectKind.Dirty } => null,
             EffectStarted x => ($"{Is(x.Who)} {Names.Of(x.Kind)}.", x.Kind switch { EffectKind.Sweating => Tone.Plain, EffectKind.WellFed => Tone.Good, _ => Tone.Bad }),
             EffectEnded x => ($"{Is(x.Who)} no longer {Names.Of(x.Kind)}.", x.Kind == EffectKind.WellFed ? Tone.Plain : Tone.Good),
+            DeprivationStarted x => ($"{Is(x.Who)} {Names.Of(x.Kind)}.", Tone.Bad),
+            DeprivationEnded x => ($"{Is(x.Who)} no longer {Names.Of(x.Kind)}.", Tone.Good),
             Died x => (Me(x.Who) ? "You die." : $"{Who(x.Who)} dies.", Tone.Bad),
             Exhausted x => ($"{Is(x.Who)} exhausted.", Tone.Bad),
             FullyRested x => ($"{Is(x.Who)} fully rested.", Tone.Good),

@@ -61,7 +61,7 @@ public class NpcBenchReport(ITestOutputHelper output)
             foreach (var e in Sim.Advance(w, 1))
             {
                 reversals.Read(e);
-                if (trace != null && e is not (Moved or EffectStarted or EffectEnded) && e.ToString()!.Contains(npc.ToString()))
+                if (trace != null && e is not (Moved or EffectStarted or EffectEnded or DeprivationStarted or DeprivationEnded) && e.ToString()!.Contains(npc.ToString()))
                     trace.WriteLine($"{w.Minute / 1440.0,6:0.00}        {e}");
                 switch (e)
                 {

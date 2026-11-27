@@ -122,7 +122,7 @@ jobs:
       # Each config's own test-case-filter carries Category!=Slow: coverage capture must never reach
       # the 2-minute Slow tests.
       # Gated: stryker-config.json sets thresholds.break = 90, so a lower score exits non-zero.
-      - name: Effects (Effects.cs, break at 90%)
+      - name: Effects (Effects.cs and Deprivations.cs, break at 90%)
         working-directory: rebuild/Sim.Tests
         run: dotnet stryker --config-file stryker-config.json
 

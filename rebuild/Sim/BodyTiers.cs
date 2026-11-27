@@ -180,6 +180,7 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
+        Deprivations.AddCapacityDeltas(body, effectDeltas);
         return Of(body, effectDeltas, out feed);
     }
 
@@ -193,6 +194,7 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
+        Deprivations.AddCapacityDeltas(body, effectDeltas);
         return Unscaled(body, effectDeltas, out feed);
     }
 
@@ -448,4 +450,6 @@ public static class BodyReadOut
             (Capacity.Blood, feed.Blood), (Capacity.Consciousness, c.Consciousness), (Capacity.Sight, c.Sight),
             (Capacity.Hearing, c.Hearing)];
     }
+
+    public static IReadOnlyList<(Deprivation Kind, double Severity)> Deprivations(BodyState body) => Survival.Deprivations.Of(body);
 }

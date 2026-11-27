@@ -60,9 +60,9 @@ public class SurvivalTests
         b.HydrationMl = 100;
         b.EnergyMinutes = 10;
         Live(b, Room(), 1);
-        Assert.True(Effects.Has(b, EffectKind.Hungry));
-        Assert.True(Effects.Has(b, EffectKind.Thirsty));
-        Assert.True(Effects.Has(b, EffectKind.Tired));
+        Assert.True(Deprivations.Has(b, Deprivation.Hungry));
+        Assert.True(Deprivations.Has(b, Deprivation.Thirsty));
+        Assert.True(Deprivations.Has(b, Deprivation.Tired));
         Assert.True(Body.GetCapacities(b).Moving < 0.5);
     }
 
@@ -113,7 +113,7 @@ public class SurvivalTests
         double spentKg = spent.StructuralKg / (1 - 0.03 - 0.15); // fat and muscle both at their floors
         (spent.CaloriesKcal, spent.FatKg, spent.MuscleKg) = (0, 0.03 * spentKg, 0.15 * spentKg);
         Live(spent, Room(), 1);
-        Assert.Equal(1.0, Effects.Severity(spent, EffectKind.Hungry), 2);
+        Assert.Equal(1.0, Deprivations.Severity(spent, Deprivation.Hungry), 2);
     }
 
     /// Lives the minutes eating back each hour what the hour burned, and drinking, so the store never
@@ -140,15 +140,15 @@ public class SurvivalTests
         var b = Baseline();
         b.CaloriesKcal = 0;
         Live(b, Room(), 1);
-        Assert.True(Effects.Has(b, EffectKind.Hungry));
+        Assert.True(Deprivations.Has(b, Deprivation.Hungry));
         Body.Eat(b, Body.MaxCaloriesKcal);
         int lastHungry = 0, firstWellFed = 0;
         LiveAtMaintenance(b, 3 * 1440, minute =>
         {
-            if (Effects.Has(b, EffectKind.Hungry)) lastHungry = minute;
+            if (Deprivations.Has(b, Deprivation.Hungry)) lastHungry = minute;
             if (firstWellFed == 0 && Effects.Has(b, EffectKind.WellFed)) firstWellFed = minute;
         });
-        Assert.True(lastHungry > 0, "the pang fades over some minutes after eating");
+        Assert.Equal(0, lastHungry); // eating lifts the pang at once: it no longer fades over an hour
         Assert.Equal(lastHungry + 24 * 60, firstWellFed);
     }
 
@@ -161,14 +161,14 @@ public class SurvivalTests
         Assert.True(Effects.Has(b, EffectKind.WellFed));
         b.CaloriesKcal = 0;
         Live(b, Room(), 1);
-        Assert.True(Effects.Has(b, EffectKind.Hungry));
+        Assert.True(Deprivations.Has(b, Deprivation.Hungry));
         Assert.False(Effects.Has(b, EffectKind.WellFed));
 
         Body.Eat(b, Body.MaxCaloriesKcal);
         int lastHungry = 0, firstWellFed = 0;
         LiveAtMaintenance(b, 2 * 1440, minute =>
         {
-            if (Effects.Has(b, EffectKind.Hungry)) lastHungry = minute;
+            if (Deprivations.Has(b, Deprivation.Hungry)) lastHungry = minute;
             if (firstWellFed == 0 && Effects.Has(b, EffectKind.WellFed)) firstWellFed = minute;
         });
         Assert.Equal(lastHungry + 24 * 60, firstWellFed);
@@ -182,11 +182,10 @@ public class SurvivalTests
         var p = w.Agent(AgentId.Player);
         p.Body.MinutesWithoutHunger = 2 * 1440;
         Effects.Set(p.Body, EffectKind.WellFed, 1);
-        p.Body.CaloriesKcal = 0;
-        var events = new List<WorldEvent>();
-        Body.Tick(w, p, Room(), events);
+        p.Body.CaloriesKcal = 0.30 * Body.CaloriesCapacityKcal(p.Body) + 0.1; // the minute's burn takes it below the line
+        var events = Sim.Step(w, new Wait(AgentId.Player), 1).Events;
         int ended = events.FindIndex(e => e is EffectEnded { Kind: EffectKind.WellFed });
-        int started = events.FindIndex(e => e is EffectStarted { Kind: EffectKind.Hungry });
+        int started = events.FindIndex(e => e is DeprivationStarted { Kind: Deprivation.Hungry });
         Assert.True(ended >= 0 && started >= 0, "hunger should start and Well fed end this minute");
         Assert.True(ended < started, "Well fed's end should be told before the hunger that ended it");
     }
@@ -200,7 +199,7 @@ public class SurvivalTests
         bool was = false;
         LiveAtMaintenance(b, 4 * 1440, minute =>
         {
-            Assert.False(Effects.Has(b, EffectKind.Hungry), $"hungry at minute {minute}");
+            Assert.False(Deprivations.Has(b, Deprivation.Hungry), $"hungry at minute {minute}");
             bool now = Effects.Has(b, EffectKind.WellFed);
             if (now && !was) { starts++; if (firstStart == 0) firstStart = minute; }
             if (!now && was) ends++;
@@ -942,7 +941,7 @@ public class SurvivalTests
         Live(c, Room(), 1);
         double pct = (300 - Body.MetabolismKcalPerDay(c, 1.0) / 1440) / Body.MaxCaloriesKcal;
         // A pang, with fat to spare: a seventh of Hungry's full row at an empty store.
-        Assert.Equal(0.05 / 0.35 * (0.3 - pct) / 0.3, Effects.Severity(c, EffectKind.Hungry), 3);
+        Assert.Equal(0.05 / 0.35 * (0.3 - pct) / 0.3, Deprivations.Severity(c, Deprivation.Hungry), 3);
     }
 
     [Fact]
