@@ -9,7 +9,7 @@ import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
 import { logOptions, withLog } from './playtest.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy, cardPlace } from './util.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy, cardPlace, setHtml } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -173,14 +173,14 @@ function renderTop() {
   const f = v.feels;
   const weather = [`Air ${deg(c.airF)}`, `Wind ${Math.round(c.windMph)} mph${c.windDirection !== 'calm' ? ` from the ${c.windDirection}` : ''}`, c.sky,
     `m:Light at ${clock(c.lightFromMinute)} · dark at ${clock(c.darkFromMinute)}`];
-  $('top').innerHTML = `
+  setHtml($('top'), `
     <div class="t-clock" ${tip(`Day ${dayOf(shownMinute)} · ${c.season}`, weather)}>
       <span class="clock-time">${hm}<span class="clock-ampm">${ap}</span></span></div>
     <div class="t-light ${left && left <= 60 ? 'warn' : ''}" ${tip('Daylight', [left ? `Dark at ${clock(c.darkFromMinute)}` : `Light at ${clock(c.lightFromMinute)}`])}>
       ${img(left ? 'ui/sun' : 'ui/moon')}<span class="lbar"><i style="width:${Math.min(1, left / span) * 100}%"></i></span>
       <span class="num">${left ? `${dur(left)} light` : 'Night'}</span></div>
     <div class="t-feels" ${tip('Feels like', f.terms.map((t, i) => i === 0 ? `${t.name} ${deg(t.deltaF)}` : `${t.deltaF > 0 ? 'g:' : 'b:'}${t.name} ${signed(Math.round(t.deltaF), '°')}`))}>
-      ${img('ui/temperature')}<span class="num" style="color:${f.totalF < 20 ? 'var(--frost)' : 'var(--bone)'}">${deg(f.totalF)}</span><span class="muted">feels like</span></div>`;
+      ${img('ui/temperature')}<span class="num" style="color:${f.totalF < 20 ? 'var(--frost)' : 'var(--bone)'}">${deg(f.totalF)}</span><span class="muted">feels like</span></div>`);
 }
 
 const PRIORITY_CLASS = { none: '', want: '', need: 'low', critical: 'crit' };
@@ -192,9 +192,9 @@ function renderStatus() {
   const bars = v.vitals.map(x => `<div class="vbar ${PRIORITY_CLASS[x.priority]}" ${tip(VITAL[x.stat][0], [x.detail, ...(x.priority === 'need' || x.priority === 'critical' ? [`b:${cap(x.priority)}`] : [])])}>
       ${img(VITAL[x.stat][1])}<span class="vtrack" style="--c:${color[x.stat]}"><i style="width:${Math.round(x.pct * 100)}%"></i></span></div>`).join('');
   const al = v.alerts, shown = al.slice(0, 3), rest = al.slice(3);
-  $('status').innerHTML = `<div class="plate vitals" aria-label="Vitals">${bars}</div>
+  setHtml($('status'), `<div class="plate vitals" aria-label="Vitals">${bars}</div>
     <div class="alerts">${shown.map(a => `<button class="alert ${a.kind}" data-sheet="body" ${tip(a.text, a.lines)}>${img(a.icon)}${esc(a.text)}</button>`).join('')}
-    ${rest.length ? `<button class="alert more" data-sheet="body" ${tip('More', rest.map(a => a.text))}>+${rest.length} more</button>` : ''}</div>`;
+    ${rest.length ? `<button class="alert more" data-sheet="body" ${tip('More', rest.map(a => a.text))}>+${rest.length} more</button>` : ''}</div>`);
 }
 $('status').addEventListener('click', e => { if (e.target.closest('[data-sheet]')) openDrawer({ kind: 'body' }); });
 
@@ -235,13 +235,13 @@ function renderDock() {
   if (v.combat) {
     // What can be done this round, in full; what cannot, small, with its reason on hover.
     const acts = v.combat.actions.filter(a => a.kind === 'fight');
-    $('dock').innerHTML = `<div class="group">${acts.filter(a => !a.refused).map(a => verbButton(a, { sub: 'one round' }).replace('class="verb"', 'class="verb fight"')).join('')}</div>
-      <div class="group refused">${acts.filter(a => a.refused).map(a => verbButton(a, { small: true, sub: '' })).join('')}</div>`;
+    setHtml($('dock'), `<div class="group">${acts.filter(a => !a.refused).map(a => verbButton(a, { sub: 'one round' }).replace('class="verb"', 'class="verb fight"')).join('')}</div>
+      <div class="group refused">${acts.filter(a => a.refused).map(a => verbButton(a, { small: true, sub: '' })).join('')}</div>`);
     return;
   }
-  $('dock').innerHTML = `<div class="verbs">${dockVerbs(v)}</div>
+  setHtml($('dock'), `<div class="verbs">${dockVerbs(v)}</div>
     <button class="where-btn" data-open="here" ${tip('Where you are', ['Press X'])}><b>${px(v.place.name)}</b><small>${esc(v.place.terrain)}${v.fire ? ` · fire ${v.fire.phase.toLowerCase()}` : ''}</small></button>
-    <div class="sheets">${SHEETS.map(([id, ic, k, name]) => `<button class="sbtn" data-open="${id}" aria-pressed="${S.drawer?.kind === id}" ${tip(name, [`Press ${k}`])}><img src="${src(ic)}" alt=""><span class="key">${k}</span></button>`).join('')}</div>`;
+    <div class="sheets">${SHEETS.map(([id, ic, k, name]) => `<button class="sbtn" data-open="${id}" aria-pressed="${S.drawer?.kind === id}" ${tip(name, [`Press ${k}`])}><img src="${src(ic)}" alt=""><span class="key">${k}</span></button>`).join('')}</div>`);
 }
 
 document.addEventListener('click', e => {
@@ -275,7 +275,7 @@ document.addEventListener('click', e => {
 function openDrawer(d) { S.drawer = d; log?.ui({ drawer: d.kind }); render(); }
 function closeDrawer() { if ((S.drawer?.kind === 'job' || S.drawer?.kind === 'forage') && S.busy) return; S.drawer = null; S.selected = null; render(); }
 function head(ic, title, extra = '') {
-  $('sideHead').innerHTML = `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`;
+  setHtml($('sideHead'), `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`);
 }
 const section = (label, body, aside = '') => `<div class="sec"><div class="sec-h"><span class="label">${esc(label)}</span>${aside ? `<span class="aside">${aside}</span>` : ''}</div>${body}</div>`;
 const costChip = c => `<span class="cost">${img('ui/clock')}${esc(c)}</span>`;
@@ -338,10 +338,10 @@ function renderHere(d, v) {
       ${action ? `<div class="menu">${menuItem(action)}</div>` : ''}
       ${open ? `<div class="menu">${t.menu.map(x => menuItem(x)).join('')}</div>` : ''}</div>`;
   }).join('');
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
     ${v.fire ? section('Fire', fireBlock(v)) : ''}
-    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}`;
+    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}`);
 }
 
 function renderFire(d, v) {
@@ -351,13 +351,13 @@ function renderFire(d, v) {
   const result = d.result ? `<div class="result-line ${d.result.good ? 'good' : 'bad'} ${d.result.good ? 'flash' : 'shake'}">${esc(d.result.text)}</div>` : '';
   const tend = fire ? fire.menu.filter(x => x.kind !== 'fire') : [];
   const striking = light && !v.fire?.burning;
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>
       ${light.odds ? `<p class="note odds-line"><b>${pct(light.odds.totalPct)}</b> chance it catches · ${esc(oddsWhy(light.odds).join(', '))}</p>` : ''}${result}</div>` : result}
     ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${v.fire ? section('The pit', fireBlock(v)) : ''}
     ${striking ? `${light.odds ? '' : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
-      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}` : ''}`;
+      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}` : ''}`);
 }
 
 // ---------------------------------------------------------------- the trip card
@@ -431,10 +431,10 @@ function renderPlace(d, v) {
   for (const s of sights) lines.push([s.species, `${s.count > 1 ? `${s.count} × ` : ''}${s.species.split('/').pop()}`, ago(v.minute - s.minute)]);
   if (m.surface.find(s => s.i === y * m.width + x)?.troddenLevel) lines.push(['ui/tracks', 'Trodden ground', '']);
   for (const t of m.tracks.filter(t => t.x === x && t.y === y)) lines.push([`tracks/${t.maker === 'human' ? 'boot' : t.maker}`, `${cap(t.maker)} prints, ${t.reading}`, ago(t.ageMinutes)]);
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${code === '.' ? '<p class="note">You have never seen this ground.</p>' : seen ? '' : '<span class="stale">As you last saw it</span>'}
     ${lines.length ? section('Known here', `<div class="place-feats">${lines.map(([ic, t, a]) => `<div class="pf">${img(ic)}<span>${esc(t)}</span><span class="v">${a}</span></div>`).join('')}</div>`) : code !== '.' ? '<p class="note">Nothing you noted.</p>' : ''}
-    <p class="note">${Math.abs(x - v.place.x) + Math.abs(y - v.place.y)} tiles away. Walk there a tile at a time.</p>`;
+    <p class="note">${Math.abs(x - v.place.x) + Math.abs(y - v.place.y)} tiles away. Walk there a tile at a time.</p>`);
 }
 
 function renderMake(d, v) {
@@ -466,10 +466,10 @@ function renderMake(d, v) {
     return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: key(x) === S.makeSel, open: `recipe:${key(x)}` })
       ;
   }).join('');
-  $('sideBody').innerHTML = `${action}${detail}
+  setHtml($('sideBody'), `${action}${detail}
     ${abandons.length ? section('Unfinished', `<div class="menu">${abandons.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${section('Recipes', `<div class="menu">${list}</div>`)}
-    ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`);
 }
 
 function renderBody(d, v) {
@@ -482,7 +482,7 @@ function renderBody(d, v) {
   };
   const vit = Object.fromEntries(v.vitals.map(x => [x.stat, x]));
   const f = v.feels;
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     <div class="sec">
       ${g('Warmth', 'ui/temperature', vit.warmth.pct, '#8fa6b7', `${b.coreTempF.toFixed(1)}°F`, vit.warmth.priority)}
       ${g('Food', 'ui/food', vit.food.pct, '#eadfc8', `${Math.round(b.caloriesKcal)} kcal`, vit.food.priority)}
@@ -496,18 +496,18 @@ function renderBody(d, v) {
     ${section('Feels like', `<div class="feels"><span class="big">${deg(f.totalF)}</span><span class="muted">air ${deg(f.terms[0].deltaF)}</span></div>
       <div class="factors">${f.terms.slice(1).map(t => `<div class="kv ${t.deltaF > 0 ? 'plus' : 'minus'}">${img(t.name === 'Fire' ? 'ui/fire' : t.name === 'Torch' ? 'ui/torch' : 'ui/wind')}<span>${esc(t.name)}</span><span class="v">${signed(Math.round(t.deltaF), '°')}</span></div>`).join('')}</div>`)}
     ${section('Wearing', v.pack.worn.map(gr => `<div class="slot"><span class="where">${esc(gr.slot ?? '')}</span><span class="nm">${esc(gr.name)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.5 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join(''), `${b.clothingClo} clo`)}
-    ${b.skills.length ? section('Skills', b.skills.map(s => `<div class="kv">${img('ui/confirm')}<span>${esc(s.name)}</span><span class="v">${s.level}</span></div>`).join('')) : ''}`;
+    ${b.skills.length ? section('Skills', b.skills.map(s => `<div class="kv">${img('ui/confirm')}<span>${esc(s.name)}</span><span class="v">${s.level}</span></div>`).join('')) : ''}`);
 }
 
 function renderPack(d, v) {
   const p = v.pack;
   head('ui/backpack', 'Pack', `<span class="cost num">${p.carriedKg.toFixed(1)} / ${p.capacityKg} kg</span>`);
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}
     <div class="capacity"><div class="bar"><i style="width:${Math.min(1, p.carriedKg / p.capacityKg) * 100}%"></i></div></div>
     ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${esc(s.amount)}</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
     ${section('Tools and gear', p.gear.length ? `<div class="bag">${p.gear.map(gr => `<div class="it">${img('ui/gear')}<span>${esc(gr.name)}</span><span class="n">${pct(gr.conditionPct)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.3 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join('')}</div>` : '<p class="note">None.</p>')}
-    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}`;
+    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}`);
 }
 const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Stick|Branch|Firewood|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
   : r === 'Water' ? 'ui/water' : /Hide/.test(r) ? 'ui/hide' : /Bone/.test(r) ? 'ui/bone' : /Charcoal/.test(r) ? 'ui/charcoal' : 'ui/materials';
@@ -519,7 +519,7 @@ function renderLog(d, v) {
     const dd = dayOf(l.minute), hdr = dd !== day ? `<div class="day">Day ${dd}</div>` : ''; day = dd;
     return `${hdr}<div class="e ${l.kind === 'bad' ? 'bad' : l.kind === 'rare' ? 'rare' : ''}"><span class="t">${clock(minuteOfDay(l.minute))}</span>${img(l.icon)}<span>${esc(l.text)}</span></div>`;
   }).join('');
-  $('sideBody').innerHTML = `<div class="log">${rows || '<p class="note">Nothing yet.</p>'}</div>`;
+  setHtml($('sideBody'), `<div class="log">${rows || '<p class="note">Nothing yet.</p>'}</div>`);
 }
 // The view gives the clock for now; any other minute is placed by its offset from now.
 const minuteOfDay = m => S.view.clock.minuteOfDay + (m - S.view.minute);
@@ -528,12 +528,12 @@ const dayOf = m => S.view.clock.day + Math.floor((S.view.clock.minuteOfDay + (m 
 async function renderSave(d) {
   head('ui/storage', 'Save', '');
   const slot = d.slot === undefined ? (d.slot = null, getSave().then(s => { d.slot = s ?? false; if (S.drawer === d) renderDrawer(); }).catch(() => { d.slot = false; }), null) : d.slot;
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${section('In this browser', `${slot ? `<div class="slot-meta">Day ${slot.meta.day}, ${esc(slot.meta.time)} · ${esc(slot.meta.place)}<br><span class="muted">saved ${new Date(slot.savedAt).toLocaleString()}</span></div>` : `<p class="note">${slot === null ? 'Looking…' : 'No save yet.'}</p>`}
       <div class="row"><button class="act" data-act="save">Save here</button><button class="act quiet" data-act="load" ${slot ? '' : 'disabled'}>Load</button></div>`)}
     ${section('As a file', `<div class="row"><button class="act quiet" data-act="download">Download</button><button class="act quiet" data-act="upload">Upload</button></div>`)}
     ${section('Start again', `<div class="row"><button class="act quiet" data-act="new">New game</button></div>`)}
-    ${d.note ? `<p class="note" id="saveNote">${esc(d.note)}</p>` : ''}`;
+    ${d.note ? `<p class="note" id="saveNote">${esc(d.note)}</p>` : ''}`);
 }
 
 /** The forage ground's feature: the one whose menu holds the forage screen's Keep Walking. */
@@ -556,7 +556,7 @@ function renderForage(d, v) {
   const clues = f.clues.map(c => c.focus
     ? `<button class="clue" data-focusname="${esc(c.focus)}" ${running ? 'disabled' : ''} ${tip(c.text, [`Look for ${c.focus}`])}>${img('ui/inspect')}<span>${esc(c.text)}</span></button>`
     : `<div class="clue still">${img(c.kind === 'scavenge' ? 'carcass' : c.kind === 'game' ? 'ui/tracks' : 'ui/inspect')}<span>${esc(c.text)}</span></div>`).join('');
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
       : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="num">(${dur(S.forage.mins)})</span> <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking <span class="num">(5 min)</span> <span class="key">K</span></button>`}</div>
     ${oddsWhy(f.yield, { base: false }).length ? `<p class="note odds-line">Search speed <b class="${f.yield.totalPct < 1 ? 'minus' : 'plus'}">×${f.yield.totalPct.toFixed(2)}</b> · ${esc(oddsWhy(f.yield, { base: false }).join(' · '))}</p>` : ''}
@@ -574,7 +574,7 @@ function renderForage(d, v) {
     <div class="found">${finds.length || rare.length ? '' : `<span class="empty">${told.length ? esc(told[told.length - 1].text) : 'Finds appear here as you search.'}</span>`}
       ${rare.map(l => `<div class="item rare">${img(l.icon)}<span>${esc(l.text)}</span></div>`).join('')}
       ${finds.map(x => `<div class="item ${x.category}">${img(stackIcon(x.resource))}${esc(cap(x.name))}<span class="n">×${x.count}</span></div>`).join('')}</div>
-`;
+`);
 }
 /** The chosen focus, or General where the ground does not offer it. */
 const forageFocus = f => f.foci.find(x => x.focus === S.forage.focus) ?? f.foci[f.foci.length - 1];
@@ -595,11 +595,11 @@ function renderJob(d, v) {
   head(verbIcon({ kind: d.verbKind, label: d.label }), d.label, total ? costChip(dur(total)) : '');
   const f = d.done ? 1 : total ? Math.min(1, Math.max(0, shown) / total) : 0;
   const lines = v.log.filter(l => !d.logFrom.has(logKey(l)));
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>
     <div class="run"><div class="runbar ${d.done ? (d.done.outcome === 'interrupted' || d.done.outcome === 'refused' ? 'fail' : 'ok') : ''}"><span class="fill" style="width:${f * 100}%"></span><span class="ticks10"></span></div>
       <div class="runmeta"><span class="num">${dur(Math.max(0, d.done ? d.done.minutes : shown))}${total && !d.done ? ` of ${dur(total)}` : ''}</span><span>${d.done ? esc(cap(d.done.reason ?? 'done')) : 'under way'}</span></div></div>
-    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}`;
+    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}`);
 }
 
 // ---------------------------------------------------------------- the fight
@@ -612,11 +612,11 @@ function renderCombat() {
     <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.state)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
     <span class="c">${u.team === 0 ? '' : u.index === c.target ? 'target' : ''}</span></div>`).join('');
   const recent = c.lines.slice(-5).reverse();
-  $('combatside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
+  setHtml($('combatside'), `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
     <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.targetM} m</span></div>
       <p class="note">Click the ground to move, up to ${c.moveM} m a round.</p></div>
       ${section('On the ground', `<div class="place-feats">${units}</div>`)}
-      ${recent.length ? section('Just now', `<div class="factors">${recent.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}</div>`;
+      ${recent.length ? section('Just now', `<div class="factors">${recent.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}</div>`);
 }
 
 // ---------------------------------------------------------------- receipt, end of the run, toasts

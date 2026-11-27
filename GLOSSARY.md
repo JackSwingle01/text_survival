@@ -54,10 +54,16 @@ three.
 _Avoid_: status, debuff
 
 **Deprivation**:
-What an unmet need for food, water or rest does to a body: hungry, thirsty, tired. Not an effect: it
-is read from the body's stores each minute, never stored. It wears a body down without harming it, and
-it lifts the moment the need is met; nothing treats it.
+A state from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
+without harming it, and it lifts when the need is met; nothing treats it. It is read each minute from
+the body's stores, never stored. It acts only through consciousness, blood or wasting, and never alone
+stops a verb: its endings are collapsing asleep, and death from thirst or starvation.
 _Avoid_: discomfort, debuff, need effect
+
+**Sleep debt**:
+The minutes a body has been awake that sleep has not yet repaid. It drives tiredness, which is felt
+only past a normal waking day, and it repays faster the deeper it runs.
+_Avoid_: energy, fatigue, rest meter
 
 **Condition**:
 What a verb sees about a location feature or an item: a fact read from its effects and its place
@@ -401,6 +407,24 @@ body of its kind. Nothing inside a body reads it; it is for whoever is
 looking at the body. Whether a body is alive is a separate matter, read from its heart, lungs and
 brain alone.
 _Avoid_: health, hit points, condition
+
+**Injury**:
+One hurt on a body, where it landed (a region, and a site within it such as a hand): its kind (cut,
+puncture, bruise, burn, frostbite, fracture), how deep it reaches, and whether it is open, bleeding,
+dressed or infected. A tissue's condition is read from the injuries on it; healing closes injuries.
+_Avoid_: wound (in code and rules; fine in narration), damage (that is how hard a blow is), hurt
+
+**Open**:
+Of an injury: skin broken, by a cut, a puncture, a burn or frostbite, until it heals closed. Only an
+open injury takes a dressing or becomes infected; a bruise is never open, though a bone or organ
+under it can still bleed inside.
+_Avoid_: exposed (that is food an animal can reach), raw
+
+**Remedy**:
+An item a body uses, like food, to answer an effect: a dressing (stops bleeding and keeps a wound
+clean while it is on), a cleanser (clears an infection) or a draught (drunk or chewed; eases a
+symptom over hours). Raw medicines count, weaker than the made ones.
+_Avoid_: treatment item, medicine (that is the forage category), cure, heal
 
 ## Danger
 

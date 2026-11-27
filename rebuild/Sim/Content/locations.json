@@ -33,9 +33,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -199,7 +199,7 @@
      "items": [
       { "resource": "PlantFiber", "abundance": 6.75, "minKg": 0.15, "maxKg": 0.375 },
       { "resource": "Stick", "abundance": 1.5, "minKg": 0.15, "maxKg": 0.4 },
-      { "resource": "Berries", "abundance": 0.8, "minKg": 0.2, "maxKg": 0.6 }
+      { "resource": "Berries", "abundance": 0.8, "minKg": 0.256, "maxKg": 0.768 }
      ]
     },
     {
@@ -291,9 +291,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -350,9 +350,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -542,9 +542,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -584,8 +584,8 @@
      "items": [
       { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
       { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
-      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.1536, "maxKg": 0.512 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.128, "maxKg": 0.32 },
       { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
@@ -619,8 +619,8 @@
      "items": [
       { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
       { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
-      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.1536, "maxKg": 0.512 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.128, "maxKg": 0.32 },
       { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
@@ -659,9 +659,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -794,8 +794,8 @@
      "items": [
       { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
       { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
-      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.1536, "maxKg": 0.512 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.128, "maxKg": 0.32 },
       { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
@@ -886,8 +886,8 @@
      "items": [
       { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
       { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
-      { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
-      { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+      { "resource": "Berries", "abundance": 0.15, "minKg": 0.1536, "maxKg": 0.512 },
+      { "resource": "Roots", "abundance": 0.3, "minKg": 0.128, "maxKg": 0.32 },
       { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
      ]
     },
@@ -1478,7 +1478,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1584,7 +1584,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1713,7 +1713,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1750,7 +1750,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1788,7 +1788,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1847,7 +1847,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1937,7 +1937,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -1985,9 +1985,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -2030,9 +2030,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -2084,9 +2084,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -2160,7 +2160,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -2293,9 +2293,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -2371,9 +2371,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -2461,7 +2461,7 @@
       { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
       { "resource": "BirchBranch", "abundance": 1, "minKg": 1, "maxKg": 2 },
       { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-      { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
       { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
      ]
@@ -2857,9 +2857,9 @@
       { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
       { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
       { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-      { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-      { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+      { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+      { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+      { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
       { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
       { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
       { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },

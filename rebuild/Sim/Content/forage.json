@@ -5,7 +5,9 @@
 // fibre, 200 g of birch bark and 30 g of resin on forest, 100 g of willow bark on marsh and 50 g of flint
 // on rock. Each resource rose by one factor in every row of it, here and in locations.json, so a place
 // keeps its edge over plain ground (flint_seam's flint and Birch Stand's bark set apart); stone, shale,
-// branches and food are as they were. Report.HaulText measures a first hour and a day of it.
+// branches are as they were. Food (#286): berries, nuts and roots weigh 1.28 times what they did in every
+// row of them, so seven food-focused forest hours feed a day of foraging and rest; finds per hour are as
+// they were, so the ground thins as before. Report.HaulText measures a first hour and a day of it.
 {
  // Old AddMixedWood split 1.5 of wood 40/35/25 pine/birch/oak; the products are kept to the last bit.
  "MixedForest": [
@@ -14,9 +16,9 @@
   { "resource": "OakBranch", "abundance": 0.375, "minKg": 1.5, "maxKg": 3.5 },
   { "resource": "Stick", "abundance": 4.5, "minKg": 0.2, "maxKg": 0.6 },
   { "resource": "Tinder", "abundance": 3, "minKg": 0.032, "maxKg": 0.128 },
-  { "resource": "Berries", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.6 },
-  { "resource": "Nuts", "abundance": 0.08, "minKg": 0.03, "maxKg": 0.08 },
-  { "resource": "Roots", "abundance": 0.15, "minKg": 0.15, "maxKg": 0.3 },
+  { "resource": "Berries", "abundance": 0.6, "minKg": 0.256, "maxKg": 0.768 },
+  { "resource": "Nuts", "abundance": 0.08, "minKg": 0.0384, "maxKg": 0.1024 },
+  { "resource": "Roots", "abundance": 0.15, "minKg": 0.192, "maxKg": 0.384 },
   { "resource": "PlantFiber", "abundance": 2.25, "minKg": 0.075, "maxKg": 0.225 },
   { "resource": "Stone", "abundance": 0.3, "minKg": 0.2, "maxKg": 0.4 },
   { "resource": "BirchPolypore", "abundance": 0.375, "minKg": 0.05, "maxKg": 0.15 },
@@ -31,15 +33,15 @@
   { "resource": "Stick", "abundance": 3, "minKg": 0.2, "maxKg": 0.5 },
   { "resource": "BirchBranch", "abundance": 1.0, "minKg": 1.0, "maxKg": 2.0 },
   { "resource": "Stone", "abundance": 0.6, "minKg": 0.2, "maxKg": 0.5 },
-  { "resource": "Roots", "abundance": 0.4, "minKg": 0.15, "maxKg": 0.3 },
+  { "resource": "Roots", "abundance": 0.4, "minKg": 0.192, "maxKg": 0.384 },
   { "resource": "WillowBark", "abundance": 1.25, "minKg": 0.05, "maxKg": 0.25 },
   { "resource": "SphagnumMoss", "abundance": 0.9, "minKg": 0.3, "maxKg": 0.9 }
  ],
  "Open": [
   { "resource": "Tinder", "abundance": 1.05, "minKg": 0.048, "maxKg": 0.16 },
   { "resource": "Stick", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.3 },
-  { "resource": "Berries", "abundance": 0.15, "minKg": 0.12, "maxKg": 0.4 },
-  { "resource": "Roots", "abundance": 0.3, "minKg": 0.1, "maxKg": 0.25 },
+  { "resource": "Berries", "abundance": 0.15, "minKg": 0.1536, "maxKg": 0.512 },
+  { "resource": "Roots", "abundance": 0.3, "minKg": 0.128, "maxKg": 0.32 },
   { "resource": "PlantFiber", "abundance": 2.7, "minKg": 0.075, "maxKg": 0.18 }
  ],
  "Rocky": [
