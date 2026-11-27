@@ -305,7 +305,7 @@ public class ForecastTests
     }
 
     /// A focus turns up 1.5 times its category in a first hour on fresh forest, the rule the same for all four. Within
-    /// 5%: the extra finds thin the ground within the hour, so a fuel focus reads about 1.44x (Jack, 2026-11-26).
+    /// 5%: the extra finds thin the ground within the hour, so a fuel focus reads about 1.44x.
     [Theory]
     [InlineData(ForageFocus.Fuel), InlineData(ForageFocus.Food), InlineData(ForageFocus.Medicine), InlineData(ForageFocus.Materials)]
     public void AFocusedFirstHour_ForecastsHalfAgainItsCategory(ForageFocus focus)

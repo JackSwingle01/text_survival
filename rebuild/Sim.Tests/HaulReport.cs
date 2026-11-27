@@ -66,7 +66,7 @@ public class HaulReportTests
         }
     }
 
-    /// #286: every food row weighs FoodFactor times its old weight, at its old abundance; #152 left food as it was.
+    /// Every food row weighs FoodFactor times its pre-#152 weight, at the same abundance: the one factor that feeds the day.
     const double FoodFactor = 1.28;
 
     [Fact]
@@ -80,7 +80,7 @@ public class HaulReportTests
         var before = Rows(BeforeTables.Tables).ToDictionary(r => r.Where, r => r.Items);
         int food = 0;
         foreach (var (where, items) in Rows(Content.Tables))
-            foreach (var item in items.Where(i => i.Resource is Resource.Berries or Resource.Nuts or Resource.Roots))
+            foreach (var item in items.Where(i => Items.Resources[i.Resource].Category == ResourceCategory.Food))
             {
                 var old = before[where].Single(i => i.Resource == item.Resource);
                 Assert.Equal(old.Abundance, item.Abundance, 9);

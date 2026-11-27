@@ -158,8 +158,7 @@ public class WorkTests
         Assert.True(foodFocused < fuelFocused * 0.75, $"fuel kept {fuelFocused:0.0} kg under a fuel focus, {foodFocused:0.0} under a food focus");
     }
 
-    /// #286: a focus turns up more of its category, and the ground thins as fast as it gives. Before #286 a food focus
-    /// kept exactly the food a general search found and bought nothing more (the old FocusProcessor.ApplyFocus).
+    /// A focus turns up more of its category, and the ground thins as fast as it gives.
     /// Food often enough in an hour that twenty hours of it are many finds, and something besides it to leave.
     static readonly ForagePool FoodGround = new("forage", 1.0,
         [new ForageItem(Resource.Berries, 6, 0.1, 0.3), new ForageItem(Resource.Roots, 3, 0.1, 0.2), new ForageItem(Resource.PlantFiber, 3, 0.01, 0.03)]);

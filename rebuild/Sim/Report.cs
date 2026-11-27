@@ -466,11 +466,11 @@ public static class Report
         double ForecastHour(ForageFocus focus) => Kcal(Pools.ExpectedForageByMinute(pool, pool.Density, focus: focus).Skip(59).First());
         var (w, id) = HaulWorld(pool, seed);
         var body = BodyState.BaselineHuman();
-        double forage = Sim.ActivityFactor(w, id.Tile, new Gather(AgentId.Player, id.Index, ForageFocus.Food));
-        double rest = Sim.ActivityFactor(w, id.Tile, new Rest(AgentId.Player));
-        double burn = (Body.MetabolismKcalPerDay(body, forage) * HaulFoodHours + Body.MetabolismKcalPerDay(body, rest) * (24 - HaulFoodHours)) / 24;
+        double forageFactor = Sim.ActivityFactor(w, id.Tile, new Gather(AgentId.Player, id.Index, ForageFocus.Food));
+        double restFactor = Sim.ActivityFactor(w, id.Tile, new Rest(AgentId.Player));
+        double burnKcal = (Body.MetabolismKcalPerDay(body, forageFactor) * HaulFoodHours + Body.MetabolismKcalPerDay(body, restFactor) * (24 - HaulFoodHours)) / 24;
         return new FoodHaul(ForecastHour(ForageFocus.General), ForecastHour(ForageFocus.Food),
-            Kcal(SampledHour(pool, seed, nameof(Terrain.Forest), ForageFocus.Food)), burn);
+            Kcal(SampledHour(pool, seed, nameof(Terrain.Forest), ForageFocus.Food)), burnKcal);
     }
 
     /// Everyday things and camp comforts: recipe inputs (first alternatives), or the spec's where no recipe is yet.

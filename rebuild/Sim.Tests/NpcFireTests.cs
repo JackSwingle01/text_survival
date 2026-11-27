@@ -170,8 +170,7 @@ public class NpcFireTests(ITestOutputHelper output)
     }
 
     /// Two tiles from camp by night with no starter, and the camp fire it remembers will outlast the walk back but not
-    /// the night: it gathers fuel for it before going home. Since #286 a fuel focus turns up half again the fuel, so the
-    /// richer tile on the way home is worth the step (before: it gathered where it stood).
+    /// the night: it gathers fuel for it before going home, here or on the richer tile on the way.
     [Fact]
     public void FromAway_WithNoStarter_ALitCampFireShortOfTonight_StillWantsFuel()
     {
