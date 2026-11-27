@@ -9,3 +9,5 @@ The first framing (C2) said pierce and sharp face less soft tissue than blunt do
 A club bruises skin and muscle without opening them, so only the bone and organs it breaks bleed; a cut bleeds however small. What a tissue shrugs off before it is hurt does not grow with size. Healing is on the same unit, so a big body mends more slowly, and organs, being small, mend fast.
 
 Joules of kinetic energy and tissue thickness in centimetres were considered and deferred; maybe later.
+
+**See also:** decision "Injuries are the record; tissue condition is read from them" (2026-11-27), which moves where condition lives.
