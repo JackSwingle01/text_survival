@@ -26,8 +26,7 @@ public sealed class WorkSession
     public List<int>? Clues { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int ClueDraw { get; init; }
-    /// Every find as it turned up, after focus and yield: what the forage screen shows minute by minute. Not saved:
-    /// only that screen reads it, and the host saves no job part-way.
+    /// Every find as it turned up, after focus and yield, for the forage screen; not saved, as the host saves no job part-way.
     [System.Text.Json.Serialization.JsonIgnore] public List<Find> Finds { get; } = [];
 }
 
@@ -66,8 +65,7 @@ public static class Work
     public static int MinutesUntilTooDark(World world, Agent agent) =>
         LightLeft(world, agent.Tile, Fire.MinutesOfLightLeft(world, agent.Id), 0);
 
-    /// The same for a place it is not standing, starting work there in startInMinutes: by the light it carries and the
-    /// sky, with no fire there to work by.
+    /// The same elsewhere, starting there in startInMinutes: by the light it carries and the sky, with no fire there.
     public static int MinutesUntilTooDarkAt(World world, Agent agent, TileId tile, int startInMinutes)
     {
         int carried = world.Fires.Values.Where(f => f.CarriedBy == agent.Id && Fire.IsActive(f)).Select(f => (int)Math.Ceiling(f.TorchMinutesLeft)).DefaultIfEmpty(0).Max();
@@ -77,8 +75,8 @@ public static class Work
     static int LightLeft(World world, TileId tile, int litMinutes, int startInMinutes) =>
         Map.IsDark(Map.Of(world), tile) ? litMinutes : litMinutes + Weather.LightLeftMinutes(world.Minute + startInMinutes + litMinutes);
 
-    /// A forecast: what the minutes given bring in, the agent staying as they are and stopping for the dark; a tree only if
-    /// it comes down, a harvest by whole cycles. Fires around the agent must be caught up.
+    /// A forecast of what the minutes bring in, stopping for the dark; a tree only if it comes down, a harvest by whole cycles.
+    /// Fires around the agent must be caught up.
     public static IReadOnlyDictionary<Resource, double> ExpectedGather(World world, Agent agent, Gather g, int minutes)
     {
         if (Refusal(world, g) != null) return new SortedDictionary<Resource, double>();
@@ -88,7 +86,7 @@ public static class Work
         return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null, clues);
     }
 
-    /// A forecast: minutes until this agent has taken all of a stock it can (null for other work); dark or pack may stop it sooner.
+    /// A forecast: minutes until a stock's every unit this agent can take is taken (null for other work); dark or pack may stop it sooner.
     public static int? StockMinutesLeft(World world, Agent agent, Gather g)
     {
         var id = new PoolId(agent.Tile, g.Pool);
@@ -546,9 +544,8 @@ public static class Work
         }
     }
 
-    /// One minute of work lived. Returns why to stop, if anything: done, nothing left, or too dark
-    /// for the next minute - the same check Refusal makes, so a run split into steps stops where an
-    /// unbroken one does.
+    /// One minute of work lived. Returns why to stop, if anything: done, nothing left, or too dark for the next minute -
+    /// the same check Refusal makes, so a run split into steps stops where an unbroken one does.
     public static string? Minute(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
         s.Minutes++;
@@ -642,8 +639,7 @@ public static class Work
         }
     }
 
-    /// What a minute of foraging brings in, against an unhindered search: eyes and light (no better
-    /// than whole), an axe and a shovel +10% each, and practice, in that order.
+    /// A minute of foraging against an unhindered search: eyes and light (no better than whole), axe and shovel +10% each, then practice.
     public static Odds ForageYield(Agent agent, Inventory pack, double perceptionPct) =>
         new("Search", 1.0, Odds.Moving(
             OddsTerm.Scale("Eyes", Math.Min(perceptionPct, 1.0)),
