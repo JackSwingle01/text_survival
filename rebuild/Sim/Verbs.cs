@@ -72,6 +72,8 @@ public static class Verbs
     public const int WaitMinutes = 60, RestMinutes = 60, SleepMinutes = 8 * 60, ForageMinutes = 30, WorkMinutes = 4 * 60,
         ImproveMinutes = 10;
     public const int UntilDoneMinutes = 24 * 60;
+    /// One go at a stock (harvest, salvage, examine): a press works this long, or less if it is picked clean first.
+    public const int StockMinutes = 30;
     public static readonly IReadOnlyList<int> ForageDurations = [15, 30, 60];
     public const double FuelKg = 1.0;
     public const double TinderKg = 0.05, KindlingKg = 1.0;
@@ -257,9 +259,8 @@ public static class Verbs
         (string, Activity, int)? verb = def switch
         {
             TreePool => ("Chop", new Gather(who, t.Index), WorkMinutes),
-            // A stock runs until it is picked clean (or the dark or the pack stops it): there is no reason to stop partway.
             StockPool s => (s.Kind switch { StockKind.Harvest => "Harvest", StockKind.Salvage => "Salvage", StockKind.Detail => "Examine" },
-                new Gather(who, t.Index), UntilDoneMinutes),
+                new Gather(who, t.Index), StockMinutes),
             ShelterFind => null, // once found it stands as a shelter, its own location feature
             CarcassFind or PileFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),
