@@ -272,7 +272,7 @@ sealed class ViewBuilder(World world, int gen)
         var shown = BodyReadOut.Of(b);
         var skills = (_player.Mind as PersonMind)?.Skills ?? [];
         return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), b.EnergyPct,
-            [.. BodyReadOut.Deprivations(b).Where(d => d.Severity > 0.01).Select(d => new EffectDto(Names.Title(d.Kind), Math.Round(d.Severity, 2))),
+            [.. Deprivations.Of(b).Where(d => d.Severity > 0.01).Select(d => new EffectDto(Names.Title(d.Kind), Math.Round(d.Severity, 2))),
              .. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
             [.. shown.Where(c => c.Pct < 0.995).Select(c => new CapacityDto(Names.Title(c.Capacity), Math.Round(c.Pct, 3)))],
             [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(Names.Title(s.Key), s.Value.Level))],

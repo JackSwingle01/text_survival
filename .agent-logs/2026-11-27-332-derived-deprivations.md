@@ -30,3 +30,9 @@ Revised: Tools/Tune Fights' "hungry" fighter stored Hungry 1.0 on a body with 6%
 Revised: the sample world's run differs once deprivations no longer lag their stores → fixture regenerated; it holds no hungry, thirsty or tired.
 Revised: comment-share ratchet (10%, Effects.cs 12%) tripped by moving code out of BodySurvival and Effects → comments trimmed; Deprivations.cs under 10%.
 Follow-up: Stryker's Effects config scores 66% on origin/main already (Effects.cs alone under EffectsPropertyTests: bleeding forecasts and healing uncovered), below its 90% break; with Deprivations.cs added it reads 77% (Deprivations.cs 57 of 61 killed; the 4 survivors are equivalent mutants).
+Revised (review): BodyReadOut.Deprivations was a pass-through, and the observer read Deprivations.Of beside it → removed; the screen reads Deprivations.Of as it reads b.Effects today.
+Revised (review): both switches on Deprivation fell through to Tired, and the pang's size was read by index → explicit cases that throw on an unknown value; the size is looked up by capacity.
+Revised (review): Reads, LivePerson and MaxBasalKcalPerDay hid what they meant → FeelsAny, LivePersonsMinute, WholeOrgansBasalKcalPerDay; TellDeprivations walks Deprivations.All.
+Revised (review): no narration test read the new events → NarrationTests pins "You are thirsty." (bad) and "You are no longer tired." (good).
+Revised (review): the sizes are a per-kind table, which "Where things go" puts in content data → kept in Deprivations.cs as named values beside the rule, as the parent spec asks (story 36); its retune ticket can move them if Jack prefers data.
+Revised (review): the parent spec says the stacking cap goes with the effects; this issue says keep it → kept, as the issue (this ticket's spec) says; its removal belongs to the retune.

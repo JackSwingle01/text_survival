@@ -142,14 +142,14 @@ public static partial class Body
         return neutralSkinF - sensibleLossW / 1.8 * TotalThermalResistance(body, ctx) * 9.0 / 5.0;
     }
 
-    internal static double MaxBasalKcalPerDay(BodyState body) => body.Kind == BodyKind.Human
+    internal static double WholeOrgansBasalKcalPerDay(BodyState body) => body.Kind == BodyKind.Human
         ? 370 + 21.6 * Math.Max(0, body.WeightKg - body.FatKg)
         : 70 * Math.Pow(body.WeightKg, 0.75);
 
     /// Kleiber for animals: Katch-McArdle gives a mammoth 84,600 kcal/day to Kleiber's 47,700.
     public static double MetabolismKcalPerDay(BodyState body, double activityFactor)
     {
-        double bmr = MaxBasalKcalPerDay(body);
+        double bmr = WholeOrgansBasalKcalPerDay(body);
         double organs = 0;
         int count = 0;
         foreach (var r in body.Regions)

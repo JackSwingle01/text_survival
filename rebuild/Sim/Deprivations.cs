@@ -25,26 +25,28 @@ public static class Deprivations
     {
         Deprivation.Hungry => HungryLosses,
         Deprivation.Thirsty => ThirstyLosses,
-        _ => TiredLosses,
+        Deprivation.Tired => TiredLosses,
+        _ => throw new ArgumentOutOfRangeException(nameof(d), d, "No losses for this deprivation"),
     };
 
-    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -HungryLosses[0].Delta;
+    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -HungryLosses.Single(l => l.Capacity == Capacity.Moving).Delta;
 
-    static readonly Deprivation[] All = Enum.GetValues<Deprivation>();
+    internal static readonly Deprivation[] All = Enum.GetValues<Deprivation>();
 
     /// Animals live outside the person's survival model (Fauna), and carry none yet.
-    static bool Reads(BodyState body) => body.Kind == BodyKind.Human;
+    static bool FeelsAny(BodyState body) => body.Kind == BodyKind.Human;
 
-    public static double Severity(BodyState body, Deprivation d) => !Reads(body) ? 0 : d switch
+    public static double Severity(BodyState body, Deprivation d) => !FeelsAny(body) ? 0 : d switch
     {
         Deprivation.Hungry => HungerSeverity(body),
         Deprivation.Thirsty => BelowThreshold(body.HydrationMl / Body.MaxHydrationMl),
-        _ => BelowThreshold(body.EnergyMinutes / Body.MaxEnergyMinutes),
+        Deprivation.Tired => BelowThreshold(body.EnergyMinutes / Body.MaxEnergyMinutes),
+        _ => throw new ArgumentOutOfRangeException(nameof(d), d, "No store for this deprivation"),
     };
 
     public static IReadOnlyList<(Deprivation Kind, double Severity)> Of(BodyState body)
     {
-        if (!Reads(body)) return [];
+        if (!FeelsAny(body)) return [];
         var felt = new List<(Deprivation, double)>(All.Length);
         foreach (var d in All)
             if (Severity(body, d) is var s && s > 0) felt.Add((d, s));
@@ -56,7 +58,7 @@ public static class Deprivations
     internal static int Felt(BodyState body)
     {
         int felt = 0;
-        if (Reads(body)) foreach (var d in All) if (Has(body, d)) felt |= 1 << (int)d;
+        if (FeelsAny(body)) foreach (var d in All) if (Has(body, d)) felt |= 1 << (int)d;
         return felt;
     }
 
@@ -70,14 +72,14 @@ public static class Deprivations
         double pang = EmptyStoreHungerSeverity * BelowThreshold(body.CaloriesKcal / Body.CaloriesCapacityKcal(body));
         double reserves = Body.ReservesKcal(body);
         // Most bodies have far more than the ramp's worth: skip the metabolism's walk over every organ.
-        if (reserves >= StarvingRampDays * Body.MaxBasalKcalPerDay(body)) return pang;
+        if (reserves >= StarvingRampDays * Body.WholeOrgansBasalKcalPerDay(body)) return pang;
         return Math.Max(pang, Math.Clamp(1 - reserves / (StarvingRampDays * Body.MetabolismKcalPerDay(body, 1.0)), 0, 1));
     }
 
     /// Summed across the three per capacity, then bent toward MaxLoss: never a cliff, never a relief, never below about a fifth.
     internal static void AddCapacityDeltas(BodyState body, Span<double> deltas)
     {
-        if (!Reads(body)) return;
+        if (!FeelsAny(body)) return;
         Span<double> loss = stackalloc double[deltas.Length];
         foreach (var d in All)
         {

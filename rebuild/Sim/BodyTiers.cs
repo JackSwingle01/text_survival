@@ -450,6 +450,4 @@ public static class BodyReadOut
             (Capacity.Blood, feed.Blood), (Capacity.Consciousness, c.Consciousness), (Capacity.Sight, c.Sight),
             (Capacity.Hearing, c.Hearing)];
     }
-
-    public static IReadOnlyList<(Deprivation Kind, double Severity)> Deprivations(BodyState body) => Survival.Deprivations.Of(body);
 }

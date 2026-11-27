@@ -338,7 +338,7 @@ public static class Sim
         else
         {
             int feltBefore = Deprivations.Felt(agent.Body);
-            interrupt = LivePerson(world, agent, d, events, out bool droppedAsleep);
+            interrupt = LivePersonsMinute(world, agent, d, events, out bool droppedAsleep);
             TellDeprivations(world, agent, feltBefore, events);
             if (droppedAsleep) return interrupt;
         }
@@ -348,7 +348,7 @@ public static class Sim
     }
 
     /// droppedAsleep: asleep where they stood, so none of the minute's work runs and the activity is not counted down.
-    static string? LivePerson(World world, Agent agent, Doing d, List<WorldEvent> events, out bool droppedAsleep)
+    static string? LivePersonsMinute(World world, Agent agent, Doing d, List<WorldEvent> events, out bool droppedAsleep)
     {
         droppedAsleep = false;
         var activity = d.Activity;
@@ -374,9 +374,9 @@ public static class Sim
         if (!Body.IsAlive(agent.Body)) return;
         int felt = Deprivations.Felt(agent.Body);
         if (felt == feltBefore) return;
-        foreach (var k in Enum.GetValues<Deprivation>())
+        foreach (var k in Deprivations.All)
             if (Deprivations.In(feltBefore, k) && !Deprivations.In(felt, k)) events.Add(new DeprivationEnded(world.Minute, agent.Id, agent.Tile, k));
-        foreach (var k in Enum.GetValues<Deprivation>())
+        foreach (var k in Deprivations.All)
             if (!Deprivations.In(feltBefore, k) && Deprivations.In(felt, k)) events.Add(new DeprivationStarted(world.Minute, agent.Id, agent.Tile, k));
     }
 
