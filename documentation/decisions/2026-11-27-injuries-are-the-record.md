@@ -3,9 +3,9 @@
 A hit leaves an injury on a region: its kind (cut, puncture, bruise, burn, frostbite, fracture), a
 site within the region (a hand, a foot), how deep it reaches, and whether it is open, bleeding,
 dressed or infected. A tissue's condition is read from the injuries on it and never stored, healing
-closes injuries one by one at a pace set by their kind, and a body's bleeding is the sum of its open
-injuries' bleeds. Treatment needs wounds to be things: a dressing goes on one wound, an infection
-festers in one wound, and frostbite lands on a hand without the body gaining hand regions. The unit
+closes injuries one by one at a pace set by their kind, and a body's bleeding is the sum of its
+injuries' bleeds (a broken bone under unbroken skin bleeds inside). Treatment needs wounds to be
+things: a dressing goes on one wound, an infection festers in one wound, and frostbite lands on a hand without the body gaining hand regions. The unit
 of damage does not change (decision "Damage is measured in tissue condition"); only where condition
 lives does.
 

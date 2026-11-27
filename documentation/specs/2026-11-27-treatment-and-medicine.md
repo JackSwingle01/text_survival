@@ -41,8 +41,9 @@ Wounds become things in the world, illness comes from the world, and remedies an
   it such as a hand), with its kind (cut, puncture, bruise, burn, frostbite, fracture), how deep it
   reaches, and whether it is open, bleeding, dressed or infected. Tissue condition is read from the
   injuries on it. Each injury heals at its kind's pace: a cut in days, a fracture in weeks.
-- **Bleeding belongs to wounds.** Each open injury bleeds and clots on its own, and the body bleeds
-  their sum. A dressing goes on one wound.
+- **Bleeding belongs to wounds.** Each injury bleeds and clots on its own, and the body bleeds their
+  sum. A cut bleeds outside; a broken bone or torn organ under unbroken skin bleeds inside. A dressing
+  goes on one open wound.
 - **Wounds fester.** An open injury left undressed becomes infected, faster when the body is dirty or
   bloody. Past a point the infection stops fading and grows until it is cleaned, and a bad infection
   brings a fever that heats the body and dries it out.
@@ -101,8 +102,8 @@ Wounds become things in the world, illness comes from the world, and remedies an
 
 ### Bleeding
 
-16. As a player, I want each open injury to bleed by what it destroyed and how deep it went, as wounds
-    bleed today, so that a deep wound is an emergency and a scratch is not.
+16. As a player, I want each injury to bleed by what it destroyed and how deep it went, as wounds
+    bleed today (a club's broken bone bleeding inside, under unbroken skin), so that a deep wound is an emergency and a scratch is not.
 17. As a player, I want each injury's bleeding to slow as it clots on its own, so that small wounds
     stop without help.
 18. As a player, I want my blood loss to be the sum of my wounds' bleeding, so that two wounds are
@@ -122,7 +123,8 @@ Wounds become things in the world, illness comes from the world, and remedies an
     only to slow it, so that better dressings are worth their makings.
 24. As a player, I want a mild infection to fade as the wound closes, so that a small slip is not a
     sentence.
-25. As a player, I want an infection past a point to stop fading and keep growing until I clean it, so
+25. As a player, I want an infection past a point to stop fading, keep growing and hold the wound open
+    and unhealed until I clean it, so
     that a festering wound demands action.
 26. As a player, I want an infected wound to hurt, so that I notice it.
 27. As a player, I want a bad infection to bring a fever, and the fever to go once every infection is
@@ -309,6 +311,8 @@ and final death. The recipes it needs belong to step 3, reachability.
   at today's rate. The body's bleeding is the sum of its injuries', capped as today. The Bleeding effect
   row goes; every reader of bleeding (blood loss, Bloody, scent, predator boldness, forecasts,
   narration) reads the body's bleeding.
+- **Closed injuries can bleed.** A bruise or fracture whose bone or organ bleeds is a closed bleed: it
+  bleeds inside, clots on its own and takes no dressing. Only open injuries take dressings.
 - **Pain, shock and dazedness** are still triggered by the blow as effects, as today.
 - **Animals** move onto injuries too: one healing path. Their flat mending rate becomes their healing
   pace, so a hunt goes as it does today.
@@ -320,8 +324,9 @@ and final death. The recipes it needs belong to step 3, reachability.
 - Each open injury has an **infection** from 0 to 1.
 - While **undressed**, it builds at a rate set by the injury's open size, multiplied up by the body's
   Dirty and Bloody. A fibre wrap halves the rate; every other dressing stops it.
-- **Below 0.4** it fades as the wound closes. **Above 0.4** it stops fading and grows until a cleanser
-  brings it down. This is the floor the decision record allows: the cleansers clear it.
+- **Below 0.4** it fades as the wound closes. **Above 0.4** it stops fading and grows, and the injury
+  stops healing, so it stays open, until a cleanser brings the infection below 0.4; then healing
+  resumes. This is the floor the decision record allows: the cleansers clear it.
 - An injury infected above the threshold adds pain.
 - **Fever** is an effect. It builds while the worst infection is above about 0.5 and fades once every
   infection is below. It adds heat to the core, drains water and costs consciousness. It never kills
@@ -465,7 +470,8 @@ and final death. The recipes it needs belong to step 3, reachability.
   themes carry over. Its bugs are not ported: the Treat button that appeared only for Bleeding, Burn or
   a non-existent "Infected", the Inflamed effect that nothing applied, the Nourished buff whose healing
   multiplier nothing read, and the NPC medicine stock that rounded to zero.
-- Whether an infection above the threshold should also slow the wound's healing was not decided. The
-  first probe should show whether a festering wound feels right without it.
+- An infection above the threshold stops its wound healing (decided after review, 2026-11-27); a slower
+  heal while infected, or an infection that outlives the closed wound, were the alternatives, and may
+  be revisited after the first probe.
 - The roadmap's open item on a Bloody treatment floor is stale: Bloody has no floor, and washing is
   built.

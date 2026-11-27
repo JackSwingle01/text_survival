@@ -416,7 +416,8 @@ _Avoid_: wound (in code and rules; fine in narration), damage (that is how hard 
 
 **Open**:
 Of an injury: skin broken, by a cut, a puncture, a burn or frostbite, until it heals closed. Only an
-open injury bleeds or becomes infected; a bruise is never open.
+open injury takes a dressing or becomes infected; a bruise is never open, though a bone or organ
+under it can still bleed inside.
 _Avoid_: exposed (that is food an animal can reach), raw
 
 **Remedy**:
