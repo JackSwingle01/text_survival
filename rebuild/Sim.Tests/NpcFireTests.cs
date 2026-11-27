@@ -170,7 +170,8 @@ public class NpcFireTests(ITestOutputHelper output)
     }
 
     /// Two tiles from camp by night with no starter, and the camp fire it remembers will outlast the walk back but not
-    /// the night: it gathers fuel for it before going home.
+    /// the night: it gathers fuel for it before going home. Since #286 a fuel focus turns up half again the fuel, so the
+    /// richer tile on the way home is worth the step (before: it gathered where it stood).
     [Fact]
     public void FromAway_WithNoStarter_ALitCampFireShortOfTonight_StillWantsFuel()
     {
@@ -186,7 +187,11 @@ public class NpcFireTests(ITestOutputHelper output)
         npc.Tile = away;
         var (a, _) = Npc.Decide(w, npc, []);
         output.WriteLine($"{a}; plan {MindOf(npc).Plan}");
-        Assert.Equal(ForageFocus.Fuel, Assert.IsType<Gather>(a).Focus);
+        var plan = MindOf(npc).Plan;
+        Assert.Equal(Stat.Warmth, plan?.Stat);
+        Assert.NotEqual(camp, plan!.At);
+        if (a is Gather g) Assert.Equal(ForageFocus.Fuel, g.Focus);
+        else Assert.Equal(Direction.West, Assert.IsType<Travel>(a).Dir); // toward the plan's tile, between here and camp
     }
 
     /// Parched by day with no water near and too few sticks for a melt: it goes for the sticks the forecast names.

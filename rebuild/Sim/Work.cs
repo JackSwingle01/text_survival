@@ -138,10 +138,9 @@ public static class Work
     public static bool InFocus(Resource r, ForageFocus focus) => focus != ForageFocus.General && Items.Resources[r].Category == FocusCategory(focus);
 
     const double OffFocusKeepPct = 0.4, OffFocusKeepSpreadPct = 0.2;
-    /// A focused search turns up its category this many times as often as a general search on the same ground.
+    /// A focused search turns up its category this many times as often as a general one; search and forecast read it.
     public const double InFocusFindsFactor = 1.5;
 
-    /// What a focus does to a resource's abundance while searching: the search and its forecast (Pools) both read it.
     public static double FocusAbundanceFactor(Resource r, ForageFocus focus) => InFocus(r, focus) ? InFocusFindsFactor : 1;
 
     static ResourceCategory FocusCategory(ForageFocus focus) => focus switch

@@ -39,13 +39,11 @@ public sealed record HaulInput(Resource Resource, double Kg, int Count);
 /// Source: "recipe" from recipes.json, or "spec" for a recipe not in the game yet.
 public sealed record HaulNeed(string Name, string Source, IReadOnlyList<HaulInput> Inputs, double BudgetHours);
 
-/// A fresh forest hour's food in kcal, searched in general and with a food focus (forecast and the seed's sample), and a
-/// day of HaulFoodHours such hours, each on a fresh tile, against what the forager burns that day.
+/// A fresh forest hour's food in kcal, and a day of HaulFoodHours food-focused fresh hours against the day's burn.
 public sealed record FoodHaul(double GeneralHourKcal, double FocusedHourKcal, double SampledFocusedHourKcal, double BurnKcal)
 {
     public double DayKcal => FocusedHourKcal * Report.HaulFoodHours;
     public double SampledDayKcal => SampledFocusedHourKcal * Report.HaulFoodHours;
-    /// The day's food within HaulTolerancePct of the day's burn, in the forecast and in the seed's sample both.
     public bool Ok => Math.Abs(DayKcal - BurnKcal) <= BurnKcal * Report.HaulTolerancePct
         && Math.Abs(SampledDayKcal - BurnKcal) <= BurnKcal * Report.HaulTolerancePct;
 }
@@ -450,7 +448,6 @@ public static class Report
         return kg;
     }
 
-    /// A bare world with the one pool on its one tile.
     static (World World, PoolId Id) HaulWorld(ForagePool pool, int seed)
     {
         var tile = new TileId(0, 0);
@@ -460,9 +457,7 @@ public static class Report
     /// A day's foraging for food: this many hours of it, the rest of the day resting.
     public const int HaulFoodHours = 7;
 
-    /// Food in a fresh forest hour, by forecast and by the seed's sample, and the day's burn of a healthy person
-    /// (Body.MetabolismKcalPerDay at the sim's factors for foraging and for resting). A find in the food focus is kept
-    /// whole (Work.Focus), so the food the ground gives is the food brought in.
+    /// The day's burn is a healthy person's at the sim's factors for foraging and resting. In-focus finds are all kept.
     public static FoodHaul HaulFood(int seed)
     {
         var pool = HaulGrounds().Single(g => g.Ground == nameof(Terrain.Forest)).Pool;
