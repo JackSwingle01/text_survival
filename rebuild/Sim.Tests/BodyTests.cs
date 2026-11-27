@@ -145,10 +145,15 @@ public class BodyTests
         Assert.InRange(SpeedShare(legs), 0.03, 0.05); // a shattered bone stops the leg: a fifth of its bone, a twenty-fifth of its speed
     }
 
-    /// Body review A2b: hurting any one tissue never makes any capacity better.
+    /// Body review A2b: hurting any one tissue never makes any faculty, or the hold on life, better. Perception in
+    /// pitch dark is hearing's alone, so a tissue that raised hearing while it lowered sight would show there.
     [Fact]
-    public void LoweringAnyTissue_NeverRaisesAnyCapacity()
+    public void LoweringAnyTissue_NeverRaisesAnyFaculty()
     {
+        var dark = new AbilityContext(DarknessLevel: 1);
+        string[] names = ["strength", "speed", "dexterity", "perception", "perception in the dark", "vision", "hold on life"];
+        double[] Read(BodyState b) =>
+            [Body.Strength(b), Body.Speed(b), Body.Dexterity(b), Body.Perception(b), Body.Perception(b, dark), Body.Vision(b), Body.TissueVitality(b)];
         foreach (var kind in Enum.GetValues<BodyKind>())
         {
             var tissues = BodyState.Create(kind, 60, 0.15, 0.3).Regions
@@ -162,14 +167,9 @@ public class BodyTests
                         t.Condition = rng.NextDouble() < 0.5 ? 1 : rng.NextDouble();
                 var (ri, ti) = tissues[rng.NextInt(tissues.Count)];
                 var tissue = b.Regions[ri].Layers.Concat(b.Regions[ri].Organs).ElementAt(ti);
-                var before = Body.GetCapacities(b);
-                double beforeLife = Body.TissueVitality(b);
+                double[] x = Read(b);
                 tissue.Condition *= rng.NextDouble();
-                var after = Body.GetCapacities(b);
-                double afterLife = Body.TissueVitality(b);
-                string[] names = ["moving", "manipulation", "consciousness", "sight", "hearing", "hold on life"];
-                double[] x = [before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing, beforeLife];
-                double[] y = [after.Moving, after.Manipulation, after.Consciousness, after.Sight, after.Hearing, afterLife];
+                double[] y = Read(b);
                 for (int i = 0; i < x.Length; i++)
                     Assert.True(y[i] <= x[i] + 1e-12, $"{kind}: lowering {b.Regions[ri].Name} {tissue.Name} raised {names[i]} {x[i]} -> {y[i]}");
             }
@@ -202,10 +202,11 @@ public class BodyTests
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Head"));
-        var c = Body.GetCapacities(b);
-        Assert.Equal(0, c.Consciousness);
-        Assert.Equal(0, c.Moving); // unconscious, the limbs give nothing
-        Assert.Equal(0, c.Manipulation);
+        Assert.Equal(0, Body.Perception(b));
+        Assert.Equal(0, Body.Speed(b)); // unconscious, the limbs give nothing
+        Assert.Equal(0, Body.Dexterity(b));
+        Assert.Contains(CrippledBy.Unconscious, Body.CrippledBy(b, Faculty.Speed));
+        Assert.Contains(CrippledBy.Unconscious, Body.CrippledBy(b, Faculty.Dexterity));
     }
 
     [Fact]

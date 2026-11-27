@@ -60,11 +60,12 @@ public class DirtyTests
     }
 
     [Fact]
-    public void Dirty_TakesNothingOffAnyCapacity()
+    public void Dirty_TakesNothingOffAnyFaculty()
     {
+        var clean = BodyState.BaselineHuman();
         var b = BodyState.BaselineHuman();
         Effects.Set(b, EffectKind.Dirty, 1);
-        Assert.All(Effects.CapacityDeltas(b), d => Assert.Equal(0, d));
+        Assert.Equal(TestKit.FacultiesOf(clean), TestKit.FacultiesOf(b));
     }
 
     /// A wolf's nose (2.5) three tiles off, in calm air, out of sight: a clean person's base scent reaches
