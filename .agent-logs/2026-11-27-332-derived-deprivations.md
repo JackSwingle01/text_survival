@@ -36,3 +36,4 @@ Revised (review): Reads, LivePerson and MaxBasalKcalPerDay hid what they meant �
 Revised (review): no narration test read the new events → NarrationTests pins "You are thirsty." (bad) and "You are no longer tired." (good).
 Revised (review): the sizes are a per-kind table, which "Where things go" puts in content data → kept in Deprivations.cs as named values beside the rule, as the parent spec asks (story 36); its retune ticket can move them if Jack prefers data.
 Revised (review): the parent spec says the stacking cap goes with the effects; this issue says keep it → kept, as the issue (this ticket's spec) says; its removal belongs to the retune.
+Revised: the push token may not change workflows, and the mutation.yml edit was only its step's label → reverted; the step still runs stryker-config.json, which now mutates Deprivations.cs.
