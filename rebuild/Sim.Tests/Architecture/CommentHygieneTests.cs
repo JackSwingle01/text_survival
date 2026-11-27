@@ -42,8 +42,6 @@ public class CommentHygieneTests
     /// may only go down; the daily ratchet run (dev/ratchets.md) files a batch at a time to bring under the limit.
     static readonly Dictionary<string, int> OverCommentLimit = new()
     {
-        ["CombatAI.cs"] = 25,
-        ["CombatAftermath.cs"] = 26,
         ["CombatFlight.cs"] = 23,
         ["CombatObserver.cs"] = 25,
         ["Content.cs"] = 11,
