@@ -408,6 +408,12 @@ looking at the body. Whether a body is alive is a separate matter, read from its
 brain alone.
 _Avoid_: health, hit points, condition
 
+**Remedy**:
+An item a body uses, like food, to answer an effect: a dressing (stops bleeding and keeps a wound
+clean while it is on), a cleanser (clears an infection) or a draught (drunk or chewed; eases a
+symptom over hours). Raw medicines count, weaker than the made ones.
+_Avoid_: treatment item, medicine (that is the forage category), cure, heal
+
 ## Danger
 
 **Boldness**:
