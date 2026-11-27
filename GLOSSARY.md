@@ -54,9 +54,16 @@ three.
 _Avoid_: status, debuff
 
 **Deprivation**:
-An effect from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
-without harming it, and it lifts when the need is met; nothing treats it.
+A state from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
+without harming it, and it lifts when the need is met; nothing treats it. It is read each minute from
+the body's stores, never stored. It acts only through consciousness, blood or wasting, and never alone
+stops a verb: its endings are collapsing asleep, and death from thirst or starvation.
 _Avoid_: discomfort, debuff, need effect
+
+**Sleep debt**:
+The minutes a body has been awake that sleep has not yet repaid. It drives tiredness, which is felt
+only past a normal waking day, and it repays faster the deeper it runs.
+_Avoid_: energy, fatigue, rest meter
 
 **Condition**:
 What a verb sees about a location feature or an item: a fact read from its effects and its place
