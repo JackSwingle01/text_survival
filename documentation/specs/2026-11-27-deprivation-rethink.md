@@ -195,9 +195,12 @@ collapse and die of thirst on the way.
   the full hour (48 hours).
 - **The repay rate** is the species' base rate (its waking hours over its sleeping hours, two for a human
   sleeping eight hours), scaled up for a deep debt. The scale is one at a debt of one waking day or
-  less (16 hours for a human), rising in a straight line to two at the full hour. A human then repays two
-  minutes a minute after a normal day, and four a minute from 48 hours, so a full debt clears in about
-  12 hours of sleep.
+  less (16 hours for a human), rising in a straight line to ten at the full hour. The scale is read from
+  the current debt, so the rate falls as the debt is repaid. A human then repays two minutes a minute
+  after a normal day, so a normal night is still 8 hours. Any deep debt clears in one long night: an
+  all-nighter (32 hours) in about 11 hours of sleep, 40 hours in about 11.6, and 48 hours in about 12.
+  Deep debt is not paid back hour for hour, as in real recovery sleep. (Settled with Jack in review of
+  #331: the grilling's two-to-four ramp, read from the current debt, would have taken about 19 hours.)
 - The onset and full hours are species values in the species table. Every species starts on the human
   values until #103 and #116 tune them.
 - Sleep healing quality keeps reading how deep the debt is, as it does today.
@@ -335,8 +338,8 @@ The balance report gains a deprivation timeline. It reports and never gates.
     blood), reading 15% of blood as lost gives a lost-blood scale of 0.7. At full thirst that is moving
     0.7, and consciousness about 0.49 with its own 0.7 factor. That matches severe dehydration, but it is
     the largest single cost here.
-  - **The repay scale reaching two at the full hour** generalises Q8's "two a minute to four a minute"
-    to species with other sleep hours. So does the collapse onset at six tenths of the way from
+  - **The repay scale reaching ten at the full hour, counted from one waking day,** carries the human
+    rule over to species with other sleep hours. So does the collapse onset at six tenths of the way from
     onset to full (36 hours for a human).
   - **The scaling by how full the calorie store is goes from healing,** because the hungry term reads
     the same store. Keeping both would count hunger twice.
