@@ -82,7 +82,7 @@ public class LameTests
     public void AFullPack_OnABodyTooWeakToCarryIt_IsRefusedWalking_AndTheRefusalNamesTheLoad()
     {
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Effects.Add(weak, EffectKind.Tired, 1.0);
+        Deprive.Tired(weak, 1.0);
         var w = With(weak);
         Assert.Null(Sim.Refusal(w, OpenWalk(w)));
         var me = w.Agent(P);

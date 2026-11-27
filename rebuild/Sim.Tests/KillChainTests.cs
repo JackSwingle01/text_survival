@@ -188,8 +188,7 @@ public class KillChainTests
             var b = BodyState.BaselineHuman();
             (b.CoreTempF, b.FatKg, b.MuscleKg, b.HydrationMl, b.CaloriesKcal, b.EnergyMinutes) = (92.5, 6.38, 22.5, 1923, 0, 20);
             Effects.Add(b, EffectKind.Hypothermia, 0.24);
-            Effects.Add(b, EffectKind.Hungry, 0.98);
-            Effects.Add(b, EffectKind.Tired, 0.98);
+            // Hungry and tired are read from these stores: a pang, and tiredness at 0.93.
             return b;
         }
         var cold = Seed99();

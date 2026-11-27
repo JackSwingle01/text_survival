@@ -3,7 +3,6 @@ namespace Survival;
 /// What the body itself produces; event-only effects (fear, fever, sprains) arrive with events, as new rows.
 public enum EffectKind
 {
-    Hungry, Thirsty, Tired,
     Shivering, Hypothermia, Frostbite, Hyperthermia, Sweating,
     Wet, Bloody,
     Bleeding, Pain, Dazed, Shock,
@@ -22,7 +21,7 @@ public sealed class BodyEffect
 
 /// One row of Content/effects.json; TreatmentAboveSeverity null means never needs treatment.
 public sealed record EffectDef(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour, double BleedMlPerHour,
-    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, bool Discomfort = false, double MetabolicHeatDelta = 0, double HealingDelta = 0,
+    IReadOnlyList<(Capacity Capacity, double Delta)> Capacities, double MetabolicHeatDelta = 0, double HealingDelta = 0,
     double? HungerFreeHours = null);
 
 public static class Effects
@@ -90,8 +89,7 @@ public static class Effects
         body.Effects.RemoveAll(e => e.Severity <= 0);
     }
 
-    /// Summed capacity deltas, each scaled by severity, except that the discomforts' losses saturate
-    /// first: hunger, thirst and tiredness wear a body down without leaving it helpless.
+    /// Summed capacity deltas, each scaled by severity.
     public static IReadOnlyList<double> CapacityDeltas(BodyState body)
     {
         if (body.Effects.Count == 0) return NoDeltas;
@@ -103,32 +101,19 @@ public static class Effects
     /// Fills deltas (zeroed, one per Capacity): what Body.GetCapacities reads for every body every minute, so on the caller's stack.
     internal static void CapacityDeltas(BodyState body, Span<double> deltas)
     {
-        if (body.Effects.Count == 0) return;
-        Span<double> discomfortLoss = stackalloc double[CapacityCount];
         foreach (var e in body.Effects)
         {
             var def = DefOf(e.Kind);
             for (int i = 0; i < def.Capacities.Count; i++)
             {
                 var (cap, delta) = def.Capacities[i];
-                if (def.Discomfort) discomfortLoss[(int)cap] -= delta * e.Severity;
-                else deltas[(int)cap] += delta * e.Severity;
+                deltas[(int)cap] += delta * e.Severity;
             }
         }
-        for (int i = 0; i < CapacityCount; i++) deltas[i] -= DiscomfortLoss(discomfortLoss[i]);
     }
 
     static readonly int CapacityCount = Enum.GetValues<Capacity>().Length;
     static readonly double[] NoDeltas = new double[CapacityCount];
-
-    internal const double DiscomfortMaxLoss = 0.8;
-
-    /// The sum while it is small, bending smoothly toward DiscomfortMaxLoss: never a cliff, never a relief.
-    internal static double DiscomfortLoss(double summedLoss) =>
-        summedLoss / Math.Pow(1 + Math.Pow(summedLoss / DiscomfortMaxLoss, 4), 0.25);
-
-    internal static double CapacityLoss(EffectKind kind, Capacity capacity) =>
-        DefOf(kind).Capacities.Single(c => c.Capacity == capacity).Delta;
 
     /// Content checks the row carries it, so the ! cannot throw.
     internal static double WellFedAfterHours => DefOf(EffectKind.WellFed).HungerFreeHours!.Value;

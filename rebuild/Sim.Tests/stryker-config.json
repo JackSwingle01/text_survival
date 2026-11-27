@@ -2,8 +2,8 @@
   "stryker-config": {
     "project": "Sim.csproj",
     "test-projects": ["Sim.Tests.csproj"],
-    "mutate": ["**/Effects.cs"],
-    "test-case-filter": "FullyQualifiedName~EffectsPropertyTests&Category!=Slow",
+    "mutate": ["**/Effects.cs", "**/Deprivations.cs"],
+    "test-case-filter": "(FullyQualifiedName~EffectsPropertyTests|FullyQualifiedName~DeprivationTests)&Category!=Slow",
     "coverage-analysis": "perTest",
     "reporters": ["progress", "cleartext", "html", "json"],
     "thresholds": { "high": 95, "low": 90, "break": 90 }

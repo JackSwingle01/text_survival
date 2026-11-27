@@ -192,7 +192,7 @@ void PrintStatus(World w)
 {
     var p = w.Agent(AgentId.Player);
     var b = p.Body;
-    string effects = string.Join(", ", b.Effects.Select(e => $"{e.Kind} {e.Severity:P0}"));
+    string effects = string.Join(", ", Deprivations.Of(b).Select(d => $"{d.Kind} {d.Severity:P0}").Concat(b.Effects.Select(e => $"{e.Kind} {e.Severity:P0}")));
     var sky = Weather.At(w, w.Minute);
     string skills = p.Mind is PersonMind mind ? string.Join(", ", mind.Skills.Where(k => k.Value.Level > 0).Select(k => $"{k.Key} {k.Value.Level}")) : "";
     Console.WriteLine($"{Clock(w.Minute)} | {sky.Condition} {sky.TemperatureC:0}C wind {sky.WindMph:0}mph {sky.WindDirection} | " +

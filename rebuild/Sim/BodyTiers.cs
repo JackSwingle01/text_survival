@@ -180,6 +180,7 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
+        Deprivations.AddCapacityDeltas(body, effectDeltas);
         return Of(body, effectDeltas, out feed);
     }
 
@@ -193,6 +194,7 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
+        Deprivations.AddCapacityDeltas(body, effectDeltas);
         return Unscaled(body, effectDeltas, out feed);
     }
 

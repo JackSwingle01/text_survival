@@ -307,8 +307,7 @@ public class EffectsPropertyTests
     // ---- what effects do to the body ----
 
     /// The readouts are each effect's full-severity row scaled by its severity and summed, and nothing
-    /// from an effect that is not there; the discomforts' losses alone are summed and then saturate,
-    /// x / (1 + (x/0.8)^4)^(1/4). Read through the faculties of a whole human, whose capacities are each
+    /// from an effect that is not there (hunger, thirst and tiredness are not effects: DeprivationTests). Read through the faculties of a whole human, whose capacities are each
     /// one less the summed loss, held in 0..1: speed is its moving, vision its sight and perception the mean of its sight
     /// and hearing, each times its consciousness for the last two; dexterity is manipulation times half of
     /// one plus consciousness, less what wet hands take. Unconscious, the limbs give nothing.
@@ -320,21 +319,18 @@ public class EffectsPropertyTests
         {
             var b = Gens.BodyAfter(ops);
             var caps = new double[Enum.GetValues<Capacity>().Length];
-            var discomfort = new double[caps.Length];
             double core = 0, bleed = 0;
             foreach (var e in b.Effects)
             {
                 foreach (var (cap, delta) in Def(e.Kind).Capacities)
-                    if (Def(e.Kind).Discomfort && delta < 0) discomfort[(int)cap] -= delta * e.Severity;
-                    else caps[(int)cap] += delta * e.Severity;
+                    caps[(int)cap] += delta * e.Severity;
                 core += Def(e.Kind).CoreTempFPerHour * e.Severity;
                 bleed += Def(e.Kind).BleedMlPerHour * e.Severity;
             }
             double Remaining(Capacity cap)
             {
                 int i = (int)cap;
-                double delta = caps[i] - discomfort[i] / Math.Pow(1 + Math.Pow(discomfort[i] / 0.8, 4), 0.25);
-                return Math.Clamp(1 + Math.Clamp(delta, -1, 1), 0, 1);
+                return Math.Clamp(1 + Math.Clamp(caps[i], -1, 1), 0, 1);
             }
             double conscious = Remaining(Capacity.Consciousness), limbs = conscious > 0 ? 1 : 0;
             double sight = Remaining(Capacity.Sight), hearing = Remaining(Capacity.Hearing);
@@ -346,29 +342,6 @@ public class EffectsPropertyTests
             Assert.Equal(core, Effects.CoreTempFPerHour(b), 12);
             Assert.Equal(bleed, Effects.BleedMlPerHour(b), 12);
         });
-    }
-
-    static double[] Shares(BodyState b) => [.. Enum.GetValues<Faculty>().Select(f => Body.Share(b, Species.Human, f))];
-
-    /// Whatever the curve: worsening any discomfort never raises a faculty, and hunger, thirst and
-    /// tiredness at any severities never leave a whole body helpless: every faculty stays above a sixth of fresh.
-    [Fact]
-    public void Discomforts_AreMonotone_AndNeverLeaveAWholeBodyHelpless()
-    {
-        var kinds = new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired };
-        var rng = new Random(7);
-        for (int trial = 0; trial < 2000; trial++)
-        {
-            var b = BodyState.BaselineHuman();
-            foreach (var k in kinds) Effects.Set(b, k, rng.NextDouble());
-            var before = Shares(b);
-            Assert.All(before, share => Assert.True(share > 1 / 6.0, $"trial {trial}: {share:0.000}"));
-            var k2 = kinds[rng.Next(kinds.Length)];
-            Effects.Set(b, k2, Math.Min(1, Effects.Severity(b, k2) + rng.NextDouble() * 0.3));
-            var after = Shares(b);
-            for (int i = 0; i < before.Length; i++)
-                Assert.True(after[i] <= before[i] + 1e-12, $"trial {trial}: worse {k2} raised {(Faculty)i}");
-        }
     }
 
     [Fact]

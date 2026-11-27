@@ -915,4 +915,18 @@ public class GameHostTests
         Assert.Single(v.Log, l => l.Icon == "ui/foraging" && l.Minute > start);
         h.Save(); // nothing held over: the search has ended
     }
+
+    /// The body read-out shows hunger, thirst and tiredness with their severities, read from the stores (#332).
+    [Fact]
+    public void The_body_shows_each_deprivation_with_its_severity()
+    {
+        var h = new GameHost();
+        h.NewGame(Seed);
+        var b = h.World.Agent(AgentId.Player).Body;
+        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (0, 0.15 * Body.MaxHydrationMl, 0);
+        var shown = Parse(h.View()).Body.Effects.ToDictionary(e => e.Name, e => e.Severity);
+        Assert.Equal(0.5, shown["Thirsty"]);
+        Assert.Equal(1, shown["Tired"]);
+        Assert.Equal(0.14, shown["Hungry"]); // the pang: 5% of moving, of hunger's 35%
+    }
 }

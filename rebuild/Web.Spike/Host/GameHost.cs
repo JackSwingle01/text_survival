@@ -109,7 +109,7 @@ public sealed class GameHost
             Vitals: new VitalsDto(
                 Warmth: Math.Clamp((b.CoreTempF - 90.0) / (Body.BaseCoreTempF - 90.0), 0, 1),
                 Food: Math.Clamp(b.CaloriesPct, 0, 1), Water: Math.Clamp(b.HydrationPct, 0, 1), Rest: Math.Clamp(b.EnergyPct, 0, 1),
-                CoreTempF: Math.Round(b.CoreTempF, 1), Effects: [.. b.Effects.Select(e => e.Kind.ToString())]),
+                CoreTempF: Math.Round(b.CoreTempF, 1), Effects: [.. Deprivations.Of(b).Select(d => d.Kind.ToString()), .. b.Effects.Select(e => e.Kind.ToString())]),
             Place: Map.Describe(map, p.Tile),
             Radius: Radius, X: p.Tile.X, Y: p.Tile.Y,
             Tiles: tiles,

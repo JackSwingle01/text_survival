@@ -138,11 +138,10 @@ public sealed class Fights
             switch (cond)
             {
                 case "healthy": break;
-                case "tired": b.EnergyMinutes = 48; Effects.Add(b, EffectKind.Tired, (0.3 - 48.0 / 960) / 0.3); break;
+                case "tired": b.EnergyMinutes = 48; break; // tiredness is read from the store: (0.3 - 48/960)/0.3
                 case "hungry":
                     b.CaloriesKcal = 0;
-                    b.FatKg = 0.06 * b.WeightKg;
-                    Effects.Add(b, EffectKind.Hungry, 1.0);
+                    b.FatKg = 0.06 * b.WeightKg; // hunger is read from the stores: an empty stomach's pang, fat to spare
                     break;
                 case "cold95": b.CoreTempF = 95.0; Effects.Add(b, EffectKind.Shivering, 0.4); break;
                 case "cold92": b.CoreTempF = 92.0; Effects.Add(b, EffectKind.Shivering, 1.0); Effects.Add(b, EffectKind.Hypothermia, 0.3); break;

@@ -24,6 +24,8 @@ public class NarrationTests
         Assert.Equal("You eat 120 g berries.", Narration.ForPlayer(w, new Ate(0, P, camp, Resource.Berries, 0.12, 60))!.Text);
         Assert.Equal("You are shivering.", Narration.ForPlayer(w, new EffectStarted(0, P, camp, EffectKind.Shivering))!.Text);
         Assert.Equal("You are no longer wet.", Narration.ForPlayer(w, new EffectEnded(0, P, camp, EffectKind.Wet))!.Text);
+        Assert.Equal(("You are thirsty.", Tone.Bad), Narration.ForPlayer(w, new DeprivationStarted(0, P, camp, Deprivation.Thirsty)) is { } t ? (t.Text, t.Tone) : default);
+        Assert.Equal(("You are no longer tired.", Tone.Good), Narration.ForPlayer(w, new DeprivationEnded(0, P, camp, Deprivation.Tired)) is { } r ? (r.Text, r.Tone) : default);
         Assert.Equal("The fire goes out.", Narration.ForPlayer(w, new FireDied(0, new FireId(0), camp))!.Text);
         Assert.Equal(Tone.Bad, Narration.ForPlayer(w, new FireDied(0, new FireId(0), camp))!.Tone);
     }

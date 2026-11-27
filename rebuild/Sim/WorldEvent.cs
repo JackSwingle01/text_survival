@@ -11,6 +11,8 @@ namespace Survival;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
 [JsonDerivedType(typeof(EffectStarted), "effectstarted")]
 [JsonDerivedType(typeof(EffectEnded), "effectended")]
+[JsonDerivedType(typeof(DeprivationStarted), "deprivationstarted")]
+[JsonDerivedType(typeof(DeprivationEnded), "deprivationended")]
 [JsonDerivedType(typeof(Died), "died")]
 [JsonDerivedType(typeof(Exhausted), "exhausted")]
 [JsonDerivedType(typeof(FullyRested), "fullyrested")]
@@ -53,6 +55,9 @@ public abstract record WorldEvent(long Minute, TileId Tile);
 
 public sealed record EffectStarted(long Minute, AgentId Who, TileId Tile, EffectKind Kind) : WorldEvent(Minute, Tile);
 public sealed record EffectEnded(long Minute, AgentId Who, TileId Tile, EffectKind Kind) : WorldEvent(Minute, Tile);
+/// A store fell below its line, or a need was met: told across the person's whole minute, eating and drinking included.
+public sealed record DeprivationStarted(long Minute, AgentId Who, TileId Tile, Deprivation Kind) : WorldEvent(Minute, Tile);
+public sealed record DeprivationEnded(long Minute, AgentId Who, TileId Tile, Deprivation Kind) : WorldEvent(Minute, Tile);
 public sealed record Died(long Minute, AgentId Who, TileId Tile) : WorldEvent(Minute, Tile);
 public sealed record Exhausted(long Minute, AgentId Who, TileId Tile) : WorldEvent(Minute, Tile);
 public sealed record FullyRested(long Minute, AgentId Who, TileId Tile) : WorldEvent(Minute, Tile);

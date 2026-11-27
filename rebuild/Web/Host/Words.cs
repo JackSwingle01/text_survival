@@ -24,7 +24,7 @@ static class Words
 
     static string Icon(WorldEvent e) => e switch
     {
-        EffectStarted or EffectEnded => "ui/effects",
+        EffectStarted or EffectEnded or DeprivationStarted or DeprivationEnded => "ui/effects",
         Died => "body",
         Exhausted or FullyRested => "ui/energy",
         FireLit => "fire",
