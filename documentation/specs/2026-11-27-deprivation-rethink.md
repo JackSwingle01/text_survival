@@ -234,9 +234,9 @@ collapse and die of thirst on the way.
   thirsty). It stops entirely only at an empty water store or a core below 95 °F. The conditions on the
   calorie store, the water store and the energy store go, and so does the scaling by how full the calorie
   store is. The hungry term replaces it, since the pang is read from the same store. The scaling by
-  digestion and the healing factor stays, and so does sleep's sixfold bonus.
+  digestion and the healing factor stays, and so does sleep's bonus (up to sixtyfold, scaled by sleep quality).
 - **Collapsing from exhaustion:** the chance per minute awake is zero up to 36 hours of sleep debt (for
-  a human; the species value is three quarters of the way from onset to full), rising in a straight line
+  a human; the species value is six tenths of the way from onset to full), rising in a straight line
   to 1% at the full hour, and held at 1% beyond it. A collapse lasts 15 to 90 minutes and is stored as
   the Asleep effect, which the sim lives as sleep and which refuses other verbs, as today. The
   "Exhausted" event fires when the debt reaches the full hour.
@@ -336,7 +336,7 @@ The balance report gains a deprivation timeline. It reports and never gates.
     0.7, and consciousness about 0.49 with its own 0.7 factor. That matches severe dehydration, but it is
     the largest single cost here.
   - **The repay scale reaching two at the full hour** generalises Q8's "two a minute to four a minute"
-    to species with other sleep hours. So does the collapse onset at three quarters of the way from
+    to species with other sleep hours. So does the collapse onset at six tenths of the way from
     onset to full (36 hours for a human).
   - **The scaling by how full the calorie store is goes from healing,** because the hungry term reads
     the same store. Keeping both would count hunger twice.
