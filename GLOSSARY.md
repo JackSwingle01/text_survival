@@ -408,6 +408,17 @@ looking at the body. Whether a body is alive is a separate matter, read from its
 brain alone.
 _Avoid_: health, hit points, condition
 
+**Injury**:
+One hurt on a body, where it landed (a region, and a site within it such as a hand): its kind (cut,
+puncture, bruise, burn, frostbite, fracture), how deep it reaches, and whether it is open, bleeding,
+dressed or infected. A tissue's condition is read from the injuries on it; healing closes injuries.
+_Avoid_: wound (in code and rules; fine in narration), damage (that is how hard a blow is), hurt
+
+**Open**:
+Of an injury: skin broken, by a cut, a puncture, a burn or frostbite, until it heals closed. Only an
+open injury bleeds or becomes infected; a bruise is never open.
+_Avoid_: exposed (that is food an animal can reach), raw
+
 **Remedy**:
 An item a body uses, like food, to answer an effect: a dressing (stops bleeding and keeps a wound
 clean while it is on), a cleanser (clears an infection) or a draught (drunk or chewed; eases a
