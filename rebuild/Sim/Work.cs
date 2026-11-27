@@ -88,8 +88,7 @@ public static class Work
         return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null, clues);
     }
 
-    /// A forecast: the minutes until a stock's every unit this agent can take is taken, the agent staying as they are;
-    /// null for any other work. The dark and the pack can stop it sooner.
+    /// A forecast: minutes until this agent has taken all of a stock it can (null for other work); dark or pack may stop it sooner.
     public static int? StockMinutesLeft(World world, Agent agent, Gather g)
     {
         var id = new PoolId(agent.Tile, g.Pool);
