@@ -236,22 +236,27 @@ public class WorkTests
         Assert.Equal("the Bush is picked clean", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
     }
 
-    /// A heap of more than four hours' work (the kill site's bone heap: 15 units of 20 minutes) is offered to the end,
-    /// and the forecast of its minutes is what the work takes. Was capped at four hours, one unit short of three.
+    /// A press of Harvest works half an hour; pressed again it goes on, and the last press ends early when the heap is
+    /// picked clean. The forecast of a stock's minutes is what the work takes.
     [Fact]
-    public void AHarvest_IsOfferedUntilPickedClean_AndItsForecastIsItsTime()
+    public void AHarvest_WorksHalfAnHourAPress_UntilPickedClean()
     {
-        var heap = new StockPool("Bone Heap", StockKind.Harvest, 20, [new StockItem(Resource.Bone, 15, 1)], RevealAtHours: 0);
+        var heap = new StockPool("Bone Heap", StockKind.Harvest, 20, [new StockItem(Resource.Bone, 4, 1)], RevealAtHours: 0);
         var w = WithPools(Forage, heap);
-        Items.Pack(w, P).Gear.Add(Items.Make("large_bag"));
         FastForwardTo(w, 8);
         var verb = Verbs.At(w, P).All.Single(v => v.Activity is Gather { Pool: 1 });
-        Assert.Equal(Verbs.UntilDoneMinutes, verb.Minutes);
-        int forecast = Work.StockMinutesLeft(w, w.Agent(P), (Gather)verb.Activity)!.Value;
-        var r = Sim.Step(w, verb.Activity, verb.Minutes);
-        Assert.Equal(("the Bone Heap is picked clean", forecast), (r.InterruptedReason, r.MinutesElapsed));
-        Assert.Equal(15.0, Items.Have(Items.Pack(w, P), Resource.Bone), 9);
-        Assert.Equal(0, Work.StockMinutesLeft(w, w.Agent(P), (Gather)verb.Activity));
+        Assert.Equal(Verbs.StockMinutes, verb.Minutes);
+        var g = (Gather)verb.Activity;
+        Assert.Equal(80, Work.StockMinutesLeft(w, w.Agent(P), g));
+        var first = Sim.Step(w, g, verb.Minutes);
+        Assert.Equal((null, 30), (first.InterruptedReason, first.MinutesElapsed));
+        Assert.Equal(1.0, Items.Have(Items.Pack(w, P), Resource.Bone), 9);
+        Assert.Equal(50, Work.StockMinutesLeft(w, w.Agent(P), g));
+        Sim.Step(w, g, verb.Minutes);
+        var last = Sim.Step(w, g, verb.Minutes);
+        Assert.Equal(("the Bone Heap is picked clean", 20), (last.InterruptedReason, last.MinutesElapsed));
+        Assert.Equal(4.0, Items.Have(Items.Pack(w, P), Resource.Bone), 9);
+        Assert.Equal(0, Work.StockMinutesLeft(w, w.Agent(P), g));
     }
 
     /// old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
