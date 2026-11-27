@@ -257,8 +257,9 @@ public static class Verbs
         (string, Activity, int)? verb = def switch
         {
             TreePool => ("Chop", new Gather(who, t.Index), WorkMinutes),
+            // A stock runs until it is picked clean (or the dark or the pack stops it): there is no reason to stop partway.
             StockPool s => (s.Kind switch { StockKind.Harvest => "Harvest", StockKind.Salvage => "Salvage", StockKind.Detail => "Examine" },
-                new Gather(who, t.Index), WorkMinutes),
+                new Gather(who, t.Index), UntilDoneMinutes),
             ShelterFind => null, // once found it stands as a shelter, its own location feature
             CarcassFind or PileFind => null,
             _ => throw new NotSupportedException($"No verb for a {def.GetType().Name}"),

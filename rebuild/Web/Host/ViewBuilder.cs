@@ -384,6 +384,7 @@ sealed class ViewBuilder(World world, int gen)
             double rate = Making.WorkPerMinute(world, _player, pack, r);
             if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - done) / rate);
         }
+        if (job.Activity is Gather g && !job.Finished && Work.StockMinutesLeft(world, _player, g) is int stockLeft) total = job.Done + stockLeft;
         var session = job.Session;
         var finds = session?.LuckFactor > 0
             ? session.Finds.GroupBy(x => x.Resource).OrderBy(g => g.Min(x => x.Minute))

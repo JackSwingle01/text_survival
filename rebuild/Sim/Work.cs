@@ -88,6 +88,20 @@ public static class Work
         return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null, clues);
     }
 
+    /// A forecast: the minutes until a stock's every unit this agent can take is taken, the agent staying as they are;
+    /// null for any other work. The dark and the pack can stop it sooner.
+    public static int? StockMinutesLeft(World world, Agent agent, Gather g)
+    {
+        var id = new PoolId(agent.Tile, g.Pool);
+        if (Pools.Def(world, id) is not StockPool stock) return null;
+        var units = Pools.UnitsNow(world, id);
+        var pack = Items.PackOf(agent);
+        int cycles = Enumerable.Range(0, units.Length).Where(i => Pools.CanWork(stock.Items[i], pack)).Select(i => units[i]).DefaultIfEmpty(0).Max();
+        if (cycles == 0) return 0;
+        double worked = (Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0;
+        return (int)Math.Ceiling(Math.Max(0, cycles * stock.MinutesPerUnit - worked) * ImpairmentFactor(world, agent, g) - 1e-9);
+    }
+
     /// The same for a pool elsewhere, starting there in startInMinutes, on the ground as remembered (null: as it is).
     /// What only being there can refuse (trees all felled, the pool unseen) is the caller's to know; the tool and the pack's
     /// room for a trunk's next piece refuse it here as there, so a place does not look better from a step away.

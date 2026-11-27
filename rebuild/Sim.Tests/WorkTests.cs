@@ -236,6 +236,24 @@ public class WorkTests
         Assert.Equal("the Bush is picked clean", Sim.Step(w, new Gather(P, 1), 60).InterruptedReason);
     }
 
+    /// A heap of more than four hours' work (the kill site's bone heap: 15 units of 20 minutes) is offered to the end,
+    /// and the forecast of its minutes is what the work takes. Was capped at four hours, one unit short of three.
+    [Fact]
+    public void AHarvest_IsOfferedUntilPickedClean_AndItsForecastIsItsTime()
+    {
+        var heap = new StockPool("Bone Heap", StockKind.Harvest, 20, [new StockItem(Resource.Bone, 15, 1)], RevealAtHours: 0);
+        var w = WithPools(Forage, heap);
+        Items.Pack(w, P).Gear.Add(Items.Make("large_bag"));
+        FastForwardTo(w, 8);
+        var verb = Verbs.At(w, P).All.Single(v => v.Activity is Gather { Pool: 1 });
+        Assert.Equal(Verbs.UntilDoneMinutes, verb.Minutes);
+        int forecast = Work.StockMinutesLeft(w, w.Agent(P), (Gather)verb.Activity)!.Value;
+        var r = Sim.Step(w, verb.Activity, verb.Minutes);
+        Assert.Equal(("the Bone Heap is picked clean", forecast), (r.InterruptedReason, r.MinutesElapsed));
+        Assert.Equal(15.0, Items.Have(Items.Pack(w, P), Resource.Bone), 9);
+        Assert.Equal(0, Work.StockMinutesLeft(w, w.Agent(P), (Gather)verb.Activity));
+    }
+
     /// old game: the player's harvest never checked the tool a harvestable required; only NPCs did (bug, fixed).
     [Fact]
     public void AHarvestThatNeedsATool_IsRefusedWithoutIt()
