@@ -39,6 +39,15 @@ public sealed record HaulInput(Resource Resource, double Kg, int Count);
 /// Source: "recipe" from recipes.json, or "spec" for a recipe not in the game yet.
 public sealed record HaulNeed(string Name, string Source, IReadOnlyList<HaulInput> Inputs, double BudgetHours);
 
+/// A fresh forest hour's food in kcal, and a day of HaulFoodHours food-focused fresh hours against the day's burn.
+public sealed record FoodHaul(double GeneralHourKcal, double FocusedHourKcal, double SampledFocusedHourKcal, double BurnKcal)
+{
+    public double DayKcal => FocusedHourKcal * Report.HaulFoodHours;
+    public double SampledDayKcal => SampledFocusedHourKcal * Report.HaulFoodHours;
+    public bool Ok => Math.Abs(DayKcal - BurnKcal) <= BurnKcal * Report.HaulTolerancePct
+        && Math.Abs(SampledDayKcal - BurnKcal) <= BurnKcal * Report.HaulTolerancePct;
+}
+
 public sealed record HaulNeedRow(HaulNeed Need, double Hours, string Ground, IReadOnlyList<string> Others)
 {
     public bool Ok => Hours <= Need.BudgetHours * (1 + Report.HaulTolerancePct);
@@ -424,21 +433,44 @@ public static class Report
     }
 
     /// The mean of HaulSampleHours fresh first hours through Pools.Forage, one luck each, as a search rolls it.
-    static Dictionary<Resource, double> SampledHour(ForagePool pool, int seed, string ground)
+    static Dictionary<Resource, double> SampledHour(ForagePool pool, int seed, string ground, ForageFocus focus = ForageFocus.General)
     {
-        var tile = new TileId(0, 0);
-        var w = new World { Seed = seed, PoolCache = new() { [tile] = [pool] } };
-        var id = new PoolId(tile, 0);
-        var rng = Rng.ForSystem(seed, "haul " + ground);
+        var (w, id) = HaulWorld(pool, seed);
+        var rng = Rng.ForSystem(seed, "haul " + ground + (focus == ForageFocus.General ? "" : " " + focus));
         var kg = new Dictionary<Resource, double>();
         for (int h = 0; h < HaulSampleHours; h++)
         {
             w.Tiles.Clear();
             double luck = Pools.RollLuck(rng);
             for (int m = 0; m < 60; m++, w.Minute++)
-                foreach (var (r, found) in Pools.Forage(w, id, 1 / 60.0, rng, luck)) kg[r] = kg.GetValueOrDefault(r) + found / HaulSampleHours;
+                foreach (var (r, found) in Pools.Forage(w, id, 1 / 60.0, rng, luck, focus)) kg[r] = kg.GetValueOrDefault(r) + found / HaulSampleHours;
         }
         return kg;
+    }
+
+    static (World World, PoolId Id) HaulWorld(ForagePool pool, int seed)
+    {
+        var tile = new TileId(0, 0);
+        return (new World { Seed = seed, PoolCache = new() { [tile] = [pool] } }, new PoolId(tile, 0));
+    }
+
+    /// A day's foraging for food: this many hours of it, the rest of the day resting.
+    public const int HaulFoodHours = 7;
+
+    /// The day's burn is a healthy person's at the sim's factors for foraging and resting. In-focus finds are all kept.
+    public static FoodHaul HaulFood(int seed)
+    {
+        var pool = HaulGrounds().Single(g => g.Ground == nameof(Terrain.Forest)).Pool;
+        static double Kcal(IReadOnlyDictionary<Resource, double> kg) =>
+            kg.Where(k => Items.Resources[k.Key].Category == ResourceCategory.Food).Sum(k => k.Value * Items.Resources[k.Key].KcalPerKg);
+        double ForecastHour(ForageFocus focus) => Kcal(Pools.ExpectedForageByMinute(pool, pool.Density, focus: focus).Skip(59).First());
+        var (w, id) = HaulWorld(pool, seed);
+        var body = BodyState.BaselineHuman();
+        double forageFactor = Sim.ActivityFactor(w, id.Tile, new Gather(AgentId.Player, id.Index, ForageFocus.Food));
+        double restFactor = Sim.ActivityFactor(w, id.Tile, new Rest(AgentId.Player));
+        double burnKcal = (Body.MetabolismKcalPerDay(body, forageFactor) * HaulFoodHours + Body.MetabolismKcalPerDay(body, restFactor) * (24 - HaulFoodHours)) / 24;
+        return new FoodHaul(ForecastHour(ForageFocus.General), ForecastHour(ForageFocus.Food),
+            Kcal(SampledHour(pool, seed, nameof(Terrain.Forest), ForageFocus.Food)), burnKcal);
     }
 
     /// Everyday things and camp comforts: recipe inputs (first alternatives), or the spec's where no recipe is yet.
@@ -516,6 +548,13 @@ public static class Report
             var row = HaulHours(need);
             sb.Append(Invariant($"{need.Name,-22} {need.Source,-6} {(double.IsInfinity(row.Hours) ? " > 24" : Invariant($"{row.Hours,6:0.00}")),6} {need.BudgetHours,7:0.0}  {row.Ground,-16} {(row.Others.Count == 0 ? "-" : string.Join(", ", row.Others))}  {(row.Ok ? "ok" : "OVER")}\n"));
         }
+        var food = HaulFood(seed);
+        sb.Append(Invariant($"\n# food: a fresh Forest hour; the day is {HaulFoodHours} food-focused hours, each on a fresh tile, and {24 - HaulFoodHours} resting\n"));
+        sb.Append("                       forecast  sampled\n");
+        sb.Append(Invariant($"hour, general kcal     {food.GeneralHourKcal,8:0}\n"));
+        sb.Append(Invariant($"hour, food focus kcal  {food.FocusedHourKcal,8:0} {food.SampledFocusedHourKcal,8:0}\n"));
+        sb.Append(Invariant($"day, food focus kcal   {food.DayKcal,8:0} {food.SampledDayKcal,8:0}\n"));
+        sb.Append(Invariant($"day's burn kcal        {food.BurnKcal,8:0}  {(food.Ok ? "ok" : Math.Min(food.DayKcal, food.SampledDayKcal) < food.BurnKcal ? "LOW" : "HIGH")}\n"));
         return sb.ToString();
     }
 

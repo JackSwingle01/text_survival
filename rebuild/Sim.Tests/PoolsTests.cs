@@ -123,9 +123,10 @@ public class PoolsTests
 
     // ---- forage ----
 
-    /// Statistical golden: mixed forest at density 1.0, one call a minute, at #152's rates: 6.2968 kg in the first
-    /// hour (3.3063 branches, 0.2550 food), 8.5891 kg in hours 2-3. The first hour is the haul report's forest hour
-    /// (Report.HaulText, 6.29 kg). The old ForageFeature's, before the rates rose: 5.2956 (3.5905, 0.2575), 8.1236.
+    /// Statistical golden: mixed forest at density 1.0, one call a minute, at #286's rates: 6.3682 kg in the first
+    /// hour (3.3063 branches, 0.3264 food), 8.6875 kg in hours 2-3. The first hour is the haul report's forest hour
+    /// (Report.HaulText). #152's, before food weighed 1.28x: 6.2968 (3.3063, 0.2550), 8.5891. The old ForageFeature's,
+    /// before the rates rose: 5.2956 (3.5905, 0.2575), 8.1236.
     [Fact]
     public void Forage_YieldsAndThins_AtTheHaulRates()
     {
@@ -145,10 +146,10 @@ public class PoolsTests
                     if (Items.Resources[r].Category == ResourceCategory.Food) food += kg;
                 }
         }
-        Assert.InRange(hour1 / trials, 6.2968 * 0.95, 6.2968 * 1.05);
+        Assert.InRange(hour1 / trials, 6.3682 * 0.95, 6.3682 * 1.05);
         Assert.InRange(wood / trials, 3.3063 * 0.93, 3.3063 * 1.07);
-        Assert.InRange(food / trials, 0.2550 * 0.85, 0.2550 * 1.15);
-        Assert.InRange(later / trials, 8.5891 * 0.95, 8.5891 * 1.05);
+        Assert.InRange(food / trials, 0.3264 * 0.85, 0.3264 * 1.15);
+        Assert.InRange(later / trials, 8.6875 * 0.95, 8.6875 * 1.05);
     }
 
     [Fact]
