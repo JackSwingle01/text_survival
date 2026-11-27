@@ -82,3 +82,32 @@ export function cardPlace(tile, card, area, prefer, me = null) {
   const [side, left, top] = spots.find(s => fits(s) && !over(s, me) && !over(s, tile)) ?? spots.find(fits) ?? spots[0];
   return { left: Math.round(left), top: Math.round(top), side };
 }
+
+/** Sets an element's contents to `html`, keeping every node that is already as wanted. A paced job re-renders
+ *  the panels many times a second; rebuilding them with innerHTML made new <img>s each time, which some browsers
+ *  show blank until decoded again (the icons flickered). An unchanged string costs nothing. */
+export function setHtml(el, html) {
+  if (el.__html === html) return;
+  el.__html = html;
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  morphChildren(el, t.content);
+}
+
+function morphChildren(to, from) {
+  const want = [...from.childNodes];
+  for (let i = 0; i < want.length; i++) {
+    const have = to.childNodes[i], w = want[i];
+    if (!have) to.appendChild(w);
+    else if (have.nodeType !== w.nodeType || have.nodeName !== w.nodeName) to.replaceChild(w, have);
+    else if (have.nodeType === Node.ELEMENT_NODE) morphElement(have, w);
+    else if (have.nodeValue !== w.nodeValue) have.nodeValue = w.nodeValue;
+  }
+  while (to.childNodes.length > want.length) to.lastChild.remove();
+}
+
+function morphElement(have, w) {
+  for (const a of [...have.attributes]) if (!w.hasAttribute(a.name)) have.removeAttribute(a.name);
+  for (const a of w.attributes) if (have.getAttribute(a.name) !== a.value) have.setAttribute(a.name, a.value);
+  morphChildren(have, w);
+}
