@@ -16,12 +16,14 @@ name: Nightly
 # build queue: the Slow tests gate no PR.
 # - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds. It reports and never gates: its result is
 #   not in the run's issue.
+# - food-bench: the food chain bench (FoodBenchReport): who kills and eats what, per day and week, over
+#   fixed seeds. It reports and never gates either.
 # Baselines. A run on main commits what it measured to the `baselines` branch (the baseline job,
-# .github/scripts/publish_baselines.sh): npc-bench.txt, and cohesion-gate.txt, the lines the cohesion
-# gate printed in the slow job. A change is compared with those instead of measuring main again
+# .github/scripts/publish_baselines.sh): npc-bench.txt, food-bench.txt, and cohesion-gate.txt, the lines
+# the cohesion gate printed in the slow job. A change is compared with those instead of measuring main again
 # (`git fetch origin baselines`, then `git show FETCH_HEAD:npc-bench.txt`). A branch is fetched with
 # git alone; an artifact needs a token that may read Actions, and expires. A run on a branch uploads
-# the same two files as artifacts (`npc-bench`, `cohesion-gate`) and its summary shows them: that
+# the same files as artifacts (`npc-bench`, `food-bench`, `cohesion-gate`) and its summary shows them: that
 # branch's "after".
 # Run it on a branch before merging something risky: gh workflow run nightly.yml --ref <branch>
 # (a branch's failures are in its log; they open no issue).
@@ -152,11 +154,45 @@ jobs:
           path: ${{ runner.temp }}/npc-bench/npc-bench.txt
           retention-days: 30
 
+  # The valley's food chain over many seeds: a seed's 60 days cost minutes, so the seeds run side by side
+  # and the report is one text, written when they have all finished.
+  food-bench:
+    name: Food chain bench
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      FOOD_BENCH: "1"
+      FOOD_BENCH_SEEDS: "1,3,5,7,11,17,42,777,2024,101,202,303,404,505,606,707,808,909,1111,1212"
+      FOOD_BENCH_DAYS: "60"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build rebuild/Sim.Tests -c Release
+      # A run cut off at the hour writes no report; the header alone is not published.
+      - name: Bench
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/food-bench"
+          export FOOD_BENCH_OUT="$RUNNER_TEMP/food-bench/report.txt"
+          timeout 60m dotnet test rebuild/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~FoodBenchReport" || true
+          {
+            echo "Food bench: $GITHUB_REF_NAME at $GITHUB_SHA, $(date -u +%Y-%m-%d), $FOOD_BENCH_DAYS days, Release"
+            if [ -f "$FOOD_BENCH_OUT" ]; then cat "$FOOD_BENCH_OUT"; fi
+          } > "$RUNNER_TEMP/food-bench/food-bench.txt"
+          { echo '```'; cat "$RUNNER_TEMP/food-bench/food-bench.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: food-bench
+          path: ${{ runner.temp }}/food-bench/food-bench.txt
+          retention-days: 30
+
   # However the tests went: a failing night still measured something, and a file with no measurements
   # leaves the branch's last one in place. `contents: write` is for the push to `baselines` alone.
   baseline:
     name: publish main's baselines
-    needs: [test, npc-bench]
+    needs: [test, npc-bench, food-bench]
     if: always() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -172,7 +208,7 @@ jobs:
           set -euo pipefail
           new="$RUNNER_TEMP/new"
           mkdir -p "$new"
-          for name in npc-bench cohesion-gate; do
+          for name in npc-bench food-bench cohesion-gate; do
             gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$name" --dir "$new" || true
           done
           bash .github/scripts/publish_baselines.sh "$new" | tee -a "$GITHUB_STEP_SUMMARY"
