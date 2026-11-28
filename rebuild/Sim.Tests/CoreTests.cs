@@ -15,6 +15,7 @@ public class CoreTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SameSeedAndActions_GiveIdenticalWorld()
     {
         Assert.Equal(Save.ToJson(Play(7)), Save.ToJson(Play(7)));
