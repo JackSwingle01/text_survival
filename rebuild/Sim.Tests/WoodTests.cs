@@ -230,14 +230,14 @@ public class WoodTests(ITestOutputHelper output)
             var forage = Pools.ForageAt(w, tile)!.Value;
             var pack = Items.Pack(w, P);
             double FireHours(Inventory? inv) => inv == null ? 0 : Items.Totals(inv).Where(x => x.Resource == Resource.Stick || Branches.Contains(x.Resource)).Sum(x => Fire.FuelHours(x.Resource, x.Kg));
-            double energy = w.Agent(P).Body.EnergyMinutes;
+            double debt = w.Agent(P).Body.SleepDebtMinutes;
             int minutes = 0;
             while (FireHours(w.Tiles.GetValueOrDefault(tile)?.Pile) + FireHours(pack) < Report.MinFuelFireHours && minutes < 24 * 60)
             {
                 minutes += Sim.Step(w, new Gather(P, forage.Index, ForageFocus.Fuel), 60).MinutesElapsed;
                 foreach (var r in Branches.Append(Resource.Stick))
                     if (Items.Have(pack, r) > 0) Sim.Step(w, new PutDown(P, r, Items.Have(pack, r)), 1);
-                w.Agent(P).Body.EnergyMinutes = energy; // the hours of foraging are the measure, not whether one body lasts them
+                w.Agent(P).Body.SleepDebtMinutes = debt; // the hours of foraging are the measure, not whether one body lasts them
             }
             Assert.True(minutes < 24 * 60, $"a night's fire took more than a day's foraging ({minutes} min)");
             return minutes / 60.0;

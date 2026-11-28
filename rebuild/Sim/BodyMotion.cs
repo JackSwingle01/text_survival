@@ -5,7 +5,7 @@ public static partial class Body
 {
     const double RecoveryAtRestSeconds = 360; // Skiba 2012
     /// So all-out fight after fight makes you tired.
-    public const double SpentReserveEnergyMinutes = 5;
+    public const double SpentReserveDebtMinutes = 5;
     const double BurstMetabolicFactor = 20;
     const double JoulesPerKcal = 4184;
     /// An exponential refill never quite ends.
@@ -81,7 +81,7 @@ public static partial class Body
         if (pct <= 0) return;
         bool had = body.SprintSpentLevel < 1;
         body.SprintSpentLevel = Math.Min(1, body.SprintSpentLevel + pct);
-        if (had && body.SprintSpentLevel >= 1) body.EnergyMinutes = Math.Max(0, body.EnergyMinutes - SpentReserveEnergyMinutes);
+        if (had && body.SprintSpentLevel >= 1) body.SleepDebtMinutes += SpentReserveDebtMinutes;
     }
 
     static void Recover(BodyState body, double seconds)

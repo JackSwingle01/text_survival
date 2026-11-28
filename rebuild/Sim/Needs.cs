@@ -17,6 +17,8 @@ public static partial class Fauna
     const int SenseEveryMinutes = 5, KeepSightingMinutes = 180, PlanAgainEveryMinutes = 120;
     /// Asleep away from its den, a denning animal sleeps lighter (D).
     const double OpenSleepFactor = 0.75;
+    /// Off its hours it lies down from this share of a waking day owed.
+    const double OffHoursRestWakingDayPct = 0.2;
 
     // Sightings are read by loops here and below: these run per tile or per minute, where a lambda costs an object each.
     sealed class AnimalView(World world, HerdMind mind) : WorldView
@@ -39,20 +41,22 @@ public static partial class Fauna
     /// A forecast: what an animal drinks a minute where it stands (Work.WaterAt, from what it knows).
     public static Source? WaterHere(World world, Agent animal) => Work.WaterAt(new AnimalView(world, MindOf(animal)), animal.Tile, animal.Body);
 
-    /// A forecast: the rest a minute's sleep here buys, in energy minutes (Body.EnergyDeltaPerMinute).
+    /// A forecast: the debt a minute's sleep here repays, at the debt as it stands.
     public static double RestPerMinute(Agent animal, TileId tile) =>
-        Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(animal.Species).SleepHoursPerDay) * SleepFactor(animal, tile);
+        SleepDebt.RepayPerMinute(SpeciesTable.Of(animal.Species), animal.Body.SleepDebtMinutes) * SleepFactor(animal, tile);
 
     static double SleepFactor(Agent animal, TileId tile) => MindOf(animal).Den is TileId den && den != tile ? OpenSleepFactor : 1;
 
-    /// Outside its active hours it would rather rest: from below rested, until full.
+    /// Outside its active hours it would rather rest: from OffHoursRestWakingDayPct of a waking day's debt, until repaid.
     static (Stat Stat, Priority Priority)? Due(World world, Agent animal, HerdMind mind)
     {
         var body = animal.Body;
         var water = Priorities.WaterPriority(body.HydrationPct, mind.Plan?.Stat == Stat.Water, double.PositiveInfinity, 0);
         bool resting = mind.Plan?.Stat == Stat.Rest;
-        var rest = Priorities.RestPriority(body.EnergyPct, resting);
-        if (!ActiveNow(world, animal.Species) && body.EnergyPct < (resting ? 1 : Priorities.RestedPct) && rest < Priority.Need) rest = Priority.Need;
+        var row = SpeciesTable.Of(animal.Species);
+        var rest = Priorities.RestPriority(row, body.SleepDebtMinutes, resting);
+        if (!ActiveNow(world, animal.Species) && body.SleepDebtMinutes > (resting ? 0 : OffHoursRestWakingDayPct * SleepDebt.WakingDayMinutes(row))
+            && rest < Priority.Need) rest = Priority.Need;
         var food = Priorities.AnimalFoodPriority(body, animal.Species, seeingTo: mind.Plan?.Stat == Stat.Food);
         var priorities = new StatPriorities(Priority.None, water, food, rest);
         // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
@@ -405,7 +409,7 @@ public static partial class Fauna
         {
             Stat.Water => (Priorities.WaterAgainPct - body.HydrationPct) * Body.MaxHydrationMlOf(body),
             Stat.Food => RoomKcal(animal, body),
-            _ => (Priorities.RestedPct - body.EnergyPct) * Body.MaxEnergyMinutes,
+            _ => body.SleepDebtMinutes,
         });
         double best = stat == Stat.Food ? Math.Max(Math.Max(row.GrazeKcalPerMinute, IsPrey(animal.Species) ? 0 : FeedKcalPerMinute), RichestBiteKcal(animal.Species))
             : double.PositiveInfinity;

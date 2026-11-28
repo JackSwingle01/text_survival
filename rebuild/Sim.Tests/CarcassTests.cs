@@ -243,7 +243,7 @@ public class CarcassTests
             Sim.Step(w, new PutDown(P, Resource.RawMeat, 99), 1);
             foreach (var res in new[] { Resource.Bone, Resource.Hide, Resource.Sinew, Resource.RawFat }) Sim.Step(w, new PutDown(P, res, 99), 1);
             Sim.Step(w, new Butcher(P, c.Id), 60);
-            w.Agent(P).Body.EnergyMinutes = Body.MaxEnergyMinutes;
+            w.Agent(P).Body.SleepDebtMinutes = 0;
             w.Agent(P).Body.CaloriesKcal = 1500; w.Agent(P).Body.HydrationMl = 3000;
         }
         Assert.True(Carcasses.IsButchered(c));
@@ -285,7 +285,7 @@ public class CarcassTests
     static void Refresh(World w)
     {
         var body = w.Agent(P).Body;
-        body.EnergyMinutes = Body.MaxEnergyMinutes;
+        body.SleepDebtMinutes = 0;
         body.CaloriesKcal = 1500;
         body.HydrationMl = 3000;
     }

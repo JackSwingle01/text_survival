@@ -61,7 +61,7 @@ public class WastingTests
     static BodyState FedFull(Sex sex = Sex.Male)
     {
         var b = BodyState.BaselineHuman(sex);
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (Body.CaloriesCapacityKcal(b), Body.MaxHydrationMlOf(b), Body.MaxEnergyMinutes);
+        (b.CaloriesKcal, b.HydrationMl, b.SleepDebtMinutes) = (Body.CaloriesCapacityKcal(b), Body.MaxHydrationMlOf(b), 0);
         return b;
     }
 
@@ -123,7 +123,7 @@ public class WastingTests
         for (int m = 0; m < 60; m++)
         {
             Body.SpendKcal(wolf, Body.BurnKcalPerMinute(wolf, 1.6));
-            Body.LiveNeeds(wolf, Species.Wolf, sleeping: false, 10, 1, rng);
+            Body.LiveNeeds(wolf, Species.Wolf, sleeping: false, 1, rng);
         }
         double muscleLost = muscle - wolf.MuscleKg, fatLost = fat - wolf.FatKg;
         Assert.InRange(muscleLost / (muscleLost + fatLost), 10.4 / (10.4 + fat) - 0.01, 10.4 / (10.4 + fat) + 0.01);
@@ -143,7 +143,7 @@ public class WastingTests
         {
             if (m % 60 == 0) Body.Drink(wolf, Body.MaxHydrationMlOf(wolf));
             Body.SpendKcal(wolf, Body.BurnKcalPerMinute(wolf, 1.6));
-            Body.LiveNeeds(wolf, Species.Wolf, sleeping: false, 10, 1, rng);
+            Body.LiveNeeds(wolf, Species.Wolf, sleeping: false, 1, rng);
             Assert.True(wolf.FatKg > 0 && wolf.MuscleKg > 0, $"minute {m}: fat {wolf.FatKg}, muscle {wolf.MuscleKg}");
         }
         Assert.False(Body.IsAlive(wolf));

@@ -106,7 +106,7 @@ public static partial class Fauna
     internal static void Live(World world, Agent animal, BodyState body, bool sleeping)
     {
         Burn(body);
-        Body.LiveNeeds(body, animal.Species, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
+        Body.LiveNeeds(body, animal.Species, sleeping, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
         if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body, animal.Species) == (0, 0, 0) && body.CaloriesPct > Body.RegenMinCaloriesPct) Mend(body);
     }
 

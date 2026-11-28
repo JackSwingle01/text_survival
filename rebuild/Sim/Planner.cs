@@ -16,7 +16,7 @@ public abstract class WorldView
 
 public readonly record struct GroundSeen(double SnowDepthM, double PondLiquidM);
 
-/// A forecast of what a source pays: units a minute (ml of water, energy minutes), kcal a unit, and minutes of work before it pays (a break-in), charged as travel.
+/// A forecast of what a source pays: units a minute (ml of water, sleep debt minutes repaid), kcal a unit, and minutes of work before it pays (a break-in), charged as travel.
 public readonly record struct Source(double PerMinute, double KcalPerUnit = 0, int SetupMinutes = 0);
 
 public sealed record Asking(Stat Stat, Priority Priority, double Amount, double EarnKcalPerMinute, double Cohesion, Func<TileId, bool> KinAt,

@@ -204,7 +204,7 @@ public class SaveFixtureTests
         // A good meal and a day without hunger behind it (Well fed), and the NPC asleep where it dropped.
         Body.Eat(w.Agent(P).Body, 2500);
         w.Agent(P).Body.MinutesWithoutHunger = 24 * 60;
-        w.Agent(npc).Body.EnergyMinutes = 0;
+        w.Agent(npc).Body.SleepDebtMinutes = 48 * 60;
         Effects.Set(w.Agent(npc).Body, EffectKind.Asleep, 40 / 90.0);
         Effects.Set(w.Agent(P).Body, EffectKind.Dirty, 0.3);
         ((NpcMind)w.Agent(npc).Mind).Plan = new NpcPlan(Stat.Warmth, Priority.Need, w.Minute, 90); // a committed plan, saved by name

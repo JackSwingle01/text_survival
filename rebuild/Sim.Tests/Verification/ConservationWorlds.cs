@@ -122,7 +122,7 @@ static class ConservationWorlds
     {
         b.CaloriesKcal = 1800;
         b.HydrationMl = 3500;
-        b.EnergyMinutes = Body.MaxEnergyMinutes;
+        b.SleepDebtMinutes = 0;
         b.CoreTempF = Body.BaseCoreTempF;
     }
 }

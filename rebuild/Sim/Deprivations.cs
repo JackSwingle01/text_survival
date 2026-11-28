@@ -9,7 +9,7 @@ public enum Deprivation { Hungry, Thirsty, Tired }
 /// Severities 0 to 1 from the stores as they stand: a deprivation lifts the moment its need is met.
 public static class Deprivations
 {
-    public const double ThirstOnsetPct = 0.50, HungerOnsetPct = 0.30, TiredOnsetPct = 0.30;
+    public const double ThirstOnsetPct = 0.50, HungerOnsetPct = 0.30;
 
     /// What each multiplies at full: never zero, so no mix takes a faculty there. Thirst reads blood as if 15% were lost.
     const double TiredConsciousnessPct = 0.5, ThirstyConsciousnessPct = 0.7, HungryConsciousnessPct = 0.9;
@@ -25,7 +25,7 @@ public static class Deprivations
     {
         Deprivation.Hungry => Below(HungerOnsetPct, body.CaloriesKcal / Body.CaloriesCapacityKcal(body)),
         Deprivation.Thirsty => Below(ThirstOnsetPct, body.HydrationMl / Body.MaxHydrationMlOf(body)),
-        Deprivation.Tired => Below(TiredOnsetPct, body.EnergyMinutes / Body.MaxEnergyMinutes),
+        Deprivation.Tired => SleepDebt.TiredSeverity(SpeciesTable.Of(Species.Human), body.SleepDebtMinutes),
         _ => throw new ArgumentOutOfRangeException(nameof(d), d, "No store for this deprivation"),
     };
 

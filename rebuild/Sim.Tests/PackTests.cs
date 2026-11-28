@@ -14,7 +14,7 @@ public class PackTests(ITestOutputHelper output)
         foreach (var wolf in pack)
         {
             TestKit.SetHunger(wolf, hunger);
-            wolf.Body.EnergyMinutes = Body.MaxEnergyMinutes;
+            wolf.Body.SleepDebtMinutes = 0;
         }
         return pack;
     }

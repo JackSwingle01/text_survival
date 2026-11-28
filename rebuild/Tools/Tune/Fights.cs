@@ -138,7 +138,7 @@ public sealed class Fights
             switch (cond)
             {
                 case "healthy": break;
-                case "tired": b.EnergyMinutes = 48; break; // tiredness is read from the store: (0.3 - 48/960)/0.3
+                case "tired": b.SleepDebtMinutes = 43 * 60; break; // tiredness read from the debt: (43 - 18) / (48 - 18), as the old store at 48 of 960
                 case "hungry":
                     b.CaloriesKcal = 0;
                     b.FatKg = 0.06 * b.WeightKg; // hunger is read from the stores: an empty stomach's pang, fat to spare

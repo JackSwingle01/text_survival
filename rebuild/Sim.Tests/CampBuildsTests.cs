@@ -274,7 +274,7 @@ public class CampBuildsTests
             if (r.Events.OfType<Made>().Any(e => e.Succeeded)) return minutes;
             Assert.True(r.InterruptedReason is null or Making.Spoiled, $"{recipe}: {r.InterruptedReason}");
             var body = w.Agent(P).Body;
-            (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+            (body.SleepDebtMinutes, body.HydrationMl) = (0, Body.MaxHydrationMl);
         }
         throw new Xunit.Sdk.XunitException($"{recipe} was never made");
     }

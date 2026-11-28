@@ -559,7 +559,7 @@ public class MakeTests
         for (int i = 0; i < runs; i++)
         {
             KeepTheFireUp(w, pack);
-            (agent.Body.EnergyMinutes, agent.Body.HydrationMl, agent.Body.CaloriesKcal) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl, Body.CaloriesCapacityKcal(agent.Body));
+            (agent.Body.SleepDebtMinutes, agent.Body.HydrationMl, agent.Body.CaloriesKcal) = (0, Body.MaxHydrationMl, Body.CaloriesCapacityKcal(agent.Body));
             ((PersonMind)agent.Mind).Skills.Clear();
             agent.Body.Effects.Clear();
             pack.Gear[0].Durability = Items.Def(pack.Gear[0]).MaxDurability;
@@ -759,7 +759,7 @@ public class MakeTests
                 Assert.True(hours < 2 * r.Minutes / 60, $"{r.Id}: not done on the rack");
                 KeepTheFireUp(w, pack);
                 var body = w.Agent(P).Body;
-                (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+                (body.SleepDebtMinutes, body.HydrationMl) = (0, Body.MaxHydrationMl);
                 body.Effects.Clear();
                 done = Sim.Advance(w, 60).OfType<TransformationFinished>().Any(f => f.Recipe == r.Id);
             }
@@ -790,7 +790,7 @@ public class MakeTests
                 KeepTheFireUp(w, pack);
                 // The sleep, food and water between days of work, which this test is not about.
                 var body = w.Agent(P).Body;
-                (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+                (body.SleepDebtMinutes, body.HydrationMl) = (0, Body.MaxHydrationMl);
                 body.Effects.Clear();
                 // A tool worn out on earlier work is made again, as a player would.
                 foreach (var cap in r.Tools.Where(c => !pack.Gear.Any(g => Items.Works(g) && Items.Def(g).Capabilities.Contains(c))).ToList())
