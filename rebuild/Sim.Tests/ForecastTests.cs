@@ -733,11 +733,11 @@ public class ForecastTests
         Sim.Advance(w, 3 * 60); // noon: outside a wolf's hours
         var at = new TileId(20, 1);
         var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, at, atItsDen ? at : new TileId(30, 1)));
-        wolf.Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes;
-        double rest = Fauna.RestPerMinute(wolf, at), before = wolf.Body.EnergyMinutes;
-        Assert.Equal(Body.EnergyDeltaPerMinute(sleeping: true, SpeciesTable.Of(Species.Wolf).SleepHoursPerDay) * (atItsDen ? 1 : 0.75), rest, 9);
+        wolf.Body.SleepDebtMinutes = 10 * 60;
+        double rest = Fauna.RestPerMinute(wolf, at), before = wolf.Body.SleepDebtMinutes;
+        Assert.Equal(SleepDebt.RepayPerMinute(SpeciesTable.Of(Species.Wolf), before) * (atItsDen ? 1 : 0.75), rest, 9);
         Sim.Advance(w, 1);
-        Assert.Equal(before + rest, wolf.Body.EnergyMinutes, 6);
+        Assert.Equal(before - rest, wolf.Body.SleepDebtMinutes, 6);
     }
 
     /// Combat.KillChance and Combat.InjuryChance against fresh headless pack hunts (trials the tables were not measured on): each

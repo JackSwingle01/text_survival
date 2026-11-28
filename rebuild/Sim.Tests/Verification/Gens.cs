@@ -107,7 +107,7 @@ static class Gens
     /// every output is a pure function of the input (the cold's harm below 95 °F is one too). An injury, when there is one, is a blunt blow
     /// to the left leg, so there is something for sleep and regeneration to heal.
     public sealed record BodyInput(double CoreTempF, double WetPct, double ClothingHeatBufferPct,
-        double CaloriesKcal, double HydrationMl, double EnergyMinutes, double InjuryAmount)
+        double CaloriesKcal, double HydrationMl, double SleepDebtMinutes, double InjuryAmount)
     {
         public BodyState Build()
         {
@@ -116,7 +116,7 @@ static class Gens
             b.ClothingHeatBufferPct = ClothingHeatBufferPct;
             b.CaloriesKcal = CaloriesKcal;
             b.HydrationMl = HydrationMl;
-            b.EnergyMinutes = EnergyMinutes;
+            b.SleepDebtMinutes = SleepDebtMinutes;
             if (InjuryAmount > 0) Body.Damage(b, new DamageInfo(InjuryAmount, DamageType.Blunt, BodyTarget.LeftLeg), Rng());
             Effects.Set(b, EffectKind.Wet, WetPct);
             return b;
@@ -129,7 +129,7 @@ static class Gens
         Gen.Double[0, 1],          // clothing heat buffer
         Gen.Double[300, 2000],     // kcal: above the regeneration gate (200) up to full
         Gen.Double[500, 4000],     // ml: above the regeneration gate (400) up to full
-        Gen.Double[490, 960],      // waking minutes: rested enough to heal (480) up to full
+        Gen.Double[0, 470],        // sleep debt: rested enough to heal awake (up to 480)
         Gen.Frequency((1, Gen.Const(0.0)), (1, Gen.Double[1, 20])), // a bruise to a bad blow, never a break that kills
         (core, wet, buf, kcal, ml, energy, injury) => new BodyInput(core, wet, buf, kcal, ml, energy, injury));
 

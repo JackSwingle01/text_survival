@@ -439,7 +439,7 @@ public static class CohesionGate
             if (minute >= WarmUpDays * 1440) allocatedAtWarmUp ??= GC.GetAllocatedBytesForCurrentThread();
             var events = Sim.Advance(w, LookEveryMinutes);
             var body = w.Agent(AgentId.Player).Body;
-            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
+            (body.HydrationMl, body.CaloriesKcal, body.SleepDebtMinutes) = (3000, 2000, 60); // the player stays out of it, alive
             if (minute < WarmUpDays * 1440) continue;
             foreach (var e in events)
             {

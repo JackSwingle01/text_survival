@@ -116,7 +116,7 @@ public sealed class Observer
         lines.Add($"Warmth: {Words.Of(priorities.Warmth)} · body {b.CoreTempF:0.0}°F");
         lines.Add($"Food: {Words.Of(priorities.Food)} · {b.CaloriesKcal:0} kcal · fat {b.FatKg:0.0} kg");
         lines.Add($"Water: {Words.Of(priorities.Water)} · {b.HydrationPct:P0}");
-        lines.Add($"Rest: {Words.Of(priorities.Rest)} · {b.EnergyPct:P0}");
+        lines.Add($"Rest: {Words.Of(priorities.Rest)} · {ViewBuilder.Rested(b):P0}");
         foreach (var (kind, severity) in Deprivations.Of(b).Where(d => d.Severity > 0.01)) lines.Add($"{Names.Title(kind)} {severity:P0}");
         foreach (var e in b.Effects.Where(e => e.Severity > 0.01)) lines.Add($"{Names.Title(e.Kind)} {e.Severity:P0}");
         lines.Add($"Carrying {Items.CarriedKg(a):0.0} kg");

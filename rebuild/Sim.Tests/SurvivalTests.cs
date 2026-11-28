@@ -19,21 +19,21 @@ public class SurvivalTests
     // ---- needs ----
 
     [Fact]
-    public void AnHourAwake_SpendsEnergyWaterAndFood()
+    public void AnHourAwake_AddsSleepDebt_AndSpendsWaterAndFood()
     {
         var b = Baseline();
         var d = Body.Process(b, Room(), 60, TestRng());
-        Assert.True(d.EnergyDeltaMinutes < 0 && d.HydrationDeltaMl < 0 && d.CaloriesDeltaKcal < 0);
+        Assert.True(d.SleepDebtDeltaMinutes > 0 && d.HydrationDeltaMl < 0 && d.CaloriesDeltaKcal < 0);
 
         Body.Apply(b, d, TestRng());
-        Assert.True(b.EnergyMinutes < 900 && b.HydrationMl < 3000 && b.CaloriesKcal < 1500);
+        Assert.True(b.SleepDebtMinutes > 60 && b.HydrationMl < 3000 && b.CaloriesKcal < 1500);
     }
 
     [Fact]
-    public void Sleep_RestoresEnergy_BurnsLess_AndLosesSeventyPercentWater()
+    public void Sleep_RepaysSleepDebt_BurnsLess_AndLosesSeventyPercentWater()
     {
         var b = Baseline();
-        Assert.True(Body.Process(b, Asleep(), 60, TestRng()).EnergyDeltaMinutes > 0);
+        Assert.True(Body.Process(b, Asleep(), 60, TestRng()).SleepDebtDeltaMinutes < 0);
 
         var asleep = Body.Process(b, Asleep(), 480, TestRng());
         var awake = Body.Process(b, Room(), 480, TestRng());
@@ -58,7 +58,7 @@ public class SurvivalTests
         var b = Baseline();
         b.CaloriesKcal = 100;
         b.HydrationMl = 100;
-        b.EnergyMinutes = 10;
+        b.SleepDebtMinutes = 48 * 60;
         Live(b, Room(), 1);
         Assert.True(Deprivations.Has(b, Deprivation.Hungry));
         Assert.True(Deprivations.Has(b, Deprivation.Thirsty));
@@ -183,7 +183,7 @@ public class SurvivalTests
         var b = Baseline();
         LiveAtMaintenance(b, 1439);
         b.Regions.Single(r => r.Name == "Left Arm").Muscle.Condition = 0.5;
-        b.EnergyMinutes = Body.MaxEnergyMinutes; // a day awake: rested again, or nothing heals
+        b.SleepDebtMinutes = 0; // a day awake: rested again, or nothing heals
         Assert.False(Effects.Has(b, EffectKind.WellFed));
         Assert.Equal((1.0, 1.0), (Effects.MetabolicHeatFactor(b), Effects.HealingFactor(b)));
 
@@ -203,22 +203,22 @@ public class SurvivalTests
 
     // ---- exhaustion ----
 
-    /// At zero energy a body does not drop at once: each minute awake there is about a 1% chance it falls
+    /// At the full hour of sleep debt a body does not drop at once: each minute awake there is about a 1% chance it falls
     /// asleep where it is, for 15 to 90 minutes, rolled on its own stream. Over 400 bodies the wait
     /// averages about a hundred minutes, few drop in the first minute, and every sleep lasts 15-90.
     [Fact]
-    public void AtZeroEnergy_FallsAsleepAboutOnceInAHundredMinutes_ForAQuarterHourToAnHourAndAHalf()
+    public void AtTheFullHour_FallsAsleepAboutOnceInAHundredMinutes_ForAQuarterHourToAnHourAndAHalf()
     {
         var waits = new List<int>();
         var sleeps = new List<int>();
         for (int seed = 1; seed <= 400; seed++)
         {
             var b = Baseline();
-            b.EnergyMinutes = 0;
+            b.SleepDebtMinutes = 48 * 60;
             var rng = Rng.ForSystem(seed, "body");
             int minute = 0;
             while (!Effects.Has(b, EffectKind.Asleep) && minute < 2000) { Body.Update(b, Room(), rng); minute++; }
-            Assert.True(Effects.Has(b, EffectKind.Asleep), $"seed {seed}: awake for 2000 minutes at zero energy");
+            Assert.True(Effects.Has(b, EffectKind.Asleep), $"seed {seed}: awake for 2000 minutes at the full hour");
             waits.Add(minute);
             int slept = 0;
             while (Effects.Has(b, EffectKind.Asleep)) { Body.Update(b, Room(), rng); slept++; }
@@ -230,12 +230,12 @@ public class SurvivalTests
         Assert.True(sleeps.Min() <= 20 && sleeps.Max() >= 85, $"sleeps {sleeps.Min()}-{sleeps.Max()}");
     }
 
-    /// Asleep, a body is not rolled again, and awake with energy left it is never rolled.
+    /// Asleep, a body is not rolled again, and awake short of the collapse onset (36 h) it is never rolled.
     [Fact]
-    public void WithEnergyLeft_NoBodyFallsAsleep()
+    public void ShortOfTheCollapseOnset_NoBodyFallsAsleep()
     {
         var b = Baseline();
-        b.EnergyMinutes = 5000 / 6.0; // most of a day
+        b.SleepDebtMinutes = 25 * 60; // ten hours later, still short of 36
         Live(b, Room(), 600);
         Assert.False(Effects.Has(b, EffectKind.Asleep));
     }
@@ -452,7 +452,7 @@ public class SurvivalTests
         Assert.True(d.HealAmount > 0);
         Assert.True(d.BloodHealedPct > 0);
 
-        b.EnergyMinutes = 100; // exhausted bodies do not heal
+        b.SleepDebtMinutes = 16 * 60; // awake, a body past half its waking day does not heal
         Assert.Equal(0, Body.Process(b, Room(), 60, TestRng()).HealAmount);
     }
 

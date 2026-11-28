@@ -21,7 +21,7 @@ public class Phase3GateTests
         if (!Body.IsAlive(me.Body)) me.Members[0] = BodyState.BaselineHuman();
         Body.Eat(me.Body, 2000);
         me.Body.HydrationMl = Body.MaxHydrationMl;
-        me.Body.EnergyMinutes = Body.MaxEnergyMinutes;
+        me.Body.SleepDebtMinutes = 0;
         var pack = Items.Pack(w, P);
         var tile = me.Tile;
         void S(Survival.Activity a, int minutes)

@@ -120,7 +120,7 @@ public static class ReferenceBodies
 
         lines.AddRange(["", OneLegDeprived, TimelineHeader]);
         body = Destroyed(Person(), "Left Leg");
-        (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (0, 0, 0);
+        (body.HydrationMl, body.CaloriesKcal, body.SleepDebtMinutes) = (0, 0, 48 * 60);
         lines.Add(TimelineRow("-", body));
         lines.Add(Crippled.Refusal(body, Faculty.Speed, default) is { } refused ? $"walks: no, {refused.Reason}" : "walks: yes");
         return string.Join('\n', lines);
@@ -218,7 +218,7 @@ public static class ReferenceBodies
     {
         if (kept.Water) Body.Drink(body, Body.MaxHydrationMlOf(body));
         if (kept.Food) Body.Eat(body, Body.CaloriesCapacityKcal(body) - body.CaloriesKcal);
-        if (kept.Rest) body.EnergyMinutes = Body.MaxEnergyMinutes;
+        if (kept.Rest) body.SleepDebtMinutes = 0;
     }
 
     static BodyState Rested(BodyState body)

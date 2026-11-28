@@ -186,7 +186,7 @@ public class KillChainTests
         BodyState Seed99()
         {
             var b = BodyState.BaselineHuman();
-            (b.CoreTempF, b.FatKg, b.MuscleKg, b.HydrationMl, b.CaloriesKcal, b.EnergyMinutes) = (92.5, 6.38, 22.5, 1923, 0, 20);
+            (b.CoreTempF, b.FatKg, b.MuscleKg, b.HydrationMl, b.CaloriesKcal, b.SleepDebtMinutes) = (92.5, 6.38, 22.5, 1923, 0, 46 * 60);
             Effects.Add(b, EffectKind.Hypothermia, 0.24);
             // Hungry and tired are read from these stores: a pang, and tiredness at 0.93.
             return b;
@@ -197,11 +197,11 @@ public class KillChainTests
 
         var spent = Seed99();
         spent.CoreTempF = Body.BaseCoreTempF;
-        spent.EnergyMinutes = 0;
+        spent.SleepDebtMinutes = 48 * 60;
         var rng = Rng.ForSystem(1, "body");
         for (int m = 0; m < 6 * 60; m++)
         {
-            spent.EnergyMinutes = 0;
+            spent.SleepDebtMinutes = 48 * 60;
             Body.Update(spent, new SurvivalContext { AirTempF = 70 }, rng);
         }
         Assert.True(Body.IsAlive(spent)); // worn out on its feet, not dead of it
@@ -299,7 +299,7 @@ public class KillChainTests
         string? stopped = null;
         for (int i = 0; i < 60 && Carcasses.Find(w, camp, c.Id) != null && stopped != Work.PackFull; i++)
         {
-            (player.Body.HydrationMl, player.Body.CaloriesKcal, player.Body.EnergyMinutes) = (3000, 2000, 900);
+            (player.Body.HydrationMl, player.Body.CaloriesKcal, player.Body.SleepDebtMinutes) = (3000, 2000, 60);
             stopped = Sim.Step(w, new Butcher(P, c.Id, ButcherMode.Careful), 15).InterruptedReason;
         }
         Assert.True(Carcasses.AllCut(c), $"stopped: {stopped}");

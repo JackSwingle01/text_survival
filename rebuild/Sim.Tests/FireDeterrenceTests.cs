@@ -63,7 +63,7 @@ public class FireDeterrenceTests(ITestOutputHelper output)
         {
             CombatTests.Normalize(w, wolf);
             TestKit.SetHunger(w.Agent(wolf), 0.5);
-            w.Agent(wolf).Body.EnergyMinutes = 0.2 * Body.MaxEnergyMinutes; // under Need, above Critical: a fire still holds it off
+            w.Agent(wolf).Body.SleepDebtMinutes = 20 * 60; // Need, not Critical: a fire still holds it off
         }
         return (w, here, pack[0]);
     }

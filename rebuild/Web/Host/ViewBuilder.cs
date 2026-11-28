@@ -181,6 +181,9 @@ sealed class ViewBuilder(World world, int gen)
             Weather.LightFromHour * 60, Weather.DarkFromHour * 60, Weather.LightLeftMinutes(world.Minute));
     }
 
+    /// The rest bar: how far a person is from the full hour of sleep debt.
+    public static double Rested(BodyState b) => Math.Clamp(1 - b.SleepDebtMinutes / SleepDebt.FullMinutes(SpeciesTable.Of(Species.Human)), 0, 1);
+
     static VitalDto[] Vitals(BodyState b, StatPriorities priorities, Exposure e)
     {
         // Warmth's bar spans the core from the hypothermia line's far side (90F) to normal.
@@ -191,7 +194,7 @@ sealed class ViewBuilder(World world, int gen)
             new("warmth", warmth, Words.Code(priorities.Warmth), $"Body {b.CoreTempF:0.0}°F{(warming ? ", by a fire" : "")}"),
             new("food", Math.Clamp(b.CaloriesPct, 0, 1), Words.Code(priorities.Food), $"{b.CaloriesKcal:0} kcal in the stomach · fat {b.FatKg:0.0} kg"),
             new("water", Math.Clamp(b.HydrationPct, 0, 1), Words.Code(priorities.Water), $"{b.HydrationPct:P0} · {b.HydrationMl / 1000:0.0} L"),
-            new("rest", Math.Clamp(b.EnergyPct, 0, 1), Words.Code(priorities.Rest), $"{b.EnergyPct:P0}"),
+            new("rest", Rested(b), Words.Code(priorities.Rest), $"{Rested(b):P0}"),
         ];
     }
 
@@ -271,7 +274,7 @@ sealed class ViewBuilder(World world, int gen)
     {
         var shown = BodyReadOut.Of(b);
         var skills = (_player.Mind as PersonMind)?.Skills ?? [];
-        return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), b.EnergyPct,
+        return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), Rested(b),
             [.. Deprivations.Of(b).Where(d => d.Severity > 0.01).Select(d => new EffectDto(Names.Title(d.Kind), Math.Round(d.Severity, 2))),
              .. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
             [.. shown.Where(c => c.Pct < 0.995).Select(c => new CapacityDto(Names.Title(c.Capacity), Math.Round(c.Pct, 3)))],

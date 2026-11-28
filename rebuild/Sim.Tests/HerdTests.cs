@@ -44,7 +44,7 @@ public class HerdTests(ITestOutputHelper output)
             var me = w.Agent(P).Body;
             Body.Eat(me, 3000);
             me.HydrationMl = Body.MaxHydrationMl;
-            me.EnergyMinutes = Body.MaxEnergyMinutes;
+            me.SleepDebtMinutes = 0;
             events.AddRange(Sim.Step(w, new Rest(P), Math.Min(60, minutes - done)).Events);
         }
         return events;
@@ -723,8 +723,8 @@ public class HerdTests(ITestOutputHelper output)
         var w = TestWorlds.New(17);
         var lone = HerdWithALameMember(w, 1);
         var body = w.Agent(lone).Body;
-        var events = Sim.Advance(w, 6 * 1440);
-        Assert.True(SpeciesTable.SpeedPct(Species.Caribou, body) > 0.9, $"speed {SpeciesTable.SpeedPct(Species.Caribou, body):F2} of a fresh one after six days");
+        var events = Sim.Advance(w, 4 * 1440); // mended by day four; on this seed a wolf takes it on day five
+        Assert.True(SpeciesTable.SpeedPct(Species.Caribou, body) > 0.9, $"speed {SpeciesTable.SpeedPct(Species.Caribou, body):F2} of a fresh one after four days");
         Assert.Contains(events.OfType<Moved>(), m => m.Who == lone);
     }
 

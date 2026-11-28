@@ -33,6 +33,8 @@ public sealed record SpeciesStats(
     double StrikeBackResolve,
     double ChaseLimitSeconds,
     double SleepHoursPerDay,
+    double TiredOnsetHours,
+    double TiredFullHours,
     ActivityPattern Activity,
     FatRange? AutumnFatPct,
     PersonBuild? Female,
@@ -98,7 +100,7 @@ public static class SpeciesTable
     static void Refreshed(BodyState body)
     {
         body.HydrationMl = Body.MaxHydrationMlOf(body);
-        body.EnergyMinutes = Body.MaxEnergyMinutes;
+        body.SleepDebtMinutes = 0;
     }
 
     public static BodyState Average(Species species, Sex sex = Sex.Male)

@@ -118,7 +118,7 @@ public class HuntGateTests
         var w = PlannerTests.Strip();
         var wolf = w.Agent(Agents.Spawn(w, Species.Wolf, T(20)));
         TestKit.SetHunger(wolf, 0.8);
-        wolf.Body.EnergyMinutes = Body.MaxEnergyMinutes;
+        wolf.Body.SleepDebtMinutes = 0;
         Agents.SpawnGroup(w, Species.Bison, T(17), 1);
         Agents.SpawnGroup(w, Species.Megaloceros, T(23), 3);
         Sim.Advance(w, 1);

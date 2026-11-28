@@ -12,16 +12,18 @@ public class DeprivationPropertyTests
     static readonly string[] Legs = ["Left Leg", "Right Leg"];
 
     public sealed record Case(double WeightKg, double FatPct, double MusclePct, double[] Conditions, double BloodPct,
-        double EncumbrancePct, double WaterPct, double CaloriesPct, double EnergyPct)
+        double EncumbrancePct, double WaterPct, double CaloriesPct, double SleepDebtHours)
     {
         public override string ToString() =>
             $"{WeightKg:0.0} kg, fat {FatPct:0.00}, muscle {MusclePct:0.00}, blood {BloodPct:0.00}, load {EncumbrancePct:0.00}, " +
-            $"water {WaterPct:0.00}, calories {CaloriesPct:0.00}, energy {EnergyPct:0.00}, tissue [{string.Join(' ', Conditions.Select(c => c.ToString("0.00")))}]";
+            $"water {WaterPct:0.00}, calories {CaloriesPct:0.00}, sleep debt {SleepDebtHours:0.0} h, tissue [{string.Join(' ', Conditions.Select(c => c.ToString("0.00")))}]";
     }
 
     /// A tissue whole, destroyed, or anywhere between.
     static readonly Gen<double> Condition = Gen.Frequency((3, Gen.Const(1.0)), (1, Gen.Const(0.0)), (2, Gen.Double[0, 1]));
     static readonly Gen<double> Store = Gen.Frequency((1, Gen.Const(0.0)), (1, Gen.Const(1.0)), (3, Gen.Double[0, 1]));
+    /// Past the full hour (48), where tiredness is at its worst.
+    static readonly Gen<double> SleepDebtHours = Gen.Frequency((1, Gen.Const(0.0)), (1, Gen.Const(60.0)), (3, Gen.Double[0, 60]));
 
     static readonly int TissueCount = Template().Regions.Sum(r => r.Layers.Count() + r.Organs.Count);
 
@@ -31,7 +33,7 @@ public class DeprivationPropertyTests
         Gen.Select(Gen.Double[45, 110], Gen.Double[0.04, 0.35], Gen.Double[0.2, 0.45]),
         condition.Array[TissueCount],
         Gen.Select(blood, load),
-        Gen.Select(Store, Store, Store),
+        Gen.Select(Store, Store, SleepDebtHours),
         (build, conditions, bl, stores) => new Case(build.Item1, build.Item2, build.Item3, conditions, bl.Item1, bl.Item2,
             stores.Item1, stores.Item2, stores.Item3));
 
@@ -48,9 +50,9 @@ public class DeprivationPropertyTests
             foreach (var organ in r.Organs) organ.Condition = c.Conditions[i++];
         }
         b.BloodPct = c.BloodPct;
-        (b.HydrationMl, b.CaloriesKcal, b.EnergyMinutes) = deprived
-            ? (c.WaterPct * Body.MaxHydrationMlOf(b), c.CaloriesPct * Body.CaloriesCapacityKcal(b), c.EnergyPct * Body.MaxEnergyMinutes)
-            : (Body.MaxHydrationMlOf(b), Body.CaloriesCapacityKcal(b), Body.MaxEnergyMinutes);
+        (b.HydrationMl, b.CaloriesKcal, b.SleepDebtMinutes) = deprived
+            ? (c.WaterPct * Body.MaxHydrationMlOf(b), c.CaloriesPct * Body.CaloriesCapacityKcal(b), c.SleepDebtHours * 60)
+            : (Body.MaxHydrationMlOf(b), Body.CaloriesCapacityKcal(b), 0);
         return b;
     }
 

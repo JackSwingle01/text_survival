@@ -67,7 +67,7 @@ public static partial class Content
         double AttackDamage, DamageType AttackType, double Threat, double Boldness, double Aggression, double Cohesion, Group Group,
         int MoveAllowanceM, double ReachM, string Temperament, HerdBehavior Behavior, Diet Diet,
         double TopSpeedMps, double EnduranceSpeedMps, double SprintSeconds, double RunCostJPerKgM, double BurstPct, double GrazeKcalPerMinute,
-        double StrikeBackResolve, double ChaseLimitSeconds, double SleepHoursPerDay, ActivityPattern Activity,
+        double StrikeBackResolve, double ChaseLimitSeconds, double SleepHoursPerDay, double TiredOnsetHours, double TiredFullHours, ActivityPattern Activity,
         double SmellFactor, double ScentLevel,
         FatRange? AutumnFatPct = null, PersonBuild? Female = null, int? FlightMinutesPerTile = null, double PerceptionFactor = 1,
         double StealthFactor = 1,
@@ -383,7 +383,7 @@ public static partial class Content
     static SpeciesStats ToStats(SpeciesRow r, Temperament t) =>
         new(r.Body, r.WeightKg, r.FatPct, r.MusclePct, r.Role, r.IsSmall, r.AttackDamage, r.AttackType,
             r.Threat, r.Boldness, r.Aggression, r.Cohesion, r.Group, r.MoveAllowanceM, r.ReachM, t, r.Behavior, r.Diet, r.Grazes ?? NoGrazing,
-            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor,
+            new Motion(r.TopSpeedMps, r.EnduranceSpeedMps, r.SprintSeconds, r.RunCostJPerKgM, r.BurstPct), r.GrazeKcalPerMinute, r.StrikeBackResolve, r.ChaseLimitSeconds, r.SleepHoursPerDay, r.TiredOnsetHours, r.TiredFullHours, r.Activity, r.AutumnFatPct, r.Female, r.SmellFactor, r.ScentLevel, r.FlightMinutesPerTile, r.PerceptionFactor, r.StealthFactor,
             r.Abilities?.Aggregate(Ability.None, (all, a) => all | a) ?? Ability.None);
 
     // ---- checks, one family at a time ----
@@ -757,6 +757,8 @@ public static partial class Content
             if (RunningProblem(r.TopSpeedMps, r.EnduranceSpeedMps) is string slow) yield return $"{at}: {slow}";
             if (r.StrikeBackResolve is < -1 or > 0) yield return $"{at}: strikeBackResolve in -1 to 0 (a giving-ground resolve)";
             if (r.ChaseLimitSeconds <= 0) yield return $"{at}: chaseLimitSeconds above 0";
+            if (r.SleepHoursPerDay is <= 0 or >= 24 || r.TiredOnsetHours <= 0 || r.TiredFullHours <= Math.Max(r.TiredOnsetHours, 24 - r.SleepHoursPerDay))
+                yield return $"{at}: sleepHoursPerDay in 0-24, and tiredFullHours past tiredOnsetHours and the waking day (SleepDebt's ramps)";
             if (r.SmellFactor <= 0 || r.ScentLevel is < 0 or > 1) yield return $"{at}: smellFactor above 0, scentLevel in 0-1";
             if (r.SprintSeconds <= 0 || r.RunCostJPerKgM <= 0 || r.BurstPct is <= 0 or > 1 || r.GrazeKcalPerMinute < 0)
                 yield return $"{at}: sprintSeconds and runCostJPerKgM above 0, burstPct in 0-1, grazeKcalPerMinute not below 0";

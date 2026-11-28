@@ -465,7 +465,7 @@ public class GameHostTests
     {
         var h = new GameHost();
         h.NewGame(Seed);
-        h.World.Agent(AgentId.Player).Body.EnergyMinutes = 0;
+        h.World.Agent(AgentId.Player).Body.SleepDebtMinutes = 48 * 60;
         return (h, Parse(h.View()));
     }
 
@@ -923,7 +923,7 @@ public class GameHostTests
         var h = new GameHost();
         h.NewGame(Seed);
         var b = h.World.Agent(AgentId.Player).Body;
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (0, 0.25 * Body.MaxHydrationMl, 0);
+        (b.CaloriesKcal, b.HydrationMl, b.SleepDebtMinutes) = (0, 0.25 * Body.MaxHydrationMl, 48 * 60);
         var shown = Parse(h.View()).Body.Effects.ToDictionary(e => e.Name, e => e.Severity);
         Assert.Equal(0.5, shown["Thirsty"]);
         Assert.Equal(1, shown["Tired"]);

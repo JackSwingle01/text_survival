@@ -46,7 +46,7 @@ public class StepOutcomeTests
     public void SleepingUntilFullyRested_Finished()
     {
         var w = Camp(out _);
-        w.Agent(P).Body.EnergyMinutes -= 30;
+        w.Agent(P).Body.SleepDebtMinutes = 15;
         var r = Sim.Step(w, new Sleep(P), Verbs.SleepMinutes);
         Assert.Equal((StepOutcome.Finished, Sim.FullyRestedReason), (r.Outcome, r.Reason)); // Body.Tick's literal: this test pins it
         Assert.True(r.MinutesElapsed < Verbs.SleepMinutes);

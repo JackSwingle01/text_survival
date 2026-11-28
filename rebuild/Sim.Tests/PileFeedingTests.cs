@@ -157,7 +157,7 @@ public class PileFeedingTests
         w.Minute = 13 * 60;
         var tile = T(20);
         PlayerAt(w, tile);
-        w.Agent(P).Body.EnergyMinutes = 0.3 * Body.MaxEnergyMinutes;
+        w.Agent(P).Body.SleepDebtMinutes = 0.7 * 16 * 60;
         TestKit.GivePieces(Pile(w, tile), Resource.RawMeat, 3);
         double meat = Have(w, tile, Resource.RawMeat);
         if (fire) w.Fires[new FireId(w.NextFireId++)] = FireDeterrenceTests.Pit(tile, w.Minute, pineKg: 5);

@@ -222,7 +222,7 @@ public class WorkTests
 
         var tired = WithPools(Forage, Trees);
         Axe(tired);
-        tired.Agent(P).Body.EnergyMinutes = 30;
+        tired.Agent(P).Body.SleepDebtMinutes = 48 * 60 - 30;
         Assert.Equal("exhausted", Sim.Step(tired, new Gather(P, 1), 100).InterruptedReason);
         // 30 minutes kept, slowed by a tired head's dexterity: never below half the whole-body work.
         Assert.InRange(Pools.ChopProgressPct(tired, new PoolId(Map.Of(tired).Camp, 1)), 0.15, 0.30);

@@ -351,7 +351,7 @@ public class BodySurvivalPropertyTests
         var d = Body.Process(input.Build(), ctx, 1, Gens.Rng());
         var b = input.Build();
         Body.Update(b, ctx, Gens.Rng());
-        double[] numbers = [d.CoreTempDeltaF, d.CaloriesDeltaKcal, d.HydrationDeltaMl, d.EnergyDeltaMinutes,
+        double[] numbers = [d.CoreTempDeltaF, d.CaloriesDeltaKcal, d.HydrationDeltaMl, d.SleepDebtDeltaMinutes,
             d.ClothingHeatBufferDeltaPct, d.FatBurnedKg, d.MuscleBurnedKg, d.BloodHealedPct, d.HealAmount,
             .. b.Regions.SelectMany(r => r.Layers.Select(l => l.Condition).Concat(r.Organs.Select(o => o.Condition)))];
         return string.Join(",", numbers.Select(x => x.ToString("R")))

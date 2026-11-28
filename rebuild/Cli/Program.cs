@@ -196,7 +196,7 @@ void PrintStatus(World w)
     var sky = Weather.At(w, w.Minute);
     string skills = p.Mind is PersonMind mind ? string.Join(", ", mind.Skills.Where(k => k.Value.Level > 0).Select(k => $"{k.Key} {k.Value.Level}")) : "";
     Console.WriteLine($"{Clock(w.Minute)} | {sky.Condition} {sky.TemperatureC:0}C wind {sky.WindMph:0}mph {sky.WindDirection} | " +
-                      $"core {b.CoreTempF:0.0}F energy {b.EnergyPct:P0} food {b.CaloriesKcal:0}kcal water {b.HydrationMl:0}ml " +
+                      $"core {b.CoreTempF:0.0}F awake {b.SleepDebtMinutes / 60:0.0}h food {b.CaloriesKcal:0}kcal water {b.HydrationMl:0}ml " +
                       $"vitality {Body.Vitality(b, p.Species):P0} | tile {p.Tile.X},{p.Tile.Y} {Map.Describe(Map.Of(w), p.Tile)}" + FireStatus(w, p.Tile)
                       + (effects.Length > 0 ? $" | {effects}" : "") + (skills.Length > 0 ? $" | {skills}" : ""));
 }

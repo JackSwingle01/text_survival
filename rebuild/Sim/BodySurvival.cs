@@ -28,7 +28,7 @@ public sealed record SurvivalContext
 
 public sealed class SurvivalDelta
 {
-    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, EnergyDeltaMinutes, ClothingHeatBufferDeltaPct;
+    public double CoreTempDeltaF, CaloriesDeltaKcal, HydrationDeltaMl, SleepDebtDeltaMinutes, ClothingHeatBufferDeltaPct;
     public double FatBurnedKg, MuscleBurnedKg, BloodHealedPct, HealAmount;
     public List<(EffectKind Kind, double Severity)> Effects { get; } = [];
     public List<DamageInfo> Damage { get; } = [];
@@ -44,7 +44,6 @@ public readonly record struct HeatBalance(
 
 public static partial class Body
 {
-    public const double MaxEnergyMinutes = 960;
     public const double MaxHydrationMl = 4000;
     public const double MaxCaloriesKcal = 2000;
 
@@ -54,7 +53,7 @@ public static partial class Body
     /// Everything but sweat, which is modelled on its own (a real adult's 4000 total includes it).
     public const double BaseWaterLossMlPerDay = 2500;
     const double SleepWaterLossFactor = 0.7;
-    public const double PersonSleepHoursPerDay = 8;
+    static SpeciesStats Person => SpeciesTable.Of(Species.Human);
 
     public static double MaxHydrationMlOf(BodyState body) =>
         body.Kind == BodyKind.Human ? MaxHydrationMl : MaxHydrationMl * body.StructuralKg / BaselineStructuralKg;
@@ -64,17 +63,12 @@ public static partial class Body
     public static double WaterLossMlPerMinute(BodyState body, bool sleeping) =>
         BaseWaterLossMlPerDay / 1440 * MaxHydrationMlOf(body) / MaxHydrationMl * (sleeping ? SleepWaterLossFactor : 1.0);
 
-    /// The store empties over the waking hours and fills over the sleeping ones: at 8 h an hour asleep buys two awake.
-    public static double EnergyDeltaPerMinute(bool sleeping, double sleepHoursPerDay) => sleeping
-        ? MaxEnergyMinutes / (sleepHoursPerDay * 60)
-        : -MaxEnergyMinutes / ((24 - sleepHoursPerDay) * 60);
-
     /// An animal's ProcessLethal, without warmth; sleepFactor is how deep the sleep is where it lies.
-    public static void LiveNeeds(BodyState body, bool sleeping, double sleepHoursPerDay, double sleepFactor, Rng rng)
+    public static void LiveNeeds(BodyState body, bool sleeping, SpeciesStats species, double sleepFactor, Rng rng)
     {
         var (_, thirst, hunger) = LethalRates(body);
         body.HydrationMl = Math.Max(0, body.HydrationMl - WaterLossMlPerMinute(body, sleeping));
-        body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + EnergyDeltaPerMinute(sleeping, sleepHoursPerDay) * (sleeping ? sleepFactor : 1), 0, MaxEnergyMinutes);
+        body.SleepDebtMinutes = Math.Max(0, body.SleepDebtMinutes + SleepDebt.DeltaPerMinute(species, body.SleepDebtMinutes, sleeping, sleepFactor));
         if (thirst > 0) Damage(body, new DamageInfo(thirst / 60.0, DamageType.Internal, BodyTarget.Brain, By: Thirst), rng);
         if (hunger > 0) Damage(body, new DamageInfo(hunger / 60.0, DamageType.Internal, BodyTarget.Heart, By: Starvation), rng);
     }
@@ -91,7 +85,8 @@ public static partial class Body
     const double KcalPerKgMuscle = 1320;
 
     public const double RegenMinCaloriesPct = 0.10;
-    const double RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
+    const double RegenMinHydrationPct = 0.10;
+    const double RegenMaxWakingDayPct = 0.50;
     const double BaseHealingPerHour = 0.1;
 
     const double ThermalMassFPerKg = 2.0;
@@ -203,7 +198,7 @@ public static partial class Body
 
         double burnKcalPerMinute = BurnKcalPerHour(body, ctx.ActivityFactor) / 60.0;
         d.CaloriesDeltaKcal = -burnKcalPerMinute * minutes;
-        d.EnergyDeltaMinutes = EnergyDeltaPerMinute(ctx.IsSleeping, PersonSleepHoursPerDay) * minutes;
+        d.SleepDebtDeltaMinutes = SleepDebt.DeltaPerMinute(Person, body.SleepDebtMinutes, ctx.IsSleeping) * minutes;
         d.HydrationDeltaMl = -WaterLossMlPerMinute(body, ctx.IsSleeping) * minutes;
 
         ProcessTemperature(body, ctx, minutes, d);
@@ -448,7 +443,7 @@ public static partial class Body
         bool fed = calories > CaloriesCapacityKcal(body) * RegenMinCaloriesPct;
         bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
         bool warm = body.CoreTempF >= HypothermiaThresholdF;
-        bool rested = sleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
+        bool rested = sleeping || body.SleepDebtMinutes <= SleepDebt.WakingDayMinutes(Person) * RegenMaxWakingDayPct;
         if (!fed || !watered || !warm || !rested) return 0;
         double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
         return BaseHealingPerHour / 60.0 * minutes * nutritionPct * TissueReads.Digestion(body) * Effects.HealingFactor(body);
@@ -470,19 +465,20 @@ public static partial class Body
     /// How fast bodies should heal is not decided.
     static double SleepHealingFactor(BodyState body, SurvivalContext ctx)
     {
-        double quality = (body.EnergyMinutes <= 0 ? 1.0 : 0.7) * ctx.BeddingQualityPct;
+        double quality = (ShallowSleepQualityPct + (1 - ShallowSleepQualityPct) * SleepDebt.TiredSeverity(Person, body.SleepDebtMinutes)) * ctx.BeddingQualityPct;
         double wetness = Effects.Severity(body, EffectKind.Wet);
         if (wetness > 0.2) quality *= 1 - wetness * 0.5;
         return SleepHealingPerHour / BaseHealingPerHour * quality;
     }
 
     const double SleepHealingPerHour = 6.0;
+    const double ShallowSleepQualityPct = 0.7;
 
     public static void Apply(BodyState body, SurvivalDelta d, Rng rng)
     {
         body.CaloriesKcal = Math.Max(0, body.CaloriesKcal + d.CaloriesDeltaKcal);
         body.HydrationMl = Math.Max(0, body.HydrationMl + d.HydrationDeltaMl);
-        body.EnergyMinutes = Math.Clamp(body.EnergyMinutes + d.EnergyDeltaMinutes, 0, MaxEnergyMinutes);
+        body.SleepDebtMinutes = Math.Max(0, body.SleepDebtMinutes + d.SleepDebtDeltaMinutes);
         body.CoreTempF += d.CoreTempDeltaF;
         body.ClothingHeatBufferPct = Math.Clamp(body.ClothingHeatBufferPct + d.ClothingHeatBufferDeltaPct, 0, 1);
         body.FatKg = Math.Max(0, body.FatKg - d.FatBurnedKg);
@@ -531,11 +527,10 @@ public static partial class Body
     {
         int asleepLeft = AsleepMinutesLeft(body);
         if (asleepLeft > 0) SetAsleepMinutes(body, asleepLeft - 1);
-        else if (!ctx.IsSleeping && body.EnergyMinutes <= 0 && rng.NextDouble() < CollapsePctPerMinute)
+        else if (!ctx.IsSleeping && SleepDebt.CollapsePctPerMinute(Person, body.SleepDebtMinutes) is var odds && odds > 0 && rng.NextDouble() < odds)
             SetAsleepMinutes(body, MinCollapseMinutes + rng.NextInt(MaxCollapseMinutes - MinCollapseMinutes + 1));
     }
 
-    const double CollapsePctPerMinute = 0.01;
     /// The unit of a saved Asleep severity: changing MaxCollapseMinutes is a change of meaning (Save.MeaningChange).
     const int MinCollapseMinutes = 15, MaxCollapseMinutes = 90;
 
@@ -567,7 +562,7 @@ public static partial class Body
         var body = agent.Body;
         if (!IsAlive(body)) throw new InvalidOperationException($"{agent.Id} is dead and cannot act");
         var kindsBefore = body.Effects.Select(e => e.Kind).ToList();
-        double energyBefore = body.EnergyMinutes;
+        double debtBefore = body.SleepDebtMinutes;
 
         Update(body, ctx, world.Rng("body", agent.Id), woundsLived: world.Minute <= body.WoundsLivedThroughMinute);
 
@@ -582,14 +577,14 @@ public static partial class Body
             events.Add(new Died(world.Minute, agent.Id, agent.Tile));
             return "died";
         }
-        if (!ctx.IsSleeping && energyBefore > 0 && body.EnergyMinutes == 0)
+        if (!ctx.IsSleeping && debtBefore < SleepDebt.FullMinutes(Person) && body.SleepDebtMinutes >= SleepDebt.FullMinutes(Person))
         {
             events.Add(new Exhausted(world.Minute, agent.Id, agent.Tile));
             return "exhausted";
         }
         if (IsAsleep(body) && !kindsBefore.Contains(EffectKind.Asleep)) return FellAsleep;
 
-        if (ctx.IsSleeping && energyBefore < MaxEnergyMinutes && body.EnergyMinutes == MaxEnergyMinutes)
+        if (ctx.IsSleeping && debtBefore > 0 && body.SleepDebtMinutes == 0)
         {
             events.Add(new FullyRested(world.Minute, agent.Id, agent.Tile));
             return "fully rested";
