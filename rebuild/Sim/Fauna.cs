@@ -102,13 +102,15 @@ public static partial class Fauna
 
     static void Burn(BodyState body) => Body.SpendKcal(body, BurnKcalPerMinute(body));
 
-    /// A living animal's minute: its burn, its water, rest and hunger, and mending while fed and nothing is harming it (as a person heals).
+    /// A living animal's minute: its burn, its water, rest and hunger, and mending while fed and nothing is harming it.
     internal static void Live(World world, Agent animal, BodyState body, bool sleeping)
     {
         Burn(body);
         Body.LiveNeeds(body, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
-        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0) && body.CaloriesPct > Body.RegenMinCaloriesPct) Mend(body);
+        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0) && body.CaloriesPct > MendMinCaloriesPct) Mend(body);
     }
+
+    const double MendMinCaloriesPct = 0.10;
 
     /// Its store's room plus the fat lost below its kind's build: a starved wolf gorges, and the surplus goes back on as fat.
     static double RoomKcal(Agent herd, BodyState b) =>

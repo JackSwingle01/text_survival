@@ -451,35 +451,97 @@ public class SurvivalTests
         var d = Body.Process(b, Room(), 60, TestRng());
         Assert.True(d.HealAmount > 0);
         Assert.True(d.BloodHealedPct > 0);
-
-        b.EnergyMinutes = 100; // exhausted bodies do not heal
-        Assert.Equal(0, Body.Process(b, Room(), 60, TestRng()).HealAmount);
     }
 
-    /// Body review A1. Sleep heals faster than waking rest, but through the same gates: fed, watered and
-    /// warm. Old (pinned here only as "sleep heals faster"): sleep healed on a channel of its own that
-    /// checked nothing, organs included, so a cold, dry or starving sleeper mended anyway.
-    [Fact]
-    public void SleepHeals_FasterThanWaking_ButOnlyFedWateredAndWarm()
+    /// A hurt baseline body's healing this minute, after setting its stores.
+    static SurvivalDelta HealingWith(Action<BodyState> set, SurvivalContext? ctx = null)
     {
-        var asleep = Baseline();
-        var awake = Baseline();
-        asleep.Regions[3].Skin.Condition = awake.Regions[3].Skin.Condition = 0.5;
-        Live(asleep, Asleep(), 60);
-        Live(awake, Room(), 60);
-        Assert.True(asleep.Regions[3].Skin.Condition > awake.Regions[3].Skin.Condition);
+        var b = Baseline();
+        b.Regions[3].Skin.Condition = 0.5;
+        b.BloodPct = 0.9;
+        set(b);
+        return Body.Process(b, ctx ?? Room(), 1, TestRng());
+    }
 
+    /// #336. Old: an awake body below half its energy healed nothing.
+    [Fact]
+    public void AnAwakeBody_WithLowEnergy_HealsAsARestedOne()
+    {
+        var rested = HealingWith(b => b.EnergyMinutes = Body.MaxEnergyMinutes);
+        var spent = HealingWith(b => b.EnergyMinutes = 100);
+        Assert.True(rested.HealAmount > 0);
+        Assert.Equal(rested.HealAmount, spent.HealAmount, 12);
+        Assert.Equal(rested.BloodHealedPct, spent.BloodHealedPct, 12);
+    }
+
+    /// #336: healing × (1 − 0.5 hungry)(1 − 0.5 thirsty). Thirst is full only at an empty store, which
+    /// heals nothing, so full thirst is read a millilitre above it. Old: nothing healed below a tenth of
+    /// either store, and healing scaled with how full the calorie store was.
+    [Fact]
+    public void HungerAndThirst_EachHalveHealingAtFull_AndBothQuarterIt()
+    {
+        static void Parched(BodyState b) => b.HydrationMl = 1;
+        double fed = HealingWith(_ => { }).HealAmount;
+        double thirstAtFull = 1 - 0.5 * Deprivations.Severity(WithStores(Parched), Deprivation.Thirsty);
+        Assert.InRange(thirstAtFull, 0.5, 0.501);
+
+        Assert.Equal(fed, HealingWith(b => b.CaloriesKcal = Body.CaloriesCapacityKcal(b)).HealAmount, 12); // flat above the pang
+        Assert.Equal(0.5 * fed, HealingWith(b => Deprive.Hungry(b, 1)).HealAmount, 12);
+        Assert.Equal(thirstAtFull * fed, HealingWith(Parched).HealAmount, 12);
+        Assert.Equal(0.75 * fed, HealingWith(b => Deprive.Thirsty(b, 0.5)).HealAmount, 12);
+        Assert.Equal(0.5 * thirstAtFull * fed, HealingWith(b => { Deprive.Hungry(b, 1); Parched(b); }).HealAmount, 12);
+        Assert.Equal(0.5 * HealingWith(_ => { }).BloodHealedPct, HealingWith(b => Deprive.Hungry(b, 1)).BloodHealedPct, 12);
+    }
+
+    static BodyState WithStores(Action<BodyState> set)
+    {
+        var b = Baseline();
+        set(b);
+        return b;
+    }
+
+    /// #336. Old: nothing healed with the calorie store below a tenth.
+    [Fact]
+    public void BelowATenthOfTheCalorieStore_StillHeals_AtTheHungryRate()
+    {
+        double fed = HealingWith(_ => { }).HealAmount;
+        var low = WithStores(b => b.CaloriesKcal = 0.05 * Body.CaloriesCapacityKcal(b));
+        double expected = (1 - 0.5 * Deprivations.Severity(low, Deprivation.Hungry)) * fed;
+        Assert.Equal(expected, HealingWith(b => b.CaloriesKcal = 0.05 * Body.CaloriesCapacityKcal(b)).HealAmount, 12);
+    }
+
+    /// #336: the hard stops are an empty water store, a core below 95 °F, and a body dying of either or of
+    /// starvation (an empty stomach with the reserves spent).
+    [Fact]
+    public void NothingHeals_WithAnEmptyWaterStore_ACoreBelow95_OrStarving()
+    {
+        Assert.True(HealingWith(b => b.CoreTempF = 95).HealAmount > 0);
         foreach (var (why, spoil) in new (string, Action<BodyState>)[]
         {
-            ("cold", b => b.CoreTempF = 93),
-            ("dry", b => b.HydrationMl = 100),
-            ("hungry", b => b.CaloriesKcal = 100),
+            ("dry", b => b.HydrationMl = 0),
+            ("cold", b => b.CoreTempF = 94.9),
+            ("starving", Deprive.Starved),
         })
         {
-            var b = Baseline();
-            b.Regions[3].Skin.Condition = 0.5;
-            spoil(b);
-            Assert.Equal(0, Body.Process(b, Asleep(), 60, TestRng()).HealAmount);
+            foreach (var ctx in new[] { Room(), Asleep() })
+            {
+                var d = HealingWith(spoil, ctx);
+                Assert.True(d.HealAmount == 0 && d.BloodHealedPct == 0, $"{why} healed");
+            }
+        }
+    }
+
+    /// Sleep heals faster than waking rest by its factor: sixty times at best, scaled by sleep quality.
+    [Fact]
+    public void Sleep_HealsFasterThanWaking_ByTheSleepFactor()
+    {
+        foreach (var energy in new[] { 0.0, 500 })
+        {
+            var awake = HealingWith(b => b.EnergyMinutes = energy, Asleep() with { IsSleeping = false });
+            var asleep = HealingWith(b => b.EnergyMinutes = energy, Asleep());
+            double quality = (energy <= 0 ? 1.0 : 0.7) * SurvivalContext.NoBeddingQualityPct;
+            Assert.Equal(60 * quality * awake.HealAmount, asleep.HealAmount, 12);
+            Assert.Equal(awake.BloodHealedPct, asleep.BloodHealedPct, 12);
         }
     }
 
@@ -516,28 +578,6 @@ public class SurvivalTests
             }
             Assert.True(vital() < 2, $"{why}: nothing harmed");
         }
-    }
-
-    /// Body review A9: food counts once in healing, tissue and blood alike. Old: tissue healed by
-    /// nutrition squared.
-    [Fact]
-    public void Healing_IsLinearInFood()
-    {
-        BodyState Hurt(double kcal)
-        {
-            var b = Baseline();
-            b.CaloriesKcal = kcal;
-            b.Regions[3].Skin.Condition = 0.5;
-            b.BloodPct = 0.9;
-            return b;
-        }
-        // Nutrition is the store as the step leaves it.
-        var lean = Body.Process(Hurt(500), Room(), 60, TestRng());
-        var fed = Body.Process(Hurt(1000), Room(), 60, TestRng());
-        double ratio = (1000 + fed.CaloriesDeltaKcal) / (500 + lean.CaloriesDeltaKcal);
-        Assert.True(lean.HealAmount > 0 && lean.BloodHealedPct > 0);
-        Assert.Equal(ratio * lean.HealAmount, fed.HealAmount, 12);
-        Assert.Equal(ratio * lean.BloodHealedPct, fed.BloodHealedPct, 12);
     }
 
     /// Body review A7: once a person has mended, whoever hurt them no longer counts, and a death with no

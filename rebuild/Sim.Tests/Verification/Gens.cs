@@ -127,9 +127,9 @@ static class Gens
         Gen.Double[88, 103],       // °F: deep hypothermia (31 C) to a high fever; the thresholds all sit inside
         Gen.Double[0, 1],          // wetness
         Gen.Double[0, 1],          // clothing heat buffer
-        Gen.Double[300, 2000],     // kcal: above the regeneration gate (200) up to full
-        Gen.Double[500, 4000],     // ml: above the regeneration gate (400) up to full
-        Gen.Double[490, 960],      // waking minutes: rested enough to heal (480) up to full
+        Gen.Double[1, 2000],       // kcal: nearly empty, where hunger slows healing, up to full
+        Gen.Double[1, 4000],       // ml: above an empty store, where healing stops, up to full
+        Gen.Double[0, 960],        // waking minutes: spent to full; healing reads none of it
         Gen.Frequency((1, Gen.Const(0.0)), (1, Gen.Double[1, 20])), // a bruise to a bad blow, never a break that kills
         (core, wet, buf, kcal, ml, energy, injury) => new BodyInput(core, wet, buf, kcal, ml, energy, injury));
 

@@ -90,8 +90,6 @@ public static partial class Body
     public const double KcalPerKgFat = 7700;
     const double KcalPerKgMuscle = 1320;
 
-    public const double RegenMinCaloriesPct = 0.10;
-    const double RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
     const double BaseHealingPerHour = 0.1;
 
     const double ThermalMassFPerKg = 2.0;
@@ -212,11 +210,10 @@ public static partial class Body
         ProcessDirty(body, ctx, minutes, d);
 
         double calories = body.CaloriesKcal + d.CaloriesDeltaKcal;
-        double hydration = body.HydrationMl + d.HydrationDeltaMl;
 
         ProcessStarvation(body, calories, d);
         ProcessLethal(body, minutes, d);
-        ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
+        ProcessRegeneration(body, ctx, minutes, d);
 
         return d;
     }
@@ -429,13 +426,13 @@ public static partial class Body
         if (hunger > 0) d.Damage.Add(new DamageInfo(hunger / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: Starvation));
     }
 
-    /// Sleep heals through the same gates, or a naked sleeper at -40 °F would live through the night.
-    static void ProcessRegeneration(BodyState body, SurvivalContext ctx, double calories, double hydration, int minutes, SurvivalDelta d)
+    /// Nothing heals, asleep or awake, while dying of the cold, thirst or starvation, or a naked sleeper at -40 °F would live the night.
+    static void ProcessRegeneration(BodyState body, SurvivalContext ctx, int minutes, SurvivalDelta d)
     {
         bool healed = body.Regions.All(r => r.Condition >= 1.0 && r.Organs.All(o => o.Condition >= 1.0));
         bool bloodFull = body.BloodPct >= 1.0;
         if (healed && bloodFull) return;
-        double amount = HealingAmount(body, ctx.IsSleeping, calories, hydration, minutes);
+        double amount = HealingAmount(body, minutes);
         if (amount <= 0) return;
         if (!bloodFull) d.BloodHealedPct = amount * BloodHealingShare;
         if (!healed) d.HealAmount = amount * (ctx.IsSleeping ? SleepHealingFactor(body, ctx) : 1);
@@ -443,21 +440,23 @@ public static partial class Body
 
     const double BloodHealingShare = 0.5;
 
-    static double HealingAmount(BodyState body, bool sleeping, double calories, double hydration, int minutes)
+    static double HealingAmount(BodyState body, int minutes)
     {
-        bool fed = calories > CaloriesCapacityKcal(body) * RegenMinCaloriesPct;
-        bool watered = hydration > MaxHydrationMl * RegenMinHydrationPct;
-        bool warm = body.CoreTempF >= HypothermiaThresholdF;
-        bool rested = sleeping || body.EnergyMinutes >= MaxEnergyMinutes * RegenMinEnergyPct;
-        if (!fed || !watered || !warm || !rested) return 0;
-        double nutritionPct = Math.Min(1.0, calories / CaloriesCapacityKcal(body));
-        return BaseHealingPerHour / 60.0 * minutes * nutritionPct * TissueReads.Digestion(body) * Effects.HealingFactor(body);
+        if (LethalRates(body) != (0, 0, 0)) return 0;
+        return BaseHealingPerHour / 60.0 * minutes
+            * DeprivedHealingPct(body, Deprivation.Hungry) * DeprivedHealingPct(body, Deprivation.Thirsty)
+            * TissueReads.Digestion(body) * Effects.HealingFactor(body);
     }
+
+    const double HealingAtFullDeprivationPct = 0.5;
+
+    static double DeprivedHealingPct(BodyState body, Deprivation d) =>
+        1 - (1 - HealingAtFullDeprivationPct) * Deprivations.Severity(body, d);
 
     /// A forecast, healing awake as now and nothing else changing; bleeding that never stops is followed for a day.
     public static double LowestBloodPct(BodyState body)
     {
-        double healPerMinute = HealingAmount(body, sleeping: false, body.CaloriesKcal, body.HydrationMl, 1) * BloodHealingShare;
+        double healPerMinute = HealingAmount(body, 1) * BloodHealingShare;
         double blood = body.BloodPct, lowest = blood, untilHours = Math.Min(Effects.HoursUntilBleedingStops(body), 24);
         for (int m = 0; m < untilHours * 60 && blood > 0; m++)
         {
