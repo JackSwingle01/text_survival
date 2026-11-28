@@ -51,7 +51,11 @@ public sealed record GearDef(
     string Name, GearCategory Category, double BaseWeightKg, int MaxDurability, IReadOnlyList<Capability> Capabilities,
     ToolType? Tool = null, Weapon? Weapon = null, EquipSlot? Slot = null,
     double Insulation = 0, double Cushioning = 0, double Toughness = 0, double WaterproofLevel = 0,
-    double CapacityBonusKg = 0, double BurnMinutes = 0, double? ChopFactor = null);
+    double CapacityBonusKg = 0, double BurnMinutes = 0, double? ChopFactor = null)
+{
+    /// Here, not on Items: Content's validation calls it, and on wasm any call into Items runs Items' initializer, which reads Content.
+    public bool CanBeWornTo(int durability) => MaxDurability > 0 && durability >= 0 && durability <= MaxDurability;
+}
 
 /// One discrete item. Durability -1 never wears out; 0 is broken.
 public sealed class Gear
@@ -117,12 +121,11 @@ public static class Items
     public static Gear Make(string kind, int? durability = null)
     {
         if (!GearKinds.TryGetValue(kind, out var d)) throw new KeyNotFoundException($"No gear kind '{kind}'");
-        if (durability is int n && !CanBeWornTo(d, n))
+        if (durability is int n && !d.CanBeWornTo(n))
             throw new ArgumentOutOfRangeException(nameof(durability), n, $"{kind} wears from {d.MaxDurability} to 0");
         return new Gear { Kind = kind, Durability = durability ?? d.MaxDurability, MaxDurability = d.MaxDurability };
     }
 
-    public static bool CanBeWornTo(GearDef d, int durability) => d.MaxDurability > 0 && durability >= 0 && durability <= d.MaxDurability;
 
     public static double ConditionPct(Gear g) => g.MaxDurability <= 0 ? 1.0 : g.Durability <= 0 ? 0.0 : (double)g.Durability / g.MaxDurability;
     public static bool Works(Gear g) => g.Durability != 0;

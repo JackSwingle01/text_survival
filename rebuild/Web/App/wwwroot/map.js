@@ -3,18 +3,20 @@
 // seen. Fires, shelters and animals are drawn as last seen, with their age when out of sight.
 // The ground itself is terrain.js: one art pixel per CSS pixel, so cells are CELL (48) wide on every
 // screen and stay crisp at a device pixel ratio of 1 or 2.
-import { icon, ago } from './util.js';
+import { icon, ago, cameraTarget } from './util.js';
 import { createTerrain, TERRAIN } from './terrain.js';
 import { CELL } from './terrain-core.js';
 import { createGround, worldState } from './ground-state.js';
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** state(): { view, drawPos: {x,y}, drawerOpen, selected: {x,y}|null }. */
+/** state(): { view, drawPos: {x,y}, coverPx: {top,right,bottom} (cameraTarget), selected: {x,y}|null }. */
 export function createMap(canvas, state, { onHover, onClick }) {
   const ctx = canvas.getContext('2d');
   const TS = CELL, terrain = createTerrain(), ground = createGround(code => TERRAIN[code]);
   let dpr = 1, cam = null, hover = null, flakes = [], last = performance.now();
   let visible = new Set(), visibleFor = null;
+  // A drag pans the view off the player by `pan` cells; it snaps back when the player moves.
+  let pan = { x: 0, y: 0 }, panFor = null, drag = null, dragged = false;
 
   function resize() {
     const r = canvas.getBoundingClientRect();
@@ -55,8 +57,9 @@ export function createMap(canvas, state, { onHover, onClick }) {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#0d1216'; ctx.fillRect(0, 0, w, h);
-    const shift = S.drawerOpen && w > 860 ? 232 / TS : 0;
-    const tx = S.drawPos.x + 0.5 + shift, ty = S.drawPos.y + 0.5;
+    const standing = `${S.drawPos.x},${S.drawPos.y}`;
+    if (panFor !== standing) { pan = { x: 0, y: 0 }; panFor = standing; }
+    const aim = cameraTarget(S.drawPos, S.coverPx, TS), tx = aim.x + pan.x, ty = aim.y + pan.y;
     if (!cam) cam = { x: tx, y: ty };
     cam.x += (tx - cam.x) * Math.min(1, dt * 5); cam.y += (ty - cam.y) * Math.min(1, dt * 5);
     const ox = Math.round(w / 2 - cam.x * TS), oy = Math.round(h / 2 - cam.y * TS);
@@ -159,11 +162,30 @@ export function createMap(canvas, state, { onHover, onClick }) {
     const m = state().view?.map;
     return m && x >= 0 && y >= 0 && x < m.width && y < m.height ? { x, y } : null;
   };
-  canvas.addEventListener('mousemove', e => { hover = tileAt(e); onHover(hover, e); });
+  // Dragging pans (by finger or mouse); a press that moves under 6 px is a tap, and picks the tile.
+  canvas.addEventListener('pointerdown', e => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false }; dragged = false; });
+  canvas.addEventListener('pointermove', e => {
+    if (drag && drag.id === e.pointerId) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+      if (!drag.moved) { drag.moved = true; canvas.setPointerCapture(e.pointerId); hover = null; onHover(null); }
+      pan.x -= dx / TS; pan.y -= dy / TS;
+      if (cam) { cam.x -= dx / TS; cam.y -= dy / TS; } // the ground follows the finger, no easing
+      drag.x = e.clientX; drag.y = e.clientY;
+      return;
+    }
+    if (e.pointerType !== 'mouse') return;
+    hover = tileAt(e); onHover(hover, e);
+  });
+  const endDrag = e => { if (drag && drag.id === e.pointerId) { dragged = drag.moved; drag = null; } };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('mouseleave', () => { hover = null; onHover(null); });
-  canvas.addEventListener('click', e => { const t = tileAt(e); if (t) onClick(t); });
+  canvas.addEventListener('click', e => { if (dragged) { dragged = false; return; } const t = tileAt(e); if (t) onClick(t); });
 
   return {
+    /** A tile's top-left on the canvas in CSS px, and a cell's size, as last drawn; null before the first frame. */
+    screenOf: (x, y) => frame.TS == null ? null : { x: frame.ox + x * frame.TS, y: frame.oy + y * frame.TS, size: frame.TS },
     known: (x, y) => { const m = state().view.map; return m.known.charCodeAt(y * m.width + x) !== 46; },
     inSight: (x, y) => visible.has(y * state().view.map.width + x),
     terrainName: code => ({ c: 'cave', e: 'cave mouth' })[code] ?? TERRAIN[code],

@@ -584,19 +584,22 @@ public static class Pools
     /// searcher's eyes and tools (Work.ExpectedGather): Forage's chances at each luck, minute by minute, on ground
     /// thinning as Forage thins it, only when something turns up; grazing as it is now. rememberedDensity: the ground
     /// as a person remembers it, for a place out of sight, read with no grazing they could not see.
-    public static IReadOnlyDictionary<Resource, double> ExpectedForage(World world, PoolId id, int minutes, double effectivePct = 1, double? rememberedDensity = null)
+    public static IReadOnlyDictionary<Resource, double> ExpectedForage(World world, PoolId id, int minutes, double effectivePct = 1, double? rememberedDensity = null,
+        ForageFocus focus = ForageFocus.General)
     {
         var def = (ForagePool)Def(world, id);
         double density = rememberedDensity ?? ForageDensity(world, id);
         if (minutes <= 0 || density <= 0) return new SortedDictionary<Resource, double>();
         var ungrazed = def.Items.Select(i => rememberedDensity == null ? 1 - GrazedLevel(world, id, i.Resource) : 1).ToArray();
-        var kg = ExpectedForageByMinute(def, density, ungrazed, effectivePct).Skip(minutes - 1).First();
+        var kg = ExpectedForageByMinute(def, density, ungrazed, effectivePct, focus).Skip(minutes - 1).First();
         return new SortedDictionary<Resource, double>(kg.ToDictionary(k => k.Key, k => k.Value)); // a copy: the sequence's is live
     }
 
     /// ExpectedForage minute by minute, on ground of the density given, with each item's ungrazed share (none
-    /// grazed if null): after each minute, the kg found so far. One dictionary, updated in place and never ending.
-    public static IEnumerable<IReadOnlyDictionary<Resource, double>> ExpectedForageByMinute(ForagePool def, double density, double[]? ungrazed = null, double effectivePct = 1)
+    /// grazed if null), searched with the focus given: after each minute, the kg found so far. One dictionary, updated in
+    /// place and never ending.
+    public static IEnumerable<IReadOnlyDictionary<Resource, double>> ExpectedForageByMinute(ForagePool def, double density, double[]? ungrazed = null, double effectivePct = 1,
+        ForageFocus focus = ForageFocus.General)
     {
         var kg = new SortedDictionary<Resource, double>();
         double hours = HoursBehind(def, density), stepHours = effectivePct / 60;
@@ -609,7 +612,7 @@ public static class Pools
                 for (int i = 0; i < def.Items.Count; i++)
                 {
                     var item = def.Items[i];
-                    double chance = d * item.Abundance * (ungrazed?[i] ?? 1) * Luck[band].Factor * stepHours;
+                    double chance = d * item.Abundance * Work.FocusAbundanceFactor(item.Resource, focus) * (ungrazed?[i] ?? 1) * Luck[band].Factor * stepHours;
                     kg[item.Resource] = kg.GetValueOrDefault(item.Resource) + bandPct * chance * (item.MinKg + item.MaxKg) / 2;
                     nonePct *= chance >= 1 ? 0 : 1 - chance;
                 }
@@ -652,7 +655,9 @@ public static class Pools
 
     /// Depletes only when something turned up.
     /// luckFactor: the search's (WorkSession.LuckFactor); left out, this call is a search of its own and rolls one.
-    public static List<(Resource Resource, double Kg)> Forage(World world, PoolId id, double hours, Rng rng, double? luckFactor = null)
+    /// A focus turns up more of its category (Work.FocusAbundanceFactor), so the ground thins as fast as it gives.
+    public static List<(Resource Resource, double Kg)> Forage(World world, PoolId id, double hours, Rng rng, double? luckFactor = null,
+        ForageFocus focus = ForageFocus.General)
     {
         var def = (ForagePool)Def(world, id);
         double luck = luckFactor ?? RollLuck(rng);
@@ -660,7 +665,7 @@ public static class Pools
         var found = new List<(Resource, double)>();
         foreach (var item in def.Items)
         {
-            double chance = density * item.Abundance * (1 - GrazedLevel(world, id, item.Resource)) * luck * hours;
+            double chance = density * item.Abundance * Work.FocusAbundanceFactor(item.Resource, focus) * (1 - GrazedLevel(world, id, item.Resource)) * luck * hours;
             int whole = (int)Math.Floor(chance);
             for (int i = 0; i < whole; i++) found.Add((item.Resource, Uniform(rng, item.MinKg, item.MaxKg)));
             double remainder = chance - whole;

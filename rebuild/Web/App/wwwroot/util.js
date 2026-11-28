@@ -49,3 +49,65 @@ export function paceMs(minutes, kind) {
   if (kind === 'walk') return Math.min(1200, Math.max(500, 500 + minutes * 30));
   return Math.min(30000, Math.max(1000, minutes * 300)) / (kind === 'sleep' ? 4 : 1);
 }
+
+/** Where the map's camera looks, in cells, so the player at `pos` sits in the middle of the part of the
+ *  map that nothing covers. `coverPx` is how far in from the map's top, right and bottom edges the drawer
+ *  and the status strip reach; `cellPx` is a cell's width. */
+export function cameraTarget(pos, coverPx, cellPx) {
+  return { x: pos.x + 0.5 + coverPx.right / 2 / cellPx, y: pos.y + 0.5 + (coverPx.bottom - coverPx.top) / 2 / cellPx };
+}
+
+/** The words of an odds line (an Odds as one line under its buttons): the base, unless `base` is false,
+ *  then each factor that moves it by a whole percent or more as shown, in lower case. */
+export function oddsWhy(o, { base = true } = {}) {
+  const terms = o.terms.filter(t => Math.round(t.deltaPct * 100) !== 0)
+    .map(t => `${t.factor.toLowerCase()} ${signed(Math.round(t.deltaPct * 100), '%')}`);
+  return base ? [`${o.base.toLowerCase()} ${Math.round(o.basePct * 100)}%`, ...terms] : terms;
+}
+
+/** Where a trip card goes (CSS px in the map), kept 8 px inside it, as { left, top, side }: next to its
+ *  tile on the `prefer`red side ('below' or 'above', away from the player) or else the other, centred on
+ *  the tile; failing those, along the map's top or bottom edge; failing those, beside the tile. The first
+ *  that fits and covers neither the player's tile (`me`) nor its own wins; if none, the first that fits.
+ *  `area.top` is where the map stops being covered (the status strip's bottom). */
+export function cardPlace(tile, card, area, prefer, me = null) {
+  const lo = area.top + 8, hi = area.h - 8 - card.h, clampX = x => Math.max(8, Math.min(area.w - card.w - 8, x)), clampY = y => Math.max(lo, Math.min(hi, y));
+  const cx = clampX(tile.x + tile.size / 2 - card.w / 2), cy = clampY(tile.y + tile.size / 2 - card.h / 2);
+  const vertical = { below: [cx, tile.y + tile.size + 8], above: [cx, tile.y - 8 - card.h] };
+  const order = prefer === 'above' ? ['above', 'below'] : ['below', 'above'];
+  const spots = [...order.map(s => [s, ...vertical[s]]), ['top', cx, lo], ['bottom', cx, hi],
+    ['right', tile.x + tile.size + 8, cy], ['left', tile.x - 8 - card.w, cy]];
+  const fits = ([, x, y]) => x >= 8 && x + card.w <= area.w - 8 && y >= lo && y <= hi;
+  const over = ([, x, y], t) => t && x < t.x + t.size && x + card.w > t.x && y < t.y + t.size && y + card.h > t.y;
+  const [side, left, top] = spots.find(s => fits(s) && !over(s, me) && !over(s, tile)) ?? spots.find(fits) ?? spots[0];
+  return { left: Math.round(left), top: Math.round(top), side };
+}
+
+/** Sets an element's contents to `html`, keeping every node that is already as wanted. A paced job re-renders
+ *  the panels many times a second; rebuilding them with innerHTML made new <img>s each time, which some browsers
+ *  show blank until decoded again (the icons flickered). An unchanged string costs nothing. */
+export function setHtml(el, html) {
+  if (el.__html === html) return;
+  el.__html = html;
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  morphChildren(el, t.content);
+}
+
+function morphChildren(to, from) {
+  const want = [...from.childNodes];
+  for (let i = 0; i < want.length; i++) {
+    const have = to.childNodes[i], w = want[i];
+    if (!have) to.appendChild(w);
+    else if (have.nodeType !== w.nodeType || have.nodeName !== w.nodeName) to.replaceChild(w, have);
+    else if (have.nodeType === Node.ELEMENT_NODE) morphElement(have, w);
+    else if (have.nodeValue !== w.nodeValue) have.nodeValue = w.nodeValue;
+  }
+  while (to.childNodes.length > want.length) to.lastChild.remove();
+}
+
+function morphElement(have, w) {
+  for (const a of [...have.attributes]) if (!w.hasAttribute(a.name)) have.removeAttribute(a.name);
+  for (const a of w.attributes) if (have.getAttribute(a.name) !== a.value) have.setAttribute(a.name, a.value);
+  morphChildren(have, w);
+}

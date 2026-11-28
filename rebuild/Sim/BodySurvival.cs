@@ -93,7 +93,6 @@ public static partial class Body
     public const double RegenMinCaloriesPct = 0.10;
     const double RegenMinHydrationPct = 0.10, RegenMinEnergyPct = 0.50;
     const double BaseHealingPerHour = 0.1;
-    const double SurvivalEffectThresholdPct = 0.30;
 
     const double ThermalMassFPerKg = 2.0;
     public static double ClothingHeatStoredF(BodyState body) => body.ClothingHeatBufferPct * body.ClothingWeightKg * ThermalMassFPerKg;
@@ -143,12 +142,14 @@ public static partial class Body
         return neutralSkinF - sensibleLossW / 1.8 * TotalThermalResistance(body, ctx) * 9.0 / 5.0;
     }
 
+    internal static double WholeOrgansBasalKcalPerDay(BodyState body) => body.Kind == BodyKind.Human
+        ? 370 + 21.6 * Math.Max(0, body.WeightKg - body.FatKg)
+        : 70 * Math.Pow(body.WeightKg, 0.75);
+
     /// Kleiber for animals: Katch-McArdle gives a mammoth 84,600 kcal/day to Kleiber's 47,700.
     public static double MetabolismKcalPerDay(BodyState body, double activityFactor)
     {
-        double bmr = body.Kind == BodyKind.Human
-            ? 370 + 21.6 * Math.Max(0, body.WeightKg - body.FatKg)
-            : 70 * Math.Pow(body.WeightKg, 0.75);
+        double bmr = WholeOrgansBasalKcalPerDay(body);
         double organs = 0;
         int count = 0;
         foreach (var r in body.Regions)
@@ -217,33 +218,8 @@ public static partial class Body
         ProcessLethal(body, minutes, d);
         ProcessRegeneration(body, ctx, calories, hydration, minutes, d);
 
-        double energy = body.EnergyMinutes + d.EnergyDeltaMinutes;
-        double hungry = HungerSeverity(body, calories / CaloriesCapacityKcal(body));
-        if (hungry > 0) d.Effects.Add((EffectKind.Hungry, hungry));
-        AddBelowThreshold(d, EffectKind.Thirsty, hydration / MaxHydrationMl);
-        AddBelowThreshold(d, EffectKind.Tired, energy / MaxEnergyMinutes);
         return d;
     }
-
-    static void AddBelowThreshold(SurvivalDelta d, EffectKind kind, double pct)
-    {
-        double severity = BelowThreshold(pct);
-        if (severity > 0) d.Effects.Add((kind, severity));
-    }
-
-    static double BelowThreshold(double pct) =>
-        Math.Max(0, (SurvivalEffectThresholdPct - Math.Clamp(pct, 0, 1)) / SurvivalEffectThresholdPct);
-
-    /// Follows the reserves: an empty store is a pang; strong hunger rises over the last StarvingRampDays they can feed.
-    static double HungerSeverity(BodyState body, double storePct)
-    {
-        double pang = EmptyStoreHungerSeverity * BelowThreshold(storePct);
-        double reserves = Math.Clamp(1 - ReservesKcal(body) / (StarvingRampDays * MetabolismKcalPerDay(body, 1.0)), 0, 1);
-        return Math.Max(pang, reserves);
-    }
-
-    const double EmptyStorePangLoss = 0.05, StarvingRampDays = 20;
-    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -Effects.CapacityLoss(EffectKind.Hungry, Capacity.Moving);
 
     public static SurvivalDelta ProcessTemperature(BodyState body, SurvivalContext ctx, int minutes)
     {
@@ -428,7 +404,7 @@ public static partial class Body
     static readonly Cause TheCold = new(null, "the cold"), Thirst = new(null, "thirst"), Starvation = new(null, "starvation"),
         BloodLoss = new(null, "blood loss");
 
-    static double ReservesKcal(BodyState body) =>
+    internal static double ReservesKcal(BodyState body) =>
         Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
 
     /// Read as the minute begins, so a forecast is exactly what the survival step charges.
@@ -532,22 +508,21 @@ public static partial class Body
             if (kind is EffectKind.Wet or EffectKind.Bloody or EffectKind.Dirty) Effects.Set(body, kind, severity);
             else Effects.Add(body, kind, severity);
         }
-        WellFed(body);
 
         d.CoreTempDeltaF += Effects.CoreTempFPerHour(body) / 60;
         double bleedMl = woundsLived ? 0 : Effects.BleedMlPerHour(body) / 60;
         if (bleedMl > 0) d.Damage.Add(Bleed(body, bleedMl));
 
         Apply(body, d, rng);
+        WellFed(body);
         // A mended body, person or animal, forgets who hurt it: a death days later is not the old wound's.
         if (body.WoundedBy != null && IsMended(body)) body.WoundedBy = null;
         Exhaustion(body, ctx, rng);
     }
 
-    /// Judged on the effects as this minute leaves them, so the pang's fading tail counts as hunger.
     static void WellFed(BodyState body)
     {
-        body.MinutesWithoutHunger = Effects.Has(body, EffectKind.Hungry) ? 0 : body.MinutesWithoutHunger + 1;
+        body.MinutesWithoutHunger = Deprivations.Has(body, Deprivation.Hungry) ? 0 : body.MinutesWithoutHunger + 1;
         Effects.Set(body, EffectKind.WellFed, body.MinutesWithoutHunger >= Effects.WellFedAfterHours * 60 ? 1 : 0);
     }
 

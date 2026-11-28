@@ -73,7 +73,7 @@ public static partial class Content
         double StealthFactor = 1,
         IReadOnlyList<Ability>? Abilities = null, IReadOnlyList<Resource>? Grazes = null);
     sealed record EffectRow(double SeverityPerHour, double? TreatmentAboveSeverity, double CoreTempFPerHour = 0,
-        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null, bool Discomfort = false,
+        double BleedMlPerHour = 0, Dictionary<string, double>? Capacities = null,
         double MetabolicHeatDelta = 0, double HealingDelta = 0, double? HungerFreeHours = null);
     sealed record SheltersFile(Dictionary<string, ShelterKindProps> Kinds, Dictionary<string, ShelterDef> Tents,
         Dictionary<string, ShelterMaterial> Materials, Dictionary<string, BeddingProps> Beddings, Dictionary<string, CacheFileRow> Caches);
@@ -204,7 +204,7 @@ public static partial class Content
             ReadOnly(speciesRows.ToDictionary(s => s.Key, s => ToStats(s.Value, species.Temperaments[s.Value.Temperament]))),
             ReadOnly(diets), species.Sightings, ReadOnly(killChances), ReadOnly(injuryChances),
             ReadOnly(effectRows.ToDictionary(e => e.Key, e => new EffectDef(e.Value.SeverityPerHour, e.Value.TreatmentAboveSeverity,
-                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(), e.Value.Discomfort,
+                e.Value.CoreTempFPerHour, e.Value.BleedMlPerHour, effectCaps[e.Key].Select(c => (c.Key, c.Value)).ToList().AsReadOnly(),
                 e.Value.MetabolicHeatDelta, e.Value.HealingDelta, e.Value.HungerFreeHours))),
             ReadOnly(kinds), new ReadOnlyDictionary<string, ShelterDef>(shelters.Tents), ReadOnly(materials),
             ReadOnly(beddings),
@@ -672,7 +672,7 @@ public static partial class Content
         {
             if (!f.Gear.TryGetValue(k.Kind, out var g)) { yield return $"items.json: no gear kind '{k.Kind}' for the starting kit"; continue; }
             if (k.Durability is <= 0) yield return $"items.json: starting {k.Kind} durability {k.Durability}";
-            if (k.Durability is int n && !Items.CanBeWornTo(g, n))
+            if (k.Durability is int n && !g.CanBeWornTo(n))
                 yield return g.MaxDurability <= 0 ? $"items.json: starting {k.Kind} has a durability, and its kind never wears"
                     : $"items.json: starting {k.Kind} durability {n} is more than whole (its kind's maxDurability is {g.MaxDurability})";
         }

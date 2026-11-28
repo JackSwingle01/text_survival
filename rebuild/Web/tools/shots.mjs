@@ -4,6 +4,10 @@
 //   node shots.mjs <wwwroot> --run                 the scripted run: walk, fire, forage, make a staff, save, load
 //   node shots.mjs <wwwroot> --shot fire [--shot make ...] [--phone]   one state each (see STATES)
 //   node shots.mjs <wwwroot> --all [--phone]        every state
+//   node shots.mjs <wwwroot> --run --replay         the scripted run with the playtest log on (?log), then
+//                                                   its log replayed on a fresh page: the same world, or fail
+// --phone also shoots each state on phones (portrait 390×664 and 402×714, landscape 844×390 and 932×430, touch on) and
+// fails when the layout does not fit the screen there (PHONE_LAYOUT).
 // Options: --out <dir> (default rebuild/Web/shots), --seed <n>, --chrome <path>.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,9 +25,13 @@ const out = path.resolve(opt('--out', path.join(here, '..', 'shots')));
 const seed = +opt('--seed', 1);
 const chrome = opt('--chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 const phone = args.includes('--phone');
+const replaying = args.includes('--replay');
 fs.mkdirSync(out, { recursive: true });
 
 // ---- the page, from outside ----
+
+/** The general forage, as a predicate over VerbDto: its label gains the ground's word once searched ("Forage (scarce)"). */
+const FORAGE = `/^Forage( \\(|$)/.test(v.label) && !v.refused`;
 
 const page = {
   ready: `window.ui.ready.then(() => true)`,
@@ -33,17 +41,70 @@ const page = {
   open: (kind, extra = '') => `(window.ui.openDrawer({ kind: '${kind}'${extra} }), true)`,
   key: k => `(document.dispatchEvent(new KeyboardEvent('keydown', { key: '${k}', bubbles: true })), true)`,
   view: `window.ui.S.view`,
+  drawer: `window.ui.S.drawer?.kind ?? null`,
+  centreOf: sel => `(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`,
+  tip: `(() => { const t = document.getElementById('ftip'); return t.hidden ? null : t.textContent; })()`,
 };
+
+/** On a phone, the page fits the screen (#315): it never scrolls; every verb is in the window or in a
+ *  scroller of its own that brings it there; the sheet buttons are in the window with no scrolling; and an
+ *  open drawer leaves a third of the map uncovered by it and the status strip. Returns the problems. */
+const PHONE_LAYOUT = `(() => {
+  const W = innerWidth, H = innerHeight, out = [];
+  const shown = e => e.getClientRects().length > 0;
+  const inside = r => r.left >= -1 && r.top >= -1 && r.right <= W + 1 && r.bottom <= H + 1;
+  const name = b => b.querySelector('.vn')?.textContent.trim() || b.dataset.open || b.textContent.trim().slice(0, 20);
+  const scroller = e => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) { const s = getComputedStyle(p); if (/auto|scroll/.test(s.overflowX + s.overflowY)) return p; } return null; };
+  const reached = b => { const r = b.getBoundingClientRect(); if (!inside(r)) return 'out of reach'; const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return hit && b.contains(hit) ? null : 'covered'; };
+  const doc = document.scrollingElement;
+  if (doc.scrollHeight > H || doc.scrollWidth > W) out.push('the page is ' + doc.scrollWidth + '×' + doc.scrollHeight + ' in a ' + W + '×' + H + ' window');
+  for (const sel of ['.app', '.top', '.map', '.dock']) { const e = document.querySelector(sel); if (e && shown(e) && !inside(e.getBoundingClientRect())) out.push(sel + ' runs past the window'); }
+  const top = document.querySelector('.top'); if (top && top.scrollWidth > top.clientWidth) out.push('the top strip is ' + top.scrollWidth + ' px wide in ' + top.clientWidth + ': it scrolls sideways');
+  // While a sheet is open the dock gives way to it (its verbs come back when it closes), so only a shown dock is checked.
+  for (const b of document.querySelectorAll('.sheets button')) { if (!shown(b)) continue; const p = reached(b); if (p) out.push('sheet ' + name(b) + ': ' + p); }
+  for (const b of document.querySelectorAll('.dock button')) {
+    if (!shown(b) || b.closest('.sheets')) continue;
+    const sc = scroller(b); if (sc) { const r = b.getBoundingClientRect(), c = sc.getBoundingClientRect(); sc.scrollLeft += r.left - c.left; sc.scrollTop += r.top - c.top; }
+    const p = reached(b); if (p) out.push('verb ' + name(b) + ': ' + p);
+  }
+  if (doc.scrollTop || doc.scrollLeft) out.push('reaching the verbs scrolled the page');
+  const card = document.getElementById('tcard');
+  if (card && shown(card)) {
+    const r = card.getBoundingClientRect(), m = document.querySelector('.map').getBoundingClientRect();
+    if (r.left < m.left - 1 || r.right > m.right + 1 || r.top < m.top - 1 || r.bottom > m.bottom + 1) out.push('the trip card runs off the map');
+    const v = document.querySelector('.vitals')?.getBoundingClientRect();
+    if (v && r.left < v.right && r.right > v.left && r.top < v.bottom && r.bottom > v.top) out.push('the trip card covers the vitals');
+    const me = window.ui.map.screenOf(window.ui.S.view.place.x, window.ui.S.view.place.y);
+    if (me) { const px = m.left + me.x, py = m.top + me.y;
+      if (px < r.right && px + me.size > r.left && py < r.bottom && py + me.size > r.top) out.push('the trip card covers the player'); }
+  }
+  const d = document.getElementById('drawer');
+  if (d && shown(d)) {
+    const m = document.querySelector('.map').getBoundingClientRect(), r = d.getBoundingClientRect();
+    const st = document.querySelector('.status'), top = Math.max(m.top, st && shown(st) ? st.getBoundingClientRect().bottom : m.top);
+    const above = Math.max(0, r.top - top) * m.width, beside = Math.max(0, r.left - m.left) * (m.bottom - top);
+    const left = Math.max(above, beside) / (m.width * m.height);
+    if (left < 1 / 3) out.push('an open drawer leaves ' + Math.round(left * 100) + '% of the map');
+  }
+  return out;
+})()`;
+
+// An iPhone 13 and an iPhone 18 (402 × 714: Safari's page between its bars) upright, and phones on their side.
+const PHONES = [[390, 664, '-phone'], [402, 714, '-iphone18'], [844, 390, '-land'], [932, 430, '-land-max']];
 
 /** Each state: a URL scenario (Host Scenarios) and the steps that drive the page there. */
 const STATES = {
   start: { steps: [] },
   here: { steps: [page.open('here')] },
   trip: { steps: [`(window.ui.openTrip(window.ui.S.view.walk.find(w => !w.refused && !w.careful).dir), true)`] },
+  'trip-north': { steps: [`(window.ui.openTrip('north'), true)`] },
+  'trip-south': { steps: [`(window.ui.openTrip('south'), true)`] },
+  'trip-west': { steps: [`(window.ui.openTrip('west'), true)`] },
+  'trip-east': { steps: [`(window.ui.openTrip('east'), true)`] },
   walk: { steps: [page.run(`v.kind === 'walk' && !v.refused && !v.careful`), page.idle] },
   fire: { scenario: 'supplied', steps: [page.open('fire')] },
   lit: { scenario: 'supplied', steps: ['strike'] },
-  forage: { steps: [page.run(`v.label === 'Forage'`), page.idle] },
+  forage: { steps: [page.run(FORAGE), page.idle] },
   make: { scenario: 'supplied', steps: [`(window.ui.S.makeSel = 'staff', window.ui.openDrawer({ kind: 'make' }), true)`] },
   made: { scenario: 'supplied', steps: [`(window.ui.S.makeSel = 'staff', window.ui.openDrawer({ kind: 'make' }), true)`, page.run(`v.make?.recipe === 'staff'`), page.idle] },
   body: { steps: [page.open('body')] },
@@ -109,7 +170,7 @@ async function launch() {
   const port = 9400 + Math.floor(Math.random() * 400);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ts-shots-'));
   const proc = spawn(chrome, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--no-first-run',
-    '--window-size=1280,860', '--hide-scrollbars', 'about:blank'], { stdio: 'ignore' });
+    '--window-size=1280,860', '--hide-scrollbars', ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), 'about:blank'], { stdio: 'ignore' });
   let target;
   for (let i = 0; i < 60 && !target; i++) {
     await new Promise(r => setTimeout(r, 200));
@@ -141,6 +202,7 @@ async function launch() {
 
 async function size(cdp, w, h, mobile = false) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile });
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 });
 }
 
 async function goto(cdp, url) {
@@ -161,6 +223,51 @@ async function shot(cdp, name) {
   console.log(`  ${file}`);
 }
 
+/** A finger's tap at a point in the window. */
+async function tap(cdp, x, y) {
+  const at = [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await new Promise(r => setTimeout(r, 400)); // the click after the touch, and the page's answer to it
+}
+
+/** A finger's swipe from one point to another, slow enough that the browser pans what is under it. */
+async function swipe(cdp, [x0, y0], [x1, y1]) {
+  const at = (x, y) => [{ x, y, radiusX: 4, radiusY: 4, force: 1, id: 1 }];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(x0, y0) });
+  for (let i = 1; i <= 8; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8) });
+    await new Promise(r => setTimeout(r, 16));
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await new Promise(r => setTimeout(r, 400));
+}
+
+/** On a phone, a tap shows what a mouse would hover (#315): the clock's tap shows the day and the weather;
+ *  the next tap only puts it away, so a tap on the map walks nowhere; a tap on a verb leaves no tip up. */
+async function phoneTaps(cdp) {
+  await size(cdp, 390, 664, true);
+  await goto(cdp, `${url}?seed=${seed}`);
+  const problems = [];
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.t-clock')));
+  const shown = await cdp.evaluate(page.tip);
+  if (!/Day \d.*Air .*Wind /.test(shown ?? '')) problems.push(`a tap on the clock showed ${JSON.stringify(shown)}, not the day and weather`);
+  const [mx, my] = await cdp.evaluate(`(() => { const r = document.getElementById('world').getBoundingClientRect(); return [r.left + 30, r.bottom - 30]; })()`);
+  await tap(cdp, mx, my);
+  if (await cdp.evaluate(page.tip)) problems.push('a second tap left the tip up');
+  if (await cdp.evaluate(page.drawer)) problems.push('the tap that put the tip away also acted on the map');
+  // A swipe that puts a tip away pans instead of clicking: the tap after it still acts.
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.t-clock')));
+  const [vx, vy] = await cdp.evaluate(page.centreOf('.dock .verbs'));
+  await swipe(cdp, [vx + 60, vy], [vx - 60, vy]);
+  if (await cdp.evaluate(page.tip)) problems.push('a swipe left the tip up');
+  await cdp.evaluate(`(document.querySelector('.dock .verb[data-open="make"]').scrollIntoView({ block: 'nearest', inline: 'nearest' }), true)`);
+  await tap(cdp, ...await cdp.evaluate(page.centreOf('.dock .verb[data-open="make"]')));
+  if (await cdp.evaluate(page.tip)) problems.push('a tap on a verb left its tip up');
+  if (await cdp.evaluate(page.drawer) !== 'make') problems.push('a tap on Make did not open it');
+  return problems;
+}
+
 async function step(cdp, s) { return cdp.evaluate(s === 'strike' ? STRIKE : s === 'remembered' ? REMEMBERED : s === 'away' ? AWAY : s); }
 
 // ---- modes ----
@@ -171,29 +278,29 @@ let failed = false;
 try {
   if (args.includes('--run')) {
     await size(cdp, 1280, 860);
-    console.log('scripted run');
-    await goto(cdp, `${url}?seed=${seed}`);
+    console.log(`scripted run${replaying ? ', logged' : ''}`);
+    await goto(cdp, `${url}?seed=${seed}${replaying ? '&log=1' : ''}`);
     await shot(cdp, 'run-01-start');
     await step(cdp, page.run(`v.kind === 'walk' && v.dir === 'east' && !v.careful && !v.refused`)); await step(cdp, page.idle);
     await shot(cdp, 'run-02-walked-east');
     await step(cdp, page.run(`v.kind === 'walk' && v.dir === 'west' && !v.careful && !v.refused`)); await step(cdp, page.idle);
     if (!(await cdp.evaluate(`window.ui.S.view.place.camp`))) throw new Error('walking back did not reach camp');
     // Forage for tinder and wood first: the starting pack holds three or four strikes' worth of tinder.
-    await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle);
+    await step(cdp, page.run(FORAGE)); await step(cdp, page.idle);
     await shot(cdp, 'run-03-foraged');
     await step(cdp, page.open('fire'));
     await shot(cdp, 'run-04-fire-odds');
     let lit = false;
     for (let round = 0; round < 4 && !lit; round++) {
       lit = await step(cdp, 'strike').catch(e => { if (/not enough/.test(e.message)) return false; throw e; });
-      if (!lit) { await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle); }
+      if (!lit) { await step(cdp, page.run(FORAGE)); await step(cdp, page.idle); }
     }
     if (!lit) throw new Error('the fire never caught');
     await shot(cdp, 'run-05-fire-lit');
     // Wood for a staff: forage until the recipe can start.
     let tries = 0;
     for (; tries < 8 && await cdp.evaluate(`window.ui.allVerbs().find(v => v.make?.recipe === 'staff').refused != null`); tries++) {
-      await step(cdp, page.run(`v.label === 'Forage' && !v.refused`)); await step(cdp, page.idle);
+      await step(cdp, page.run(FORAGE)); await step(cdp, page.idle);
     }
     const refusal = await cdp.evaluate(`window.ui.allVerbs().find(v => v.make?.recipe === 'staff').refused`);
     if (refusal) throw new Error(`after ${tries} more forages the staff is still refused: ${refusal}`);
@@ -222,6 +329,24 @@ try {
       return { view: Math.round(view), waitHour: Math.round(hour) };
     })()`);
     console.log(`  worker round trip: view ${ms.view} ms, an hour's wait ${ms.waitHour} ms`);
+    if (replaying) {
+      // Finish the timing's wait first: the host saves only between jobs.
+      await cdp.evaluate(`window.ui.client.act({ stop: true }).then(() => true)`);
+      await step(cdp, `(window.ui.log.mark(), true)`);
+      await shot(cdp, 'run-10-logged');
+      const record = await cdp.evaluate(`JSON.stringify(window.ui.log.toJSON())`);
+      const end = await cdp.evaluate(`window.ui.client.save().then(b => new TextDecoder().decode(b))`);
+      const n = JSON.parse(record).entries.length;
+      await goto(cdp, `${url}?seed=${seed + 1}`); // a fresh page, unlogged, on another world
+      const again = await cdp.evaluate(`(async () => {
+        const [{ replay }, { createClient }] = await Promise.all([import('./playtest.js'), import('./client.js')]);
+        const fresh = createClient(); // its own host: verb ids count views from the host's first
+        await replay(${record}, fresh);
+        return new TextDecoder().decode(await fresh.save());
+      })()`);
+      if (again !== end) throw new Error(`the replay of ${n} logged entries did not reach the same world`);
+      console.log(`  replayed ${n} logged entries (${Math.round(record.length / 1024)} KB): the same world`);
+    }
   }
   if (args.includes('--observe')) {
     // Observer mode (observe.html): no player, the whole map, time at a rate, spawn and inspect.
@@ -282,15 +407,17 @@ try {
     await new Promise(r => setTimeout(r, 2500));
     await shot(cdp, 'observe-04-ravine');
   }
+  if (phone) for (const p of await phoneTaps(cdp)) { console.error(`  taps: ${p}`); failed = true; }
   const wanted = args.includes('--all') ? Object.keys(STATES) : args.flatMap((a, i) => a === '--shot' ? [args[i + 1]] : []);
   for (const name of wanted) {
     const st = STATES[name];
     if (!st) throw new Error(`No state '${name}': ${Object.keys(STATES).join(', ')}`);
-    for (const [w, h, suffix] of phone ? [[1280, 860, ''], [390, 844, '-phone']] : [[1280, 860, '']]) {
+    for (const [w, h, suffix] of phone ? [[1280, 860, ''], ...PHONES] : [[1280, 860, '']]) {
       await size(cdp, w, h, suffix !== '');
       await goto(cdp, `${url}?seed=${seed}${st.scenario ? `&scenario=${st.scenario}` : ''}`);
       for (const s of st.steps) await step(cdp, s);
       await shot(cdp, `${name}${suffix}`);
+      if (suffix) for (const p of await cdp.evaluate(PHONE_LAYOUT)) { console.error(`  ${name}${suffix}: ${p}`); failed = true; }
     }
   }
 } catch (e) {

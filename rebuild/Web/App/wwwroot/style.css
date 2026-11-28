@@ -17,7 +17,7 @@
   --lichen: #9fbb86;     /* factors that add */
   --frost: #8fa6b7;      /* cold */
   --night: #0d1216;
-  --f-pixel: "Pixelify Sans", "Courier New", monospace;
+  --f-pixel: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* one font: the pixel art is the look, the words stay legible */
   --f-body: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-num: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif; /* numbers: legible, tabular */
   --notch: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
@@ -39,7 +39,7 @@ button { font: inherit; color: inherit; }
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
 .map { grid-area: map; position: relative; min-width: 0; overflow: hidden; background: var(--night); }
-#world { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#world { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; } /* a drag pans the map */
 
 /* ---------- shared pieces ---------- */
 .plate { background: var(--ink); border: 2px solid var(--seam); clip-path: var(--notch); }
@@ -84,7 +84,7 @@ button { font: inherit; color: inherit; }
 .top .grow { flex: 1; border-right: 0; }
 
 .feels { display: flex; align-items: baseline; justify-content: space-between; }
-.feels .big { font: 600 34px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.feels .big { font: 600 22px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .thermo { position: relative; height: 12px; background: linear-gradient(90deg, #3b5568, #6f8796 40%, #8a7a62 60%, #c46a2c); clip-path: var(--notch-s); }
 .thermo b { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--bone); box-shadow: 0 0 0 1px var(--ink); }
 .thermo s { position: absolute; top: 3px; height: 6px; width: 2px; background: rgba(13,18,22,.7); }
@@ -105,7 +105,10 @@ button { font: inherit; color: inherit; }
 .side-head { padding: 12px 16px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--seam); }
 .side-head h2 { margin: 0; font: 500 23px/1 var(--f-pixel); flex: 1; text-wrap: balance; }
 .side-head .cost { font-size: 16px; color: var(--bone-2); display: flex; gap: 5px; align-items: center; }
-.side-body { padding: 14px 16px 18px; overflow-y: auto; display: grid; gap: 14px; align-content: start; min-height: 0; flex: 1; }
+.side-body { padding: 14px 16px 18px; overflow-y: auto; display: block; min-height: 0; flex: 1; }
+/* Plain block flow, not a grid: Safari sized a wrapping row (the forage finds) inside a grid row by its
+   unwrapped height, and the next section drew over it. */
+.side-body > * + * { margin-top: 14px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; cursor: pointer; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); font-size: 17px; }
 .chip small { color: var(--bone-3); font-size: 14px; }
@@ -118,8 +121,8 @@ button { font: inherit; color: inherit; }
 /* odds sheet */
 .odds { display: grid; gap: 8px; }
 .odds-top { display: flex; align-items: baseline; justify-content: space-between; }
-.odds-total { font: 600 50px/0.9 var(--f-num); font-variant-numeric: tabular-nums; }
-.odds-total small { font-size: 24px; color: var(--bone-2); }
+.odds-total { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.odds-total small { font-size: inherit; color: inherit; }
 .oddsbar { position: relative; height: 14px; background: var(--ink-3); clip-path: var(--notch-s); overflow: hidden; }
 .oddsbar .seg { position: absolute; top: 0; bottom: 0; }
 .oddsbar .seg.base { background: var(--bone-2); }
@@ -157,7 +160,7 @@ button { font: inherit; color: inherit; }
 @keyframes pop { 0% { transform: scaleY(2.4); } 100% { transform: none; } }
 
 /* buttons */
-.act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 10px 14px; font: 500 19px/1 var(--f-pixel); letter-spacing: .03em; background: var(--ember); color: #1e1006; border: none; clip-path: var(--notch); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+.act { display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 10px 14px; font: 600 19px/1 var(--f-pixel); letter-spacing: .03em; background: var(--ember); color: #1e1006; border: none; clip-path: var(--notch); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
 .act:hover { filter: brightness(1.08); }
 .act:active { box-shadow: inset 0 3px 0 rgba(0,0,0,.25); }
 .act:disabled { background: var(--ink-3); color: var(--bone-3); cursor: not-allowed; box-shadow: none; }
@@ -165,7 +168,7 @@ button { font: inherit; color: inherit; }
 .act.quiet { background: var(--ink-2); color: var(--bone); border: 2px solid var(--seam); box-shadow: none; }
 .act.quiet .key { background: var(--ink-3); border-color: var(--seam); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.row .act { flex: 1; }
+.row .act { flex: 1 1 auto; white-space: nowrap; } /* too long for one line: the next button wraps below */
 .note { font-size: 16px; color: var(--bone-3); margin: 0; }
 
 /* fire */
@@ -191,14 +194,6 @@ button { font: inherit; color: inherit; }
 .res span { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; padding: 2px 6px 2px 4px; background: var(--ink-2); clip-path: var(--notch-s); color: var(--bone-2); }
 .trk { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; font-size: 16px; }
 .trk .age { font: 600 14px/1 var(--f-num); color: var(--bone-3); }
-.exits { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.exit { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; text-align: left; font-size: 16px; }
-.exit:hover { border-color: var(--bone-3); }
-.exit:disabled { opacity: .35; cursor: not-allowed; }
-.exit .dir { font: 600 16px/1 var(--f-pixel); color: var(--bone-2); }
-.exit small { display: block; color: var(--bone-3); font-size: 14px; }
-.exit .m { font: 600 16px/1 var(--f-num); color: var(--bone-2); }
-.exit .haz { color: var(--minus); }
 
 /* pack */
 .bag { display: grid; gap: 4px; }
@@ -243,6 +238,11 @@ button { font: inherit; color: inherit; }
 .verb:hover { border-color: var(--bone-3); }
 .verb[aria-pressed="true"] { border-color: var(--ember); background: #22150c; }
 .verb:disabled { opacity: .35; cursor: not-allowed; }
+/* The playtest log's chip (?log only): top middle of the map, out of the way of the vitals and the drawer. */
+.logchip { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; padding: 4px 6px; z-index: 3; white-space: nowrap; }
+.logchip .rec { font: 600 14px/1 var(--f-pixel); color: var(--blood); padding: 0 4px; }
+.logchip .rec.marked { color: var(--ember); }
+.logchip .act { padding: 6px 9px; font-size: 15px; }
 .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 8px 12px; display: flex; gap: 8px; align-items: center; font-size: 17px; z-index: 4; animation: drop .3s steps(3); }
 
 /* ---------- always: slim top strip ---------- */
@@ -279,7 +279,7 @@ button { font: inherit; color: inherit; }
 .xbtn { background: var(--ink-3); border: 1px solid var(--seam); border-bottom-width: 2px; color: var(--bone-2); font: 500 13px/1 var(--f-pixel); padding: 4px 6px; cursor: pointer; }
 .xbtn:hover { color: var(--bone); }
 .preview { display: grid; gap: 8px; padding: 10px 12px; background: var(--ink-2); clip-path: var(--notch-s); }
-.preview .big { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.preview .big { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .preview .head { display: flex; align-items: baseline; justify-content: space-between; }
 .stale { font-size: 14px; color: var(--bone-3); padding: 4px 8px; background: var(--ink-3); clip-path: var(--notch-s); }
 
@@ -296,18 +296,6 @@ button { font: inherit; color: inherit; }
 .sbtn[aria-pressed="true"] { border-color: var(--ember); }
 .sbtn:hover { border-color: var(--bone-3); }
 
-@media (max-width: 860px) {
-  body { overflow: auto; }
-  .app { height: auto; min-height: 100%; grid-template-rows: auto 64vh auto; }
-  .dock, .top { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  .top > div { padding-left: 0; padding-right: 14px; margin-right: 14px; }
-  .drawer { inset: 0; width: 100%; border: 0; clip-path: none; }
-  .vitals { width: 150px; }
-  .where-btn { display: none; }
-  .dock { flex-wrap: wrap; }
-  .verb { min-width: 0; flex: 1 1 calc(50% - 5px); }
-  .dock .verbs { flex-basis: 100%; }
-}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 /* ---------- additions for the real game ---------- */
@@ -338,10 +326,10 @@ button { font: inherit; color: inherit; }
 .result-line { font: 500 19px/1.2 var(--f-pixel); }
 .result-line.bad { color: var(--minus); } .result-line.good { color: var(--ochre); }
 .tween { color: var(--bone-2); font-size: 16px; }
-.big-stat { font: 600 31px/1 var(--f-num); font-variant-numeric: tabular-nums; }
+.big-stat { font: 600 20px/1 var(--f-num); font-variant-numeric: tabular-nums; }
 .end { width: min(520px, 100%); display: grid; text-align: center; }
 .end header { padding: 22px 22px 14px; display: grid; gap: 8px; justify-items: center; background: var(--ink-2); border-bottom: 2px solid var(--seam); }
-.end h3 { margin: 0; font: 500 38px/1 var(--f-pixel); }
+.end h3 { margin: 0; font: 600 30px/1 var(--f-pixel); }
 .end.died h3 { color: var(--minus); } .end.crossed h3 { color: var(--ochre); }
 .end .lines { padding: 14px 22px; text-align: left; }
 .end footer { padding: 12px 18px 18px; display: flex; gap: 8px; justify-content: center; }
@@ -361,7 +349,6 @@ button { font: inherit; color: inherit; }
 .flash { animation: flash .5s steps(3); }
 @keyframes flash { 0% { background: #3d2a14; } 100% { background: transparent; } }
 .shake { animation: shake .3s steps(3); }
-@media (max-width: 860px) { .combatside { top: auto; bottom: 12px; max-height: 40%; } }
 .dock { gap: 8px; }
 .dock .verb { min-width: 0; padding: 6px 12px 6px 8px; grid-template-columns: 32px auto; }
 .dock .verb img { width: 32px; height: 32px; }
@@ -410,11 +397,6 @@ button { font: inherit; color: inherit; }
   .lbar { width: 48px; }
   .t-feels .muted { display: none; }
 }
-@media (max-width: 860px) {
-  .dock .group { flex-wrap: wrap; flex: 1 1 100%; }
-  .dock .group .verb.fight { flex: 1 1 calc(50% - 6px); }
-  .combatside { max-height: 34%; }
-}
 .act.quiet:disabled { opacity: .4; cursor: not-allowed; }
 
 /* forage: the prototype's trickle of finds (dev/prototypes/ui/index.html) */
@@ -423,13 +405,103 @@ button { font: inherit; color: inherit; }
 .clue { display: grid; grid-template-columns: 20px 1fr; gap: 6px; align-items: center; text-align: left; padding: 5px 8px; font-size: 16px; background: var(--ink-2); border: 2px solid var(--seam); clip-path: var(--notch-s); cursor: pointer; color: inherit; }
 .clue:not(:disabled):hover { border-color: var(--bone-3); }
 .clue.still { cursor: default; border-color: transparent; color: var(--bone-2); }
-.found { display: flex; flex-wrap: wrap; gap: 6px; min-height: 52px; align-content: flex-start; }
-.found .item { flex: 0 1 112px; }
+/* An odds line: an Odds as one line under the buttons it bears on (fall risk, search speed). */
+.side-body > .odds-line, .sec > .odds-line { margin: 0; font-size: 15px; } .side-body > .odds-line { margin-top: 8px; }
+.odds-line b { font-family: var(--f-num); font-weight: 600; } .odds-line b.minus { color: var(--minus); } .odds-line b.plus { color: var(--lichen); }
+.found { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; min-height: 52px; align-content: start; }
 .found .item { display: grid; grid-template-columns: 20px 1fr; gap: 2px 6px; align-items: center; padding: 6px 8px; background: var(--ink-2); clip-path: var(--notch-s); font-size: 16px; }
 .found .item .n { grid-column: 2; font: 600 16px/1 var(--f-num); color: var(--bone-2); font-variant-numeric: tabular-nums; }
 .found .item.fuel { box-shadow: inset 3px 0 0 var(--ember); } .found .item.food { box-shadow: inset 3px 0 0 var(--lichen); }
 .found .item.medicine { box-shadow: inset 3px 0 0 var(--frost); } .found .item.material { box-shadow: inset 3px 0 0 var(--bone-3); }
-.found .item.rare { flex-basis: 100%; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
+.found .item.rare { grid-column: 1 / -1; background: #2c2210; box-shadow: inset 0 0 0 2px var(--ochre); color: var(--ochre); }
 .mood { font: 500 14px/1 var(--f-pixel); padding: 4px 7px; letter-spacing: .04em; clip-path: var(--notch-s); }
 .mood.good { background: #33300f; color: var(--ochre); } .mood.thin { background: #2a2f33; color: var(--frost); } .mood.wait { background: var(--ink-3); color: var(--bone-3); }
-.found .empty { color: var(--bone-3); font-size: 16px; align-self: center; flex-basis: 100%; }
+.found .empty { color: var(--bone-3); font-size: 16px; align-self: center; grid-column: 1 / -1; }
+
+/* ---------- phones: the page fits the screen and never scrolls ----------
+   Portrait: the top strip, the map, then a dock of verbs in two rows that scroll sideways beside the
+   sheet buttons; the vitals a strip along the map's top; a drawer a sheet from the bottom that leaves the
+   top of the map in view. Landscape: the dock a column on the right, a drawer a panel on the map's right.
+   Both queries are disjoint, and their union holds what they share. tools/shots.mjs --phone checks it. */
+@media (max-width: 860px) and (min-height: 501px), (max-height: 500px) and (max-width: 1000px) {
+  html:has(body:not(.obs)), body:not(.obs) { overscroll-behavior: none; }
+  .app { height: 100%; height: 100dvh; touch-action: manipulation; }
+  .top { padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+  .top > div { padding-left: 0; padding-right: 12px; margin-right: 12px; }
+  .top > div:last-child { border-right: 0; margin-right: 0; padding-right: 0; } /* no divider after the last */
+  .where-btn { display: none; }
+  .dock { overflow: visible; gap: 8px; align-items: stretch; min-height: 0;
+    padding: 6px max(10px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
+  .dock .verbs { gap: 6px; overscroll-behavior: contain; scrollbar-width: none; }
+  .dock .verbs::-webkit-scrollbar { display: none; }
+  .dock .verb, .dock .verb.small { min-width: 0; padding: 5px 8px 5px 5px; grid-template-columns: 24px minmax(0, 1fr); column-gap: 6px; overflow: hidden; }
+  .dock .verb img, .dock .verb.small img { width: 24px; height: 24px; }
+  .dock .verb .vn, .dock .verb.small .vn { font-size: 14px; white-space: nowrap; }
+  .dock .verb .vt, .dock .verb.small .vt { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sheets { display: grid; grid-template-columns: repeat(2, 44px); grid-auto-rows: 44px; gap: 4px; align-content: center; }
+  .sheets .sbtn { padding: 0; place-items: center; }
+  .sheets .sbtn img { width: 26px; height: 26px; }
+  /* a fight: every move in one scroller */
+  .dock:has(.group) { overflow: auto; scrollbar-width: none; }
+  .dock .group, .dock .group.refused { display: contents; }
+  /* the vitals and alerts: a strip along the map's top */
+  .status { top: 8px; left: 8px; right: 8px; bottom: auto; flex-direction: column; align-items: stretch; gap: 6px; }
+  .logchip { top: auto; bottom: 8px; } /* the vitals have the top */
+  .vitals { width: auto; padding: 6px 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .vbar { grid-template-columns: 16px 1fr; gap: 6px; }
+  .vbar .ico { width: 16px; height: 16px; }
+  .vtrack { height: 8px; }
+  .alerts { flex-direction: row; flex-wrap: wrap; }
+  .alert { padding: 5px 9px 5px 7px; font-size: 15px; }
+  .end { max-height: 100%; overflow: auto; }
+  /* An open sheet takes the dock's place: its verbs come back when it closes. */
+  .app:has(#drawer:not([hidden])) .dock { display: none; }
+  .act .key { display: none; } /* no keyboard */
+}
+@media (max-width: 860px) and (min-height: 501px) {
+  /* The daylight gives way when the upright strip runs short (a later hour, a longer daylight, a colder number):
+     its bar shrinks first, and its words end in an ellipsis only after that. */
+  .t-light { flex: 1 1 0 !important; min-width: 0; } /* the daylight takes what the clock and the temperature leave */
+  .t-light .lbar { flex: 1 1 0; width: auto; min-width: 14px; max-width: 48px; }
+  .t-light .num { flex: 0 0.001 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* shrinks only once the bar is at its least */
+  .dock .verbs { display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, auto); grid-auto-columns: 122px;
+    overflow-x: auto; overflow-y: hidden; mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+  .drawer { inset: auto 0 0 0; width: auto; height: 55%; border-width: 2px 0 0; clip-path: none; }
+  .combatside { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 38%; }
+}
+@media (max-height: 500px) and (max-width: 1000px) {
+  .app { grid-template-columns: minmax(0, 1fr) 212px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top top" "map dock"; }
+  .app:has(#drawer:not([hidden])) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "map"; } /* the sheet sits where the verbs were */
+  .top > div { padding-top: 4px; padding-bottom: 4px; }
+  .t-clock .clock-time { font-size: 24px; }
+  .dock { flex-direction: column; border-top: 0; border-left: 2px solid var(--seam); padding-left: 8px; }
+  .dock .verbs { display: flex; flex-direction: column; flex-wrap: nowrap; flex: 1 1 auto; min-height: 0; width: 100%; overflow-x: hidden; overflow-y: auto; }
+  .dock .verb { flex: none; }
+  .sheets { grid-template-columns: repeat(4, 1fr); width: 100%; }
+  .status { right: auto; width: min(300px, calc(44% - 16px)); }
+  .drawer { top: 8px; right: 8px; bottom: 8px; width: min(360px, 56%); }
+  .combatside { top: 8px; right: 8px; width: min(300px, 55%); max-height: calc(100% - 16px); }
+}
+
+/* ---------- the trip card: a neighbouring tile's trip, on the map by the tile ---------- */
+.tcard { position: absolute; z-index: 4; width: min(320px, calc(100% - 16px)); padding: 10px 12px; display: grid; gap: 8px; }
+.tcard .h { display: flex; align-items: baseline; gap: 8px; }
+.tcard .h b { font: 500 19px/1 var(--f-pixel); }
+.tcard .h .sub { font-size: 14px; color: var(--bone-3); }
+.tcard .h .num { margin-left: auto; font-size: 18px; }
+.tcard .h .xbtn { padding: 2px 7px; align-self: center; }
+.tcard .tbar { display: flex; height: 10px; gap: 2px; clip-path: var(--notch-s); }
+.tcard .tbar i { display: block; }
+.tcard .risk { margin: 0; font-size: 14px; color: var(--bone-2); }
+.tcard .risk b { color: var(--minus); font-family: var(--f-num); }
+.tcard .tbtns { display: flex; gap: 6px; }
+.tcard .tbtns .act { flex: 1 1 auto; padding: 9px 10px; font-size: 16px; white-space: nowrap; }
+.tcard .tbtns .info { flex: 0 0 44px; padding: 6px; }
+.tcard .tbtns .info img { width: 22px; height: 22px; image-rendering: pixelated; }
+/* On a phone on its side the map is short: the card is wide and low, the buttons beside what it says. */
+@media (max-height: 500px) and (max-width: 1000px) {
+  .tcard { width: min(560px, calc(100% - 16px)); grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 6px; align-items: center; }
+  .tcard > .h, .tcard > .tbar, .tcard > .risk { grid-column: 1; }
+  .tcard > .tbtns { grid-column: 2; grid-row: 1 / span 3; }
+}
+

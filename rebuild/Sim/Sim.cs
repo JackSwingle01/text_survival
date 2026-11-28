@@ -337,19 +337,47 @@ public static class Sim
         }
         else
         {
-            interrupt = LiveBodies(world, agent, activity, events);
-            // Before any of the minute runs: a fight may have held a waking activity through the drop.
-            if (interrupt != "died" && activity is not (Wait or Rest or Sleep or Fight) && Body.IsAsleep(agent.Body))
-                return Body.FellAsleep;
-            if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
-            if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
-            if (Shelters.Handles(activity) && interrupt != "died") interrupt = Shelters.Minute(world, agent, activity, events) ?? interrupt;
-            if (Making.Handles(activity) && interrupt != "died") interrupt = Making.Minute(world, agent, activity, events) ?? interrupt;
-            if (activity is Fight round) interrupt = Combat.EndRound(world, round, events) ?? interrupt; // also when the minute killed you: the fight ends
+            int feltBefore = Deprivations.Felt(agent.Body);
+            interrupt = LivePersonsMinute(world, agent, d, events, out bool droppedAsleep);
+            TellDeprivations(world, agent, feltBefore, events);
+            if (droppedAsleep) return interrupt;
         }
         interrupt ??= d.Acted;
         if (interrupt == null && --d.MinutesLeft <= 0) interrupt = Done;
         return interrupt;
+    }
+
+    /// droppedAsleep: asleep where they stood, so none of the minute's work runs and the activity is not counted down.
+    static string? LivePersonsMinute(World world, Agent agent, Doing d, List<WorldEvent> events, out bool droppedAsleep)
+    {
+        droppedAsleep = false;
+        var activity = d.Activity;
+        var interrupt = LivePersonsBody(world, agent, activity, events);
+        // Before any of the minute runs: a fight may have held a waking activity through the drop.
+        if (interrupt != "died" && activity is not (Wait or Rest or Sleep or Fight) && Body.IsAsleep(agent.Body))
+        {
+            droppedAsleep = true;
+            return Body.FellAsleep;
+        }
+        if (activity is Travel && interrupt != "died") interrupt = Traversal.Advance(world, agent, events) ?? interrupt;
+        if (d.Work != null && interrupt != "died") interrupt = Work.Minute(world, agent, d.Work, events) ?? interrupt;
+        if (Shelters.Handles(activity) && interrupt != "died") interrupt = Shelters.Minute(world, agent, activity, events) ?? interrupt;
+        if (Making.Handles(activity) && interrupt != "died") interrupt = Making.Minute(world, agent, activity, events) ?? interrupt;
+        if (activity is Fight round) interrupt = Combat.EndRound(world, round, events) ?? interrupt; // also when the minute killed you: the fight ends
+        return interrupt;
+    }
+
+    /// Across the whole minute (Live), so a meal or a drink that meets a need is told the minute it does,
+    /// or across the body's minute alone (LiveBodies). Endings first, as effects are.
+    static void TellDeprivations(World world, Agent agent, int feltBefore, List<WorldEvent> events)
+    {
+        if (!Body.IsAlive(agent.Body)) return;
+        int felt = Deprivations.Felt(agent.Body);
+        if (felt == feltBefore) return;
+        foreach (var k in Deprivations.All)
+            if (Deprivations.In(feltBefore, k) && !Deprivations.In(felt, k)) events.Add(new DeprivationEnded(world.Minute, agent.Id, agent.Tile, k));
+        foreach (var k in Deprivations.All)
+            if (!Deprivations.In(feltBefore, k) && Deprivations.In(felt, k)) events.Add(new DeprivationStarted(world.Minute, agent.Id, agent.Tile, k));
     }
 
     /// The agent's bodies live this minute, and nothing else: hunger, cold, wounds. Every body lives
@@ -358,6 +386,14 @@ public static class Sim
     internal static string? LiveBodies(World world, Agent agent, Activity activity, List<WorldEvent> events)
     {
         if (agent.Mind is HerdMind) return Fauna.Tick(world, agent, events, activity);
+        int feltBefore = Deprivations.Felt(agent.Body);
+        var interrupt = LivePersonsBody(world, agent, activity, events);
+        TellDeprivations(world, agent, feltBefore, events);
+        return interrupt;
+    }
+
+    static string? LivePersonsBody(World world, Agent agent, Activity activity, List<WorldEvent> events)
+    {
         Fire.CatchUpAround(world, agent, events); // before anything reads the fire this minute
         var body = agent.Body;
         var interrupt = Body.Tick(world, agent, Surroundings(world, agent, activity, events), events);

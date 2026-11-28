@@ -47,6 +47,15 @@ public class HaulReportTests
         }
     }
 
+    /// Seven food-focused fresh forest hours feed a day of seven foraging and seventeen resting (#286).
+    [Fact]
+    public void HaulFood_ADayOfFoodFocusedForagingFeedsTheForager_AndTheFocusFindsHalfAgainTheFood()
+    {
+        var food = Report.HaulFood(17);
+        Assert.True(food.Ok, $"{food.DayKcal:0} kcal forecast, {food.SampledDayKcal:0} sampled, against a burn of {food.BurnKcal:0}");
+        Assert.InRange(food.FocusedHourKcal / food.GeneralHourKcal, Work.InFocusFindsFactor * 0.95, Work.InFocusFindsFactor * 1.05);
+    }
+
     [Fact]
     public void HaulNeeds_EachIsGatheredOnSomeGround()
     {
@@ -55,6 +64,31 @@ public class HaulReportTests
             var row = Report.HaulHours(need);
             Assert.InRange(row.Hours, 1 / 60.0, 24);
         }
+    }
+
+    /// Every food row weighs FoodFactor times its pre-#152 weight, at the same abundance: the one factor that feeds the day.
+    const double FoodFactor = 1.28;
+
+    [Fact]
+    public void FoodRows_WeighOneFactorMoreThanBefore_AtTheirOldAbundance()
+    {
+        static IEnumerable<(string Where, IReadOnlyList<ForageItem> Items)> Rows(ContentTables t) =>
+        [
+            .. t.Forage.Select(f => (f.Key, f.Value)),
+            .. t.Locations.SelectMany(l => l.All.OfType<SiteForage>().Select((s, i) => ($"{l.Id} {i}", s.Items))),
+        ];
+        var before = Rows(BeforeTables.Tables).ToDictionary(r => r.Where, r => r.Items);
+        int food = 0;
+        foreach (var (where, items) in Rows(Content.Tables))
+            foreach (var item in items.Where(i => Items.Resources[i.Resource].Category == ResourceCategory.Food))
+            {
+                var old = before[where].Single(i => i.Resource == item.Resource);
+                Assert.Equal(old.Abundance, item.Abundance, 9);
+                Assert.Equal(old.MinKg * FoodFactor, item.MinKg, 9);
+                Assert.Equal(old.MaxKg * FoodFactor, item.MaxKg, 9);
+                food++;
+            }
+        Assert.True(food > 0);
     }
 
     [Fact]

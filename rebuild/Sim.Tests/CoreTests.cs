@@ -64,7 +64,7 @@ public class CoreTests
 
         Assert.Equal("exhausted", result.InterruptedReason);
         Assert.Equal(900, result.MinutesElapsed); // starts with 900 waking minutes left
-        int tired = result.Events.FindIndex(e => e is EffectStarted { Kind: EffectKind.Tired });
+        int tired = result.Events.FindIndex(e => e is DeprivationStarted { Kind: Deprivation.Tired });
         Assert.True(tired >= 0, "Tired should start before exhaustion");
         Assert.IsType<Exhausted>(result.Events[^1]);
     }

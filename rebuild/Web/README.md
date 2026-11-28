@@ -67,6 +67,47 @@ node --test tools/observe.test.mjs                               # camera, pacin
 node tools/shots.mjs /tmp/text-survival-web/wwwroot --observe    # play, zoom, spawn, inspect, a ravine; times the calls
 ```
 
+## The playtest log
+
+`?log` in the URL (`?log=1`) records the session; without it nothing is recorded and the page is
+unchanged. `wwwroot/playtest.js` wraps the client, so every call the page makes (`newGame`, `act`,
+`view`, `save`, `load`, `scenario`) is logged with its wall-clock time (`t`, ms since 1970) and what came
+back in words: the game minute, the place, the job and how it ended, and the journal lines it brought.
+Drawers opened are logged too, and a save every six game hours (about 450 KB each), so a log can be read
+even after Sim has changed and it no longer replays. The session names the commit the page was built
+from (`build.txt`, written by `publish.sh`).
+
+A chip at the top of the map (the bottom, on a phone) counts the entries. **Mark** (or `N`) adds a mark
+and shows its wall-clock time for a few seconds ("Marked 22:31:05"); the mark keeps that time as shown.
+**Log file** downloads the whole log as JSON.
+
+**Lining up a voice memo.** Start recording, tap Mark, and read the time out ("marked 22:31:05"); mark
+again now and then. Then
+
+```bash
+node tools/playtest-align.mjs playtest-….json transcript.txt -o timeline.md
+```
+
+reads the transcript (`MM:SS  Speaker  text` lines, the time since the recording began), finds each line
+that says a mark's time (`22:31:05`, `10:31` and `22.31` all match), and places every line by the mark
+nearest it in the recording. It writes each line at its wall-clock time and game moment, with what the
+game did since the line before (jobs ended, journal lines, drawers opened, refusals) and the save to load
+to see it. Marks further apart in the log than in the recording are reported (a paused recording). If the
+transcriber spelled the time out in words, it lists the lines that mention a mark: give one by hand with
+`--anchor 00:05=22:31:05` (the transcript time, then the mark as shown).
+
+The log stays in memory. `?log=<url>` (`http(s)://…` or a path such as `/playtest`) also posts it there in
+batches every few seconds as `{ session, entries }`, the first batch with the whole session header and the
+rest with its id only; a failed post keeps the batch for the next try, and the download stays whole.
+There is no collector yet.
+
+Sim is deterministic from the seed, so the calls are the game: `replay(record, client)` runs a log's
+calls again on a **fresh** client (verb ids count views from the host's first, so a client that has
+already started a game refuses them) and throws where the game has changed under the log.
+`node tools/shots.mjs <wwwroot> --run --replay` plays the scripted run with the log on, replays it on a
+fresh client and fails unless the saves match byte for byte. `node --test tools/playtest.test.mjs
+tools/playtest-align.test.mjs` checks the log against a stand-in game, and the timeline.
+
 ## The map's ground
 
 `wwwroot/terrain-core.js` draws the ground per pixel from known terrain and world pixel coordinates;
@@ -149,6 +190,12 @@ tools/publish.sh /tmp/text-survival-web -p:SimProject=/private/tmp/head/rebuild/
 `setup-dotnet` could install `wasm-tools`, but publishing AOT adds minutes to every run. Adding
 `Host` and `Host.Tests` to the solution would put the host tests in CI with no workload.
 
+## Deployed
+
+The Render static site `text-survival-rebuild` (https://text-survival-rebuild.onrender.com) builds
+`main` on every push: its build command is `bash rebuild/Web/tools/render-build.sh`, which installs the
+SDK and `wasm-tools` into the checkout and publishes AOT (about 4 min); it serves `web-out/wwwroot`.
+
 ## Checking it
 
 `tools/shots.mjs` drives the published page in headless Chrome over the DevTools protocol, writes
@@ -157,8 +204,14 @@ screenshots to `shots/`, and exits non-zero on any console error, uncaught excep
 ```bash
 node tools/shots.mjs /tmp/text-survival-web/wwwroot --run          # walk, forage, light a fire, make a staff, save, load
 node tools/shots.mjs /tmp/text-survival-web/wwwroot --shot fire    # one state; repeat --shot for more
-node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state, desktop and 390 px
+node tools/shots.mjs /tmp/text-survival-web/wwwroot --all --phone  # every state, desktop and phones; fails if a phone layout scrolls
+node tools/shots.mjs /tmp/text-survival-web/wwwroot --run --replay # the run, logged (?log), then replayed: the same world or fail
 ```
+
+`--phone` shoots each state at 390 × 664, 402 × 714 (an iPhone 18 in Safari), 844 × 390 and 932 × 430 with touch on, and fails when the page
+scrolls there, a verb or sheet button is out of reach, or an open drawer leaves less than a third of the
+map; it also taps the clock, the map and a verb (`PHONE_LAYOUT`, `phoneTaps`). On Linux pass
+`--chrome <path>` (as root, Chrome gets `--no-sandbox`).
 
 States: `start here trip walk fire lit forage make made body pack log save receipt sleep fight
 fight-round dead won winter trails remembered`. Look at the screenshots, not only the exit code.

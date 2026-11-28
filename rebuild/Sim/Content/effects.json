@@ -1,4 +1,4 @@
-// The effects the body itself produces: survival thresholds, temperature, wetness, wounds. Every
+// The effects the body itself produces: temperature, wetness, wounds. Every
 // EffectKind has one row. Loaded once by Content; ContentTests checks every name in here resolves.
 //
 // severityPerHour: how fast it drifts on its own: negative fades, 0 holds. Nothing grows by this field:
@@ -8,16 +8,12 @@
 // coreTempFPerHour, bleedMlPerHour: what it does to the body each hour at full severity.
 // capacities: what it takes off each capacity at full severity; scaled by severity.
 // metabolicHeatDelta, healingDelta: the share added at full severity to the body's own heat and to its healing.
-// hungerFreeHours: Well fed only: it holds once this long has passed without Hungry, and ends the minute Hungry returns.
-// discomfort: true for hunger, thirst and tiredness: their losses together stack with diminishing returns
-//   (Effects.CapacityDeltas), so they never take a capacity below about a fifth; everything else adds in full.
+// hungerFreeHours: Well fed only: it holds once this long has passed without hunger, and ends the minute hunger returns.
+// Hunger, thirst and tiredness are not here: they are read from the body's stores (Deprivations).
 {
- "Hungry": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.35, "Manipulation": -0.35, "Consciousness": -0.15 } },
- "Thirsty": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.40, "Manipulation": -0.25, "Consciousness": -0.45 } },
- // Hunger's mirror, all or nothing: the survival tick sets it from the minutes since the body was last Hungry.
+ // Hunger's mirror, all or nothing: the survival tick sets it from the minutes since the body was last hungry.
  // Capacities stay capped at whole, so it gives more heat and faster healing instead.
  "WellFed": { "severityPerHour": 0, "treatmentAboveSeverity": null, "metabolicHeatDelta": 0.05, "healingDelta": 0.05, "hungerFreeHours": 24 },
- "Tired": { "severityPerHour": -1.0, "treatmentAboveSeverity": null, "discomfort": true, "capacities": { "Moving": -0.45, "Manipulation": -0.30, "Consciousness": -0.45, "Sight": -0.25, "Hearing": -0.15 } },
  "Shivering": { "severityPerHour": -2, "treatmentAboveSeverity": null, "coreTempFPerHour": 3.0, "capacities": { "Manipulation": -0.2 } },
  "Hypothermia": { "severityPerHour": -0.5, "treatmentAboveSeverity": null, "capacities": { "Moving": -0.3, "Manipulation": -0.3, "Consciousness": -0.5, "Blood": -0.2 } },
  "Frostbite": { "severityPerHour": -0.02, "treatmentAboveSeverity": 0, "capacities": { "Manipulation": -0.5, "Moving": -0.5, "Blood": -0.2 } },

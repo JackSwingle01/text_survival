@@ -9,6 +9,9 @@ public class BodyTests
     static Tissue OrganOf(BodyState b, string name) => b.Regions.SelectMany(r => r.Organs).Single(o => o.Name == name);
     static Rng TestRng() => Rng.ForSystem(1, "test");
 
+    /// Speed as its share of the same whole body's: moving's share, when nothing else changed.
+    static double SpeedShare(BodyState b) => Body.Speed(b) / Body.Speed(Baseline());
+
     static void Destroy(Region r) { r.Skin.Condition = 0; r.Muscle.Condition = 0; r.Bone.Condition = 0; }
     static void SetLayers(Region r, double condition) { r.Skin.Condition = condition; r.Muscle.Condition = condition; r.Bone.Condition = condition; }
 
@@ -71,15 +74,16 @@ public class BodyTests
         Assert.Equal(expected, Body.NaturalAbsorption(t, type), 6);
     }
 
-    // ---- capacities ----
+    // ---- capacities, read through the faculties ----
 
     [Fact]
-    public void HealthyBody_AllCapacitiesNearPerfect()
+    public void HealthyBody_AllFacultiesNearAFreshBodys()
     {
-        var c = Body.GetCapacities(Baseline());
-        foreach (var v in new[] { c.Moving, c.Manipulation, c.Consciousness, c.Sight, c.Hearing })
-            Assert.True(v > 0.9, $"Capacity {v} should be near 1 for a healthy body: {c}");
-        Assert.Equal(1, Body.TissueVitality(Baseline()));
+        var b = Baseline();
+        foreach (var f in Enum.GetValues<Faculty>())
+            Assert.True(Body.Share(b, Species.Human, f) > 0.9, $"{f} {Body.Share(b, Species.Human, f)} should be near a fresh body's");
+        Assert.True(Body.Perception(b, new AbilityContext(DarknessLevel: 1.0)) > 0.45); // in the dark, hearing's half alone
+        Assert.Equal(1, Body.TissueVitality(b));
     }
 
     [Fact]
@@ -117,11 +121,12 @@ public class BodyTests
         var eyes = Baseline();
         OrganOf(eyes, "Left Eye").Condition = 0;
         OrganOf(eyes, "Right Eye").Condition = 0;
-        Assert.Equal(0, Body.GetCapacities(eyes).Sight);
+        Assert.Equal(0, Body.Vision(eyes));
+        Assert.Equal([CrippledBy.NoWorkingEye], Body.CrippledBy(eyes, Faculty.Vision));
 
         var brain = Baseline();
         OrganOf(brain, "Brain").Condition = 0.5;
-        Assert.Equal(0.5, Body.GetCapacities(brain).Consciousness, 9);
+        Assert.Equal(0.5, Body.Vision(brain), 9); // whole eyes, half conscious
 
         var heart = Baseline();
         OrganOf(heart, "Heart").Condition = 0.02;
@@ -134,15 +139,21 @@ public class BodyTests
         Body.Eat(gut, 1000);
         Assert.Equal(500, gut.CaloriesKcal, 9); // a destroyed gut absorbs half
 
-        var leg = RegionOf(Baseline(), "Left Leg");
-        leg.Bone.Condition = 0.2;
-        Assert.Equal(0.04, Body.RegionCapacities(leg)[(int)Capacity.Moving], 9); // a shattered bone stops the leg
+        var legs = Baseline();
+        RegionOf(legs, "Left Leg").Bone.Condition = 0.2;
+        RegionOf(legs, "Right Leg").Bone.Condition = 0.2;
+        Assert.InRange(SpeedShare(legs), 0.03, 0.05); // a shattered bone stops the leg: a fifth of its bone, a twenty-fifth of its speed
     }
 
-    /// Body review A2b: hurting any one tissue never makes any capacity better.
+    /// Body review A2b: hurting any one tissue never makes any faculty, or the hold on life, better. Perception in
+    /// pitch dark is hearing's alone, so a tissue that raised hearing while it lowered sight would show there.
     [Fact]
-    public void LoweringAnyTissue_NeverRaisesAnyCapacity()
+    public void LoweringAnyTissue_NeverRaisesAnyFaculty()
     {
+        var dark = new AbilityContext(DarknessLevel: 1);
+        string[] names = ["strength", "speed", "dexterity", "perception", "perception in the dark", "vision", "hold on life"];
+        double[] Read(BodyState b) =>
+            [Body.Strength(b), Body.Speed(b), Body.Dexterity(b), Body.Perception(b), Body.Perception(b, dark), Body.Vision(b), Body.TissueVitality(b)];
         foreach (var kind in Enum.GetValues<BodyKind>())
         {
             var tissues = BodyState.Create(kind, 60, 0.15, 0.3).Regions
@@ -156,14 +167,9 @@ public class BodyTests
                         t.Condition = rng.NextDouble() < 0.5 ? 1 : rng.NextDouble();
                 var (ri, ti) = tissues[rng.NextInt(tissues.Count)];
                 var tissue = b.Regions[ri].Layers.Concat(b.Regions[ri].Organs).ElementAt(ti);
-                var before = Body.GetCapacities(b);
-                double beforeLife = Body.TissueVitality(b);
+                double[] x = Read(b);
                 tissue.Condition *= rng.NextDouble();
-                var after = Body.GetCapacities(b);
-                double afterLife = Body.TissueVitality(b);
-                string[] names = ["moving", "manipulation", "consciousness", "sight", "hearing", "hold on life"];
-                double[] x = [before.Moving, before.Manipulation, before.Consciousness, before.Sight, before.Hearing, beforeLife];
-                double[] y = [after.Moving, after.Manipulation, after.Consciousness, after.Sight, after.Hearing, afterLife];
+                double[] y = Read(b);
                 for (int i = 0; i < x.Length; i++)
                     Assert.True(y[i] <= x[i] + 1e-12, $"{kind}: lowering {b.Regions[ri].Name} {tissue.Name} raised {names[i]} {x[i]} -> {y[i]}");
             }
@@ -196,30 +202,29 @@ public class BodyTests
     {
         var b = Baseline();
         Destroy(RegionOf(b, "Head"));
-        var c = Body.GetCapacities(b);
-        Assert.Equal(0, c.Consciousness);
-        Assert.Equal(0, c.Moving); // unconscious, the limbs give nothing
-        Assert.Equal(0, c.Manipulation);
+        Assert.Equal(0, Body.Perception(b));
+        Assert.Equal(0, Body.Speed(b)); // unconscious, the limbs give nothing
+        Assert.Equal(0, Body.Dexterity(b));
+        Assert.Contains(CrippledBy.Unconscious, Body.CrippledBy(b, Faculty.Speed));
+        Assert.Contains(CrippledBy.Unconscious, Body.CrippledBy(b, Faculty.Dexterity));
     }
 
     [Fact]
-    public void HalfDamagedArm_RoughlyHalvesItsManipulation()
-    {
-        var arm = RegionOf(Baseline(), "Left Arm");
-        double healthy = Body.RegionCapacities(arm)[(int)Capacity.Manipulation];
-        SetLayers(arm, 0.5);
-        double damaged = Body.RegionCapacities(arm)[(int)Capacity.Manipulation];
-        Assert.True(damaged < healthy);
-        Assert.InRange(damaged, 0.2, 0.7);
-    }
-
-    [Fact]
-    public void Effects_ModifyCapacities()
+    public void HalfDamagedArms_RoughlyHalveDexterity()
     {
         var b = Baseline();
-        double before = Body.GetCapacities(b).Moving;
+        double healthy = Body.Dexterity(b);
+        SetLayers(RegionOf(b, "Left Arm"), 0.5);
+        SetLayers(RegionOf(b, "Right Arm"), 0.5);
+        Assert.InRange(Body.Dexterity(b) / healthy, 0.2, 0.7);
+    }
+
+    [Fact]
+    public void Hypothermia_AtFull_TakesThreeTenthsOfSpeed()
+    {
+        var b = Baseline();
         Effects.Add(b, EffectKind.Hypothermia, 1.0); // -0.3 Moving
-        Assert.Equal(before - 0.3, Body.GetCapacities(b).Moving, 6);
+        Assert.Equal(0.7, SpeedShare(b), 6);
     }
 
     [Fact]
@@ -268,7 +273,7 @@ public class BodyTests
         Assert.InRange(baseline, 0.7, 1.0);
         Assert.True(Body.Speed(Custom(100, 0.35, 0.20)) < 0.8, "Obesity slows");
         Assert.True(Body.Speed(Custom(680, 0.12, 0.38)) < baseline, "Large is slower");
-        Assert.True(Body.Speed(Custom(6.8, 0.12, 0.38)) > baseline, "Small is faster");
+        Assert.True(Body.Speed(Custom(40, 0.12, 0.38)) > baseline, "Small is faster"); // reserves enough not to read as starving
     }
 
     [Fact]
@@ -284,53 +289,58 @@ public class BodyTests
     public void Effects_DisableButNeverKill()
     {
         var b = Baseline();
-        foreach (var kind in new[] { EffectKind.Tired, EffectKind.Thirsty, EffectKind.Hungry, EffectKind.Hypothermia })
-            Effects.Add(b, kind, 1.0);
+        Deprive.Wholly(b);
+        Effects.Add(b, EffectKind.Hypothermia, 1.0);
         foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed })
             Effects.Add(b, kind, 0.8);
         Assert.Equal(0, Body.Perception(b));
-        Assert.Equal(0, Body.GetCapacities(b).Consciousness);
+        Assert.Equal([CrippledBy.Unconscious], Body.CrippledBy(b, Faculty.Perception));
         Assert.True(Body.IsAlive(b));
     }
 
-    /// Discomforts stack with diminishing returns. Hunger, thirst and tiredness at full together leave
-    /// every capacity at about a fifth; each alone is nearly what its row says.
+    /// Deprivations stack with diminishing returns. Thirst and tiredness at full, with an empty stomach's
+    /// pang, leave every faculty at about a fifth of a fresh body's or more (vision 0.21, a product of two
+    /// lowered capacities); each alone is nearly what its sizes say. Full hunger comes only with wasting
+    /// (#332: read from the stores), so it is not here.
     [Fact]
-    public void Discomforts_StackWithDiminishingReturns_NeverBelowAboutAFifth()
+    public void Deprivations_StackWithDiminishingReturns_NeverBelowAboutAFifth()
     {
         var b = Baseline();
-        foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
-        var c = Body.GetCapacities(b);
-        foreach (var (name, value) in new[] { ("Moving", c.Moving), ("Manipulation", c.Manipulation), ("Consciousness", c.Consciousness), ("Sight", c.Sight), ("Hearing", c.Hearing) })
-            Assert.True(value >= 0.2, $"{name} {value:0.000}");
-        Assert.InRange(c.Moving, 0.2, 0.25);
+        Deprive.Thirsty(b, 1);
+        Deprive.Tired(b, 1);
+        b.CaloriesKcal = 0;
+        foreach (var f in Enum.GetValues<Faculty>())
+            Assert.True(Body.Share(b, Species.Human, f) >= 0.2, $"{f} {Body.Share(b, Species.Human, f):0.000}");
+        Assert.InRange(SpeedShare(b), 0.28, 0.30);
 
         var tired = Baseline();
-        Effects.Add(tired, EffectKind.Tired, 1.0);
-        Assert.InRange(Body.GetCapacities(tired).Moving, 0.55, 0.57); // -0.45 alone, a hair less
+        Deprive.Tired(tired, 1.0);
+        Assert.InRange(SpeedShare(tired), 0.55, 0.57); // -0.45 alone, a hair less
     }
 
-    /// Only discomfort saturates: wounds, blood loss and the cold's effects still take what they take,
+    /// Only deprivation saturates: wounds, blood loss and the cold's effects still take what they take,
     /// on top of it, to nothing.
     [Fact]
-    public void Discomforts_Saturate_ButDamageBloodLossAndColdStillTakeCapacitiesToNothing()
+    public void Deprivations_Saturate_ButDamageBloodLossAndColdStillTakeSpeedToNothing()
     {
         BodyState Miserable()
         {
             var b = Baseline();
-            foreach (var kind in new[] { EffectKind.Hungry, EffectKind.Thirsty, EffectKind.Tired }) Effects.Add(b, kind, 1.0);
+            Deprive.Thirsty(b, 1);
+            Deprive.Tired(b, 1);
+            b.CaloriesKcal = 0;
             return b;
         }
         var bled = Miserable();
         bled.BloodPct = 0.5;
-        Assert.Equal(0, Body.GetCapacities(bled).Moving, 9);
+        Assert.Equal(0, SpeedShare(bled), 9);
         var lame = Miserable();
         Destroy(RegionOf(lame, "Left Leg"));
         Destroy(RegionOf(lame, "Right Leg"));
-        Assert.True(Body.GetCapacities(lame).Moving < 0.02);
+        Assert.True(SpeedShare(lame) < 0.02);
         var frozen = Miserable();
-        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full below the fifth
-        Assert.InRange(Body.GetCapacities(frozen).Moving, 0.06, 0.10);
+        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full on top
+        Assert.InRange(SpeedShare(frozen), 0.12, 0.16);
     }
 
     /// Body review B5: a body that dies is named after the damage that took it over the line, as it
@@ -365,7 +375,7 @@ public class BodyTests
         // The scenario from a playtest: Hypothermia 98%, Tired 65%, plus 0.088 more = -0.87 consciousness.
         var b = Baseline();
         Effects.Add(b, EffectKind.Hypothermia, 0.98);
-        Effects.Add(b, EffectKind.Tired, 0.65);
+        Deprive.Tired(b, 0.65);
         Effects.Add(b, EffectKind.Shock, 0.22); // stands in for the old Fever 22%: -0.4 consciousness each
         // The mean of the faculties, not the least of them (#200): strength and speed keep their build.
         Assert.True(Body.Vitality(b, Species.Human) < 0.40, $"Vitality {Body.Vitality(b, Species.Human):P0}");

@@ -104,7 +104,8 @@ public class FacultiesTests
         var b = Whole();
         foreach (var limb in new[] { "Left Arm", "Right Arm", "Left Leg", "Right Leg" }) Destroy(b, limb);
         foreach (var organ in b.Regions.SelectMany(r => r.Organs).Where(o => o.Name.Contains("Eye") || o.Name.Contains("Ear"))) organ.Condition = 0;
-        foreach (var kind in new[] { EffectKind.Tired, EffectKind.Thirsty, EffectKind.Hungry, EffectKind.Hypothermia }) Effects.Add(b, kind, 1.0);
+        Deprive.Wholly(b);
+        Effects.Add(b, EffectKind.Hypothermia, 1.0);
         foreach (var kind in new[] { EffectKind.Shock, EffectKind.Pain, EffectKind.Dazed }) Effects.Add(b, kind, 0.8);
         Assert.Equal(0, Body.Dexterity(b), 9);
         Assert.Equal(0, Body.Perception(b), 9);
@@ -229,7 +230,7 @@ public class FacultiesTests
     public void AFullPack_OnABodyWithAlmostNoStrength_IsSpeedAtZero_NeverBelow()
     {
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Effects.Add(weak, EffectKind.Tired, 1.0);
+        Deprive.Tired(weak, 1.0);
         Assert.True(Body.Strength(weak) < 0.15);
         Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 1.0)));
         Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 3.0)));
@@ -254,7 +255,7 @@ public class FacultiesTests
         Assert.Equal([CrippledBy.Unconscious], Body.SpeedCrippledBy(BlowToTheHead(brain: 0)));
 
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Effects.Add(weak, EffectKind.Tired, 1.0);
+        Deprive.Tired(weak, 1.0);
         Assert.Equal([CrippledBy.Load], Body.SpeedCrippledBy(weak, new AbilityContext(EncumbrancePct: 1.0)));
         Assert.Empty(Body.SpeedCrippledBy(weak));
 

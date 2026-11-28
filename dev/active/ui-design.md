@@ -85,7 +85,7 @@ ui/
 │   │                               # & trend · feels-like breakdown · clothing · skills
 │   ├── place/           [X/click]  # ground & footing · shelter · bedding · cache · fire
 │   │                               # fuel · on the fire · forage · game · water · traps
-│   │                               # · curing · carcass · tracks · people · exits
+│   │                               # · curing · carcass · tracks · people
 │   ├── pack/            [I]        # items · weights · tool condition · capacity
 │   ├── people/          [P]        # activity · needs · opinion · memories
 │   ├── journal/         [J]        # log · discoveries
@@ -152,8 +152,14 @@ ui/
 - **Dock:** the verbs for this place, then where you are (opens Place) and the four sheet buttons.
 - **Receipt:** a centred card over the map (see below).
 
-On a phone the same pieces stack: top strip, map, then the dock with verbs two per row. The drawer
-covers the map while open.
+On a phone the page fits the screen and never scrolls (#315). In portrait: the top strip, the map
+filling what is left, then the dock: the verbs in two rows that scroll sideways (a third column peeks in
+at a fade), and the four sheet buttons in a 2 × 2 beside them. The vitals are a thin strip of four bars
+along the map's top. The drawer is a sheet from the bottom over the lower part of the map, and the camera
+keeps the player in the part still showing. In landscape the dock is a column on the right, and the
+drawer a panel on the map's right. A finger has no hover: a tap on something that only has a tip (the
+clock, the light, a vital) shows it, and the next tap only puts it away. `tools/shots.mjs --phone`
+checks all of this at 390 × 664, 402 × 714, 844 × 390 and 932 × 430.
 
 ---
 
@@ -221,7 +227,7 @@ animation doesn't run.
 - **Body:** the full vitals with numbers and trends; effects with their modifiers; injuries with a
   pixel body diagram; impaired capacities; the feels-like breakdown; clothing by slot; threats;
   skills.
-- **Place:** for where you stand, everything known about the tile and its exits; for any other tile,
+- **Place:** for where you stand, everything known about the tile; for any other tile,
   the trip preview first, then what's known, marked "as you last saw it" when out of sight.
 - **Pack, People, Journal:** as in the prototype.
 

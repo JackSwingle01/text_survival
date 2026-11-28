@@ -26,8 +26,7 @@ public sealed class WorkSession
     public List<int>? Clues { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int ClueDraw { get; init; }
-    /// Every find as it turned up, after focus and yield: what the forage screen shows minute by minute. Not saved:
-    /// only that screen reads it, and the host saves no job part-way.
+    /// Every find as it turned up, after focus and yield, for the forage screen; not saved, as the host saves no job part-way.
     [System.Text.Json.Serialization.JsonIgnore] public List<Find> Finds { get; } = [];
 }
 
@@ -66,8 +65,7 @@ public static class Work
     public static int MinutesUntilTooDark(World world, Agent agent) =>
         LightLeft(world, agent.Tile, Fire.MinutesOfLightLeft(world, agent.Id), 0);
 
-    /// The same for a place it is not standing, starting work there in startInMinutes: by the light it carries and the
-    /// sky, with no fire there to work by.
+    /// The same elsewhere, starting there in startInMinutes: by the light it carries and the sky, with no fire there.
     public static int MinutesUntilTooDarkAt(World world, Agent agent, TileId tile, int startInMinutes)
     {
         int carried = world.Fires.Values.Where(f => f.CarriedBy == agent.Id && Fire.IsActive(f)).Select(f => (int)Math.Ceiling(f.TorchMinutesLeft)).DefaultIfEmpty(0).Max();
@@ -77,8 +75,8 @@ public static class Work
     static int LightLeft(World world, TileId tile, int litMinutes, int startInMinutes) =>
         Map.IsDark(Map.Of(world), tile) ? litMinutes : litMinutes + Weather.LightLeftMinutes(world.Minute + startInMinutes + litMinutes);
 
-    /// A forecast: what the minutes given bring in, the agent staying as they are and stopping for the dark; a tree only if
-    /// it comes down, a harvest by whole cycles. Fires around the agent must be caught up.
+    /// A forecast of what the minutes bring in, stopping for the dark; a tree only if it comes down, a harvest by whole cycles.
+    /// Fires around the agent must be caught up.
     public static IReadOnlyDictionary<Resource, double> ExpectedGather(World world, Agent agent, Gather g, int minutes)
     {
         if (Refusal(world, g) != null) return new SortedDictionary<Resource, double>();
@@ -86,6 +84,19 @@ public static class Work
         if (NeedsLight(world, Pools.Def(world, id), g)) minutes = Math.Min(minutes, MinutesUntilTooDark(world, agent));
         var clues = Pools.Def(world, id) is ForagePool ? [.. Survival.Clues.At(world, agent.Id).Select(c => c.Index)] : new List<int>();
         return Expected(world, agent, id, g, minutes, ForageYield(world, agent).TotalPct, rememberedDensity: null, clues);
+    }
+
+    /// A forecast: minutes until a stock's every unit this agent can take is taken (null for other work); dark or pack may stop it sooner.
+    public static int? StockMinutesLeft(World world, Agent agent, Gather g)
+    {
+        var id = new PoolId(agent.Tile, g.Pool);
+        if (Pools.Def(world, id) is not StockPool stock) return null;
+        var units = Pools.UnitsNow(world, id);
+        var pack = Items.PackOf(agent);
+        int cycles = Enumerable.Range(0, units.Length).Where(i => Pools.CanWork(stock.Items[i], pack)).Select(i => units[i]).DefaultIfEmpty(0).Max();
+        if (cycles == 0) return 0;
+        double worked = (Pools.StateOf(world, id) as StockState)?.MinutesWorked ?? 0;
+        return (int)Math.Ceiling(Math.Max(0, cycles * stock.MinutesPerUnit - worked) * ImpairmentFactor(world, agent, g) - 1e-9);
     }
 
     /// The same for a pool elsewhere, starting there in startInMinutes, on the ground as remembered (null: as it is).
@@ -111,7 +122,7 @@ public static class Work
         switch (Pools.Def(world, id))
         {
             case ForagePool:
-                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity))
+                foreach (var (r, found) in Pools.ExpectedForage(world, id, minutes, effectivePct, rememberedDensity, g.Focus))
                     kg[r] = found * yieldPct * FocusFactor(r, g.Focus) * Survival.Clues.YieldFactor(clues, g.Focus, r);
                 break;
             case TreePool:
@@ -138,6 +149,10 @@ public static class Work
     public static bool InFocus(Resource r, ForageFocus focus) => focus != ForageFocus.General && Items.Resources[r].Category == FocusCategory(focus);
 
     const double OffFocusKeepPct = 0.4, OffFocusKeepSpreadPct = 0.2;
+    /// A focused search turns up its category this many times as often as a general one; search and forecast read it.
+    public const double InFocusFindsFactor = 1.5;
+
+    public static double FocusAbundanceFactor(Resource r, ForageFocus focus) => InFocus(r, focus) ? InFocusFindsFactor : 1;
 
     static ResourceCategory FocusCategory(ForageFocus focus) => focus switch
     {
@@ -529,9 +544,8 @@ public static class Work
         }
     }
 
-    /// One minute of work lived. Returns why to stop, if anything: done, nothing left, or too dark
-    /// for the next minute - the same check Refusal makes, so a run split into steps stops where an
-    /// unbroken one does.
+    /// One minute of work lived. Returns why to stop, if anything: done, nothing left, or too dark for the next minute -
+    /// the same check Refusal makes, so a run split into steps stops where an unbroken one does.
     public static string? Minute(World world, Agent agent, WorkSession s, List<WorldEvent> events)
     {
         s.Minutes++;
@@ -557,7 +571,7 @@ public static class Work
                                 double perception = Body.Perception(agent.Body, Fire.AbilityContextFor(world, agent));
                                 double yieldFactor = ForageYield(agent, pack, perception).TotalPct;
                                 var rng = world.Rng("work", agent.Id);
-                                var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor);
+                                var finds = Pools.Forage(world, id, effective / 60.0, rng, s.LuckFactor, g.Focus);
                                 var got = new Inventory();
                                 var pieceRng = world.Rng("yield", agent.Id);
                                 foreach (var (r, kg) in Focus(finds, g.Focus, world.Rng("focus", agent.Id)))
@@ -625,8 +639,7 @@ public static class Work
         }
     }
 
-    /// What a minute of foraging brings in, against an unhindered search: eyes and light (no better
-    /// than whole), an axe and a shovel +10% each, and practice, in that order.
+    /// A minute of foraging against an unhindered search: eyes and light (no better than whole), axe and shovel +10% each, then practice.
     public static Odds ForageYield(Agent agent, Inventory pack, double perceptionPct) =>
         new("Search", 1.0, Odds.Moving(
             OddsTerm.Scale("Eyes", Math.Min(perceptionPct, 1.0)),

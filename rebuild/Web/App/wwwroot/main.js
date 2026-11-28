@@ -8,15 +8,20 @@ import { createClient } from './client.js';
 import { createMap } from './map.js';
 import { createGrid } from './combat.js';
 import { putSave, getSave, download, upload } from './saves.js';
-import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs } from './util.js';
+import { logOptions, withLog } from './playtest.js';
+import { icon, img, src, clock, dur, ago, pct, deg, signed, cap, esc, px, tip, veilKey, paceMs, oddsWhy, cardPlace, setHtml } from './util.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const client = createClient();
+// ?log: the playtest log (playtest.js) wraps the client, so every call is recorded; off otherwise.
+const logging = logOptions(params);
+const build = () => fetch('build.txt', { cache: 'no-store' }).then(r => r.ok ? r.text() : 'unknown').then(s => s.trim());
+const { client, log } = logging ? withLog(createClient(), { ...logging, build: build() }) : { client: createClient(), log: null };
 
 const S = {
   view: null,
-  drawer: null,          // { kind: 'here'|'fire'|'trip'|'place'|'make'|'body'|'pack'|'log'|'save'|'job'|'forage', ... }
+  drawer: null,          // { kind: 'here'|'fire'|'place'|'make'|'body'|'pack'|'log'|'save'|'job'|'forage', ... }
+  trip: null,            // the direction of the trip card open on the map, or null
   forage: { focus: 'anything', mins: 30 }, // the forage screen's choices: the focus (anything is General), how long
   busy: false,
   stop: false,
@@ -29,7 +34,7 @@ const S = {
   strikes: [],           // this fire's strikes: true caught, false failed
   lastLog: 0,
 };
-window.ui = { S, ready: null, client }; // for the headless checks (tools/shots.mjs)
+window.ui = { S, ready: null, client, log }; // for the headless checks (tools/shots.mjs)
 
 // ---------------------------------------------------------------- verbs, read off the view
 
@@ -87,6 +92,7 @@ async function run(id, extra = {}) {
   const verb = byId(id);
   if (!verb) throw new Error(`No verb ${id} in this view`);
   if (verb.refused) { toast('ui/blocked', cap(verb.refused)); shake(id); return; }
+  S.trip = null;
   S.busy = true; S.stop = false;
   if (S.drawer?.kind === 'job') S.drawer = null; // the last job's result gives way to this one
   if (S.drawer?.kind === 'forage') Object.assign(S.drawer, { done: null, startMinute: S.view.minute, logFrom: new Set(S.view.log.map(logKey)) });
@@ -150,8 +156,8 @@ function finishJob(verb, v, startMinute, logFrom) {
 
 function apply(v, { keepDrawer = false } = {}) {
   S.view = v;
+  if (pinned) hideTip();
   if (!S.busy || !S.walking) S.drawPos = { x: v.place.x, y: v.place.y };
-  if (!keepDrawer && S.drawer?.kind === 'trip') S.drawer = null;
   render();
 }
 
@@ -167,14 +173,14 @@ function renderTop() {
   const f = v.feels;
   const weather = [`Air ${deg(c.airF)}`, `Wind ${Math.round(c.windMph)} mph${c.windDirection !== 'calm' ? ` from the ${c.windDirection}` : ''}`, c.sky,
     `m:Light at ${clock(c.lightFromMinute)} · dark at ${clock(c.darkFromMinute)}`];
-  $('top').innerHTML = `
+  setHtml($('top'), `
     <div class="t-clock" ${tip(`Day ${dayOf(shownMinute)} · ${c.season}`, weather)}>
       <span class="clock-time">${hm}<span class="clock-ampm">${ap}</span></span></div>
     <div class="t-light ${left && left <= 60 ? 'warn' : ''}" ${tip('Daylight', [left ? `Dark at ${clock(c.darkFromMinute)}` : `Light at ${clock(c.lightFromMinute)}`])}>
       ${img(left ? 'ui/sun' : 'ui/moon')}<span class="lbar"><i style="width:${Math.min(1, left / span) * 100}%"></i></span>
       <span class="num">${left ? `${dur(left)} light` : 'Night'}</span></div>
     <div class="t-feels" ${tip('Feels like', f.terms.map((t, i) => i === 0 ? `${t.name} ${deg(t.deltaF)}` : `${t.deltaF > 0 ? 'g:' : 'b:'}${t.name} ${signed(Math.round(t.deltaF), '°')}`))}>
-      ${img('ui/temperature')}<span class="num" style="color:${f.totalF < 20 ? 'var(--frost)' : 'var(--bone)'}">${deg(f.totalF)}</span><span class="muted">feels like</span></div>`;
+      ${img('ui/temperature')}<span class="num" style="color:${f.totalF < 20 ? 'var(--frost)' : 'var(--bone)'}">${deg(f.totalF)}</span><span class="muted">feels like</span></div>`);
 }
 
 const PRIORITY_CLASS = { none: '', want: '', need: 'low', critical: 'crit' };
@@ -186,9 +192,9 @@ function renderStatus() {
   const bars = v.vitals.map(x => `<div class="vbar ${PRIORITY_CLASS[x.priority]}" ${tip(VITAL[x.stat][0], [x.detail, ...(x.priority === 'need' || x.priority === 'critical' ? [`b:${cap(x.priority)}`] : [])])}>
       ${img(VITAL[x.stat][1])}<span class="vtrack" style="--c:${color[x.stat]}"><i style="width:${Math.round(x.pct * 100)}%"></i></span></div>`).join('');
   const al = v.alerts, shown = al.slice(0, 3), rest = al.slice(3);
-  $('status').innerHTML = `<div class="plate vitals" aria-label="Vitals">${bars}</div>
+  setHtml($('status'), `<div class="plate vitals" aria-label="Vitals">${bars}</div>
     <div class="alerts">${shown.map(a => `<button class="alert ${a.kind}" data-sheet="body" ${tip(a.text, a.lines)}>${img(a.icon)}${esc(a.text)}</button>`).join('')}
-    ${rest.length ? `<button class="alert more" data-sheet="body" ${tip('More', rest.map(a => a.text))}>+${rest.length} more</button>` : ''}</div>`;
+    ${rest.length ? `<button class="alert more" data-sheet="body" ${tip('More', rest.map(a => a.text))}>+${rest.length} more</button>` : ''}</div>`);
 }
 $('status').addEventListener('click', e => { if (e.target.closest('[data-sheet]')) openDrawer({ kind: 'body' }); });
 
@@ -229,18 +235,18 @@ function renderDock() {
   if (v.combat) {
     // What can be done this round, in full; what cannot, small, with its reason on hover.
     const acts = v.combat.actions.filter(a => a.kind === 'fight');
-    $('dock').innerHTML = `<div class="group">${acts.filter(a => !a.refused).map(a => verbButton(a, { sub: 'one round' }).replace('class="verb"', 'class="verb fight"')).join('')}</div>
-      <div class="group refused">${acts.filter(a => a.refused).map(a => verbButton(a, { small: true, sub: '' })).join('')}</div>`;
+    setHtml($('dock'), `<div class="group">${acts.filter(a => !a.refused).map(a => verbButton(a, { sub: 'one round' }).replace('class="verb"', 'class="verb fight"')).join('')}</div>
+      <div class="group refused">${acts.filter(a => a.refused).map(a => verbButton(a, { small: true, sub: '' })).join('')}</div>`);
     return;
   }
-  $('dock').innerHTML = `<div class="verbs">${dockVerbs(v)}</div>
+  setHtml($('dock'), `<div class="verbs">${dockVerbs(v)}</div>
     <button class="where-btn" data-open="here" ${tip('Where you are', ['Press X'])}><b>${px(v.place.name)}</b><small>${esc(v.place.terrain)}${v.fire ? ` · fire ${v.fire.phase.toLowerCase()}` : ''}</small></button>
-    <div class="sheets">${SHEETS.map(([id, ic, k, name]) => `<button class="sbtn" data-open="${id}" aria-pressed="${S.drawer?.kind === id}" ${tip(name, [`Press ${k}`])}><img src="${src(ic)}" alt=""><span class="key">${k}</span></button>`).join('')}</div>`;
+    <div class="sheets">${SHEETS.map(([id, ic, k, name]) => `<button class="sbtn" data-open="${id}" aria-pressed="${S.drawer?.kind === id}" ${tip(name, [`Press ${k}`])}><img src="${src(ic)}" alt=""><span class="key">${k}</span></button>`).join('')}</div>`);
 }
 
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-verb],[data-open],[data-act]');
-  if (!b || S.busy && b.dataset.act !== 'stop') return; // while time runs, only Stop
+  if (!b || S.busy && !['stop', 'mark', 'logfile'].includes(b.dataset.act)) return; // while time runs, only Stop (and the playtest log's buttons)
   if (b.dataset.verb) return run(b.dataset.verb, b.dataset.forage ? { minutes: S.forage.mins } : {});
   if (b.dataset.open) {
     const o = b.dataset.open;
@@ -260,14 +266,16 @@ document.addEventListener('click', e => {
   else if (act === 'download') doDownload();
   else if (act === 'upload') doUpload();
   else if (act === 'new') newGame(Math.floor(Math.random() * 1e6));
+  else if (act === 'mark') markLog();
+  else if (act === 'logfile') download(JSON.stringify(log.toJSON()), log.fileName());
 });
 
 // ---------------------------------------------------------------- the drawer
 
-function openDrawer(d) { S.drawer = d; render(); }
+function openDrawer(d) { S.drawer = d; log?.ui({ drawer: d.kind }); render(); }
 function closeDrawer() { if ((S.drawer?.kind === 'job' || S.drawer?.kind === 'forage') && S.busy) return; S.drawer = null; S.selected = null; render(); }
 function head(ic, title, extra = '') {
-  $('sideHead').innerHTML = `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`;
+  setHtml($('sideHead'), `${img(ic, 'ico x2')}<h2>${px(title)}</h2>${extra}<button class="xbtn" data-act="close" aria-label="Close">ESC</button>`);
 }
 const section = (label, body, aside = '') => `<div class="sec"><div class="sec-h"><span class="label">${esc(label)}</span>${aside ? `<span class="aside">${aside}</span>` : ''}</div>${body}</div>`;
 const costChip = c => `<span class="cost">${img('ui/clock')}${esc(c)}</span>`;
@@ -304,7 +312,7 @@ function renderDrawer() {
   const d = S.drawer, v = S.view;
   $('drawer').hidden = !d || !!v.combat;
   if (!d || v.combat) return;
-  ({ here: renderHere, fire: renderFire, trip: renderTrip, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob, forage: renderForage }[d.kind])(d, v);
+  ({ here: renderHere, fire: renderFire, place: renderPlace, make: renderMake, body: renderBody, pack: renderPack, log: renderLog, save: renderSave, job: renderJob, forage: renderForage }[d.kind])(d, v);
 }
 
 function fireBlock(v) {
@@ -330,20 +338,11 @@ function renderHere(d, v) {
       ${action ? `<div class="menu">${menuItem(action)}</div>` : ''}
       ${open ? `<div class="menu">${t.menu.map(x => menuItem(x)).join('')}</div>` : ''}</div>`;
   }).join('');
-  const exits = v.walk.filter(w => !w.careful).map(w => {
-    const careful = walkVerb(v, w.dir, true);
-    return `<button class="exit" data-trip="${w.dir}" ${w.refused ? 'disabled' : ''}><span class="dir">${w.dir[0].toUpperCase()}</span>
-      <span>${esc(w.trip ? cap(w.trip.to) : cap(w.refused ?? ''))}${careful ? '<small class="haz">hazardous ground</small>' : ''}</span>
-      <span class="m">${w.trip ? `${w.trip.totalMinutes}m` : ''}</span></button>`;
-  }).join('');
-  $('sideBody').innerHTML = `
-    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}
-    ${v.fire ? section('Fire', fireBlock(v)) : ''}
+  setHtml($('sideBody'), `
     ${features ? section('Here', `<div class="menu">${features}</div>`) : ''}
-    ${section('Exits', `<div class="exits">${exits}</div>`)}
-    ${section('Stay', `<div class="menu">${v.tile.map(x => menuItem(x)).join('')}</div>`)}`;
+    ${v.fire ? section('Fire', fireBlock(v)) : ''}
+    ${p.story ? `<p class="story">${esc(p.story)}</p>` : ''}`);
 }
-document.addEventListener('click', e => { const b = e.target.closest('[data-trip]'); if (b && !S.busy) openTrip(b.dataset.trip); });
 
 function renderFire(d, v) {
   const fire = fireFeature(v), light = lightVerb(v);
@@ -351,41 +350,69 @@ function renderFire(d, v) {
   const hist = S.strikes.length ? `<div class="hist" ${tip('Strikes', [`${S.strikes.filter(Boolean).length} of ${S.strikes.length} caught`])}>${S.strikes.map(s => `<span class="${s ? 's' : 'f'}"></span>`).join('')}</div>` : '';
   const result = d.result ? `<div class="result-line ${d.result.good ? 'good' : 'bad'} ${d.result.good ? 'flash' : 'shake'}">${esc(d.result.text)}</div>` : '';
   const tend = fire ? fire.menu.filter(x => x.kind !== 'fire') : [];
-  $('sideBody').innerHTML = `
+  const striking = light && !v.fire?.burning;
+  setHtml($('sideBody'), `
+    ${striking ? `<div class="sec"><div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="num">(1 min)</span> <span class="key">F</span></button>`}${hist}</div>
+      ${light.odds ? `<p class="note odds-line"><b>${pct(light.odds.totalPct)}</b> chance it catches · ${esc(oddsWhy(light.odds).join(', '))}</p>` : ''}${result}</div>` : result}
+    ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${v.fire ? section('The pit', fireBlock(v)) : ''}
-    ${light && !v.fire?.burning ? `<div class="sec">${light.odds ? oddsSheet(light.odds, { title: 'Chance it catches' }) : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
-      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}
-      ${result}<div class="row">${light.refused ? `<p class="note">${esc(cap(light.refused))}</p>` : `<button class="act" data-verb="${light.id}">Strike <span class="key">F</span></button>`}${hist}</div></div>` : result}
-    ${tend.length ? section('Tend', `<div class="menu">${tend.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${striking ? `${light.odds ? '' : `<p class="note">${esc(cap(light.refused ?? 'No fire-starting tool in the pack.'))}</p>`}
+      ${light.uses ? `<p class="note">Each strike uses ${esc(light.uses.slice(0, -1).join(' and '))}, with the ${esc(light.uses.at(-1))}.</p>` : ''}` : ''}`);
 }
+
+// ---------------------------------------------------------------- the trip card
+// A neighbouring tile's trip is a card on the map under (or over) that tile, not a sheet: where it goes, how
+// long and why (one bar, a segment a part), the fall risk, and Careful, Go and what you know of the tile.
 
 function openTrip(dir) {
   const v = S.view, w = walkVerb(v, dir);
   if (!w) return;
   S.selected = { x: v.place.x + DIRS[dir][0], y: v.place.y + DIRS[dir][1] };
-  openDrawer({ kind: 'trip', dir });
+  S.trip = dir; S.drawer = null;
+  render();
 }
+function closeTrip() { S.trip = null; S.selected = null; render(); }
 
-function renderTrip(d, v) {
-  const quick = walkVerb(v, d.dir), careful = walkVerb(v, d.dir, true);
-  const t = quick.trip;
-  head('ui/follow', t ? cap(t.to) : `Walk ${d.dir}`, t ? costChip(`${t.totalMinutes} min`) : '');
-  if (!t) { $('sideBody').innerHTML = `<p class="note">${esc(cap(quick.refused ?? 'You cannot go that way.'))}</p>`; return; }
-  const left = v.clock.daylightLeftMinutes;
-  const camp = v.map.places.find(p => p.x === v.map.campX && p.y === v.map.campY);
-  const rows = (trip) => trip.terms.map((x, i) => `<div class="kv ${i === 0 ? '' : x.minutes > 0 ? 'minus' : 'plus'}"><span></span><span>${esc(x.factor)}</span><span class="v">${i === 0 ? `${x.minutes} min` : signed(x.minutes, ' min')}</span></div>`).join('');
-  $('sideBody').innerHTML = `
-    <div class="preview"><div class="head"><span class="label">${esc(cap(d.dir))} · ${t.toKnown ? 'as you know it' : 'unexplored'}</span><span class="big">${t.totalMinutes}<small class="muted"> min</small></span></div>
-      <div class="factors">${rows(t)}</div></div>
-    ${t.hazardous || t.risk ? section('Footing', `${t.risk ? `<p class="note">Chance of a fall going quickly: ${pct(t.risk.totalPct)}</p>${oddsSheet(t.risk, { title: 'This ground, quickly' })}` : ''}
-      ${t.hazardous ? `<p class="note">Careful is slower${careful?.trip?.risk ? `, with a ${pct(careful.trip.risk.totalPct)} chance of a fall` : ', and safer'}.</p>
-      ${careful?.trip ? `<div class="factors">${rows(careful.trip)}</div>` : ''}` : ''}`) : ''}
-    ${section('Daylight', `<div class="kv ${left && left < t.totalMinutes * 2 + 30 ? 'minus' : ''}">${img(left ? 'ui/sun' : 'ui/moon')}<span>${left ? `${dur(left)} of light left` : 'It is night'}</span><span class="v">${left && left > t.totalMinutes * 2 + 30 ? 'back before dark' : left ? 'tight' : ''}</span></div>`)}
-    ${!v.place.camp && camp?.fire ? section('Your camp fire', `<div class="kv">${img(camp.fire === 'Embers' || camp.fire === 'Cold' ? 'embers' : 'fire')}<span>${esc(camp.fire)}, as you last saw it</span><span class="v">${ago(v.minute - camp.seenMinute)}</span></div>
-      ${camp.fireHoursLeft != null ? `<p class="note">About ${dur(camp.fireHoursLeft * 60)} of fuel left, by your reckoning.</p>` : ''}`) : ''}
-    <div class="row">${careful ? `<button class="act quiet" data-verb="${careful.id}">Careful · ${careful.trip?.totalMinutes ?? '?'} min</button>` : ''}
-      <button class="act" data-verb="${quick.id}">Go <span class="key">Enter</span></button></div>`;
+const TRIP_PART = { Walking: ['walking', '#b3a68e'], Terrain: ['terrain', '#8a6a3a'], Pace: ['pace', '#5f7f8f'], 'Snow and ground': ['snow', '#c9d6dc'], Careful: ['careful', '#f5811f'] };
+function renderTripCard() {
+  const card = $('tcard'), v = S.view, dir = S.trip;
+  if (!dir || S.busy || v.combat) { card.hidden = true; return; }
+  const quick = walkVerb(v, dir), careful = walkVerb(v, dir, true), t = quick?.trip;
+  if (!quick) { S.trip = null; card.hidden = true; return; }
+  const risk = trip => trip?.risk && Math.round(trip.risk.totalPct * 100) > 0 ? trip.risk : null;
+  const bar = t ? `<div class="tbar">${t.terms.map((x, i) => `<i style="flex:${x.minutes};background:${(TRIP_PART[x.factor] ?? [, '#888'])[1]}"
+      ${tip(x.factor, [i === 0 ? `${x.minutes} min` : signed(x.minutes, ' min')])}></i>`).join('')}</div>` : '';
+  const note = !t ? `<p class="risk">${esc(cap(quick.refused ?? 'You cannot go that way.'))}</p>`
+    : risk(t) ? `<p class="risk">Fall risk <b>${pct(t.risk.totalPct)}</b>${careful ? ` · careful ${risk(careful.trip) ? pct(careful.trip.risk.totalPct) : 'safer'}` : ''}</p>`
+    : t.hazardous ? '<p class="risk">Hazardous ground · careful is safer</p>' : '';
+  const go = t && !quick.refused ? `<button class="act" data-verb="${quick.id}">Go <span class="num">(${t.totalMinutes} min)</span></button>` : '';
+  const slow = careful?.trip && !careful.refused ? `<button class="act" data-verb="${careful.id}">Careful <span class="num">(${careful.trip.totalMinutes} min)</span></button>` : '';
+  const info = `<button class="act quiet info" data-act="tileinfo" aria-label="What you know here" ${tip('What you know here')}>${img('ui/inspect', '')}</button>`;
+  card.innerHTML = `<div class="h"><b>${px(t ? cap(t.to) : `Walk ${dir}`)}</b><span class="sub">${esc(dir)}${t && !t.toKnown ? ' · unexplored' : ''}</span>
+      ${t ? `<span class="num">${t.totalMinutes} min</span>` : ''}<button class="xbtn" data-act="closetrip" aria-label="Close">✕</button></div>
+    ${bar}${note}<div class="tbtns">${slow}${go}${info}</div>`;
+  card.hidden = false;
+  placeTripCard();
 }
+/** Keeps the card on its tile as the camera moves: every frame while it is open. */
+function placeTripCard() {
+  const card = $('tcard');
+  if (card.hidden || !S.trip || !S.selected) return;
+  const at = map.screenOf(S.selected.x, S.selected.y), m = $('mapArea').getBoundingClientRect();
+  if (!at) return;
+  const st = $('status').getBoundingClientRect();
+  const strip = st.top - m.top < 24 ? st.bottom - m.top : 0; // the vitals along the map's top, however wide
+  const p = cardPlace(at, { w: card.offsetWidth, h: card.offsetHeight }, { w: m.width, h: m.height, top: strip }, S.trip === 'north' ? 'above' : 'below', map.screenOf(S.view.place.x, S.view.place.y));
+  card.style.left = `${p.left}px`; card.style.top = `${p.top}px`; // the tile's brackets mark which tile it is for
+}
+(function follow() { requestAnimationFrame(follow); if (S.trip) placeTripCard(); })();
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act="closetrip"],[data-act="tileinfo"]');
+  if (b?.dataset.act === 'closetrip') return closeTrip();
+  if (b?.dataset.act === 'tileinfo') { const at = S.selected; S.trip = null; return openDrawer({ kind: 'place', x: at.x, y: at.y }); }
+  // A tap anywhere but the card and the map puts the card away (the map's own tap picks another tile).
+  if (S.trip && !e.target.closest('#tcard, #world')) { S.trip = null; S.selected = null; renderTripCard(); }
+});
 
 function renderPlace(d, v) {
   const { x, y } = d, m = v.map, code = m.known[y * m.width + x];
@@ -404,10 +431,10 @@ function renderPlace(d, v) {
   for (const s of sights) lines.push([s.species, `${s.count > 1 ? `${s.count} × ` : ''}${s.species.split('/').pop()}`, ago(v.minute - s.minute)]);
   if (m.surface.find(s => s.i === y * m.width + x)?.troddenLevel) lines.push(['ui/tracks', 'Trodden ground', '']);
   for (const t of m.tracks.filter(t => t.x === x && t.y === y)) lines.push([`tracks/${t.maker === 'human' ? 'boot' : t.maker}`, `${cap(t.maker)} prints, ${t.reading}`, ago(t.ageMinutes)]);
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${code === '.' ? '<p class="note">You have never seen this ground.</p>' : seen ? '' : '<span class="stale">As you last saw it</span>'}
     ${lines.length ? section('Known here', `<div class="place-feats">${lines.map(([ic, t, a]) => `<div class="pf">${img(ic)}<span>${esc(t)}</span><span class="v">${a}</span></div>`).join('')}</div>`) : code !== '.' ? '<p class="note">Nothing you noted.</p>' : ''}
-    <p class="note">${Math.abs(x - v.place.x) + Math.abs(y - v.place.y)} tiles away. Walk there a tile at a time.</p>`;
+    <p class="note">${Math.abs(x - v.place.x) + Math.abs(y - v.place.y)} tiles away. Walk there a tile at a time.</p>`);
 }
 
 function renderMake(d, v) {
@@ -417,7 +444,7 @@ function renderMake(d, v) {
   const key = x => x.make.target ? `${x.make.recipe}:${x.make.target}` : x.make.recipe;
   if (!S.makeSel || !makes.some(x => key(x) === S.makeSel)) S.makeSel = key(makes.find(x => !x.refused) ?? makes[0] ?? { make: {} });
   const sel = makes.find(x => key(x) === S.makeSel);
-  let detail = '';
+  let detail = '', action = '';
   if (sel) {
     const mk = sel.make;
     // The odds sheet of a recipe: everything to plan, less each outcome's share; what is left is the plain result.
@@ -430,8 +457,8 @@ function renderMake(d, v) {
         ${mk.materials.map(m => `<div class="kv">${img('ui/materials')}<span>${esc(m)}</span><span class="v"></span></div>`).join('')}
         ${mk.tools.map(t => `<div class="kv">${img('ui/gear')}<span>A tool for ${esc(t)}</span><span class="v"></span></div>`).join('')}
         ${mk.requires.map(t => `<div class="kv">${img('ui/warning')}<span>Needs ${esc(t)}</span><span class="v"></span></div>`).join('')}
-        <div class="kv">${img('ui/clock')}<span>Work</span><span class="v">${dur(mk.workMinutes)}</span></div></div>`)}
-      <div class="row">${sel.refused ? `<p class="note">${esc(cap(sel.refused))}</p>` : `<button class="act" data-verb="${sel.id}">${px(sel.label)}</button>`}</div>`;
+        <div class="kv">${img('ui/clock')}<span>Work</span><span class="v">${dur(mk.workMinutes)}</span></div></div>`)}`;
+    action = `<div class="row">${sel.refused ? `<p class="note">${esc(cap(sel.refused))}</p>` : `<button class="act" data-verb="${sel.id}">${px(sel.label)} <span class="num">(${dur(mk.workMinutes)})</span></button>`}</div>`;
   }
   let lastCat = '';
   const list = makes.map(x => {
@@ -439,10 +466,10 @@ function renderMake(d, v) {
     return cat + menuItem(x, { name: x.make.name, sub: x.refused ? '' : `${dur(x.make.workMinutes)} · ${pct(x.make.plainPct)}`, pressed: key(x) === S.makeSel, open: `recipe:${key(x)}` })
       ;
   }).join('');
-  $('sideBody').innerHTML = `${detail}
+  setHtml($('sideBody'), `${action}${detail}
     ${abandons.length ? section('Unfinished', `<div class="menu">${abandons.map(x => menuItem(x)).join('')}</div>`) : ''}
     ${section('Recipes', `<div class="menu">${list}</div>`)}
-    ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${builds.length ? section('Build here', `<div class="menu">${builds.map(x => menuItem(x)).join('')}</div>`) : ''}`);
 }
 
 function renderBody(d, v) {
@@ -455,7 +482,7 @@ function renderBody(d, v) {
   };
   const vit = Object.fromEntries(v.vitals.map(x => [x.stat, x]));
   const f = v.feels;
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     <div class="sec">
       ${g('Warmth', 'ui/temperature', vit.warmth.pct, '#8fa6b7', `${b.coreTempF.toFixed(1)}°F`, vit.warmth.priority)}
       ${g('Food', 'ui/food', vit.food.pct, '#eadfc8', `${Math.round(b.caloriesKcal)} kcal`, vit.food.priority)}
@@ -469,18 +496,18 @@ function renderBody(d, v) {
     ${section('Feels like', `<div class="feels"><span class="big">${deg(f.totalF)}</span><span class="muted">air ${deg(f.terms[0].deltaF)}</span></div>
       <div class="factors">${f.terms.slice(1).map(t => `<div class="kv ${t.deltaF > 0 ? 'plus' : 'minus'}">${img(t.name === 'Fire' ? 'ui/fire' : t.name === 'Torch' ? 'ui/torch' : 'ui/wind')}<span>${esc(t.name)}</span><span class="v">${signed(Math.round(t.deltaF), '°')}</span></div>`).join('')}</div>`)}
     ${section('Wearing', v.pack.worn.map(gr => `<div class="slot"><span class="where">${esc(gr.slot ?? '')}</span><span class="nm">${esc(gr.name)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.5 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join(''), `${b.clothingClo} clo`)}
-    ${b.skills.length ? section('Skills', b.skills.map(s => `<div class="kv">${img('ui/confirm')}<span>${esc(s.name)}</span><span class="v">${s.level}</span></div>`).join('')) : ''}`;
+    ${b.skills.length ? section('Skills', b.skills.map(s => `<div class="kv">${img('ui/confirm')}<span>${esc(s.name)}</span><span class="v">${s.level}</span></div>`).join('')) : ''}`);
 }
 
 function renderPack(d, v) {
   const p = v.pack;
   head('ui/backpack', 'Pack', `<span class="cost num">${p.carriedKg.toFixed(1)} / ${p.capacityKg} kg</span>`);
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
+    ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}
     <div class="capacity"><div class="bar"><i style="width:${Math.min(1, p.carriedKg / p.capacityKg) * 100}%"></i></div></div>
     ${section('Carried', p.stacks.length ? `<div class="bag">${p.stacks.map(s => `<div class="it">${img(stackIcon(s.resource))}<span>${esc(s.name)}</span><span class="n"></span><span class="kg">${esc(s.amount)}</span></div>`).join('')}</div>` : '<p class="note">Nothing.</p>')}
     ${section('Tools and gear', p.gear.length ? `<div class="bag">${p.gear.map(gr => `<div class="it">${img('ui/gear')}<span>${esc(gr.name)}</span><span class="n">${pct(gr.conditionPct)}</span><span class="minibar" style="--c:${gr.conditionPct < 0.3 ? 'var(--minus)' : 'var(--lichen)'}"><i style="width:${gr.conditionPct * 100}%"></i></span></div>`).join('')}</div>` : '<p class="note">None.</p>')}
-    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}
-    ${v.packVerbs.length ? section('Use', `<div class="menu">${v.packVerbs.map(x => menuItem(x)).join('')}</div>`) : ''}`;
+    ${p.projects.length ? section('Unfinished', p.projects.map(pr => `<div class="it">${img('ui/project')}<span>${esc(pr.name)}</span><span class="n">${pct(pr.progressPct)}</span><span></span></div>`).join('')) : ''}`);
 }
 const stackIcon = r => /Tinder|Bark|Usnea|Amadou|Chaga/.test(r) ? 'ui/tinder' : /Stick|Branch|Firewood|Peat/.test(r) ? 'ui/sticks' : /Meat|Fish|Berr|Nut|Root/.test(r) ? 'ui/food'
   : r === 'Water' ? 'ui/water' : /Hide/.test(r) ? 'ui/hide' : /Bone/.test(r) ? 'ui/bone' : /Charcoal/.test(r) ? 'ui/charcoal' : 'ui/materials';
@@ -492,7 +519,7 @@ function renderLog(d, v) {
     const dd = dayOf(l.minute), hdr = dd !== day ? `<div class="day">Day ${dd}</div>` : ''; day = dd;
     return `${hdr}<div class="e ${l.kind === 'bad' ? 'bad' : l.kind === 'rare' ? 'rare' : ''}"><span class="t">${clock(minuteOfDay(l.minute))}</span>${img(l.icon)}<span>${esc(l.text)}</span></div>`;
   }).join('');
-  $('sideBody').innerHTML = `<div class="log">${rows || '<p class="note">Nothing yet.</p>'}</div>`;
+  setHtml($('sideBody'), `<div class="log">${rows || '<p class="note">Nothing yet.</p>'}</div>`);
 }
 // The view gives the clock for now; any other minute is placed by its offset from now.
 const minuteOfDay = m => S.view.clock.minuteOfDay + (m - S.view.minute);
@@ -501,12 +528,12 @@ const dayOf = m => S.view.clock.day + Math.floor((S.view.clock.minuteOfDay + (m 
 async function renderSave(d) {
   head('ui/storage', 'Save', '');
   const slot = d.slot === undefined ? (d.slot = null, getSave().then(s => { d.slot = s ?? false; if (S.drawer === d) renderDrawer(); }).catch(() => { d.slot = false; }), null) : d.slot;
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
     ${section('In this browser', `${slot ? `<div class="slot-meta">Day ${slot.meta.day}, ${esc(slot.meta.time)} · ${esc(slot.meta.place)}<br><span class="muted">saved ${new Date(slot.savedAt).toLocaleString()}</span></div>` : `<p class="note">${slot === null ? 'Looking…' : 'No save yet.'}</p>`}
       <div class="row"><button class="act" data-act="save">Save here</button><button class="act quiet" data-act="load" ${slot ? '' : 'disabled'}>Load</button></div>`)}
     ${section('As a file', `<div class="row"><button class="act quiet" data-act="download">Download</button><button class="act quiet" data-act="upload">Upload</button></div>`)}
     ${section('Start again', `<div class="row"><button class="act quiet" data-act="new">New game</button></div>`)}
-    ${d.note ? `<p class="note" id="saveNote">${esc(d.note)}</p>` : ''}`;
+    ${d.note ? `<p class="note" id="saveNote">${esc(d.note)}</p>` : ''}`);
 }
 
 /** The forage ground's feature: the one whose menu holds the forage screen's Keep Walking. */
@@ -529,7 +556,10 @@ function renderForage(d, v) {
   const clues = f.clues.map(c => c.focus
     ? `<button class="clue" data-focusname="${esc(c.focus)}" ${running ? 'disabled' : ''} ${tip(c.text, [`Look for ${c.focus}`])}>${img('ui/inspect')}<span>${esc(c.text)}</span></button>`
     : `<div class="clue still">${img(c.kind === 'scavenge' ? 'carcass' : c.kind === 'game' ? 'ui/tracks' : 'ui/inspect')}<span>${esc(c.text)}</span></div>`).join('');
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
+    <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
+      : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="num">(${dur(S.forage.mins)})</span> <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking <span class="num">(5 min)</span> <span class="key">K</span></button>`}</div>
+    ${oddsWhy(f.yield, { base: false }).length ? `<p class="note odds-line">Search speed <b class="${f.yield.totalPct < 1 ? 'minus' : 'plus'}">×${f.yield.totalPct.toFixed(2)}</b> · ${esc(oddsWhy(f.yield, { base: false }).join(' · '))}</p>` : ''}
     <div class="sec"><div class="sec-h"><span class="label">The ground</span><span class="aside">${esc(f.effort)}</span></div>
       <p class="ground">${f.quality ? `Resources look <b>${esc(f.quality)}</b>.` : 'You haven\'t foraged here yet.'}</p></div>
     ${clues ? section('You notice', `<div class="clues">${clues}</div>`) : ''}
@@ -544,9 +574,7 @@ function renderForage(d, v) {
     <div class="found">${finds.length || rare.length ? '' : `<span class="empty">${told.length ? esc(told[told.length - 1].text) : 'Finds appear here as you search.'}</span>`}
       ${rare.map(l => `<div class="item rare">${img(l.icon)}<span>${esc(l.text)}</span></div>`).join('')}
       ${finds.map(x => `<div class="item ${x.category}">${img(stackIcon(x.resource))}${esc(cap(x.name))}<span class="n">×${x.count}</span></div>`).join('')}</div>
-    <div class="row">${running ? `<button class="act quiet" data-act="stop">Stop <span class="key">Esc</span></button>`
-      : `<button class="act" data-verb="${focus.verb}" data-forage="1">Search <span class="key">G</span></button><button class="act quiet" data-verb="${f.walkVerb}" ${tip('Keep walking', ['Spend 5 minutes walking to find new clues'])}>Keep walking (5 min) <span class="key">K</span></button>`}</div>
-    ${section('Your search', oddsSheet(f.yield, { title: "A minute's search" }))}`;
+`);
 }
 /** The chosen focus, or General where the ground does not offer it. */
 const forageFocus = f => f.foci.find(x => x.focus === S.forage.focus) ?? f.foci[f.foci.length - 1];
@@ -567,11 +595,11 @@ function renderJob(d, v) {
   head(verbIcon({ kind: d.verbKind, label: d.label }), d.label, total ? costChip(dur(total)) : '');
   const f = d.done ? 1 : total ? Math.min(1, Math.max(0, shown) / total) : 0;
   const lines = v.log.filter(l => !d.logFrom.has(logKey(l)));
-  $('sideBody').innerHTML = `
+  setHtml($('sideBody'), `
+    <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>
     <div class="run"><div class="runbar ${d.done ? (d.done.outcome === 'interrupted' || d.done.outcome === 'refused' ? 'fail' : 'ok') : ''}"><span class="fill" style="width:${f * 100}%"></span><span class="ticks10"></span></div>
       <div class="runmeta"><span class="num">${dur(Math.max(0, d.done ? d.done.minutes : shown))}${total && !d.done ? ` of ${dur(total)}` : ''}</span><span>${d.done ? esc(cap(d.done.reason ?? 'done')) : 'under way'}</span></div></div>
-    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}
-    <div class="row">${d.done ? `${d.back ? `<button class="act quiet" data-act="back" data-to="${d.back}">Back to making</button>` : ''}<button class="act" data-act="close">Done <span class="key">Esc</span></button>` : `<button class="act quiet" data-act="stop">Stop</button>`}</div>`;
+    ${lines.length ? section(d.done ? 'What came of it' : 'So far', `<div class="factors">${lines.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : l.kind === 'good' || l.kind === 'rare' ? 'plus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}`);
 }
 
 // ---------------------------------------------------------------- the fight
@@ -584,11 +612,11 @@ function renderCombat() {
     <span><b>${esc(u.name)}</b><small>${esc(u.condition)}${u.isPlayer ? '' : ` · ${esc(u.state)}`}${u.weapon ? ` · ${esc(u.weapon)}` : ''}${u.inField ? '' : ' · out of the fight'}</small></span>
     <span class="c">${u.team === 0 ? '' : u.index === c.target ? 'target' : ''}</span></div>`).join('');
   const recent = c.lines.slice(-5).reverse();
-  $('combatside').innerHTML = `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
+  setHtml($('combatside'), `<div class="side-head">${img('ui/target', 'ico x2')}<h2>Fight</h2><span class="cost num">round ${c.round}</span></div>
     <div class="side-body"><div class="sec"><div class="sec-h"><span class="label">Range</span><span class="zone">${esc(c.zone)} · ${c.targetM} m</span></div>
       <p class="note">Click the ground to move, up to ${c.moveM} m a round.</p></div>
       ${section('On the ground', `<div class="place-feats">${units}</div>`)}
-      ${recent.length ? section('Just now', `<div class="factors">${recent.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}</div>`;
+      ${recent.length ? section('Just now', `<div class="factors">${recent.map(l => `<div class="kv ${l.kind === 'bad' ? 'minus' : ''}">${img(l.icon)}<span>${esc(l.text)}</span><span class="v"></span></div>`).join('')}</div>`) : ''}</div>`);
 }
 
 // ---------------------------------------------------------------- receipt, end of the run, toasts
@@ -622,16 +650,37 @@ function shake(id) { const b = document.querySelector(`[data-verb="${id}"]`); if
 
 // ---------------------------------------------------------------- tips
 
+// A mouse shows a tip on hover. A finger has no hover: a tap on something that only has a tip (the clock,
+// the light, the vitals) pins it, and the next tap anywhere only puts it away, so it never walks or acts.
 const ftip = $('ftip');
-document.addEventListener('mouseover', e => {
-  const el = e.target.closest('[data-tip]');
-  if (!el) { ftip.hidden = true; return; }
+let pinned = false, swallow = false;
+function showTip(el) {
   const [title, ...lines] = el.dataset.tip.split('|');
   ftip.innerHTML = `<div class="t">${px(title)}</div>${lines.map(l => { const m = /^([gbm]):(.*)$/.exec(l); return `<div class="${m ? m[1] : ''}">${esc(m ? m[2] : l)}</div>`; }).join('')}`;
   ftip.hidden = false;
   const r = el.getBoundingClientRect(), w = ftip.offsetWidth, h = ftip.offsetHeight;
   ftip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
-  ftip.style.top = `${r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8}px`;
+  ftip.style.top = `${Math.min(innerHeight - h - 8, r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8)}px`;
+}
+function hideTip() { ftip.hidden = true; pinned = false; }
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const el = e.target.closest('[data-tip]');
+  if (el) showTip(el); else hideTip();
+});
+// Each touch decides afresh whether it only puts a tip away, so a swipe (a pan ends in pointercancel,
+// with no click to swallow) never leaves the next tap swallowed.
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  swallow = pinned;
+  if (pinned) hideTip();
+}, true);
+document.addEventListener('pointercancel', () => { swallow = false; }, true);
+document.addEventListener('click', e => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('pointerup', e => {
+  if (e.pointerType === 'mouse' || swallow) return;
+  const el = e.target.closest('[data-tip]');
+  if (el && !el.closest('button, [data-verb], [data-open], [data-act], [data-sheet]')) { showTip(el); pinned = true; }
 });
 
 // ---------------------------------------------------------------- the map's hover and click
@@ -660,13 +709,27 @@ function hoverTile(t, e) {
 function clickTile(t) {
   if (S.busy || !S.view) return;
   const here = S.view.place;
+  S.trip = null;
   if (t.x === here.x && t.y === here.y) return openDrawer({ kind: 'here' });
   const dir = dirTo(here, t);
   if (dir) return openTrip(dir);
   S.selected = t;
   openDrawer({ kind: 'place', x: t.x, y: t.y });
 }
-const map = createMap($('world'), () => ({ ...S, drawerOpen: !!S.drawer, displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
+/** How far in from the map's edges the drawer (with the margin it keeps from the edge, so it is centred in
+ *  what is left) and a status strip along its top reach, in CSS px (cameraTarget). */
+function mapCoverPx() {
+  const m = $('mapArea').getBoundingClientRect(), c = { top: 0, right: 0, bottom: 0 };
+  const d = $('drawer');
+  if (!d.hidden) {
+    const r = d.getBoundingClientRect();
+    if (r.width > m.width * 0.9) c.bottom = 2 * m.bottom - r.top - r.bottom; else c.right = 2 * m.right - r.left - r.right;
+  }
+  const st = $('status').getBoundingClientRect();
+  if (st.width > m.width / 2 && st.top - m.top < 24) c.top = st.bottom - m.top;
+  return c;
+}
+const map = createMap($('world'), () => ({ ...S, coverPx: mapCoverPx(), displayMinuteOfDay: S.displayMinute != null ? minuteOfDay(S.displayMinute) : null }), { onHover: hoverTile, onClick: clickTile });
 createGrid($('grid'), () => S, {
   onCell: c => {
     const mv = S.view?.combat?.actions.find(a => a.kind === 'fight-move');
@@ -685,7 +748,8 @@ document.addEventListener('keydown', e => {
     closeVeil();
     if (does === 'close') { e.preventDefault(); return; }
   }
-  if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else closeDrawer(); return; }
+  if (log && k.toLowerCase() === 'n' && !e.repeat) { markLog(); return; }
+  if (k === 'Escape') { if (S.busy && (S.drawer?.kind === 'job' || S.drawer?.kind === 'forage')) S.stop = true; else if (S.trip) closeTrip(); else closeDrawer(); return; }
   if (S.busy || v.combat) return;
   const arrows = { ArrowUp: 'north', ArrowRight: 'east', ArrowDown: 'south', ArrowLeft: 'west' };
   if (arrows[k]) {
@@ -695,7 +759,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   const key = k.toLowerCase();
-  if (key === 'enter' && S.drawer?.kind === 'trip') { const w = walkVerb(v, S.drawer.dir); if (w) run(w.id); }
+  if (key === 'enter' && S.trip) { const w = walkVerb(v, S.trip); if (w) run(w.id); }
   else if (key === 'f') {
     const light = lightVerb(v);
     if (S.drawer?.kind === 'fire' && light && !v.fire?.burning) run(light.id); else openDrawer({ kind: 'fire' });
@@ -738,11 +802,34 @@ async function loadBytes(bytes, note) {
   } catch (e) { toast('ui/warning', `Could not load: ${e.message}`); }
 }
 
+// ---------------------------------------------------------------- the playtest log (?log)
+
+/** A mark in the log, its wall-clock time shown on the chip a while, to say into the voice memo. */
+let markedAt = null, markT = 0;
+function markLog() {
+  markedAt = log.mark();
+  clearTimeout(markT); markT = setTimeout(() => { markedAt = null; renderLogChip(); }, 4000);
+  renderLogChip();
+}
+
+/** The recording chip: how many calls are logged, a mark, and the log as a file. */
+function renderLogChip() {
+  if (!log) return;
+  let chip = $('logChip');
+  if (!chip) {
+    chip = Object.assign(document.createElement('div'), { id: 'logChip', className: 'plate logchip' });
+    $('mapArea').append(chip);
+  }
+  const s = log.sink, posting = logging.endpoint ? ` · ${s.failures && s.sent < log.entries.length ? 'not posting' : 'posted'} ${s.sent}` : '';
+  chip.innerHTML = `<span class="rec${markedAt ? ' marked' : ''}" ${tip('Playtest log', [`${log.entries.length} entries${posting}`, s.lastError ?? 'N marks the moment'])}>${markedAt ? `Marked ${markedAt}` : `REC ${log.entries.length}`}</span>
+    <button class="act quiet" data-act="mark">Mark <span class="key">N</span></button><button class="act quiet" data-act="logfile">Log file</button>`;
+}
+
 // ---------------------------------------------------------------- render and start
 
 function render() {
   if (!S.view) return;
-  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderEnd();
+  renderTop(); renderStatus(); renderDock(); renderCombat(); renderDrawer(); renderTripCard(); renderEnd(); renderLogChip();
 }
 
 async function newGame(seed) {
@@ -775,4 +862,5 @@ window.ui.loadBytes = loadBytes;
 window.ui.doSave = doSave;
 window.ui.doLoad = doLoad;
 window.ui.openTrip = openTrip;
+window.ui.map = map;
 window.ui.allVerbs = () => allVerbs(S.view);

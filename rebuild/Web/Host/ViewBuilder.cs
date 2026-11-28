@@ -272,7 +272,8 @@ sealed class ViewBuilder(World world, int gen)
         var shown = BodyReadOut.Of(b);
         var skills = (_player.Mind as PersonMind)?.Skills ?? [];
         return new BodyDto(Math.Round(b.CoreTempF, 1), b.BloodPct, Math.Round(b.CaloriesKcal), Math.Round(b.HydrationMl), b.EnergyPct,
-            [.. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
+            [.. Deprivations.Of(b).Where(d => d.Severity > 0.01).Select(d => new EffectDto(Names.Title(d.Kind), Math.Round(d.Severity, 2))),
+             .. b.Effects.Where(e => e.Severity > 0.01).Select(e => new EffectDto(Names.Title(e.Kind), Math.Round(e.Severity, 2)))],
             [.. shown.Where(c => c.Pct < 0.995).Select(c => new CapacityDto(Names.Title(c.Capacity), Math.Round(c.Pct, 3)))],
             [.. skills.Where(s => s.Value.Level > 0).Select(s => new SkillDto(Names.Title(s.Key), s.Value.Level))],
             Math.Round(b.ClothingClo, 2));
@@ -384,6 +385,7 @@ sealed class ViewBuilder(World world, int gen)
             double rate = Making.WorkPerMinute(world, _player, pack, r);
             if (rate > 0) total = job.Done + (int)Math.Ceiling((r.Minutes - done) / rate);
         }
+        if (job.Activity is Gather g && !job.Finished && Work.StockMinutesLeft(world, _player, g) is int stockLeft) total = Math.Min(total ?? int.MaxValue, job.Done + stockLeft);
         var session = job.Session;
         var finds = session?.LuckFactor > 0
             ? session.Finds.GroupBy(x => x.Resource).OrderBy(g => g.Min(x => x.Minute))

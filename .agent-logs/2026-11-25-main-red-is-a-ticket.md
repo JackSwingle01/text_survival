@@ -58,3 +58,14 @@ test and its message.
 Revised (third run on main, #250): triage marked it ready and the build selected #250 alone, then
 started nothing: weekly plan usage was at 80%, the build's limit. Jack raised the build's
 `MAX_PLAN_UTILIZATION` to 0.9. `resolve-conflicts.yml` keeps its own 0.8.
+
+Revised (first unassisted red main, #311, 2026-11-26): the issue had the rule, CI dispatched triage,
+and the brief held the failing test and its message; triage parked it (an NPC pacing regression, not
+a small fix), which the rule asks for. But the dispatched run itself failed before the model ran:
+the action refuses a workflow started by github-actions, and triage's step did not name the bot as
+the build's does. A second triage run, started 56 s later by another issue's event, did the work
+→ `allowed_bots: github-actions` on the Triage step. Half the excerpt was the runner's post-job git
+cleanup → `log_excerpt` drops everything from "Post job cleanup." on.
+Follow-up: the failing nightly of 2026-11-26 rewrote #215 with the rule and 12 failures, and it stayed
+`needs-user` from its triage the day before, as designed. So no nightly issue has been triaged under
+the rule yet. Whether a rewrite should take `needs-user` off and requeue the issue is Jack's call.

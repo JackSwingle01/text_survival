@@ -2,7 +2,7 @@
 // effect) is "hypothermic". Lower case; the words that use them capitalise a sentence's start (Names.Cap).
 // One row for every value of each enum listed here, no more (Names.Tables): a value added in code
 // without its words fails at load. Gear and recipes are named in items.json and recipes.json.
-// EffectKind reads after "You are" ("You are shivering", "You are in pain").
+// EffectKind and Deprivation read after "You are" ("You are shivering", "You are in pain", "You are hungry").
 // Requirement reads after "needs" ("needs a fire burning"). Capability names the tool by what it does
 // ("the cutting tool"). The fight's own names (actions, range, a fighter's state) join when the
 // combat round's rework settles them.
@@ -168,10 +168,12 @@
   "LeftEar": "left ear",
   "RightEar": "right ear"
  },
- "EffectKind": {
+ "Deprivation": {
   "Hungry": "hungry",
   "Thirsty": "thirsty",
-  "Tired": "tired",
+  "Tired": "tired"
+ },
+ "EffectKind": {
   "Shivering": "shivering",
   "Hypothermia": "hypothermic",
   "Frostbite": "frostbitten",
