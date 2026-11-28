@@ -159,14 +159,14 @@ internal readonly record struct BloodAndBreath(double Blood, double Breath, doub
     internal const double CirculationFailsBloodPct = 0.5;
     const double BreathShortBelow = 0.3;
 
-    /// Only real blood loss collapses circulation, not cold-slowed pumping; readPct (thirst) scales as if it were the only loss.
-    internal static BloodAndBreath Of(BodyState body, ReadOnlySpan<double> tissue, double readPct = 1)
+    /// Only real blood loss collapses circulation, not cold-slowed pumping; thirst's read scales as if it were the only loss.
+    internal static BloodAndBreath Of(BodyState body, ReadOnlySpan<double> tissue, double thirstBloodReadPct)
     {
         double pumping = tissue[(int)Capacity.Blood], breath = tissue[(int)Capacity.Breath];
         return new(
-            pumping * body.BloodPct * readPct,
+            pumping * body.BloodPct * thirstBloodReadPct,
             breath,
-            CirculationScale(body.BloodPct) * CirculationScale(readPct),
+            CirculationScale(body.BloodPct) * CirculationScale(thirstBloodReadPct),
             breath < BreathShortBelow ? breath / BreathShortBelow : 1);
     }
 
@@ -189,16 +189,16 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
-        return Unscaled(body, effectDeltas, Deprivations.ConsciousnessFactor(body), Deprivations.BloodReadPct(body), out feed);
+        return Unscaled(body, effectDeltas, Deprivations.ConsciousnessPct(body), Deprivations.BloodReadPct(body), out feed);
     }
 
-    static Capacities Unscaled(BodyState body, ReadOnlySpan<double> effectDeltas, double consciousnessFactor, double bloodReadPct,
+    static Capacities Unscaled(BodyState body, ReadOnlySpan<double> effectDeltas, double consciousnessPct, double thirstBloodReadPct,
         out BloodAndBreath feed)
     {
         Span<double> c = stackalloc double[TissueReads.CapacityCount];
         TissueReads.Fill(body, effectDeltas, c);
-        feed = BloodAndBreath.Of(body, c, bloodReadPct);
-        return new Capacities(c[(int)Capacity.Moving], c[(int)Capacity.Manipulation], c[(int)Capacity.Consciousness] * consciousnessFactor,
+        feed = BloodAndBreath.Of(body, c, thirstBloodReadPct);
+        return new Capacities(c[(int)Capacity.Moving], c[(int)Capacity.Manipulation], c[(int)Capacity.Consciousness] * consciousnessPct,
             c[(int)Capacity.Sight], c[(int)Capacity.Hearing]);
     }
 

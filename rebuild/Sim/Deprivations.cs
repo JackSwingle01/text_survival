@@ -12,9 +12,9 @@ public static class Deprivations
     public const double ThirstOnsetPct = 0.50, HungerOnsetPct = 0.30, TiredOnsetPct = 0.30;
 
     /// What each multiplies at full: never zero, so no mix takes a faculty there. Thirst reads blood as if 15% were lost.
-    const double TiredConsciousness = 0.5, ThirstyConsciousness = 0.7, HungryConsciousness = 0.9;
+    const double TiredConsciousnessPct = 0.5, ThirstyConsciousnessPct = 0.7, HungryConsciousnessPct = 0.9;
 
-    const double ThirstyBloodRead = 0.85;
+    const double ThirstyBloodReadPct = 0.85;
 
     internal static readonly Deprivation[] All = Enum.GetValues<Deprivation>();
 
@@ -51,12 +51,12 @@ public static class Deprivations
 
     static double Below(double onsetPct, double pct) => Math.Max(0, (onsetPct - Math.Clamp(pct, 0, 1)) / onsetPct);
 
-    static double Factor(double atFull, double severity) => 1 - (1 - atFull) * severity;
+    static double Toward(double atFullPct, double severity) => 1 - (1 - atFullPct) * severity;
 
-    internal static double ConsciousnessFactor(BodyState body) => !FeelsAny(body) ? 1
-        : Factor(TiredConsciousness, Severity(body, Deprivation.Tired))
-            * Factor(ThirstyConsciousness, Severity(body, Deprivation.Thirsty))
-            * Factor(HungryConsciousness, Severity(body, Deprivation.Hungry));
+    internal static double ConsciousnessPct(BodyState body) => !FeelsAny(body) ? 1
+        : Toward(TiredConsciousnessPct, Severity(body, Deprivation.Tired))
+            * Toward(ThirstyConsciousnessPct, Severity(body, Deprivation.Thirsty))
+            * Toward(HungryConsciousnessPct, Severity(body, Deprivation.Hungry));
 
-    internal static double BloodReadPct(BodyState body) => Factor(ThirstyBloodRead, Severity(body, Deprivation.Thirsty));
+    internal static double BloodReadPct(BodyState body) => Toward(ThirstyBloodReadPct, Severity(body, Deprivation.Thirsty));
 }
