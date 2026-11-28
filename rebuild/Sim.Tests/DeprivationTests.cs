@@ -41,53 +41,105 @@ public class DeprivationTests
         Assert.Equal(0, Deprivations.Severity(b, d));
     }
 
-    /// The rule as the effects carried it before #332, written out here: the shared 30% line, the pang
-    /// (5% off moving, of Hungry's 35%) and the ramp over the last 20 days the reserves can feed.
-    static double OldRule(BodyState b, Deprivation d)
+    /// Each store's line (spec "Thirst", "Hunger and wasting"): thirst from half the water store, the pang from
+    /// 30% of the calorie store, tiredness from 30% of the energy store, each rising in a straight line to full at empty.
+    [Theory]
+    [InlineData(Deprivation.Thirsty, 1.0, 0)]
+    [InlineData(Deprivation.Thirsty, 0.5, 0)]
+    [InlineData(Deprivation.Thirsty, 0.25, 0.5)]
+    [InlineData(Deprivation.Thirsty, 0.0, 1)]
+    [InlineData(Deprivation.Hungry, 1.0, 0)]
+    [InlineData(Deprivation.Hungry, 0.30, 0)]
+    [InlineData(Deprivation.Hungry, 0.15, 0.5)]
+    [InlineData(Deprivation.Hungry, 0.0, 1)]
+    [InlineData(Deprivation.Tired, 0.30, 0)]
+    [InlineData(Deprivation.Tired, 0.15, 0.5)]
+    [InlineData(Deprivation.Tired, 0.0, 1)]
+    public void EachDeprivation_IsZeroAboveItsLine_AndFullAtAnEmptyStore(Deprivation d, double storePct, double severity)
     {
-        static double Below(double pct) => Math.Max(0, (0.30 - Math.Clamp(pct, 0, 1)) / 0.30);
+        var b = BodyState.BaselineHuman();
         switch (d)
         {
-            case Deprivation.Thirsty: return Below(b.HydrationMl / 4000);
-            case Deprivation.Tired: return Below(b.EnergyMinutes / 960);
-            default:
-                double reserves = Math.Max(0, b.FatKg - 0.03 * b.WeightKg) * 7700 + Math.Max(0, b.MuscleKg - 0.15 * b.WeightKg) * 1320;
-                double ramp = Math.Clamp(1 - reserves / (20 * Body.MetabolismKcalPerDay(b, 1.0)), 0, 1);
-                return Math.Max(0.05 / 0.35 * Below(b.CaloriesKcal / Body.CaloriesCapacityKcal(b)), ramp);
+            case Deprivation.Thirsty: b.HydrationMl = storePct * Body.MaxHydrationMl; break;
+            case Deprivation.Tired: b.EnergyMinutes = storePct * Body.MaxEnergyMinutes; break;
+            case Deprivation.Hungry: b.CaloriesKcal = storePct * Body.CaloriesCapacityKcal(b); break;
         }
+        Assert.Equal(severity, Deprivations.Severity(b, d), 9);
     }
 
-    /// From full stores, with no food, water or sleep, every minute for two days: each severity is the old rule's.
+    /// Just above each line nothing is felt; just below, something is.
     [Fact]
-    public void FromFullToEmpty_EachDeprivation_IsTheOldRule_EveryMinute()
+    public void JustAboveItsLine_ADeprivationIsUnfelt_AndJustBelowItIsFelt()
     {
         var b = BodyState.BaselineHuman();
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (Body.CaloriesCapacityKcal(b), Body.MaxHydrationMl, Body.MaxEnergyMinutes);
-        var rng = TestRng();
-        var seen = new HashSet<Deprivation>();
-        for (int minute = 0; minute < 2 * 1440; minute++)
-        {
-            Body.Update(b, Room(), rng);
-            foreach (var d in Enum.GetValues<Deprivation>())
-            {
-                double severity = Deprivations.Severity(b, d);
-                Assert.True(Math.Abs(OldRule(b, d) - severity) < 1e-12, $"minute {minute}: {d} {severity} against {OldRule(b, d)}");
-                if (severity > 0) seen.Add(d);
-            }
-        }
-        Assert.Equal(3, seen.Count);
-        Assert.Equal(1, Deprivations.Severity(b, Deprivation.Thirsty));
-        Assert.Equal(1, Deprivations.Severity(b, Deprivation.Tired));
+        b.HydrationMl = 0.5 * Body.MaxHydrationMl + 1;
+        b.CaloriesKcal = 0.3 * Body.CaloriesCapacityKcal(b) + 1;
+        Assert.Empty(Deprivations.Of(b));
+        b.HydrationMl -= 2;
+        b.CaloriesKcal -= 2;
+        Assert.True(Deprivations.Has(b, Deprivation.Thirsty));
+        Assert.True(Deprivations.Has(b, Deprivation.Hungry));
     }
 
-    /// A starved body at both floors is fully hungry, its stomach empty or not.
+    /// Starving on its reserves with an empty stomach, a body feels the pang at full and nothing more: its dexterity
+    /// and perception are those of a fresh body with an empty stomach, a tenth of perception below a fed one's.
     [Fact]
-    public void AtBothFloors_HungerIsFull()
+    public void StarvingOnReserves_WithAnEmptyStomach_IsThePangAtFull_AndNoFurtherHunger()
     {
-        var b = BodyState.BaselineHuman();
-        double kg = b.StructuralKg / (1 - 0.03 - 0.15);
-        (b.FatKg, b.MuscleKg) = (0.03 * kg, 0.15 * kg);
-        Assert.Equal(1, Deprivations.Severity(b, Deprivation.Hungry), 9);
+        var starving = BodyState.BaselineHuman();
+        Deprive.Starved(starving);
+        var emptyStomach = BodyState.BaselineHuman();
+        emptyStomach.CaloriesKcal = 0;
+        var fed = BodyState.BaselineHuman();
+        Assert.Equal(1, Deprivations.Severity(starving, Deprivation.Hungry), 9);
+        Assert.Equal(Body.Perception(emptyStomach), Body.Perception(starving), 9);
+        Assert.Equal(Body.Dexterity(emptyStomach), Body.Dexterity(starving), 9);
+        Assert.Equal(0.9 * Body.Perception(fed), Body.Perception(starving), 9);
+    }
+
+    /// Tiredness alone, at any severity, dulls the mind: strength and speed are a rested body's, dexterity and
+    /// perception fall, perception (which is consciousness on a whole body) by half at full.
+    [Theory]
+    [InlineData(0.2)]
+    [InlineData(0.7)]
+    [InlineData(1.0)]
+    public void Tiredness_LeavesStrengthAndSpeedWhole_AndLowersDexterityAndPerception(double severity)
+    {
+        var rested = BodyState.BaselineHuman();
+        var tired = BodyState.BaselineHuman();
+        Deprive.Tired(tired, severity);
+        Assert.Equal(Body.Strength(rested), Body.Strength(tired), 12);
+        Assert.Equal(Body.Speed(rested), Body.Speed(tired), 12);
+        Assert.True(Body.Dexterity(tired) < Body.Dexterity(rested));
+        Assert.Equal(1 - 0.5 * severity, Body.Perception(tired) / Body.Perception(rested), 9);
+    }
+
+    /// Thirst at full thins the blood the body reads, as if 15% were lost: limbs at 0.7 through the lost-blood scale.
+    /// What the body has stored, and what keeps it alive, are an unthirsty body's.
+    [Fact]
+    public void ThirstAtFull_LowersSpeedAndStrengthThroughBlood_AndLeavesStoredBloodAndAliveAlone()
+    {
+        var watered = BodyState.BaselineHuman();
+        var thirsty = BodyState.BaselineHuman();
+        Deprive.Thirsty(thirsty, 1);
+        Assert.Equal(0.7 * Body.Speed(watered), Body.Speed(thirsty), 9);
+        Assert.True(Body.Strength(thirsty) < Body.Strength(watered));
+        Assert.Equal(watered.BloodPct, thirsty.BloodPct);
+        Assert.Equal(Body.BloodVolumeMl(watered), Body.BloodVolumeMl(thirsty));
+        Assert.Equal(Body.TissueVitality(watered), Body.TissueVitality(thirsty));
+        Assert.True(Body.IsAlive(thirsty));
+    }
+
+    /// All three at their worst leave alive and tissue vitality as a body with full stores has them.
+    [Fact]
+    public void AllThreeAtFull_LeaveTissueVitalityAlone()
+    {
+        var full = BodyState.BaselineHuman();
+        var deprived = BodyState.BaselineHuman();
+        Deprive.Thirsty(deprived, 1);
+        Deprive.Tired(deprived, 1);
+        Deprive.Hungry(deprived, 1);
+        Assert.Equal(Body.TissueVitality(full), Body.TissueVitality(deprived));
     }
 
     /// Animals live outside the person's survival model (Fauna): they have stores, and no deprivation yet.
@@ -115,7 +167,7 @@ public class DeprivationTests
         {
             var b = BodyState.BaselineHuman();
             (b.HydrationMl, b.EnergyMinutes, b.CaloriesKcal) =
-                (rng.NextDouble() * 0.4 * Body.MaxHydrationMl, rng.NextDouble() * 0.4 * Body.MaxEnergyMinutes, rng.NextDouble() * 0.4 * Body.CaloriesCapacityKcal(b));
+                (rng.NextDouble() * 0.6 * Body.MaxHydrationMl, rng.NextDouble() * 0.4 * Body.MaxEnergyMinutes, rng.NextDouble() * 0.4 * Body.CaloriesCapacityKcal(b));
             var before = Shares(b);
             Assert.All(before, share => Assert.True(share > 1 / 6.0, $"trial {trial}: {share:0.000}"));
             double less = 1 - rng.NextDouble() * 0.5;
@@ -132,41 +184,24 @@ public class DeprivationTests
         }
     }
 
-    /// The losses of the three are summed per capacity and bend toward 0.8, x / (1 + (x/0.8)^4)^(1/4):
-    /// read through a whole human's dexterity, manipulation times half of one plus consciousness.
+    /// The factors multiply (spec "The three routes"): on a whole body, perception is consciousness, which is
+    /// tired's (1 - 0.5 s) times thirst's (1 - 0.3 t) times hunger's (1 - 0.1 h), times thirst's lost-blood scale
+    /// (1 - 0.3 t). Sight and hearing lose nothing.
     [Theory]
-    [InlineData(0.2, 0.2)]
-    [InlineData(0.6, 0.9)]
-    [InlineData(1.0, 1.0)]
-    [InlineData(0.0, 0.7)]
-    public void TheLosses_SumAndSaturate(double thirst, double tired)
+    [InlineData(0.2, 0.2, 0.2)]
+    [InlineData(0.6, 0.9, 0.0)]
+    [InlineData(1.0, 1.0, 1.0)]
+    [InlineData(0.0, 0.7, 0.5)]
+    public void TheFactors_Multiply(double thirst, double tired, double hunger)
     {
+        var fresh = BodyState.BaselineHuman();
         var b = BodyState.BaselineHuman();
         Deprive.Thirsty(b, thirst);
         Deprive.Tired(b, tired);
-        static double Bent(double x) => x / Math.Pow(1 + Math.Pow(x / 0.8, 4), 0.25);
-        double manipulation = 1 - Bent(0.25 * thirst + 0.30 * tired), consciousness = 1 - Bent(0.45 * thirst + 0.45 * tired);
-        Assert.Equal(manipulation * (0.5 + 0.5 * consciousness), Body.Dexterity(b), 9);
-        double sight = 1 - Bent(0.25 * tired), hearing = 1 - Bent(0.15 * tired);
-        Assert.Equal(sight * consciousness, Body.Vision(b), 9);
-        Assert.Equal((sight + hearing) / 2 * consciousness, Body.Perception(b), 9);
-    }
-
-    /// Along the reserves' ramp, fat at its floor and muscle falling to its own, hunger is the old rule's.
-    [Fact]
-    public void AlongTheReservesRamp_HungerIsTheOldRule()
-    {
-        var fresh = BodyState.BaselineHuman();
-        double fatKg = 0.03 * fresh.WeightKg;
-        for (double muscle = fresh.MuscleKg; muscle > 8; muscle -= 0.5)
-        {
-            var b = BodyState.BaselineHuman();
-            (b.FatKg, b.MuscleKg) = (fatKg, muscle);
-            Assert.Equal(OldRule(b, Deprivation.Hungry), Deprivations.Severity(b, Deprivation.Hungry), 12);
-        }
-        var midway = BodyState.BaselineHuman();
-        (midway.FatKg, midway.MuscleKg) = (fatKg, 0.15 * midway.WeightKg + 12);
-        Assert.InRange(Deprivations.Severity(midway, Deprivation.Hungry), 0.2, 0.8);
+        Deprive.Hungry(b, hunger);
+        double consciousness = (1 - 0.5 * tired) * (1 - 0.3 * thirst) * (1 - 0.1 * hunger) * (1 - 0.3 * thirst);
+        Assert.Equal(consciousness, Body.Perception(b) / Body.Perception(fresh), 9);
+        Assert.Equal(consciousness, Body.Vision(b) / Body.Vision(fresh), 9);
     }
 
     [Fact]
@@ -219,7 +254,10 @@ public class DeprivationTests
 /// Sets the stores a deprivation is read from, for tests that need one at a given severity.
 internal static class Deprive
 {
-    internal static void Thirsty(BodyState b, double severity) => b.HydrationMl = Body.MaxHydrationMl * 0.30 * (1 - severity);
+    internal static void Thirsty(BodyState b, double severity) => b.HydrationMl = Body.MaxHydrationMl * 0.50 * (1 - severity);
+
+    /// The pang alone: the calorie store below its line, the reserves untouched.
+    internal static void Hungry(BodyState b, double severity) => b.CaloriesKcal = Body.CaloriesCapacityKcal(b) * 0.30 * (1 - severity);
 
     internal static void Tired(BodyState b, double severity) => b.EnergyMinutes = Body.MaxEnergyMinutes * 0.30 * (1 - severity);
 

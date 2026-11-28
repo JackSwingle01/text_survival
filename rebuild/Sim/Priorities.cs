@@ -30,7 +30,6 @@ public static class Priorities
     /// The fat the body burns down to before it burns muscle (BodySurvival's MinFatPct).
     public const double StarvingFatPct = 0.03, StarvingToleranceKg = 0.05;
     public const double WantedShortfallKg = 0.3, SatisfiedShortfallKg = 0.1;
-    public const double HungryPct = 0.3;
     public const double SpareFireHours = 12;
 
     /// Tonight's fire is warmth, not a stockpile. usableFireHours is fire the person can have (Fire.Forecast's hours), not raw wood.
@@ -73,7 +72,7 @@ public static class Priorities
         if (Starving(body)) return Priority.Critical;
         double shortfallKg = targetFatKg - body.FatKg;
         if (body.FatKg < FatFloorKg(body) || shortfallKg >= WantedShortfallKg || seeingTo && shortfallKg > SatisfiedShortfallKg) return Priority.Need;
-        return body.CaloriesPct < HungryPct && !foodToHand ? Priority.Need : Priority.Want;
+        return Deprivations.Has(body, Deprivation.Hungry) && !foodToHand ? Priority.Need : Priority.Want;
     }
 
     public const double AnimalFedPct = 0.8;
@@ -83,7 +82,7 @@ public static class Priorities
     {
         if (Starving(body)) return Priority.Critical;
         double scale = body.WeightKg / Body.BaselineWeightKg, shortfallKg = buildFatPct * body.WeightKg - body.FatKg;
-        if (shortfallKg >= WantedShortfallKg * scale || body.CaloriesPct < HungryPct) return Priority.Need;
+        if (shortfallKg >= WantedShortfallKg * scale || body.CaloriesPct < Deprivations.HungerOnsetPct) return Priority.Need;
         return seeingTo && (shortfallKg > SatisfiedShortfallKg * scale || body.CaloriesPct < AnimalFedPct) ? Priority.Need : Priority.Want;
     }
 

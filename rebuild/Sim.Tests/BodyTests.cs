@@ -298,37 +298,36 @@ public class BodyTests
         Assert.True(Body.IsAlive(b));
     }
 
-    /// Deprivations stack with diminishing returns. Thirst and tiredness at full, with an empty stomach's
-    /// pang, leave every faculty at about a fifth of a fresh body's or more (vision 0.21, a product of two
-    /// lowered capacities); each alone is nearly what its sizes say. Full hunger comes only with wasting
-    /// (#332: read from the stores), so it is not here.
+    /// Deprivations multiply consciousness, and thirst the blood the body reads (#333). All three at full on a whole
+    /// body leave every faculty at about a fifth of fresh or more (consciousness 0.5 × 0.7 × 0.9 × 0.7 = 0.22) and
+    /// speed at 0.7, thirst's lost-blood scale; tiredness alone leaves speed whole.
     [Fact]
-    public void Deprivations_StackWithDiminishingReturns_NeverBelowAboutAFifth()
+    public void Deprivations_AtTheirWorst_LeaveAWholeBodyAFifthOfItsMind_AndItsLegsAtSevenTenths()
     {
         var b = Baseline();
         Deprive.Thirsty(b, 1);
         Deprive.Tired(b, 1);
-        b.CaloriesKcal = 0;
+        Deprive.Hungry(b, 1);
         foreach (var f in Enum.GetValues<Faculty>())
             Assert.True(Body.Share(b, Species.Human, f) >= 0.2, $"{f} {Body.Share(b, Species.Human, f):0.000}");
-        Assert.InRange(SpeedShare(b), 0.28, 0.30);
+        Assert.Equal(0.7, SpeedShare(b), 9);
 
         var tired = Baseline();
         Deprive.Tired(tired, 1.0);
-        Assert.InRange(SpeedShare(tired), 0.55, 0.57); // -0.45 alone, a hair less
+        Assert.Equal(1, SpeedShare(tired), 9);
     }
 
-    /// Only deprivation saturates: wounds, blood loss and the cold's effects still take what they take,
-    /// on top of it, to nothing.
+    /// Deprivation scales what wounds, blood loss and the cold leave: those still take speed to nothing, and
+    /// deprivation never does.
     [Fact]
-    public void Deprivations_Saturate_ButDamageBloodLossAndColdStillTakeSpeedToNothing()
+    public void Deprivations_ScaleWhatWoundsBloodLossAndColdLeave()
     {
         BodyState Miserable()
         {
             var b = Baseline();
             Deprive.Thirsty(b, 1);
             Deprive.Tired(b, 1);
-            b.CaloriesKcal = 0;
+            Deprive.Hungry(b, 1);
             return b;
         }
         var bled = Miserable();
@@ -337,10 +336,10 @@ public class BodyTests
         var lame = Miserable();
         Destroy(RegionOf(lame, "Left Leg"));
         Destroy(RegionOf(lame, "Right Leg"));
-        Assert.True(SpeedShare(lame) < 0.02);
+        Assert.Equal(0, SpeedShare(lame), 9);
         var frozen = Miserable();
-        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, added in full on top
-        Assert.InRange(SpeedShare(frozen), 0.12, 0.16);
+        Effects.Add(frozen, EffectKind.Frostbite, 0.3); // -0.15 moving, then thirst's 0.7
+        Assert.Equal(0.85 * 0.7, SpeedShare(frozen), 3);
     }
 
     /// Body review B5: a body that dies is named after the damage that took it over the line, as it
@@ -372,13 +371,18 @@ public class BodyTests
         Assert.Equal(1.0, Body.Vitality(Baseline(), Species.Human), 2);
         Assert.True(Body.Vitality(Custom(75, 0.20, 0.30), Species.Human) > 0.9);
 
-        // The scenario from a playtest: Hypothermia 98%, Tired 65%, plus 0.088 more = -0.87 consciousness.
+        // The scenario from a playtest: Hypothermia 98% and Shock 22% (-0.58 consciousness), then Tired 65% (× 0.675).
         var b = Baseline();
         Effects.Add(b, EffectKind.Hypothermia, 0.98);
         Deprive.Tired(b, 0.65);
         Effects.Add(b, EffectKind.Shock, 0.22); // stands in for the old Fever 22%: -0.4 consciousness each
-        // The mean of the faculties, not the least of them (#200): strength and speed keep their build.
-        Assert.True(Body.Vitality(b, Species.Human) < 0.40, $"Vitality {Body.Vitality(b, Species.Human):P0}");
+        // The mean of the faculties, not the least of them (#200): strength and speed keep their build, and
+        // tiredness (#333) dulls only the mind.
+        Assert.True(Body.Vitality(b, Species.Human) < 0.60, $"Vitality {Body.Vitality(b, Species.Human):P0}");
+        var rested = Baseline();
+        Effects.Add(rested, EffectKind.Hypothermia, 0.98);
+        Effects.Add(rested, EffectKind.Shock, 0.22);
+        Assert.True(Body.Vitality(b, Species.Human) < Body.Vitality(rested, Species.Human));
     }
 
     /// Body review A3. Sight and hearing are half each, and darkness takes sight's half away. Old (pinned

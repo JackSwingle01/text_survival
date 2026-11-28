@@ -77,12 +77,13 @@ public class LameTests
         AssertRefusedFor(With(knockedOut), CrippledBy.Unconscious, "unconscious");
     }
 
-    /// Wasted to nothing and worn out, with the pack full: the load is what stops it, and it walks without it.
+    /// Wasted to nothing, parched and a tenth bled, with the pack full: the load is what stops it, and it walks without it.
     [Fact]
     public void AFullPack_OnABodyTooWeakToCarryIt_IsRefusedWalking_AndTheRefusalNamesTheLoad()
     {
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Deprive.Tired(weak, 1.0);
+        Deprive.Thirsty(weak, 1.0); // tiredness no longer weakens (#333): thirst does, through the blood
+        weak.BloodPct = 0.9;
         var w = With(weak);
         Assert.Null(Sim.Refusal(w, OpenWalk(w)));
         var me = w.Agent(P);

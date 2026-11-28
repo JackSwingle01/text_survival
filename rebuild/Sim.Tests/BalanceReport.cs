@@ -11,7 +11,12 @@ using Xunit.Abstractions;
 public class BalanceReport(ITestOutputHelper output)
 {
     [ReportFact("BALANCE_REPORT")]
-    public void Print() => output.WriteLine(ReferenceBodies.Table());
+    public void Print()
+    {
+        output.WriteLine(ReferenceBodies.Table());
+        output.WriteLine("");
+        output.WriteLine(ReferenceBodies.Timelines());
+    }
 }
 
 public class BalanceReportTests
@@ -22,6 +27,13 @@ public class BalanceReportTests
         var lines = ReferenceBodies.Table().Split('\n');
         foreach (var (name, _, _) in ReferenceBodies.All)
             Assert.Single(lines, l => l.StartsWith(name + "  ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Timelines_PrintEachTimeline()
+    {
+        var lines = ReferenceBodies.Timelines().Split('\n');
+        foreach (var title in ReferenceBodies.TimelineTitles) Assert.Single(lines, l => l == title);
     }
 }
 
@@ -71,6 +83,63 @@ public static class ReferenceBodies
             lines.Add($"{name.PadRight(width)}  {shares.StrengthPct,8:0.00}  {shares.SpeedPct,5:0.00}  {Share(shares.DexterityPct),9}  {shares.PerceptionPct,10:0.00}  {shares.VisionPct,6:0.00}  {shares.Vitality,8:0.00}  {Share(double.IsNaN(shares.DexterityPct) ? double.NaN : shares.ButcherTimeFactor),9}  {shares.ForageTimeFactor,8:0.00}");
         }
         return string.Join('\n', lines);
+    }
+
+    public const string WithoutAnything = "no food, water or sleep, from full: each hour",
+        NormalDay = "a normal day, 16 hours awake and 8 asleep, fed and watered: each hour",
+        OneLegDeprived = "one leg destroyed, hungry, thirsty and tired at full";
+
+    public static readonly string[] TimelineTitles = [WithoutAnything, NormalDay, OneLegDeprived];
+
+    /// The deprivation timelines (spec 2026-11-27-deprivation-rethink, "The balance report"): a person's faculties,
+    /// vitality and the three severities, hour by hour.
+    public static string Timelines()
+    {
+        var lines = new List<string> { WithoutAnything, TimelineHeader };
+        var rng = Rng.ForSystem(1, "balance report");
+        var body = Rested(Person());
+        for (int hour = 0; hour <= 72; hour++)
+        {
+            lines.Add(TimelineRow(hour.ToString(), body));
+            if (!Body.IsAlive(body))
+            {
+                lines.Add($"dead at hour {hour}: {Body.CauseOfDeath(body)}");
+                break;
+            }
+            Step(body, awake: true, 60, rng);
+        }
+
+        lines.AddRange(["", NormalDay, TimelineHeader]);
+        body = Rested(Person());
+        for (int hour = 0; hour <= 48; hour++)
+        {
+            lines.Add(TimelineRow(hour.ToString(), body));
+            TopUp(body, new(Water: true, Food: true, Rest: false));
+            Step(body, awake: hour % 24 < 16, 60, rng);
+        }
+
+        lines.AddRange(["", OneLegDeprived, TimelineHeader]);
+        body = Destroyed(Person(), "Left Leg");
+        (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (0, 0, 0);
+        lines.Add(TimelineRow("-", body));
+        lines.Add(Crippled.Refusal(body, Faculty.Speed, default) is { } refused ? $"walks: no, {refused.Reason}" : "walks: yes");
+        return string.Join('\n', lines);
+    }
+
+    const string TimelineHeader = "hour  strength  speed  dexterity  perception  vision  vitality  hungry  thirsty  tired  alive";
+
+    static string TimelineRow(string hour, BodyState body)
+    {
+        var s = Measure(Species.Human, body);
+        double Felt(Deprivation d) => Deprivations.Severity(body, d);
+        return $"{hour,4}  {s.StrengthPct,8:0.00}  {s.SpeedPct,5:0.00}  {s.DexterityPct,9:0.00}  {s.PerceptionPct,10:0.00}  {s.VisionPct,6:0.00}  {s.Vitality,8:0.00}  {Felt(Deprivation.Hungry),6:0.00}  {Felt(Deprivation.Thirsty),7:0.00}  {Felt(Deprivation.Tired),5:0.00}  {(Body.IsAlive(body) ? "yes" : "no"),5}";
+    }
+
+    /// Body.Update a minute at a time in a still 70 °F room, awake or asleep.
+    static void Step(BodyState body, bool awake, int minutes, Rng rng)
+    {
+        var room = new SurvivalContext { AirTempF = 70, IsSleeping = !awake };
+        for (int m = 0; m < minutes && Body.IsAlive(body); m++) Body.Update(body, room, rng);
     }
 
     /// A faculty a fresh body of the species lacks (a wolf's dexterity, 0 of 0) is left out of vitality: "-".

@@ -63,13 +63,12 @@ public class SurvivalTests
         Assert.True(Deprivations.Has(b, Deprivation.Hungry));
         Assert.True(Deprivations.Has(b, Deprivation.Thirsty));
         Assert.True(Deprivations.Has(b, Deprivation.Tired));
-        Assert.True(Body.Speed(b) < 0.5 * Body.Speed(Baseline()));
+        Assert.True(Body.Perception(b) < 0.5);
     }
 
     // ---- hunger follows reserves ----
 
-    /// An empty stomach on a body with fat to burn is a pang: about 5% off speed and a little more off dexterity,
-    /// which a foggy head takes from too, and the head a little foggy.
+    /// An empty stomach on a body with fat to burn is the pang at full: a tenth off consciousness, the limbs whole.
     [Fact]
     public void Hunger_AnEmptyStomachWithFatToSpare_IsAPang()
     {
@@ -78,45 +77,10 @@ public class SurvivalTests
         b.CaloriesKcal = 0;
         Live(fed, Room(), 1);
         Live(b, Room(), 1);
-        Assert.InRange(Body.Speed(b) / Body.Speed(fed), 0.94, 0.96);
-        Assert.InRange(Body.Dexterity(b) / Body.Dexterity(fed), 0.93, 0.95);
-        Assert.InRange(Body.Vision(b) / Body.Vision(fed), 0.97, 0.99);
-    }
-
-    /// The strong hunger comes as fat and muscle near their floors, and it comes smoothly: along a whole
-    /// fast's worth of reserves, from 10 kg of fat to both floors, dexterity never rises as they fall, no
-    /// 100 g of fat or muscle costs more than 1.2 points of it (a point of moving's), and at both floors Hungry is
-    /// full. Dexterity, not speed: hunger takes both, but only speed also changes with the build.
-    [Fact]
-    public void Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors()
-    {
-        double DexterityAt(double fatKg, double muscleKg)
-        {
-            var b = Baseline();
-            (b.CaloriesKcal, b.FatKg, b.MuscleKg) = (0, fatKg, muscleKg);
-            Live(b, Room(), 1);
-            return Body.Dexterity(b);
-        }
-        var start = Baseline();
-        double fatFloorKg = 0.03 * start.WeightKg, startMuscleKg = start.MuscleKg;
-        double previous = DexterityAt(10, startMuscleKg);
-        Assert.True(previous > 0.93, $"10 kg of fat: dexterity {previous:0.000}");
-        var path = new List<(double Fat, double Muscle)>();
-        for (double fat = 10; fat > fatFloorKg; fat -= 0.1) path.Add((fat, startMuscleKg));
-        // The floors move with weight (body review C): muscle's is 15% of the body it is on.
-        for (double muscle = startMuscleKg; muscle > 0.15 * (start.StructuralKg + fatFloorKg + muscle); muscle -= 0.1) path.Add((fatFloorKg, muscle));
-        foreach (var (fat, muscle) in path)
-        {
-            double dexterity = DexterityAt(fat, muscle);
-            Assert.True(dexterity <= previous + 1e-9, $"dexterity rose to {dexterity:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
-            Assert.True(previous - dexterity < 0.012, $"a cliff of {previous - dexterity:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
-            previous = dexterity;
-        }
-        var spent = Baseline();
-        double spentKg = spent.StructuralKg / (1 - 0.03 - 0.15); // fat and muscle both at their floors
-        (spent.CaloriesKcal, spent.FatKg, spent.MuscleKg) = (0, 0.03 * spentKg, 0.15 * spentKg);
-        Live(spent, Room(), 1);
-        Assert.Equal(1.0, Deprivations.Severity(spent, Deprivation.Hungry), 2);
+        Assert.Equal(1, Body.Speed(b) / Body.Speed(fed), 3);
+        Assert.Equal(1, Body.Strength(b) / Body.Strength(fed), 3);
+        Assert.InRange(Body.Dexterity(b) / Body.Dexterity(fed), 0.94, 0.96);
+        Assert.InRange(Body.Perception(b) / Body.Perception(fed), 0.89, 0.91);
     }
 
     /// Lives the minutes eating back each hour what the hour burned, and drinking, so the store never
@@ -943,8 +907,8 @@ public class SurvivalTests
         c.CaloriesKcal = 300;
         Live(c, Room(), 1);
         double pct = (300 - Body.MetabolismKcalPerDay(c, 1.0) / 1440) / Body.MaxCaloriesKcal;
-        // A pang, with fat to spare: a seventh of Hungry's full row at an empty store.
-        Assert.Equal(0.05 / 0.35 * (0.3 - pct) / 0.3, Deprivations.Severity(c, Deprivation.Hungry), 3);
+        // The pang, below 30% of the store.
+        Assert.Equal((0.3 - pct) / 0.3, Deprivations.Severity(c, Deprivation.Hungry), 3);
     }
 
     [Fact]
