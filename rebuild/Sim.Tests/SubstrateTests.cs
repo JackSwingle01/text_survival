@@ -181,6 +181,7 @@ public class SubstrateTests
     // ---- Signs ----
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SignsAt_AgreesWithTheFindDump()
     {
         var w = Phase3GateTests.BusyDay.Copy();
