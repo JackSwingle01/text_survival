@@ -54,6 +54,28 @@ For the clean-room rebuild (`rebuild/`):
   should watch), don't stop at instructions: build it, start it for them (e.g. publish and serve the
   web app in the background), and hand over a working link plus short numbered steps to test.
 
+## Verify steps
+
+How to drive each surface for `mp:verification`'s agent-driven run and human review. Drive the surface
+the change reaches; a test run is not this check.
+
+- **The rebuild, as text:** `dotnet run --project rebuild/Cli -c Release -- --seed N "wait 60" "status"`.
+  Each argument is one command (stdin lines without arguments); a seed plus the command list replays a
+  run. `rebuild/Cli/Program.cs` lists the commands.
+- **The rebuild, in the browser:** `rebuild/Web/README.md`, "Checking it". Once per container, a private
+  SDK with the `wasm-tools` workload (`DOTNET_ROOT=~/.dotnet-wasm`). Then, from `rebuild/Web`,
+  `tools/publish.sh <out> -p:Aot=false` (interpreter, quick) and
+  `node tools/shots.mjs <out>/wwwroot --shot <state> --chrome /opt/pw-browsers/chromium-1243/chrome-linux64/chrome --out <dir>`
+  for screenshots (`--run` for the scripted run, `--phone` for phone layouts), or
+  `node tools/serve.mjs <out>/wwwroot 8183` to hand the user a link. `?scenario=` starts in a prepared state.
+- **A CI script or workflow:** run the script on the input CI gives it, with a stub for what it calls
+  (a fake `dotnet` on `PATH` that writes the `.trx` the script reads). A workflow that runs only from
+  `main` is driven after the merge (see "Tickets, branches and PRs").
+- **Evidence in a PR:** paste text output in a code block. Screenshots: push them to the `pr-evidence`
+  branch under `<your branch>/` and link them as
+  `https://github.com/JackSwingle01/text_survival/blob/pr-evidence/<your branch>/<name>.png?raw=true`.
+  `rebuild/Web/shots/` is not committed.
+
 ## Domain Language and Decisions
 
 - `GLOSSARY.md` defines the project's terms (stat tiers, effects, conditions, contest...). Use them.
