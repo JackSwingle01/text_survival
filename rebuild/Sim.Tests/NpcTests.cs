@@ -362,7 +362,7 @@ public class NpcTests(ITestOutputHelper output)
         Sim.Advance(w, 60);
         var agent = w.Agent(npc);
         agent.Doing = null;
-        agent.Body.EnergyMinutes = 0;
+        agent.Body.SleepDebtMinutes = 16 * 60;
         Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
         var events = new List<WorldEvent>();
         for (int m = 0; m < 40; m++)
@@ -371,7 +371,7 @@ public class NpcTests(ITestOutputHelper output)
             Assert.True(agent.Doing is null or { Activity: Sleep }, $"minute {m}: {agent.Doing?.Activity}");
         }
         Assert.False(Body.IsAsleep(agent.Body));
-        Assert.Equal(80, agent.Body.EnergyMinutes, 9);
+        Assert.Equal(16 * 60 - 80, agent.Body.SleepDebtMinutes, 9); // a waking day's debt repays two minutes a minute
         Assert.DoesNotContain(events, e => e is PlanRefused r && r.Who == npc);
     }
 
@@ -385,7 +385,7 @@ public class NpcTests(ITestOutputHelper output)
         Sim.Start(w, new Travel(npc, dir), 600, [], out var doing);
         agent.Doing = doing;
         var tile = agent.Tile;
-        agent.Body.EnergyMinutes = 0;
+        agent.Body.SleepDebtMinutes = 48 * 60;
         Effects.Set(agent.Body, EffectKind.Asleep, 40 / 90.0);
         int elapsed = agent.Crossing!.ElapsedMinutes;
         var crossing = agent.Crossing;
@@ -403,7 +403,7 @@ public class NpcTests(ITestOutputHelper output)
         Sim.Advance(w, 60);
         var agent = w.Agent(npc);
         agent.Doing = null;
-        agent.Body.EnergyMinutes = 800;
+        agent.Body.SleepDebtMinutes = 160;
         Effects.Set(agent.Body, EffectKind.Asleep, 60 / 90.0);
         Sim.Advance(w, 2);
         Body.Damage(agent.Body, new DamageInfo(0.3, DamageType.Blunt, BodyTarget.LeftArm), Rng.ForSystem(1, "test"));

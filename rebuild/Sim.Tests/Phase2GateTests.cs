@@ -28,7 +28,7 @@ public class Phase2GateTests(ITestOutputHelper output)
     {
         var camp = Map.Of(w).Camp;
         int day = Weather.DayNumber(w.Minute);
-        void Note(string what) => Log?.Invoke($"day {day} {what} @{Weather.MinuteOfDay(w.Minute) / 60:00}h: core {w.Agent(P).Body.CoreTempF:0.0} wet {Effects.Severity(w.Agent(P).Body, EffectKind.Wet):0.00} energy {w.Agent(P).Body.EnergyPct:0.00} water {w.Agent(P).Body.HydrationPct:0.00} pile {Items.Describe(w.Tiles.GetValueOrDefault(camp)?.Pile ?? new Inventory())} pack {Items.Describe(Items.Pack(w, P))} fire {(Fire.PitAt(w, camp) is FireId f ? Fire.Phase(w.Fires[f]) + " " + Fire.TotalKg(w.Fires[f]).ToString("0.0") : "none")} sky {Weather.At(w, w.Minute).Condition} {Weather.At(w, w.Minute).TemperatureC:0}C");
+        void Note(string what) => Log?.Invoke($"day {day} {what} @{Weather.MinuteOfDay(w.Minute) / 60:00}h: core {w.Agent(P).Body.CoreTempF:0.0} wet {Effects.Severity(w.Agent(P).Body, EffectKind.Wet):0.00} awake {w.Agent(P).Body.SleepDebtMinutes / 60:0.0}h water {w.Agent(P).Body.HydrationPct:0.00} pile {Items.Describe(w.Tiles.GetValueOrDefault(camp)?.Pile ?? new Inventory())} pack {Items.Describe(Items.Pack(w, P))} fire {(Fire.PitAt(w, camp) is FireId f ? Fire.Phase(w.Fires[f]) + " " + Fire.TotalKg(w.Fires[f]).ToString("0.0") : "none")} sky {Weather.At(w, w.Minute).Condition} {Weather.At(w, w.Minute).TemperatureC:0}C");
         Note("wake");
         for (int i = 0; i < 6 && Alive(w) && w.Agent(P).Body.CoreTempF < 98.0; i++) { TendFire(w); S(w, new Rest(P), 30); }
         // Days run short of 24 h, so some start in the dark, when felling is refused: it waits for
@@ -54,12 +54,12 @@ public class Phase2GateTests(ITestOutputHelper output)
             // the camp's wood is short of what a two-day blizzard burns, light and energy allowing.
             for (int tree = 0; tree < 3 && Alive(w) && (tree == 0 || CampWoodKg(w) < ReserveWoodKg && !Foul(w)); tree++)
             {
-                if (w.Agent(P).Body.EnergyPct < 0.5 || !FellATree(w, t)) break;
+                if (DayLeftPct(w) < 0.5 || !FellATree(w, t)) break;
                 HaulWood(w, t);
             }
         }
 
-        for (int trip = 0; trip < 2 && Alive(w) && w.Agent(P).Body.EnergyPct > 0.45 && !TurnForHome(w); trip++)
+        for (int trip = 0; trip < 2 && Alive(w) && DayLeftPct(w) > 0.45 && !TurnForHome(w); trip++)
         {
             Ready(w, t);
             if (TurnForHome(w)) break;
@@ -95,12 +95,12 @@ public class Phase2GateTests(ITestOutputHelper output)
         TendFire(w);
         Drink(w, t);
         LayByWater(w, t);
-        while (w.Agent(P).Body.EnergyPct > 0.2 && Alive(w))
+        while (DayLeftPct(w) > 0.2 && Alive(w))
         {
             TendFire(w);
             if (w.Agent(P).Body.HydrationPct < 0.8) Drink(w, t); // a fire that would not light earlier may now
             // A storm eating the wood: another tree while there is light to fell it by.
-            if (CampWoodKg(w) < LowWoodKg && Daylight(w) && w.Agent(P).Body.EnergyPct > 0.3 && FellATree(w, t)) HaulWood(w, t);
+            if (CampWoodKg(w) < LowWoodKg && Daylight(w) && DayLeftPct(w) > 0.3 && FellATree(w, t)) HaulWood(w, t);
             S(w, new Rest(P), 120);
         }
         TendFire(w);
@@ -114,6 +114,9 @@ public class Phase2GateTests(ITestOutputHelper output)
             TendFire(w);
         }
     }
+
+    /// The share of a waking day not yet spent: the script's lines were drawn on the old energy store.
+    static double DayLeftPct(World w) => 1 - w.Agent(P).Body.SleepDebtMinutes / (16 * 60.0);
 
     /// Wood the camp holds, on the pile and in the fire.
     static double CampWoodKg(World w)
@@ -167,7 +170,7 @@ public class Phase2GateTests(ITestOutputHelper output)
                 if (r.MinutesElapsed == 0) { t.Injuries += Walk(w, Direction.West, 1); return false; } // refused: dark
             }
             t.Injuries += Walk(w, Direction.West, 1);
-            if (w.Agent(P).Body.EnergyPct < 0.3) return false;
+            if (DayLeftPct(w) < 0.3) return false;
         }
         return false;
     }

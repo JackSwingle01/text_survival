@@ -108,7 +108,7 @@ public sealed record StackDto(string Resource, string Name, double Kg, string Am
 public sealed record GearDto(string Kind, string Name, double ConditionPct, string? Slot);
 public sealed record ProjectDto(string Recipe, string Name, double ProgressPct);
 
-public sealed record BodyDto(double CoreTempF, double BloodPct, double CaloriesKcal, double HydrationMl, double EnergyPct,
+public sealed record BodyDto(double CoreTempF, double BloodPct, double CaloriesKcal, double HydrationMl, double RestedPct,
     IReadOnlyList<EffectDto> Effects, IReadOnlyList<CapacityDto> Impaired, IReadOnlyList<SkillDto> Skills, double ClothingClo);
 public sealed record EffectDto(string Name, double Severity);
 public sealed record CapacityDto(string Name, double Pct);

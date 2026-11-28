@@ -74,7 +74,7 @@ public sealed class BodyState
     public required double MuscleKg { get; set; }
     public double CoreTempF { get; set; } = Body.BaseCoreTempF;
     public double CaloriesKcal { get; set; } = 1500;
-    public double EnergyMinutes { get; set; } = 900;
+    public double SleepDebtMinutes { get; set; } = 60;
     public double HydrationMl { get; set; } = 3000;
     /// Minutes lived in a row without the Hungry effect, what Well fed waits on (Body.Update sees no world clock).
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
@@ -109,7 +109,6 @@ public sealed class BodyState
     [JsonIgnore] public double WeightKg => StructuralKg + FatKg + MuscleKg;
     [JsonIgnore] public double FatPct => FatKg / WeightKg;
     [JsonIgnore] public double MusclePct => MuscleKg / WeightKg;
-    [JsonIgnore] public double EnergyPct => EnergyMinutes / Body.MaxEnergyMinutes;
     [JsonIgnore] public double CaloriesPct => CaloriesKcal / Body.CaloriesCapacityKcal(this);
     [JsonIgnore] public double HydrationPct => HydrationMl / Body.MaxHydrationMlOf(this);
 

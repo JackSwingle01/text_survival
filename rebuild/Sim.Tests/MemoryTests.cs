@@ -562,7 +562,7 @@ public class MemoryTests
         var pit = PlacePit(w, camp, 1.0);
         Sim.Step(w, new Wait(P), 1);
         long died = DiesAt(w, pit);
-        w.Agent(P).Body.EnergyMinutes = 0;
+        w.Agent(P).Body.SleepDebtMinutes = 48 * 60;
         var night = Sim.Step(w, new Sleep(P), 8 * 60);
         Assert.DoesNotContain(night.Events, e => e is Noticed);
         var morning = Assert.Single(Sim.Step(w, new Wait(P), 1).Events.OfType<Noticed>()).Receipt;
@@ -758,7 +758,7 @@ public class MemoryTests
             Do(() => new Wait(P), 40);
             Put(w, P, camp);
             Do(() => new Wait(P), 5);
-            w.Agent(P).Body.EnergyMinutes = Body.MaxEnergyMinutes / 2;
+            w.Agent(P).Body.SleepDebtMinutes = 8 * 60;
             Do(() => new Sleep(P), 300);
             Do(() => new Wait(P), 30);
             return Save.ToJson(w);

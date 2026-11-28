@@ -562,13 +562,13 @@ public class CombatTests
         Me(e).Position = new Cell(25, 25); // the middle of the field: no edge needed (combat round 1)
         B(e).BoldnessModifier = -2; // nothing gives chase: the run is the whole cost
         var body = w.Agent(AgentId.Player).Body;
-        double energy = body.EnergyMinutes, kcal = body.CaloriesKcal;
+        double debt = body.SleepDebtMinutes, kcal = body.CaloriesKcal;
         Combat.Apply(w, e, Me(e), CombatAction.Flee, []);
         Assert.False(Me(e).InField);
         // Running for it empties the sprint reserve, which costs a little sleep and the run's calories.
         // Old: a flat twenty minutes of sleep, and nothing else.
         Assert.Equal(0, Body.SprintReservePct(body), 9);
-        Assert.Equal(energy - Body.SpentReserveEnergyMinutes, body.EnergyMinutes, 9);
+        Assert.Equal(debt + Body.SpentReserveDebtMinutes, body.SleepDebtMinutes, 9);
         Assert.True(body.CaloriesKcal < kcal - 3, $"the run cost {kcal - body.CaloriesKcal:0.0} kcal");
         Assert.Equal(CombatResult.Fled, Combat.Result(w, e));
     }

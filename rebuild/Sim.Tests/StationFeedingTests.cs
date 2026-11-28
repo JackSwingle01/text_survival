@@ -69,7 +69,7 @@ public class StationFeedingTests
         w.Minute = 13 * 60;
         var tile = T(20);
         PlayerAt(w, tile);
-        w.Agent(P).Body.EnergyMinutes = 0.3 * Body.MaxEnergyMinutes;
+        w.Agent(P).Body.SleepDebtMinutes = 0.7 * 16 * 60;
         var rack = Rack(w, tile, Meat, Meat, Meat);
         if (fire) w.Fires[new FireId(w.NextFireId++)] = FireDeterrenceTests.Pit(tile, w.Minute, pineKg: 5);
         var wolf = Hungry(w, Species.Wolf, T(35), hunger: 0.85);

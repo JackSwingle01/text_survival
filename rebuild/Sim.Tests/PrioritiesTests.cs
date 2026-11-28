@@ -11,12 +11,12 @@ public class PrioritiesTests
         var p = w.Agent(AgentId.Player);
         TestKit.Remove(Items.Pack(w, AgentId.Player), Resource.Water);
         var b = p.Body;
-        (b.CoreTempF, b.HydrationMl, b.EnergyMinutes) = (98.6, 0.95 * Body.MaxHydrationMl, Body.MaxEnergyMinutes);
+        (b.CoreTempF, b.HydrationMl, b.SleepDebtMinutes) = (98.6, 0.95 * Body.MaxHydrationMl, 0);
         var fine = Priorities.Of(w, AgentId.Player);
         Assert.Equal(Priority.None, fine.Warmth);
         Assert.Equal(Priority.None, fine.Rest);
 
-        (b.CoreTempF, b.HydrationMl, b.EnergyMinutes) = (Priorities.HypothermiaCoreF - 0.5, 0.4 * Body.MaxHydrationMl, 0.2 * Body.MaxEnergyMinutes);
+        (b.CoreTempF, b.HydrationMl, b.SleepDebtMinutes) = (Priorities.HypothermiaCoreF - 0.5, 0.4 * Body.MaxHydrationMl, 20 * 60);
         var bad = Priorities.Of(w, AgentId.Player);
         Assert.Equal(Priority.Critical, bad.Warmth);
         Assert.Equal(Priority.Need, bad.Water);
@@ -45,13 +45,30 @@ public class PrioritiesTests
     public void Water(double hydrationPct, bool seeing, double toHandL, double hoursLeft, Priority priority) =>
         Assert.Equal(priority, Priorities.WaterPriority(hydrationPct, seeing, toHandL, hoursLeft));
 
+    /// A Want from a waking day of sleep debt (16 h), a Need once tiredness begins (18 h), Critical where a body may
+    /// collapse (36 h); seen to, a Need above a waking day and a Want until repaid.
     [Theory]
-    [InlineData(0.10, false, Priority.Critical)]
-    [InlineData(0.20, false, Priority.Need)]
-    [InlineData(0.40, true, Priority.Need)]
-    [InlineData(0.40, false, Priority.Want)]
-    [InlineData(0.90, false, Priority.None)]
-    public void Rest(double energyPct, bool seeing, Priority priority) => Assert.Equal(priority, Priorities.RestPriority(energyPct, seeing));
+    [InlineData(15.9, false, Priority.None)]
+    [InlineData(16, false, Priority.Want)]
+    [InlineData(17.9, false, Priority.Want)]
+    [InlineData(18, false, Priority.Need)]
+    [InlineData(35.9, false, Priority.Need)]
+    [InlineData(36, false, Priority.Critical)]
+    [InlineData(4, true, Priority.Want)]
+    [InlineData(9, true, Priority.Want)]
+    [InlineData(16.1, true, Priority.Need)]
+    [InlineData(0, true, Priority.None)]
+    public void Rest(double debtHours, bool seeing, Priority priority) =>
+        Assert.Equal(priority, Priorities.RestPriority(SpeciesTable.Of(Species.Human), debtHours * 60, seeing));
+
+    /// A 4 h sleeper's waking day (20 h) is longer than its onset (18 h): seeing to rest must still hold Need below the onset.
+    [Theory]
+    [InlineData(17, true, Priority.Need)]
+    [InlineData(15.9, true, Priority.Want)]
+    [InlineData(17, false, Priority.None)]
+    [InlineData(18, false, Priority.Need)]
+    public void Rest_ForAFourHourSleeper_HoldsNeedBelowTheOnsetWhileSeeingTo(double debtHours, bool seeing, Priority priority) =>
+        Assert.Equal(priority, Priorities.RestPriority(SpeciesTable.Of(Species.Caribou), debtHours * 60, seeing));
 
     [Fact]
     public void Food_UnderTheFloorIsNeed_StarvingIsCritical()

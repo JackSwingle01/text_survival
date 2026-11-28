@@ -120,7 +120,7 @@ public class NpcNeedTests(ITestOutputHelper output)
     {
         b.CoreTempF = s.Warmth switch { Priority.Critical => 94.8, Priority.Need => 97.0, _ => 98.6 };
         b.HydrationMl = Body.MaxHydrationMl * s.Water switch { Priority.Critical => 0.1, Priority.Need => 0.4, Priority.Want => 0.8, _ => 0.95 };
-        b.EnergyMinutes = Body.MaxEnergyMinutes * s.Rest switch { Priority.Critical => 0.05, Priority.Need => 0.25, Priority.Want => 0.6, _ => 0.9 };
+        b.SleepDebtMinutes = 60 * s.Rest switch { Priority.Critical => 40, Priority.Need => 20, Priority.Want => 17, _ => 2 };
         b.CaloriesKcal = Body.CaloriesCapacityKcal(b) * s.Food switch { Priority.Critical or Priority.Need => 0.0, Priority.Want => 0.5, _ => 0.9 };
         if (s.Food == Priority.Critical) b.MuscleKg = (Priorities.StarvingMuscleOfFreshPct - 0.01) * SpeciesTable.FreshMuscleKg(Species.Human, b);
     }
@@ -237,7 +237,7 @@ public class NpcNeedTests(ITestOutputHelper output)
                 break;
             case Stat.Rest:
                 // Its bed is camp, where it stands away from; nowhere it remembers: no ground seen between.
-                npc.Body.EnergyMinutes = 0.25 * Body.MaxEnergyMinutes;
+                npc.Body.SleepDebtMinutes = 20 * 60;
                 npc.Tile = new TileId(home.X + tiles, home.Y);
                 if (where == Where.Nowhere) MindOf(npc).Memory.Explored = null;
                 break;

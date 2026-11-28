@@ -28,11 +28,11 @@ public class PlannerTests
         return w;
     }
 
-    internal static Agent Animal(World w, Species species, TileId at, double hydrationPct = 1, double energyPct = 1)
+    internal static Agent Animal(World w, Species species, TileId at, double hydrationPct = 1, double sleepDebtMinutes = 0)
     {
         var a = w.Agent(Agents.Spawn(w, species, at));
         a.Body.HydrationMl = hydrationPct * Body.MaxHydrationMlOf(a.Body);
-        a.Body.EnergyMinutes = energyPct * Body.MaxEnergyMinutes;
+        a.Body.SleepDebtMinutes = sleepDebtMinutes;
         return a;
     }
 
@@ -119,10 +119,10 @@ public class PlannerTests
         double drankMl = 0, burnKcal = 0, held = KcalHeld();
         for (int i = 0; i < 3 * 1440; i++)
         {
-            double ml = body.HydrationMl, energy = body.EnergyMinutes;
+            double ml = body.HydrationMl, debt = body.SleepDebtMinutes;
             burnKcal += Fauna.BurnKcalPerMinute(body);
             Sim.Advance(w, 1);
-            drankMl += Math.Max(0, body.HydrationMl - ml + Body.WaterLossMlPerMinute(body, Asleep(wolf, energy)));
+            drankMl += Math.Max(0, body.HydrationMl - ml + Body.WaterLossMlPerMinute(body, Asleep(wolf, debt)));
             Assert.True(body.HydrationPct > Priorities.WaterCriticalPct, $"minute {i}: hydration {body.HydrationPct:F2}");
         }
         Assert.True(drankMl > 1000, $"drank {drankMl:F0} ml");
@@ -152,9 +152,8 @@ public class PlannerTests
         Assert.True(caribou.Body.HydrationPct < before, $"hydration {before:F2} -> {caribou.Body.HydrationPct:F2}");
     }
 
-    /// Asleep this minute: its rest filled, or it lay at full rest (the body's view of a minute's Rest).
-    static bool Asleep(Agent a, double energyBefore) =>
-        a.Body.EnergyMinutes > energyBefore || energyBefore >= Body.MaxEnergyMinutes && a.Body.EnergyMinutes >= Body.MaxEnergyMinutes;
+    /// Asleep this minute: its debt fell, or it lay with none owed (the body's view of a minute's Rest).
+    static bool Asleep(Agent a, double debtBefore) => a.Body.SleepDebtMinutes < debtBefore || debtBefore == 0 && a.Body.SleepDebtMinutes == 0;
 
     /// The share of these animals' minutes spent asleep within the hours [from, to) of each day, over `days` days.
     /// Their bodies are kept fed and watered so only rest and the hour decide.
@@ -170,14 +169,14 @@ public class PlannerTests
                 Feed(a);
                 a.Body.HydrationMl = Body.MaxHydrationMlOf(a.Body);
             }
-            var energy = pack.Select(a => a.Body.EnergyMinutes).ToList();
+            var debt = pack.Select(a => a.Body.SleepDebtMinutes).ToList();
             Sim.Advance(w, 1);
             int hour = Weather.MinuteOfDay(w.Minute) / 60;
             if (hour < fromHour || hour >= toHour) continue;
             for (int k = 0; k < pack.Count; k++)
             {
                 counted++;
-                if (Asleep(pack[k], energy[k])) resting++;
+                if (Asleep(pack[k], debt[k])) resting++;
             }
         }
         return (double)resting / counted;
@@ -201,23 +200,23 @@ public class PlannerTests
     [Fact]
     public void ASleepDeprivedAnimal_RestsInItsActiveHours()
     {
-        static bool RestsAtNoon(double energyPct)
+        static bool RestsAtNoon(double debtHours)
         {
             var w = Strip();
             w.PoolCache = null; // the plain grows forage
             Sim.Advance(w, 3 * 60); // 12:00
-            var caribou = Animal(w, Species.Caribou, T(20), energyPct: energyPct);
+            var caribou = Animal(w, Species.Caribou, T(20), sleepDebtMinutes: debtHours * 60);
             caribou.Body.CaloriesKcal = 0.4 * Body.CaloriesCapacityKcal(caribou.Body);
             int resting = 0;
             for (int i = 0; i < 60; i++)
             {
-                double energy = caribou.Body.EnergyMinutes;
+                double debt = caribou.Body.SleepDebtMinutes;
                 Sim.Advance(w, 1);
-                if (Asleep(caribou, energy)) resting++;
+                if (Asleep(caribou, debt)) resting++;
             }
             return resting > 50;
         }
-        Assert.True(RestsAtNoon(0.2), "a sleep-deprived caribou stayed up");
-        Assert.False(RestsAtNoon(1.0), "a rested, hungry caribou lay down");
+        Assert.True(RestsAtNoon(30), "a sleep-deprived caribou stayed up"); // held at Need down to the 18 h onset for over the hour
+        Assert.False(RestsAtNoon(0), "a rested, hungry caribou lay down");
     }
 }

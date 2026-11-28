@@ -15,6 +15,7 @@ public class CoreTests
     }
 
     [Fact]
+    [Trait("Category", TestCategories.LongRun)]
     public void SameSeedAndActions_GiveIdenticalWorld()
     {
         Assert.Equal(Save.ToJson(Play(7)), Save.ToJson(Play(7)));
@@ -50,22 +51,26 @@ public class CoreTests
         Assert.Equal(60, result.MinutesElapsed);
         Assert.Null(result.InterruptedReason);
         var body = world.Agent(AgentId.Player).Body;
-        Assert.True(body.EnergyMinutes < 900);
+        Assert.Equal(120, body.SleepDebtMinutes, 9);
         Assert.True(body.CaloriesKcal < 1500);
         Assert.True(body.HydrationMl < 3000);
     }
 
     [Fact]
-    public void WaitingTooLong_EmitsTiredThenInterruptsOnExhaustion()
+    public void WaitingTooLong_EmitsTiredAtTheOnset_ThenInterruptsOnExhaustionAtTheFullHour()
     {
         var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North); // mild: this is about sleep, not cold
-        var result = Sim.Step(world, new Wait(AgentId.Player), 24 * 60);
+        var body = world.Agent(AgentId.Player).Body;
+        body.SleepDebtMinutes = 17 * 60;
+        var onset = Sim.Step(world, new Wait(AgentId.Player), 120);
+        var tired = Assert.Single(onset.Events.OfType<DeprivationStarted>(), e => e.Kind == Deprivation.Tired);
+        Assert.Equal(61, tired.Minute); // the minute the debt passes 18 hours
 
+        body.SleepDebtMinutes = 48 * 60 - 30; // the collapse odds would likely stop a wait from 18 hours first
+        var result = Sim.Step(world, new Wait(AgentId.Player), 24 * 60);
         Assert.Equal("exhausted", result.InterruptedReason);
-        Assert.Equal(900, result.MinutesElapsed); // starts with 900 waking minutes left
-        int tired = result.Events.FindIndex(e => e is DeprivationStarted { Kind: Deprivation.Tired });
-        Assert.True(tired >= 0, "Tired should start before exhaustion");
+        Assert.Equal(30, result.MinutesElapsed);
         Assert.IsType<Exhausted>(result.Events[^1]);
     }
 
@@ -73,25 +78,25 @@ public class CoreTests
     public void Sleep_StopsWhenFullyRested()
     {
         var world = TestWorlds.New(1);
-        Sim.Step(world, new Wait(AgentId.Player), 120); // 780 of 960 left; sleep refills 2/min
+        Sim.Step(world, new Wait(AgentId.Player), 120); // 180 minutes owed; a shallow debt repays 2/min
         var result = Sim.Step(world, new Sleep(AgentId.Player), 600);
 
         Assert.Equal("fully rested", result.InterruptedReason);
         Assert.Equal(90, result.MinutesElapsed);
         Assert.IsType<FullyRested>(result.Events[^1]);
-        Assert.Equal(1.0, world.Agent(AgentId.Player).Body.EnergyPct);
+        Assert.Equal(0, world.Agent(AgentId.Player).Body.SleepDebtMinutes);
     }
 
-    /// Out of energy, the player drops asleep where they are. The step stops there;
+    /// Past the collapse onset, the player drops asleep where they are. The step stops there;
     /// until the sleep is out they can wait, rest or sleep, which their body lives as sleep, and nothing
     /// else; then they are awake and free again.
     [Fact]
-    public void AtZeroEnergy_ThePlayerDropsAsleep_AndCanOnlySleepItOut()
+    public void AtTheFullHour_ThePlayerDropsAsleep_AndCanOnlySleepItOut()
     {
         var world = TestWorlds.New(1);
         world.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
         var body = world.Agent(AgentId.Player).Body;
-        body.EnergyMinutes = 0;
+        body.SleepDebtMinutes = 48 * 60;
         var walk = new Travel(AgentId.Player, Direction.North);
 
         var dropped = Sim.Step(world, new Wait(AgentId.Player), 2000);
@@ -102,16 +107,17 @@ public class CoreTests
         Assert.Equal(Sim.Asleep, Sim.Refusal(world, walk)?.Reason);
         Assert.Equal(Sim.Asleep, Sim.Step(world, walk, 10).InterruptedReason);
 
+        double owed = body.SleepDebtMinutes;
         var slept = Sim.Step(world, new Wait(AgentId.Player), left);
         Assert.Null(slept.InterruptedReason);
-        Assert.Equal(2.0 * left, body.EnergyMinutes, 9); // sleep refills two waking minutes a minute
+        Assert.True(owed - body.SleepDebtMinutes > 10 * left, $"repaid {owed - body.SleepDebtMinutes} in {left}"); // a deep debt repays fast
         Assert.False(Body.IsAsleep(body));
         Assert.Contains(slept.Events, e => e is EffectEnded { Kind: EffectKind.Asleep });
         Assert.NotEqual(Sim.Asleep, Sim.Refusal(world, walk)?.Reason);
     }
 
     /// The roll to drop asleep is one a minute lived, on the body's own stream, so ten
-    /// hours at zero energy come out the same minute by minute, in one go, in chunks with a save and load
+    /// hours far past the full hour (each drop repays hours) come out the same minute by minute, in one go, in chunks with a save and load
     /// between them, or as the player's own waiting steps (which stop each time they drop).
     [Fact]
     [Trait("Category", TestCategories.LongRun)]
@@ -122,7 +128,7 @@ public class CoreTests
         {
             var w = TestWorlds.New(3);
             w.FixedWeather = new WeatherSample(0, WeatherCondition.Cloudy, 5, 0.1, 0, 0.8, WindDirection.North);
-            w.Agent(AgentId.Player).Body.EnergyMinutes = 0;
+            w.Agent(AgentId.Player).Body.SleepDebtMinutes = 100 * 60;
             return w;
         }
         int[] chunks = [7, 60, 1, 133];
@@ -130,7 +136,7 @@ public class CoreTests
         var drops = new List<WorldEvent>();
         for (int i = 0; i < minutes; i++)
             drops.AddRange(Sim.Advance(byMinute, 1).Where(e => e is EffectStarted { Kind: EffectKind.Asleep, Who: var who } && who == AgentId.Player));
-        Assert.True(drops.Count >= 2, $"{drops.Count} drops in ten hours at zero energy");
+        Assert.True(drops.Count >= 2, $"{drops.Count} drops in ten hours past the full hour");
 
         var once = Make();
         Sim.Advance(once, minutes);
@@ -151,11 +157,11 @@ public class CoreTests
     }
 
     [Fact]
-    public void Rest_DoesNotRestoreEnergy_OnlySleepDoes()
+    public void Rest_DoesNotRepaySleepDebt_OnlySleepDoes()
     {
         var world = TestWorlds.New(1);
         Sim.Step(world, new Rest(AgentId.Player), 60);
-        Assert.Equal(840, world.Agent(AgentId.Player).Body.EnergyMinutes);
+        Assert.Equal(120, world.Agent(AgentId.Player).Body.SleepDebtMinutes);
     }
 
     [Fact]

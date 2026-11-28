@@ -12,7 +12,7 @@ public class DeprivationTests
         switch (d)
         {
             case Deprivation.Thirsty: b.HydrationMl = 0; break;
-            case Deprivation.Tired: b.EnergyMinutes = 0; break;
+            case Deprivation.Tired: b.SleepDebtMinutes = 48 * 60; break;
             case Deprivation.Hungry: b.CaloriesKcal = 0; break;
         }
         return b;
@@ -23,7 +23,7 @@ public class DeprivationTests
         switch (d)
         {
             case Deprivation.Thirsty: Body.Drink(b, Body.MaxHydrationMl); break;
-            case Deprivation.Tired: b.EnergyMinutes = Body.MaxEnergyMinutes; break;
+            case Deprivation.Tired: b.SleepDebtMinutes = 0; break;
             case Deprivation.Hungry: Body.Eat(b, Body.CaloriesCapacityKcal(b)); break;
         }
     }
@@ -52,16 +52,12 @@ public class DeprivationTests
     [InlineData(Deprivation.Hungry, 0.30, 0)]
     [InlineData(Deprivation.Hungry, 0.15, 0.5)]
     [InlineData(Deprivation.Hungry, 0.0, 1)]
-    [InlineData(Deprivation.Tired, 0.30, 0)]
-    [InlineData(Deprivation.Tired, 0.15, 0.5)]
-    [InlineData(Deprivation.Tired, 0.0, 1)]
     public void EachDeprivation_IsZeroAboveItsLine_AndFullAtAnEmptyStore(Deprivation d, double storePct, double severity)
     {
         var b = BodyState.BaselineHuman();
         switch (d)
         {
             case Deprivation.Thirsty: b.HydrationMl = storePct * Body.MaxHydrationMl; break;
-            case Deprivation.Tired: b.EnergyMinutes = storePct * Body.MaxEnergyMinutes; break;
             case Deprivation.Hungry: b.CaloriesKcal = storePct * Body.CaloriesCapacityKcal(b); break;
         }
         Assert.Equal(severity, Deprivations.Severity(b, d), 9);
@@ -147,7 +143,7 @@ public class DeprivationTests
     public void AnAnimal_WithEmptyStores_ReadsNoDeprivation()
     {
         var wolf = SpeciesTable.Average(Species.Wolf);
-        (wolf.CaloriesKcal, wolf.HydrationMl, wolf.EnergyMinutes) = (0, 0, 0);
+        (wolf.CaloriesKcal, wolf.HydrationMl, wolf.SleepDebtMinutes) = (0, 0, 48 * 60);
         Assert.All(Enum.GetValues<Deprivation>(), d => Assert.Equal(0, Deprivations.Severity(wolf, d)));
         Assert.Empty(Deprivations.Of(wolf));
         var fed = SpeciesTable.Average(Species.Wolf);
@@ -166,8 +162,8 @@ public class DeprivationTests
         for (int trial = 0; trial < 2000; trial++)
         {
             var b = BodyState.BaselineHuman();
-            (b.HydrationMl, b.EnergyMinutes, b.CaloriesKcal) =
-                (rng.NextDouble() * 0.6 * Body.MaxHydrationMl, rng.NextDouble() * 0.4 * Body.MaxEnergyMinutes, rng.NextDouble() * 0.4 * Body.CaloriesCapacityKcal(b));
+            (b.HydrationMl, b.SleepDebtMinutes, b.CaloriesKcal) =
+                (rng.NextDouble() * 0.6 * Body.MaxHydrationMl, rng.NextDouble() * 60 * 60, rng.NextDouble() * 0.4 * Body.CaloriesCapacityKcal(b));
             var before = Shares(b);
             Assert.All(before, share => Assert.True(share > 1 / 6.0, $"trial {trial}: {share:0.000}"));
             double less = 1 - rng.NextDouble() * 0.5;
@@ -175,7 +171,7 @@ public class DeprivationTests
             switch (which)
             {
                 case Deprivation.Thirsty: b.HydrationMl *= less; break;
-                case Deprivation.Tired: b.EnergyMinutes *= less; break;
+                case Deprivation.Tired: b.SleepDebtMinutes /= less; break;
                 default: b.CaloriesKcal *= less; break;
             }
             var after = Shares(b);
@@ -218,11 +214,11 @@ public class DeprivationTests
     {
         var w = TestWorlds.Bare(1);
         var b = w.Agent(AgentId.Player).Body;
-        b.EnergyMinutes = 0.30 * Body.MaxEnergyMinutes + 0.5;
+        b.SleepDebtMinutes = 18 * 60 - 0.5;
         var started = Sim.Step(w, new Wait(AgentId.Player), 1).Events;
         Assert.Single(started.OfType<DeprivationStarted>(), e => e.Kind == Deprivation.Tired && e.Who == AgentId.Player);
         Assert.Empty(Sim.Step(w, new Wait(AgentId.Player), 1).Events.OfType<DeprivationStarted>());
-        b.EnergyMinutes = 0.30 * Body.MaxEnergyMinutes - 0.5;
+        b.SleepDebtMinutes = 18 * 60 + 0.5;
         var ended = Sim.Step(w, new Sleep(AgentId.Player), 1).Events;
         Assert.Single(ended.OfType<DeprivationEnded>(), e => e.Kind == Deprivation.Tired);
         Assert.Empty(ended.OfType<DeprivationStarted>());
@@ -234,7 +230,7 @@ public class DeprivationTests
     {
         var w = TestWorlds.Bare(1);
         var b = w.Agent(AgentId.Player).Body;
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (100, 500, 30);
+        (b.CaloriesKcal, b.HydrationMl, b.SleepDebtMinutes) = (100, 500, 46 * 60);
         string json = Save.ToJson(w);
         foreach (var d in Enum.GetNames<Deprivation>()) Assert.DoesNotContain(d, json);
         var loaded = TestWorlds.Load(json).Agent(AgentId.Player).Body;
@@ -259,7 +255,7 @@ internal static class Deprive
     /// The pang alone: the calorie store below its line, the reserves untouched.
     internal static void Hungry(BodyState b, double severity) => b.CaloriesKcal = Body.CaloriesCapacityKcal(b) * 0.30 * (1 - severity);
 
-    internal static void Tired(BodyState b, double severity) => b.EnergyMinutes = Body.MaxEnergyMinutes * 0.30 * (1 - severity);
+    internal static void Tired(BodyState b, double severity) => b.SleepDebtMinutes = (18 + 30 * severity) * 60;
 
     /// The stomach empty, fat nearly gone and muscle wasted to where hunger begins to harm the heart: hunger at
     /// full, and the body wasted.

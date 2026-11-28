@@ -522,7 +522,7 @@ public class RackTests
     static void Rest(World w)
     {
         var body = w.Agent(P).Body;
-        (body.EnergyMinutes, body.HydrationMl) = (Body.MaxEnergyMinutes, Body.MaxHydrationMl);
+        (body.SleepDebtMinutes, body.HydrationMl) = (0, Body.MaxHydrationMl);
         body.Effects.Clear();
     }
 

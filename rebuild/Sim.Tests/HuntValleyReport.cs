@@ -26,7 +26,7 @@ public class HuntValleyReport(ITestOutputHelper output)
             var species = w.Agents.Values.Where(a => a.Mind is HerdMind).ToDictionary(a => a.Id, a => a.Species);
             var events = Sim.Advance(w, 60);
             var body = w.Agent(AgentId.Player).Body;
-            (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // the player stays out of it, alive
+            (body.HydrationMl, body.CaloriesKcal, body.SleepDebtMinutes) = (3000, 2000, 60); // the player stays out of it, alive
             foreach (var a in w.Agents.Values.Where(a => a.Mind is HerdMind)) species[a.Id] = a.Species;
             foreach (var e in events)
             {

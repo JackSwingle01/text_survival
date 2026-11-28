@@ -487,7 +487,7 @@ function renderBody(d, v) {
       ${g('Warmth', 'ui/temperature', vit.warmth.pct, '#8fa6b7', `${b.coreTempF.toFixed(1)}°F`, vit.warmth.priority)}
       ${g('Food', 'ui/food', vit.food.pct, '#eadfc8', `${Math.round(b.caloriesKcal)} kcal`, vit.food.priority)}
       ${g('Water', 'ui/water', vit.water.pct, '#b9d3dc', `${(b.hydrationMl / 1000).toFixed(1)} L`, vit.water.priority)}
-      ${g('Rest', 'ui/energy', vit.rest.pct, '#eadfc8', pct(b.energyPct), vit.rest.priority)}
+      ${g('Rest', 'ui/energy', vit.rest.pct, '#eadfc8', pct(b.restedPct), vit.rest.priority)}
       ${b.bloodPct < 0.995 ? g('Blood', 'ui/vitality', b.bloodPct, '#d97a6a', pct(b.bloodPct), b.bloodPct < 0.7 ? 'need' : '') : ''}
     </div>
     ${v.alerts.length ? section('Now', `<div class="factors">${v.alerts.map(a => `<div class="kv minus">${img(a.icon)}<span>${esc(a.text)}<span class="why"> ${esc(a.lines.join(' · '))}</span></span><span class="v"></span></div>`).join('')}</div>`) : ''}

@@ -62,7 +62,7 @@ public sealed class Bench
         if (b.DiedMinute != null) throw new InvalidOperationException($"The bench player died: {b.DeathCause}");
         b.CaloriesKcal = Body.MaxCaloriesKcal;
         b.HydrationMl = Body.MaxHydrationMl;
-        b.EnergyMinutes = Body.MaxEnergyMinutes;
+        b.SleepDebtMinutes = 0;
         b.CoreTempF = Body.BaseCoreTempF;
     }
 

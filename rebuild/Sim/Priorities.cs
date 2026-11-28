@@ -25,7 +25,6 @@ public static class Priorities
 {
     public const double HypothermiaCoreF = Body.HypothermiaThresholdF, WarmNeedCoreF = 97.5, WarmAgainCoreF = 97.8;
     public const double WaterCriticalPct = 0.15, WaterNeedPct = 0.5, WaterAgainPct = 0.9;
-    public const double RestCriticalPct = 0.1, RestNeedPct = 0.3, RestAgainPct = 0.5, RestedPct = 0.8;
     public const double FatFloorPct = 0.10; // below it the body pays for leanness (Body.Speed, Body.ColdResistance)
     /// About a week of a person's starving before hunger harms the heart (Body.LethalMuscleOfFreshPct).
     public const double StarvingMuscleOfFreshPct = Body.LethalMuscleOfFreshPct + 0.1;
@@ -87,10 +86,10 @@ public static class Priorities
         return seeingTo && (shortfallKg > SatisfiedShortfallKg * scale || body.CaloriesPct < AnimalFedPct) ? Priority.Need : Priority.Want;
     }
 
-    public static Priority RestPriority(double energyPct, bool seeingTo) =>
-        energyPct <= RestCriticalPct ? Priority.Critical
-        : energyPct < RestNeedPct || seeingTo && energyPct < RestAgainPct ? Priority.Need
-        : energyPct < RestedPct ? Priority.Want : Priority.None;
+    public static Priority RestPriority(SpeciesStats species, double debtMinutes, bool seeingTo) =>
+        debtMinutes >= SleepDebt.CollapseOnsetMinutes(species) ? Priority.Critical
+        : debtMinutes >= SleepDebt.OnsetMinutes(species) || seeingTo && debtMinutes > SleepDebt.SeenToFloorMinutes(species) ? Priority.Need
+        : debtMinutes >= SleepDebt.WakingDayMinutes(species) || seeingTo && debtMinutes > 0 ? Priority.Want : Priority.None;
 
     public const double WashWantedDirtyPct = 0.5;
 
@@ -134,6 +133,6 @@ public static class Priorities
             CorePriority(body.CoreTempF, seeingTo: false),
             WaterPriority(body.HydrationPct, seeingTo: false, waterL, hoursLeftToday),
             FoodPriority(body, Body.BaselineFatPct * body.WeightKg, seeingTo: false, food),
-            RestPriority(body.EnergyPct, seeingTo: false));
+            RestPriority(SpeciesTable.Of(agent.Species), body.SleepDebtMinutes, seeingTo: false));
     }
 }

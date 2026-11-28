@@ -160,11 +160,11 @@ public class SpeciesBodyTests
     public void EmptyingTheReserve_CostsALittleSleep_Once()
     {
         var man = BodyState.BaselineHuman();
-        double before = man.EnergyMinutes;
+        double before = man.SleepDebtMinutes;
         var running = SpeciesTable.Running(Species.Human, man);
         for (int i = 0; i < 20; i++) Body.Burst(man, running);
-        Assert.Equal(before - Body.SpentReserveEnergyMinutes, man.EnergyMinutes, 9);
-        Assert.InRange(Body.SpentReserveEnergyMinutes, 1, 10);
+        Assert.Equal(before + Body.SpentReserveDebtMinutes, man.SleepDebtMinutes, 9);
+        Assert.InRange(Body.SpentReserveDebtMinutes, 1, 10);
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public class SpeciesBodyTests
     {
         var (w, e) = PlayerAndWolf();
         var me = w.Agent(AgentId.Player).Body;
-        double energy = me.EnergyMinutes;
+        double debt = me.SleepDebtMinutes;
         int dodged = 0;
         for (int i = 0; i < 40 && dodged == 0; i++)
         {
@@ -251,7 +251,7 @@ public class SpeciesBodyTests
         }
         Assert.Equal(1, dodged);
         Assert.True(Body.SprintReservePct(me) < 1, "the dodge cost no breath");
-        Assert.Equal(energy, me.EnergyMinutes, 9);
+        Assert.Equal(debt, me.SleepDebtMinutes, 9);
     }
 
     [Fact]

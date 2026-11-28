@@ -121,7 +121,7 @@ public class RenewalTests
         for (int day = 0; day < 100; day++)
         {
             foreach (var body in people.Select(id => w.Agent(id).Body))
-                (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900);
+                (body.HydrationMl, body.CaloriesKcal, body.SleepDebtMinutes) = (3000, 2000, 60);
             int before = w.NextAgentId;
             w.Minute += 1440 - Weather.MinuteOfDay(w.Minute) - 1;
             var watching = people.Select(id => w.Agent(id).Tile).ToList();
@@ -166,7 +166,7 @@ public class RenewalTests
             for (int hour = 0; hour < 24; hour++)
             {
                 var body = w.Agent(P).Body;
-                (body.HydrationMl, body.CaloriesKcal, body.EnergyMinutes) = (3000, 2000, 900); // alive, and so someone to be seen by
+                (body.HydrationMl, body.CaloriesKcal, body.SleepDebtMinutes) = (3000, 2000, 60); // alive, and so someone to be seen by
                 w.Fires[fire] = FireDeterrenceTests.Pit(open, w.Minute, pineKg: 5); // kept burning
                 Sim.Advance(w, 60);
             }
