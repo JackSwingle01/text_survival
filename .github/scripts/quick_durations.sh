@@ -14,7 +14,9 @@ warn=()
 # The screen never warns: a parallel run's times are inflated, so only the serial re-run's count.
 check=(python3 .github/scripts/test_durations.py --max-seconds 5)
 mapfile -t trx < <(grep -l "Sim.Tests.dll" TestResults/*.trx)
-"${check[@]}" "${trx[@]}" && exit 0
+# Its ::error:: lines become plain text: only the serial re-run annotates.
+if out=$("${check[@]}" "${trx[@]}"); then echo "$out"; exit 0; fi
+echo "$out" | sed 's/^::error::/screen: /'
 mapfile -t over < <("${check[@]}" --names-only "${trx[@]}")
 [ ${#over[@]} -gt 0 ] || exit 1  # failed for another reason, shown above
 filter=$(printf 'FullyQualifiedName=%s|' "${over[@]}")
