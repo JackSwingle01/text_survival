@@ -504,10 +504,9 @@ public class SurvivalTests
     [Fact]
     public void BelowATenthOfTheCalorieStore_StillHeals_AtTheHungryRate()
     {
-        double fed = HealingWith(_ => { }).HealAmount;
-        var low = WithStores(b => b.CaloriesKcal = 0.05 * Body.CaloriesCapacityKcal(b));
-        double expected = (1 - 0.5 * Deprivations.Severity(low, Deprivation.Hungry)) * fed;
-        Assert.Equal(expected, HealingWith(b => b.CaloriesKcal = 0.05 * Body.CaloriesCapacityKcal(b)).HealAmount, 12);
+        static void Low(BodyState b) => b.CaloriesKcal = 0.05 * Body.CaloriesCapacityKcal(b);
+        double expected = (1 - 0.5 * Deprivations.Severity(WithStores(Low), Deprivation.Hungry)) * HealingWith(_ => { }).HealAmount;
+        Assert.Equal(expected, HealingWith(Low).HealAmount, 12);
     }
 
     /// #336: the hard stops are an empty water store, a core below 95 °F, and a body dying of either or of

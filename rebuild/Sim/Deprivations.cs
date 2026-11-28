@@ -14,7 +14,7 @@ public static class Deprivations
     /// What each multiplies at full: never zero, so no mix takes a faculty there. Thirst reads blood as if 15% were lost.
     const double TiredConsciousnessPct = 0.5, ThirstyConsciousnessPct = 0.7, HungryConsciousnessPct = 0.9;
 
-    const double ThirstyBloodReadPct = 0.85;
+    const double ThirstyBloodReadPct = 0.85, HungryHealingPct = 0.5, ThirstyHealingPct = 0.5;
 
     internal static readonly Deprivation[] All = Enum.GetValues<Deprivation>();
 
@@ -57,6 +57,9 @@ public static class Deprivations
         : Toward(TiredConsciousnessPct, Severity(body, Deprivation.Tired))
             * Toward(ThirstyConsciousnessPct, Severity(body, Deprivation.Thirsty))
             * Toward(HungryConsciousnessPct, Severity(body, Deprivation.Hungry));
+
+    internal static double HealingPct(BodyState body) =>
+        Toward(HungryHealingPct, Severity(body, Deprivation.Hungry)) * Toward(ThirstyHealingPct, Severity(body, Deprivation.Thirsty));
 
     internal static double BloodReadPct(BodyState body) => Toward(ThirstyBloodReadPct, Severity(body, Deprivation.Thirsty));
 }

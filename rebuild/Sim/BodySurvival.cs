@@ -444,14 +444,9 @@ public static partial class Body
     {
         if (LethalRates(body) != (0, 0, 0)) return 0;
         return BaseHealingPerHour / 60.0 * minutes
-            * DeprivedHealingPct(body, Deprivation.Hungry) * DeprivedHealingPct(body, Deprivation.Thirsty)
+            * Deprivations.HealingPct(body)
             * TissueReads.Digestion(body) * Effects.HealingFactor(body);
     }
-
-    const double HealingAtFullDeprivationPct = 0.5;
-
-    static double DeprivedHealingPct(BodyState body, Deprivation d) =>
-        1 - (1 - HealingAtFullDeprivationPct) * Deprivations.Severity(body, d);
 
     /// A forecast, healing awake as now and nothing else changing; bleeding that never stops is followed for a day.
     public static double LowestBloodPct(BodyState body)

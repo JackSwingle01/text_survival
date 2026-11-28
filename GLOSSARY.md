@@ -56,8 +56,8 @@ _Avoid_: status, debuff
 **Deprivation**:
 A state from an unmet need for food, water or rest: hungry, thirsty, tired. It wears a body down
 without harming it, and it lifts when the need is met; nothing treats it. It is read each minute from
-the body's stores, never stored. It acts only through consciousness, blood or wasting, and never alone
-stops a verb: its endings are collapsing asleep, and death from thirst or starvation.
+the body's stores, never stored. On the faculties it acts only through consciousness, blood or
+wasting; hunger and thirst also slow healing. It never alone stops a verb: its endings are collapsing asleep, and death from thirst or starvation.
 _Avoid_: discomfort, debuff, need effect
 
 **Sleep debt**:
