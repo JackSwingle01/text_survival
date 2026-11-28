@@ -32,7 +32,7 @@ public class ConservationCaloriesTests
         Gen.Double[0, Body.MaxCaloriesKcal], Gen.Double[400, 4000], Ops.Array[1, 30],
         (fat, muscle, kcal, ml, ops) => new Scene(fat, muscle, kcal, ml, ops));
 
-    const double KcalPerKgFat = Body.KcalPerKgFat, KcalPerKgMuscle = 1320; // BodySurvival.cs
+    const double KcalPerKgFat = Body.KcalPerKgFat, KcalPerKgMuscle = Body.KcalPerKgMuscle;
 
     static double Held(BodyState b) => b.CaloriesKcal + b.FatKg * KcalPerKgFat + b.MuscleKg * KcalPerKgMuscle;
 

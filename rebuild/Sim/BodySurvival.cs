@@ -87,7 +87,7 @@ public static partial class Body
     public const double SweatingThresholdF = 99.0;
 
     public const double KcalPerKgFat = 7700;
-    const double KcalPerKgMuscle = 1320;
+    public const double KcalPerKgMuscle = 1320;
     /// Forbes' rule: the muscle share of each kilogram a starving body loses is F₀ / (F₀ + fat kg).
     public const double ForbesConstantKg = 10.4;
     public const double LethalMuscleOfFreshPct = 0.5;
@@ -390,7 +390,7 @@ public static partial class Body
         (d.FatBurnedKg, d.MuscleBurnedKg, _) = ReserveBurn(body, -calories);
     }
 
-    /// Fat nears zero and never reaches it; what one tissue cannot give the other pays, so UnpaidKcal means both are gone.
+    /// While muscle lasts fat nears zero and never reaches it; what one tissue cannot give the other pays, so UnpaidKcal means both are gone.
     internal static (double FatKg, double MuscleKg, double UnpaidKcal) ReserveBurn(BodyState body, double deficitKcal)
     {
         double musclePct = ForbesConstantKg / (ForbesConstantKg + Math.Max(0, body.FatKg));
@@ -416,8 +416,10 @@ public static partial class Body
         body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
         StarvingToDeath(body, species) ? StarvingDamagePerHour : 0);
 
-    public static bool StarvingToDeath(BodyState body, Species species) =>
-        body.CaloriesKcal <= 0 && body.MuscleKg < LethalMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(species, body);
+    public static bool StarvingToDeath(BodyState body, Species species) => StarvedBelow(body, species, LethalMuscleOfFreshPct);
+
+    public static bool StarvedBelow(BodyState body, Species species, double freshPct) =>
+        body.CaloriesKcal <= 0 && body.MuscleKg < freshPct * SpeciesTable.FreshMuscleKg(species, body);
 
     /// Fourth power of how far the core has fallen toward 82 °F: days at 90 °F, hours at 85 °F, under an hour past 82 °F. One continuous curve.
     static double HypothermiaDamagePerHour(double coreF)

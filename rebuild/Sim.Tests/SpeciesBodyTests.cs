@@ -221,7 +221,7 @@ public class SpeciesBodyTests
         double fat = man.FatKg, muscle = man.MuscleKg;
         Assert.Equal(0, Body.SpendKcal(man, 77));
         double fatKg = fat - man.FatKg, muscleKg = muscle - man.MuscleKg;
-        Assert.Equal(77, fatKg * Body.KcalPerKgFat + muscleKg * 1320, 9);
+        Assert.Equal(77, fatKg * Body.KcalPerKgFat + muscleKg * Body.KcalPerKgMuscle, 9);
         Assert.Equal(Body.ForbesConstantKg / (Body.ForbesConstantKg + fat), muscleKg / (fatKg + muscleKg), 9);
     }
 

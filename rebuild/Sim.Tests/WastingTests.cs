@@ -58,9 +58,9 @@ public class WastingTests
         return -1;
     }
 
-    static BodyState FedFull()
+    static BodyState FedFull(Sex sex = Sex.Male)
     {
-        var b = BodyState.BaselineHuman();
+        var b = BodyState.BaselineHuman(sex);
         (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (Body.CaloriesCapacityKcal(b), Body.MaxHydrationMlOf(b), Body.MaxEnergyMinutes);
         return b;
     }
@@ -84,8 +84,7 @@ public class WastingTests
     [InlineData(Sex.Female)]
     public void ASpeciesAverageBody_StarvesToDeath_InTwoMonths_WhenHalfItsMuscleIsGone(Sex sex)
     {
-        var b = BodyState.BaselineHuman(sex);
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (Body.CaloriesCapacityKcal(b), Body.MaxHydrationMlOf(b), Body.MaxEnergyMinutes);
+        var b = FedFull(sex);
         double halfOfFresh = BodyState.BaselineHuman(sex).MuscleKg / 2;
         double heart = Heart(b);
         int day = DaysToDeath(b, (body, minute) =>
@@ -132,5 +131,22 @@ public class WastingTests
 
         wolf.MuscleKg = fresh / 2 - 0.01;
         Assert.True(Body.LethalRates(wolf, Species.Wolf).HungerPerHour > 0);
+    }
+
+    [Fact]
+    public void AStarvingWolf_DiesOfStarvation_WithFatAndMuscleLeft()
+    {
+        var wolf = SpeciesTable.Average(Species.Wolf);
+        wolf.CaloriesKcal = 0;
+        var rng = TestRng();
+        for (int m = 0; m < 60 * 1440 && Body.IsAlive(wolf); m++)
+        {
+            if (m % 60 == 0) Body.Drink(wolf, Body.MaxHydrationMlOf(wolf));
+            Body.SpendKcal(wolf, Body.BurnKcalPerMinute(wolf, 1.6));
+            Body.LiveNeeds(wolf, Species.Wolf, sleeping: false, 10, 1, rng);
+            Assert.True(wolf.FatKg > 0 && wolf.MuscleKg > 0, $"minute {m}: fat {wolf.FatKg}, muscle {wolf.MuscleKg}");
+        }
+        Assert.False(Body.IsAlive(wolf));
+        Assert.Equal("starvation", Body.CauseOfDeath(wolf).What);
     }
 }

@@ -8,7 +8,7 @@ public class FoodTests
 {
     static TileId T(int x, int y = 1) => new(x, y);
 
-    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * 1320;
+    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * Body.KcalPerKgMuscle;
 
     /// Lichen, grass and berries on every tile of the strip: what browsers, grazers and bears eat.
     internal static World Pasture(params TileId[] water)

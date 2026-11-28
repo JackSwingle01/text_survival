@@ -98,8 +98,7 @@ public static class Priorities
     public static Priority DirtyPriority(double dirtySeverity) => dirtySeverity > WashWantedDirtyPct ? Priority.Want : Priority.None;
 
     /// Nothing in the stomach, and the muscle wasted close to where hunger begins to kill.
-    public static bool Starving(BodyState body, Species species) =>
-        body.CaloriesKcal <= 0 && body.MuscleKg < StarvingMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(species, body);
+    public static bool Starving(BodyState body, Species species) => Body.StarvedBelow(body, species, StarvingMuscleOfFreshPct);
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 

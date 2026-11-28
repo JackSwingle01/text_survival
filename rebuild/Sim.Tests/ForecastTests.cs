@@ -591,7 +591,7 @@ public class ForecastTests
 
     // ---- Work and Fauna: what an animal's water and rest pay ----
 
-    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * 1320;
+    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * Body.KcalPerKgMuscle;
 
     /// A hungry wolf on a pile of meat and berries eats what Fauna.PileOrCacheSource says: a minute's 0.1 kg of the richest food its
     /// diet takes there (the meat, torn off a cut), less its burn; the berries stay.

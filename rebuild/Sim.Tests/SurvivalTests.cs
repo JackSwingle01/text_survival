@@ -260,7 +260,7 @@ public class SurvivalTests
         double fatBefore = b.FatKg;
         var d = Body.Process(b, Room(), 60, TestRng());
         double burnedKcal = Body.MetabolismKcalPerDay(b, 1.0) / 24;
-        Assert.Equal(burnedKcal, d.FatBurnedKg * Body.KcalPerKgFat + d.MuscleBurnedKg * 1320, 9);
+        Assert.Equal(burnedKcal, d.FatBurnedKg * Body.KcalPerKgFat + d.MuscleBurnedKg * Body.KcalPerKgMuscle, 9);
         Assert.Equal(Body.ForbesConstantKg / (Body.ForbesConstantKg + fatBefore), d.MuscleBurnedKg / (d.FatBurnedKg + d.MuscleBurnedKg), 9);
         Body.Apply(b, d, TestRng());
         Assert.Equal(0, b.CaloriesKcal);

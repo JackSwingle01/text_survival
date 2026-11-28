@@ -17,3 +17,10 @@ Revised: BalanceReport's "starved to the floors" row never ends without floors �
 Follow-up: lost muscle never comes back: Body.Eat and Fauna's room lay down fat only, so every empty store now costs muscle for good (wolves between kills, NPCs on bad days); a ticket for regaining muscle on a surplus
 Follow-up: F₀ = 10.4 kg is a person's constant, applied to every species as the spec says; a fox's loss is nearly all muscle from the first day, and small animals starve to death far sooner (fox about a week). Whether F₀ scales with body size is for the species tuning (#103, #116)
 Revised: herd numbers (seed 17, 30 days, TestWorlds.New) moved: three hyenas starve (none on main), and living wolves and ravens hold 0.66 of their fresh muscle (main: 0.91 and 1.00); on main the living hyenas were already at 0.41, held up by the old 15% floor → reported, not tuned: the spec's rule applied to animals as written
+Revised (review): tests copied the muscle kcal per kg as 1320 in five places → Body.KcalPerKgMuscle is public, as KcalPerKgFat is, and the tests read it
+Revised (review): Priorities.Starving and Body.StarvingToDeath repeated one rule at two lines → both read Body.StarvedBelow(body, species, freshPct)
+Revised (review): the starvation timeline left vision out of the faculties → a vision column
+Revised (review): no animal was starved to death to check fat and muscle stay above zero → WastingTests.AStarvingWolf_DiesOfStarvation_WithFatAndMuscleLeft
+Revised (review): IndividualsTests changed (two AnimalFoodPriority calls take the species) without a line → named here: a signature change, no re-pin
+Revised (review): the wolf tests step Body.SpendKcal and Body.LiveNeeds, not Fauna.Live → kept: Fauna.Live is exactly those two plus mending, and needs a world; the herd probe on seed 17 is Fauna.Live's end-to-end check
+Revised (review): the female-build choice now sits in three places (FreshMuscleKg, RunningIfAble, BaselineHuman), each reading different fields → kept: no shared shape yet worth a helper

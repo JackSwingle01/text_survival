@@ -182,12 +182,12 @@ public static class ReferenceBodies
         return string.Join('\n', lines);
     }
 
-    const string StarvationHeader = " day  fat kg  muscle kg  strength  speed  dexterity  perception  vitality  hungry  alive";
+    const string StarvationHeader = " day  fat kg  muscle kg  strength  speed  dexterity  perception  vision  vitality  hungry  alive";
 
     static string StarvationRow(int day, BodyState body)
     {
         var s = Measure(Species.Human, body);
-        return $"{day,4}  {body.FatKg,6:0.00}  {body.MuscleKg,9:0.00}  {s.StrengthPct,8:0.00}  {s.SpeedPct,5:0.00}  {s.DexterityPct,9:0.00}  {s.PerceptionPct,10:0.00}  {s.Vitality,8:0.00}  {Deprivations.Severity(body, Deprivation.Hungry),6:0.00}  {(Body.IsAlive(body) ? "yes" : "no"),5}";
+        return $"{day,4}  {body.FatKg,6:0.00}  {body.MuscleKg,9:0.00}  {s.StrengthPct,8:0.00}  {s.SpeedPct,5:0.00}  {s.DexterityPct,9:0.00}  {s.PerceptionPct,10:0.00}  {s.VisionPct,6:0.00}  {s.Vitality,8:0.00}  {Deprivations.Severity(body, Deprivation.Hungry),6:0.00}  {(Body.IsAlive(body) ? "yes" : "no"),5}";
     }
 
     /// The player's body as World.New makes it: autumn fat, the stores three quarters full.
