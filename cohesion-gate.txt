@@ -1,4 +1,4 @@
-Cohesion gate: main at 5f742281e1778b1821bccf97bed864e7aa6aaafd, 2026-11-27, Release
+Cohesion gate: main at 58b2ac725fc1e94974a23e5f390ce476bc418652, 2026-11-28, Release
 CohesionGateSeed123Tests.SixtyDays_PassesTheCohesionGate: Passed
 seed 123: 662 MB a day allocated
 seed 123 Wolf: 3.5 living on average; alone 57.8 %; biggest herd 0 % (day 0, 0 tiles, water False; over 60 % at 0.0 % of looks); regroups 0.54/animal-day; moves 15.90/animal-day; busiest water tile 46.1 %; hunger and thirst deaths 0 (0.00 a head); herds at the end [1 1]
