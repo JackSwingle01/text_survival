@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Regenerated from SaveFixtureTests.SampleWorld whenever a rule or the world generator changes; collapsed in
+# GitHub's diffs so it does not bury the change (documentation/save-format.md).
+rebuild/Sim.Tests/Fixtures/sample-save.json linguist-generated=true
