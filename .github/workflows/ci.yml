@@ -114,31 +114,17 @@ jobs:
       - shell: bash
         run: ${{ steps.get_actionlint.outputs.executable }} -color
 
-  # Ratchet: whitespace formatting is enforced only on the C# files a PR touches, so older
-  # unformatted files get fixed when they are next edited instead of in one repo-wide reformat.
-  # The daily ratchet run (dev/ratchets.md) formats the rest a batch at a time.
-  # Fix locally with: dotnet format whitespace --folder --include <files>
+  # Fix locally with: dotnet format whitespace . --folder
   format:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - name: Whitespace formatting of changed C# files
-        shell: bash
-        run: |
-          # The PR checkout is a merge commit whose first parent is the base branch.
-          mapfile -t files < <(git diff --name-only --diff-filter=ACMR HEAD^1 HEAD -- '*.cs')
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No C# files changed."
-            exit 0
-          fi
-          printf 'Checking %s\n' "${files[@]}"
-          dotnet format whitespace --folder --verify-no-changes --include "${files[@]}"
+      - name: Whitespace formatting of C# files
+        run: dotnet format whitespace . --folder --verify-no-changes
 
   # A red main reaches nobody by itself, and every PR branched from it inherits the red check (a report
   # test at 5.05 s against the 5 s limit did this on 2026-11-24). So each push to main keeps one issue,

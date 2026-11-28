@@ -13,7 +13,7 @@ issue it:
 
 So each ratchet gets at most one issue in flight, and the next batch is filed the day after its PR
 merges. To try a change to this file: `python3 .github/scripts/ratchets.py run --dry-run` prints
-the issues without filing them (needs `dotnet` on the path for the formatting ratchet).
+the issues without filing them.
 
 ## Adding a ratchet
 
@@ -50,26 +50,6 @@ the list entries. `CommentHygieneTests` passes.
 
 When empty: delete `OverCommentLimit` and its branch in `SimComments_StayUnderTheRatchet`, so every
 Sim file is held to the 10% limit.
-
-## formatting
-
-- **batch:** 10
-
-```bash
-out=$(mktemp -d)
-dotnet format whitespace . --folder --verify-no-changes --report "$out" >/dev/null 2>&1 || true
-python3 -c 'import json, os, sys
-print("\n".join(sorted({os.path.relpath(x["FilePath"]) for x in json.load(open(sys.argv[1]))})))' "$out/format-report.json"
-```
-
-Run `dotnet format whitespace --folder --include <the files>` and commit the result. Change nothing
-but whitespace. `dotnet format whitespace --folder --verify-no-changes --include <the files>`
-passes. Build and run the suites for the projects the files belong to (`rebuild/` files: the fast
-suite; others: `dotnet build` and `dotnet test`).
-
-When empty: change the `format` job in `.github/workflows/ci.yml` to check every C# file in the
-repository (`dotnet format whitespace . --folder --verify-no-changes`), not only the ones a PR
-touches, and drop its "Ratchet" comment.
 
 ## capacity-reads
 
