@@ -68,7 +68,7 @@ public sealed class World
     /// The access conditions in force; tests switch on the unwired ones to show every refusal asks Access.
     internal Access.Gate AccessGates = Access.Wired;
     internal Dictionary<double, DecayTimeline>? DecayCache;
-    /// Read by the food chain bench; null in play.
+    /// Read by the food chain bench (IntakeSinkTests); null in play, never saved.
     internal IIntakeSink? Intake;
     internal Dictionary<GroundClass, GroundState>? GroundCache;
     internal (long Minute, Dictionary<GroundClass, Surface> ByClass)? SurfaceCache;

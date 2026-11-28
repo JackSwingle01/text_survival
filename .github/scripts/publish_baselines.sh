@@ -2,7 +2,7 @@
 # Commits the nightly run's measurements of main to the `baselines` branch, where anything that can
 # fetch the repo can read them (an artifact needs a token that may read Actions, and expires):
 #
-#   publish_baselines.sh NEW_DIR    NEW_DIR holds npc-bench.txt and cohesion-gate.txt, either may be missing
+#   publish_baselines.sh NEW_DIR    NEW_DIR holds npc-bench.txt, food-bench.txt and cohesion-gate.txt, any may be missing
 #
 # A file replaces the branch's copy only when it holds measurements, so a night whose bench or gate
 # produced nothing leaves the last good numbers in place; each file's first line names its commit.
@@ -20,7 +20,7 @@ else
   git -C "$out" rm -rfq --ignore-unmatch .
 fi
 # name:lines of header, so a file of headers alone is not a measurement
-for spec in npc-bench.txt:2 cohesion-gate.txt:1; do
+for spec in npc-bench.txt:2 food-bench.txt:1 cohesion-gate.txt:1; do
   file=${spec%%:*} header=${spec##*:}
   if [ -f "$new/$file" ] && [ "$(wc -l < "$new/$file")" -gt "$header" ]; then
     cp "$new/$file" "$out/$file"
@@ -35,6 +35,7 @@ The nightly run's measurements of `main` (`.github/workflows/nightly.yml`), comm
 `.github/scripts/publish_baselines.sh`. Compare a branch with these instead of measuring `main` again.
 
 - `npc-bench.txt`: the NPC bench (`NpcBenchReport`), one line a seed.
+- `food-bench.txt`: the food chain bench (`FoodBenchRun`): kills and kcal by species, per day and week.
 - `cohesion-gate.txt`: what the cohesion gate printed (`CohesionGateSeed*Tests`), by seed.
 
 Each file's first line names the commit and day it was measured. The branch's history is the trend.
