@@ -24,6 +24,10 @@ static class TestKit
     /// 15 January, 09:00: a minute when the lakes and rivers are ice (Map.IsFrozen). World minute 0, 1 July, is open water.
     public const long JanuaryMinute = 198 * 1440;
 
+    /// A body's five faculties, read with no surroundings (no dark, wet or load): what the world sees of its capacities.
+    public static (double Strength, double Speed, double Dexterity, double Perception, double Vision) FacultiesOf(BodyState b) =>
+        (Body.Strength(b), Body.Speed(b), Body.Dexterity(b), Body.Perception(b), Body.Vision(b));
+
     /// Sets a herd's hunger (Fauna.Hunger) by emptying each member's calorie store that far.
     public static void SetHunger(Agent herd, double hunger)
     {
