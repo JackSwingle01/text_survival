@@ -242,6 +242,7 @@ public static partial class Fauna
         double kcal = Math.Min(graze.PerMinute, RoomKcal(animal, body));
         if (kcal <= 0) return;
         Body.Eat(body, kcal);
+        world.Intake?.Took(animal, IntakeKind.Grazed, kcal, null);
         MindOf(animal).LastFedMinute = world.Minute;
         if (ForageHere(world, animal.Tile) is not (PoolId id, ForagePool pool)) return;
         double dietFactor = DietOf(animal.Species) == Diet.Omnivore ? 5.0 : 1.0;
@@ -396,17 +397,31 @@ public static partial class Fauna
         double want = Math.Min(RoomKcal(herd) / MeatKcalPerKg, FeedKgPerMinute * herd.Members.Count), eaten = 0;
         bool held = HeldKill(world, herd);
         foreach (var c in held ? [] : Edible(world, herd))
-            if (want > eaten) eaten += Carcasses.EatMeat(c, want - eaten);
+            if (want > eaten)
+            {
+                double kg = Carcasses.EatMeat(c, want - eaten);
+                eaten += kg;
+                if (kg > 0) world.Intake?.Took(herd, IntakeKind.Carcass, kg * MeatKcalPerKg, c.Cause);
+            }
         if (!held && want > eaten && BehaviorOf(herd.Species) == HerdBehavior.Opportunist)
             foreach (var body in PickableBodies(world, herd))
-                if (want > eaten) eaten += Remains.Pick(world, body, want - eaten);
+                if (want > eaten)
+                {
+                    double kg = Remains.Pick(world, body, want - eaten);
+                    eaten += kg;
+                    if (kg > 0) world.Intake?.Took(herd, IntakeKind.Remains, kg * MeatKcalPerKg, null);
+                }
         double kcal = eaten * MeatKcalPerKg;
         if (eaten <= 0 && StoreAt(world, herd, mind, herd.Tile, events) is { } store)
         {
             if (store.BreakInLeft > 0) Caches.BreakIn(world.Caches[store.Cache!.Value]);
             else
                 foreach (var (r, kg) in Bite(StoreContents(world, herd.Tile, store.Cache)!, herd, RoomKcal(herd), herd.Members.Count))
-                    kcal += Items.TakeFrom(world, herd.Id, store.Cache, r, kg, events) * Items.Resources[r].KcalPerKg;
+                {
+                    double got = Items.TakeFrom(world, herd.Id, store.Cache, r, kg, events) * Items.Resources[r].KcalPerKg;
+                    kcal += got;
+                    if (got > 0) world.Intake?.Took(herd, IntakeKind.Store, got, null);
+                }
         }
         Nourish(herd, kcal);
         if (kcal > 0) mind.LastFedMinute = world.Minute;
