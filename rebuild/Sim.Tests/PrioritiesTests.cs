@@ -61,6 +61,15 @@ public class PrioritiesTests
     public void Rest(double debtHours, bool seeing, Priority priority) =>
         Assert.Equal(priority, Priorities.RestPriority(SpeciesTable.Of(Species.Human), debtHours * 60, seeing));
 
+    /// A 4 h sleeper's waking day (20 h) is longer than its onset (18 h): seeing to rest must still hold Need below the onset.
+    [Theory]
+    [InlineData(17, true, Priority.Need)]
+    [InlineData(15.9, true, Priority.Want)]
+    [InlineData(17, false, Priority.None)]
+    [InlineData(18, false, Priority.Need)]
+    public void Rest_ForAFourHourSleeper_HoldsNeedBelowTheOnsetWhileSeeingTo(double debtHours, bool seeing, Priority priority) =>
+        Assert.Equal(priority, Priorities.RestPriority(SpeciesTable.Of(Species.Caribou), debtHours * 60, seeing));
+
     [Fact]
     public void Food_UnderTheFloorIsNeed_StarvingIsCritical()
     {

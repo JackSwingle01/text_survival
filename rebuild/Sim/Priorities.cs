@@ -88,7 +88,7 @@ public static class Priorities
 
     public static Priority RestPriority(SpeciesStats species, double debtMinutes, bool seeingTo) =>
         debtMinutes >= SleepDebt.CollapseOnsetMinutes(species) ? Priority.Critical
-        : debtMinutes >= SleepDebt.OnsetMinutes(species) || seeingTo && debtMinutes > SleepDebt.WakingDayMinutes(species) ? Priority.Need
+        : debtMinutes >= SleepDebt.OnsetMinutes(species) || seeingTo && debtMinutes > SleepDebt.SeenToFloorMinutes(species) ? Priority.Need
         : debtMinutes >= SleepDebt.WakingDayMinutes(species) || seeingTo && debtMinutes > 0 ? Priority.Want : Priority.None;
 
     public const double WashWantedDirtyPct = 0.5;
