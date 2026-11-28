@@ -72,13 +72,15 @@ public class SurvivalTests
     [Fact]
     public void Hunger_AnEmptyStomachWithFatToSpare_IsAPang()
     {
+        var fed = Baseline();
         var b = Baseline();
         b.CaloriesKcal = 0;
+        Live(fed, Room(), 1);
         Live(b, Room(), 1);
-        var c = Body.GetCapacities(b);
-        Assert.Equal(1, c.Moving, 9);
-        Assert.Equal(1, c.Manipulation, 9);
-        Assert.Equal(0.9, c.Consciousness, 9);
+        Assert.Equal(1, Body.Speed(b) / Body.Speed(fed), 3);
+        Assert.Equal(1, Body.Strength(b) / Body.Strength(fed), 3);
+        Assert.InRange(Body.Dexterity(b) / Body.Dexterity(fed), 0.94, 0.96);
+        Assert.InRange(Body.Perception(b) / Body.Perception(fed), 0.89, 0.91);
     }
 
     /// Lives the minutes eating back each hour what the hour burned, and drinking, so the store never
@@ -174,7 +176,7 @@ public class SurvivalTests
     }
 
     /// Well fed makes 5% more of the body's own heat, paid in calories, and heals 5% faster, and only
-    /// while it holds. Capacities are untouched: they stay capped at whole.
+    /// while it holds. The faculties are untouched: the capacities under them stay capped at whole.
     [Fact]
     public void WellFed_WarmsAndHealsFivePercentMore_OnlyWhileItHolds()
     {
@@ -189,14 +191,14 @@ public class SurvivalTests
         Assert.True(Effects.Has(b, EffectKind.WellFed));
         double heat = Body.CalculateHeatBalance(b, Room()).MetabolismKcalPerHour;
         var fed = Body.Process(b, Room(), 1, TestRng());
-        var capacities = Body.GetCapacities(b);
+        var faculties = TestKit.FacultiesOf(b);
         Effects.Set(b, EffectKind.WellFed, 0); // the same body, only Well fed taken off
         var unfed = Body.Process(b, Room(), 1, TestRng());
         Assert.Equal(1.05, heat / Body.CalculateHeatBalance(b, Room()).MetabolismKcalPerHour, 9);
         Assert.Equal(1.05, fed.HealAmount / unfed.HealAmount, 4);
         // The heat is paid for: the thermic effect of food burns the calories it makes it from.
         Assert.Equal(1.05, fed.CaloriesDeltaKcal / unfed.CaloriesDeltaKcal, 9);
-        Assert.Equal(capacities, Body.GetCapacities(b));
+        Assert.Equal(faculties, TestKit.FacultiesOf(b));
     }
 
     // ---- exhaustion ----
@@ -915,6 +917,6 @@ public class SurvivalTests
         var b = Baseline();
         foreach (var kind in Enum.GetValues<EffectKind>()) Effects.Add(b, kind, 0.5);
         Effects.Decay(b, 1);
-        Effects.CapacityDeltas(b);
+        Body.Vitality(b, Species.Human); // reads every faculty, so every row's capacity deltas
     }
 }

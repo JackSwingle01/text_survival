@@ -156,22 +156,15 @@ public class CapacityReadTests
     [Fact]
     public void AnEntryTakenOffWhileItsReadRemains_Fails_AndSoDoesOneWhoseReadIsGone()
     {
-        var reads = ReadsToday.Value;
-        string first = CapacityReadsToday[0];
-        Assert.Single(Problems(reads, CapacityReadsToday.Skip(1)), p => p.StartsWith(first));
-        Assert.Single(Problems(reads, [.. CapacityReadsToday, "Travel.Gone: Moving"]), p => p.StartsWith("Travel.Gone: Moving is fixed"));
+        // The list is empty now, so the sample stands in for a listed read.
+        var reads = SampleReads().Where(r => r.Contains(".Listed:")).ToList();
+        Assert.Single(Problems(reads, []), p => p.StartsWith(Sample("Listed: Moving")));
+        Assert.Single(Problems(reads, [Sample("Listed: Moving"), "Travel.Gone: Moving"]), p => p.StartsWith("Travel.Gone: Moving is fixed"));
     }
 
     /// Every member outside the body that reads a capacity today. Only shrinks: each entry goes when its
     /// member reads a faculty instead (the tickets under #55).
     static readonly string[] CapacityReadsToday =
     [
-        // The tests.
-        "Tests.BodyTests.LoweringAnyTissue_NeverRaisesAnyCapacity: Consciousness, Hearing, Manipulation, Moving, Sight",
-        "Tests.BodyTests.Unconscious_CannotMoveOrManipulate: Consciousness, Manipulation, Moving",
-        "Tests.DirtyTests.Dirty_TakesNothingOffAnyCapacity: CapacityDeltas",
-        "Tests.SurvivalTests.EveryEffectKind_HasADefinition: CapacityDeltas",
-        "Tests.SurvivalTests.Hunger_AnEmptyStomachWithFatToSpare_IsAPang: Consciousness, Manipulation, Moving",
-        "Tests.SurvivalTests.WellFed_WarmsAndHealsFivePercentMore_OnlyWhileItHolds: Capacities",
     ];
 }
