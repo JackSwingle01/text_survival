@@ -9,27 +9,12 @@ public enum Deprivation { Hungry, Thirsty, Tired }
 /// Severities 0 to 1 from the stores as they stand: a deprivation lifts the moment its need is met.
 public static class Deprivations
 {
-    internal const double ThresholdPct = 0.30;
+    public const double ThirstOnsetPct = 0.50, HungerOnsetPct = 0.30, TiredOnsetPct = 0.30;
 
-    const double EmptyStorePangLoss = 0.05, StarvingRampDays = 20;
+    /// What each multiplies at full: never zero, so no mix takes a faculty there. Thirst reads blood as if 15% were lost.
+    const double TiredConsciousness = 0.5, ThirstyConsciousness = 0.7, HungryConsciousness = 0.9;
 
-    /// What each takes off each capacity at full severity.
-    static readonly (Capacity Capacity, double Delta)[] HungryLosses =
-        [(Capacity.Moving, -0.35), (Capacity.Manipulation, -0.35), (Capacity.Consciousness, -0.15)];
-    static readonly (Capacity Capacity, double Delta)[] ThirstyLosses =
-        [(Capacity.Moving, -0.40), (Capacity.Manipulation, -0.25), (Capacity.Consciousness, -0.45)];
-    static readonly (Capacity Capacity, double Delta)[] TiredLosses =
-        [(Capacity.Moving, -0.45), (Capacity.Manipulation, -0.30), (Capacity.Consciousness, -0.45), (Capacity.Sight, -0.25), (Capacity.Hearing, -0.15)];
-
-    static (Capacity Capacity, double Delta)[] LossesOf(Deprivation d) => d switch
-    {
-        Deprivation.Hungry => HungryLosses,
-        Deprivation.Thirsty => ThirstyLosses,
-        Deprivation.Tired => TiredLosses,
-        _ => throw new ArgumentOutOfRangeException(nameof(d), d, "No losses for this deprivation"),
-    };
-
-    static readonly double EmptyStoreHungerSeverity = EmptyStorePangLoss / -HungryLosses.Single(l => l.Capacity == Capacity.Moving).Delta;
+    const double ThirstyBloodRead = 0.85;
 
     internal static readonly Deprivation[] All = Enum.GetValues<Deprivation>();
 
@@ -38,9 +23,9 @@ public static class Deprivations
 
     public static double Severity(BodyState body, Deprivation d) => !FeelsAny(body) ? 0 : d switch
     {
-        Deprivation.Hungry => HungerSeverity(body),
-        Deprivation.Thirsty => BelowThreshold(body.HydrationMl / Body.MaxHydrationMl),
-        Deprivation.Tired => BelowThreshold(body.EnergyMinutes / Body.MaxEnergyMinutes),
+        Deprivation.Hungry => Below(HungerOnsetPct, body.CaloriesKcal / Body.CaloriesCapacityKcal(body)),
+        Deprivation.Thirsty => Below(ThirstOnsetPct, body.HydrationMl / Body.MaxHydrationMlOf(body)),
+        Deprivation.Tired => Below(TiredOnsetPct, body.EnergyMinutes / Body.MaxEnergyMinutes),
         _ => throw new ArgumentOutOfRangeException(nameof(d), d, "No store for this deprivation"),
     };
 
@@ -64,33 +49,14 @@ public static class Deprivations
 
     internal static bool In(int felt, Deprivation d) => (felt & (1 << (int)d)) != 0;
 
-    static double BelowThreshold(double pct) => Math.Max(0, (ThresholdPct - Math.Clamp(pct, 0, 1)) / ThresholdPct);
+    static double Below(double onsetPct, double pct) => Math.Max(0, (onsetPct - Math.Clamp(pct, 0, 1)) / onsetPct);
 
-    /// Follows the reserves: an empty store is a pang; strong hunger rises over the last StarvingRampDays they can feed.
-    static double HungerSeverity(BodyState body)
-    {
-        double pang = EmptyStoreHungerSeverity * BelowThreshold(body.CaloriesKcal / Body.CaloriesCapacityKcal(body));
-        double reserves = Body.ReservesKcal(body);
-        // Most bodies have far more than the ramp's worth: skip the metabolism's walk over every organ.
-        if (reserves >= StarvingRampDays * Body.WholeOrgansBasalKcalPerDay(body)) return pang;
-        return Math.Max(pang, Math.Clamp(1 - reserves / (StarvingRampDays * Body.MetabolismKcalPerDay(body, 1.0)), 0, 1));
-    }
+    static double Factor(double atFull, double severity) => 1 - (1 - atFull) * severity;
 
-    /// Summed across the three per capacity, then bent toward MaxLoss: never a cliff, never a relief, never below about a fifth.
-    internal static void AddCapacityDeltas(BodyState body, Span<double> deltas)
-    {
-        if (!FeelsAny(body)) return;
-        Span<double> loss = stackalloc double[deltas.Length];
-        foreach (var d in All)
-        {
-            double s = Severity(body, d);
-            foreach (var (cap, delta) in LossesOf(d)) loss[(int)cap] -= delta * s;
-        }
-        for (int i = 0; i < deltas.Length; i++) if (loss[i] > 0) deltas[i] -= StackedLoss(loss[i]);
-    }
+    internal static double ConsciousnessFactor(BodyState body) => !FeelsAny(body) ? 1
+        : Factor(TiredConsciousness, Severity(body, Deprivation.Tired))
+            * Factor(ThirstyConsciousness, Severity(body, Deprivation.Thirsty))
+            * Factor(HungryConsciousness, Severity(body, Deprivation.Hungry));
 
-    internal const double MaxLoss = 0.8;
-
-    internal static double StackedLoss(double summedLoss) =>
-        summedLoss / Math.Pow(1 + Math.Pow(summedLoss / MaxLoss, 4), 0.25);
+    internal static double BloodReadPct(BodyState body) => Factor(ThirstyBloodRead, Severity(body, Deprivation.Thirsty));
 }

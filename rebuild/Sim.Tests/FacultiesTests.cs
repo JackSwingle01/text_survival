@@ -225,12 +225,13 @@ public class FacultiesTests
         Assert.Equal(Body.Speed(Whole()), Body.Speed(breathless), 12);
     }
 
-    /// Wasted to nothing and worn out, a full pack is more than the body can carry: speed stops at zero.
+    /// Wasted to nothing, parched and a tenth bled, a full pack is more than the body can carry: speed stops at zero.
     [Fact]
     public void AFullPack_OnABodyWithAlmostNoStrength_IsSpeedAtZero_NeverBelow()
     {
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Deprive.Tired(weak, 1.0);
+        Deprive.Thirsty(weak, 1.0); // tiredness no longer weakens (#333): thirst does, through the blood
+        weak.BloodPct = 0.9;
         Assert.True(Body.Strength(weak) < 0.15);
         Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 1.0)));
         Assert.Equal(0, Body.Speed(weak, new AbilityContext(EncumbrancePct: 3.0)));
@@ -255,7 +256,8 @@ public class FacultiesTests
         Assert.Equal([CrippledBy.Unconscious], Body.SpeedCrippledBy(BlowToTheHead(brain: 0)));
 
         var weak = BodyState.Create(BodyKind.Human, 60, fatPct: 0, musclePct: 0.01);
-        Deprive.Tired(weak, 1.0);
+        Deprive.Thirsty(weak, 1.0); // tiredness no longer weakens (#333): thirst does, through the blood
+        weak.BloodPct = 0.9;
         Assert.Equal([CrippledBy.Load], Body.SpeedCrippledBy(weak, new AbilityContext(EncumbrancePct: 1.0)));
         Assert.Empty(Body.SpeedCrippledBy(weak));
 

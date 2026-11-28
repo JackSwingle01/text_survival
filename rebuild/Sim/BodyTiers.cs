@@ -159,16 +159,19 @@ internal readonly record struct BloodAndBreath(double Blood, double Breath, doub
     internal const double CirculationFailsBloodPct = 0.5;
     const double BreathShortBelow = 0.3;
 
-    /// Only real blood loss collapses circulation, not cold-slowed pumping.
-    internal static BloodAndBreath Of(BodyState body, ReadOnlySpan<double> tissue)
+    /// Only real blood loss collapses circulation, not cold-slowed pumping; readPct (thirst) scales as if it were the only loss.
+    internal static BloodAndBreath Of(BodyState body, ReadOnlySpan<double> tissue, double readPct = 1)
     {
         double pumping = tissue[(int)Capacity.Blood], breath = tissue[(int)Capacity.Breath];
         return new(
-            pumping * body.BloodPct,
+            pumping * body.BloodPct * readPct,
             breath,
-            body.BloodPct < 1.0 ? Math.Max(0, (body.BloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct)) : 1,
+            CirculationScale(body.BloodPct) * CirculationScale(readPct),
             breath < BreathShortBelow ? breath / BreathShortBelow : 1);
     }
+
+    static double CirculationScale(double bloodPct) =>
+        bloodPct < 1.0 ? Math.Max(0, (bloodPct - CirculationFailsBloodPct) / (1 - CirculationFailsBloodPct)) : 1;
 }
 
 /// The body's own business: outside it, only CapacityReadTests' listed reads may look.
@@ -176,41 +179,33 @@ public readonly record struct Capacities(double Moving, double Manipulation, dou
 {
     internal static Capacities Of(BodyState body) => Of(body, out _);
 
-    internal static Capacities Of(BodyState body, out BloodAndBreath feed)
-    {
-        Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
-        Effects.CapacityDeltas(body, effectDeltas);
-        Deprivations.AddCapacityDeltas(body, effectDeltas);
-        return Of(body, effectDeltas, out feed);
-    }
+    internal static Capacities Of(BodyState body, out BloodAndBreath feed) => Scaled(Unscaled(body, out feed), feed);
 
-    /// Tissue and blood alone, as life uses: no effect stops a heart.
-    internal static Capacities WithoutEffects(BodyState body, out BloodAndBreath feed) => Of(body, TissueReads.NoEffects, out feed);
-
-    static Capacities Of(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed) =>
-        Scaled(Unscaled(body, effectDeltas, out feed), feed);
+    /// Tissue and stored blood alone, as life uses: no effect or deprivation stops a heart.
+    internal static Capacities WithoutEffects(BodyState body, out BloodAndBreath feed) =>
+        Scaled(Unscaled(body, TissueReads.NoEffects, 1, 1, out feed), feed);
 
     internal static Capacities Unscaled(BodyState body, out BloodAndBreath feed)
     {
         Span<double> effectDeltas = stackalloc double[TissueReads.CapacityCount];
         Effects.CapacityDeltas(body, effectDeltas);
-        Deprivations.AddCapacityDeltas(body, effectDeltas);
-        return Unscaled(body, effectDeltas, out feed);
+        return Unscaled(body, effectDeltas, Deprivations.ConsciousnessFactor(body), Deprivations.BloodReadPct(body), out feed);
     }
 
-    static Capacities Unscaled(BodyState body, ReadOnlySpan<double> effectDeltas, out BloodAndBreath feed)
+    static Capacities Unscaled(BodyState body, ReadOnlySpan<double> effectDeltas, double consciousnessFactor, double bloodReadPct,
+        out BloodAndBreath feed)
     {
         Span<double> c = stackalloc double[TissueReads.CapacityCount];
         TissueReads.Fill(body, effectDeltas, c);
-        feed = BloodAndBreath.Of(body, c);
-        return new Capacities(c[(int)Capacity.Moving], c[(int)Capacity.Manipulation], c[(int)Capacity.Consciousness],
+        feed = BloodAndBreath.Of(body, c, bloodReadPct);
+        return new Capacities(c[(int)Capacity.Moving], c[(int)Capacity.Manipulation], c[(int)Capacity.Consciousness] * consciousnessFactor,
             c[(int)Capacity.Sight], c[(int)Capacity.Hearing]);
     }
 
     internal static Capacities Scaled(in Capacities unscaled, in BloodAndBreath feed)
     {
         double consciousness = unscaled.Consciousness * feed.LostBloodScale * feed.ShortBreathScale;
-        double limbs = consciousness > 0 ? feed.LostBloodScale : 0; // unconscious, the limbs give nothing
+        double limbs = consciousness > 0 ? feed.LostBloodScale : 0;
         return new Capacities(unscaled.Moving * limbs, unscaled.Manipulation * limbs, consciousness, unscaled.Sight, unscaled.Hearing);
     }
 }

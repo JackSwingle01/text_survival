@@ -63,12 +63,12 @@ public class SurvivalTests
         Assert.True(Deprivations.Has(b, Deprivation.Hungry));
         Assert.True(Deprivations.Has(b, Deprivation.Thirsty));
         Assert.True(Deprivations.Has(b, Deprivation.Tired));
-        Assert.True(Body.GetCapacities(b).Moving < 0.5);
+        Assert.True(Body.Perception(b) < 0.5);
     }
 
     // ---- hunger follows reserves ----
 
-    /// An empty stomach on a body with fat to burn is a pang: about 5% off moving and manipulation.
+    /// An empty stomach on a body with fat to burn is the pang at full: a tenth off consciousness, the limbs whole.
     [Fact]
     public void Hunger_AnEmptyStomachWithFatToSpare_IsAPang()
     {
@@ -76,44 +76,9 @@ public class SurvivalTests
         b.CaloriesKcal = 0;
         Live(b, Room(), 1);
         var c = Body.GetCapacities(b);
-        Assert.InRange(c.Moving, 0.94, 0.96);
-        Assert.InRange(c.Manipulation, 0.94, 0.96);
-        Assert.InRange(c.Consciousness, 0.97, 0.99);
-    }
-
-    /// The strong hunger comes as fat and muscle near their floors, and it comes smoothly: along a whole
-    /// fast's worth of reserves, from 10 kg of fat to both floors, moving never rises as they fall, no
-    /// 100 g of fat or muscle costs more than a point of it, and at both floors Hungry is full (-35%).
-    [Fact]
-    public void Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors()
-    {
-        double MovingAt(double fatKg, double muscleKg)
-        {
-            var b = Baseline();
-            (b.CaloriesKcal, b.FatKg, b.MuscleKg) = (0, fatKg, muscleKg);
-            Live(b, Room(), 1);
-            return Body.GetCapacities(b).Moving;
-        }
-        var start = Baseline();
-        double fatFloorKg = 0.03 * start.WeightKg, startMuscleKg = start.MuscleKg;
-        double previous = MovingAt(10, startMuscleKg);
-        Assert.True(previous > 0.94, $"10 kg of fat: moving {previous:0.000}");
-        var path = new List<(double Fat, double Muscle)>();
-        for (double fat = 10; fat > fatFloorKg; fat -= 0.1) path.Add((fat, startMuscleKg));
-        // The floors move with weight (body review C): muscle's is 15% of the body it is on.
-        for (double muscle = startMuscleKg; muscle > 0.15 * (start.StructuralKg + fatFloorKg + muscle); muscle -= 0.1) path.Add((fatFloorKg, muscle));
-        foreach (var (fat, muscle) in path)
-        {
-            double moving = MovingAt(fat, muscle);
-            Assert.True(moving <= previous + 1e-9, $"moving rose to {moving:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
-            Assert.True(previous - moving < 0.01, $"a cliff of {previous - moving:0.000} at {fat:0.0} kg fat, {muscle:0.0} kg muscle");
-            previous = moving;
-        }
-        var spent = Baseline();
-        double spentKg = spent.StructuralKg / (1 - 0.03 - 0.15); // fat and muscle both at their floors
-        (spent.CaloriesKcal, spent.FatKg, spent.MuscleKg) = (0, 0.03 * spentKg, 0.15 * spentKg);
-        Live(spent, Room(), 1);
-        Assert.Equal(1.0, Deprivations.Severity(spent, Deprivation.Hungry), 2);
+        Assert.Equal(1, c.Moving, 9);
+        Assert.Equal(1, c.Manipulation, 9);
+        Assert.Equal(0.9, c.Consciousness, 9);
     }
 
     /// Lives the minutes eating back each hour what the hour burned, and drinking, so the store never
@@ -940,8 +905,8 @@ public class SurvivalTests
         c.CaloriesKcal = 300;
         Live(c, Room(), 1);
         double pct = (300 - Body.MetabolismKcalPerDay(c, 1.0) / 1440) / Body.MaxCaloriesKcal;
-        // A pang, with fat to spare: a seventh of Hungry's full row at an empty store.
-        Assert.Equal(0.05 / 0.35 * (0.3 - pct) / 0.3, Deprivations.Severity(c, Deprivation.Hungry), 3);
+        // The pang, below 30% of the store.
+        Assert.Equal((0.3 - pct) / 0.3, Deprivations.Severity(c, Deprivation.Hungry), 3);
     }
 
     [Fact]

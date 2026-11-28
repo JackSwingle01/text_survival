@@ -923,10 +923,10 @@ public class GameHostTests
         var h = new GameHost();
         h.NewGame(Seed);
         var b = h.World.Agent(AgentId.Player).Body;
-        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (0, 0.15 * Body.MaxHydrationMl, 0);
+        (b.CaloriesKcal, b.HydrationMl, b.EnergyMinutes) = (0, 0.25 * Body.MaxHydrationMl, 0);
         var shown = Parse(h.View()).Body.Effects.ToDictionary(e => e.Name, e => e.Severity);
         Assert.Equal(0.5, shown["Thirsty"]);
         Assert.Equal(1, shown["Tired"]);
-        Assert.Equal(0.14, shown["Hungry"]); // the pang: 5% of moving, of hunger's 35%
+        Assert.Equal(1, shown["Hungry"]); // the pang at full: an empty stomach
     }
 }

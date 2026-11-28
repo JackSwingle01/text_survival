@@ -70,4 +70,20 @@ public class PrioritiesTests
         Assert.True(Priorities.Starving(b));
         Assert.Equal(Priority.Critical, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
     }
+
+    /// As an NPC asks it (Npc passes no food to hand), with fat at its target: Need exactly while the hunger pang is felt.
+    [Fact]
+    public void Food_IsANeed_ExactlyWhenTheHungerPangIsFelt()
+    {
+        var b = BodyState.BaselineHuman();
+        double capacity = Body.CaloriesCapacityKcal(b);
+        for (double kcal = capacity; kcal >= 0; kcal -= capacity / 1000)
+        {
+            b.CaloriesKcal = kcal;
+            bool need = Priorities.FoodPriority(b, b.FatKg, seeingTo: false, foodToHand: false) == Priority.Need;
+            Assert.True(need == Deprivations.Has(b, Deprivation.Hungry), $"{kcal:0} kcal: need {need}, pang {Deprivations.Severity(b, Deprivation.Hungry):0.000}");
+        }
+        b.CaloriesKcal = 0.30 * capacity - 1;
+        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg, false, false));
+    }
 }

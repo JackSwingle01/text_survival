@@ -172,8 +172,6 @@ public class CapacityReadTests
         "Tests.DirtyTests.Dirty_TakesNothingOffAnyCapacity: CapacityDeltas",
         "Tests.SurvivalTests.EveryEffectKind_HasADefinition: CapacityDeltas",
         "Tests.SurvivalTests.Hunger_AnEmptyStomachWithFatToSpare_IsAPang: Consciousness, Manipulation, Moving",
-        "Tests.SurvivalTests.Hunger_RisesWithoutACliff_AsFatAndMuscleNearTheirFloors: Moving",
-        "Tests.SurvivalTests.LowStats_RaiseHungryThirstyTired: Moving",
         "Tests.SurvivalTests.WellFed_WarmsAndHealsFivePercentMore_OnlyWhileItHolds: Capacities",
     ];
 }
