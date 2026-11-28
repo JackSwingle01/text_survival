@@ -13,8 +13,6 @@ public class IntakeSinkTests
         public double Kcal(IntakeKind kind) => Took.Where(t => t.Kind == kind).Sum(t => t.Kcal);
     }
 
-    static double Held(BodyState b) => b.CaloriesKcal + Body.KcalPerKgFat * b.FatKg + Body.KcalPerKgMuscle * b.MuscleKg;
-
     static (World World, Agent Wolf, Log Log) WolfAtACarcass(Cause cause)
     {
         var w = PlannerTests.Strip();
@@ -31,12 +29,12 @@ public class IntakeSinkTests
     public void AWolfFeedingAtACarcass_TakesInWhatItsBodyGainsPlusWhatItBurns()
     {
         var (w, wolf, log) = WolfAtACarcass(new Cause(null, "a test"));
-        double before = Held(wolf.Body);
+        double before = FoodBench.Held(wolf.Body);
         const int minutes = 30;
         Sim.Advance(w, minutes);
         double burned = minutes * Fauna.BurnKcalPerMinute(wolf.Body);
         Assert.True(log.Kcal(IntakeKind.Carcass) > 100, "the wolf never fed");
-        Assert.Equal(Held(wolf.Body) - before + burned, log.Kcal(IntakeKind.Carcass), tolerance: 0.01 * burned + 1);
+        Assert.Equal(FoodBench.Held(wolf.Body) - before + burned, log.Kcal(IntakeKind.Carcass), tolerance: 0.01 * burned + 1);
         Assert.All(log.Took, t => Assert.Equal(wolf.Id, t.Who));
     }
 
@@ -58,12 +56,12 @@ public class IntakeSinkTests
         w.Intake = log;
         var caribou = w.Agent(Agents.Spawn(w, Species.Caribou, new TileId(20, 1)));
         caribou.Body.CaloriesKcal = 0.3 * Body.CaloriesCapacityKcal(caribou.Body);
-        double before = Held(caribou.Body);
+        double before = FoodBench.Held(caribou.Body);
         const int minutes = 60;
         Sim.Advance(w, minutes);
         double burned = minutes * Fauna.BurnKcalPerMinute(caribou.Body);
         Assert.True(log.Kcal(IntakeKind.Grazed) > 100, "the caribou never grazed");
-        Assert.Equal(Held(caribou.Body) - before + burned, log.Kcal(IntakeKind.Grazed), tolerance: 0.01 * burned + 1);
+        Assert.Equal(FoodBench.Held(caribou.Body) - before + burned, log.Kcal(IntakeKind.Grazed), tolerance: 0.01 * burned + 1);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 namespace Survival;
 
-public enum IntakeKind { Grazed, Carcass, Remains, Store }
+internal enum IntakeKind { Grazed, Carcass, Remains, Store }
 
 internal interface IIntakeSink
 {

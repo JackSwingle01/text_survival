@@ -9,11 +9,12 @@ internal sealed class FoodBenchSeed(int seed, int days)
 {
     public int Seed { get; } = seed;
     public int Days { get; } = days;
-    public Dictionary<(string Killer, string Victim, int Day), int> Kills { get; } = [];
-    public Dictionary<(string Species, int Day), int> Encounters { get; } = [];
-    public Dictionary<(string Species, int Day), double> AnimalDays { get; } = [];
-    public Dictionary<(string Species, FoodSource Source, int Day), double> KcalIn { get; } = [];
-    public Dictionary<(string Species, int Day), double> NetBurn { get; } = [];
+    /// The killer is a species name, or none (starvation, bleeding) or unknown (gone before it was seen).
+    public Dictionary<(string Killer, Species Victim, int Day), int> Kills { get; } = [];
+    public Dictionary<(Species Species, int Day), int> Encounters { get; } = [];
+    public Dictionary<(Species Species, int Day), double> AnimalDays { get; } = [];
+    public Dictionary<(Species Species, FoodSource Source, int Day), double> KcalIn { get; } = [];
+    public Dictionary<(Species Species, int Day), double> NetBurn { get; } = [];
 }
 
 internal static class FoodBench
@@ -34,13 +35,15 @@ internal static class FoodBench
                 IntakeKind.Store => FoodSource.Store,
                 _ => killedBy?.Who is AgentId killer && species.TryGetValue(killer, out var by) && by == animal.Species ? FoodSource.Hunted : FoodSource.Scavenged,
             };
-            var key = (animal.Species.ToString(), source, Day);
+            var key = (animal.Species, source, Day);
             seed.KcalIn[key] = seed.KcalIn.GetValueOrDefault(key) + kcal;
             IntakeToday[animal.Id] = IntakeToday.GetValueOrDefault(animal.Id) + kcal;
         }
     }
 
-    static double Held(Agent a) => a.Members.Sum(b => b.CaloriesKcal + Body.KcalPerKgFat * b.FatKg + Body.KcalPerKgMuscle * b.MuscleKg);
+    internal static double Held(BodyState b) => b.CaloriesKcal + Body.KcalPerKgFat * b.FatKg + Body.KcalPerKgMuscle * b.MuscleKg;
+
+    static double Held(Agent a) => a.Members.Sum(Held);
 
     static void Add<K>(Dictionary<K, double> d, K key, double by) where K : notnull => d[key] = d.GetValueOrDefault(key) + by;
 
@@ -64,7 +67,7 @@ internal static class FoodBench
                     species[a.Id] = a.Species;
                     if (a.Species == Species.Human) continue;
                     heldAtDawn[a.Id] = Held(a);
-                    Add(result.AnimalDays, (a.Species.ToString(), day), a.Members.Count(Body.IsAlive));
+                    Add(result.AnimalDays, (a.Species, day), a.Members.Count(Body.IsAlive));
                 }
                 for (int minute = 0; minute < 1440; minute++)
                 {
@@ -75,19 +78,19 @@ internal static class FoodBench
                         if (e is Killed k)
                         {
                             string killer = k.By is not AgentId by ? NoKiller : species.TryGetValue(by, out var s) ? s.ToString() : UnknownKiller;
-                            var key = (killer, k.Species.ToString(), day);
+                            var key = (killer, k.Species, day);
                             result.Kills[key] = result.Kills.GetValueOrDefault(key) + 1;
                         }
                         else if (e is EncounterEnded ended && species.TryGetValue(ended.Agent, out var who))
                         {
-                            var key = (who.ToString(), day);
+                            var key = (who, day);
                             result.Encounters[key] = result.Encounters.GetValueOrDefault(key) + 1;
                         }
                     }
                 }
                 foreach (var (id, before) in heldAtDawn)
                     if (w.Agents.TryGetValue(id, out var a))
-                        Add(result.NetBurn, (a.Species.ToString(), day), recorder.IntakeToday.GetValueOrDefault(id) - (Held(a) - before));
+                        Add(result.NetBurn, (a.Species, day), recorder.IntakeToday.GetValueOrDefault(id) - (Held(a) - before));
             }
         }
         finally { w.Intake = null; }

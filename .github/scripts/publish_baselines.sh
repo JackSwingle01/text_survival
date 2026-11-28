@@ -35,7 +35,7 @@ The nightly run's measurements of `main` (`.github/workflows/nightly.yml`), comm
 `.github/scripts/publish_baselines.sh`. Compare a branch with these instead of measuring `main` again.
 
 - `npc-bench.txt`: the NPC bench (`NpcBenchReport`), one line a seed.
-- `food-bench.txt`: the food chain bench (`FoodBenchRun`): kills and kcal by species, per day and week.
+- `food-bench.txt`: the food chain bench (`FoodBenchReport`): kills and kcal by species, per day and week.
 - `cohesion-gate.txt`: what the cohesion gate printed (`CohesionGateSeed*Tests`), by seed.
 
 Each file's first line names the commit and day it was measured. The branch's history is the trend.

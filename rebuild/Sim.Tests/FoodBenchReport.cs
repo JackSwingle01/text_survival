@@ -1,55 +1,28 @@
-using System.Text;
+using Xunit.Abstractions;
 
 namespace Survival.Tests;
 
-/// Formats the seeds of a food chain bench: for each row, the mean over seeds of a day's value, then the spread of each seed's own mean.
-internal static class FoodBenchReport
+/// The food chain bench: who kills and eats what in the populated valley, per day and week, over many seeds. It
+/// reports and never gates. FOOD_BENCH_SEEDS (comma list) and FOOD_BENCH_DAYS override the run (default 30 days);
+/// FOOD_BENCH_OUT writes the report to a file. It runs only with FOOD_BENCH set:
+/// FOOD_BENCH=1 dotnet test rebuild/Sim.Tests -c Release --filter FoodBenchReport
+/// The nightly run keeps main's on the `baselines` branch (.github/workflows/nightly.yml).
+public class FoodBenchReport(ITestOutputHelper output)
 {
-    const int DaysPerWeek = 7;
+    /// The NPC bench's seeds, so the two benches read the same valleys.
+    static readonly int[] DefaultSeeds = [1, 3, 5, 7, 11, 17, 42, 777, 2024, 101, 202, 303, 404, 505, 606, 707, 808, 909, 1111, 1212];
+    const int DefaultDays = 30;
 
-    internal static string Format(IReadOnlyList<FoodBenchSeed> seeds, int days)
+    [Trait("Category", TestCategories.Slow)]
+    [ReportFact("FOOD_BENCH")]
+    public void Bench()
     {
-        var text = new StringBuilder();
-        text.AppendLine($"seeds {seeds.Count}, days {days}. A cell is the mean over seeds (min-max of a seed's own mean); week 1 is shown by day. Burn is net: intake less the change in held store, so mending and wasting count in it.");
-        text.AppendLine("Hunted: carcasses killed by its own species (not told apart from another pack's); Scavenged: any other kill, or none.");
-
-        text.AppendLine().AppendLine("== Kills per day, killer -> victim ==");
-        foreach (var pair in seeds.SelectMany(s => s.Kills.Keys).Select(k => (k.Killer, k.Victim)).Distinct().Order())
-            Row(text, $"{pair.Killer} -> {pair.Victim}", seeds, days, (s, d) => s.Kills.GetValueOrDefault((pair.Killer, pair.Victim, d)));
-
-        var species = seeds.SelectMany(s => s.AnimalDays.Keys).Select(k => k.Species).Distinct().Order().ToList();
-        text.AppendLine().AppendLine("== Animals at the start of a day ==");
-        foreach (var sp in species) Row(text, sp, seeds, days, (s, d) => s.AnimalDays.GetValueOrDefault((sp, d)));
-
-        text.AppendLine().AppendLine("== Encounters ended per day, per animal ==");
-        foreach (var sp in species)
-            Row(text, sp, seeds, days, (s, d) => PerAnimal(s.Encounters.GetValueOrDefault((sp, d)), s.AnimalDays.GetValueOrDefault((sp, d))));
-
-        text.AppendLine().AppendLine("== Energy: kcal per animal-day ==");
-        foreach (var sp in species)
-        {
-            foreach (var source in Enum.GetValues<FoodSource>())
-                if (seeds.Any(s => s.KcalIn.Keys.Any(k => k.Species == sp && k.Source == source)))
-                    Row(text, $"{sp} {source.ToString().ToLowerInvariant()}", seeds, days, (s, d) => PerAnimal(s.KcalIn.GetValueOrDefault((sp, source, d)), s.AnimalDays.GetValueOrDefault((sp, d))));
-            Row(text, $"{sp} burned (net)", seeds, days, (s, d) => PerAnimal(s.NetBurn.GetValueOrDefault((sp, d)), s.AnimalDays.GetValueOrDefault((sp, d))));
-        }
-        return text.ToString();
-    }
-
-    static double? PerAnimal(double total, double animals) => animals > 0 ? total / animals : null;
-
-    static void Row(StringBuilder text, string label, IReadOnlyList<FoodBenchSeed> seeds, int days, Func<FoodBenchSeed, int, double?> value)
-    {
-        var perSeed = seeds.Select(s => Enumerable.Range(0, days).Select(d => value(s, d)).ToArray()).ToList();
-        var own = perSeed.Select(v => v.Where(x => x != null).Select(x => x!.Value).DefaultIfEmpty(double.NaN).Average()).Where(x => !double.IsNaN(x)).ToList();
-        if (own.Count == 0) return;
-        double[] byDay = Enumerable.Range(0, days).Select(d => perSeed.Select(v => v[d]).Where(x => x != null).Select(x => x!.Value).DefaultIfEmpty(0).Average()).ToArray();
-        text.Append($"{label,-34} {own.Average():0.00} ({own.Min():0.00}-{own.Max():0.00})");
-        for (int week = 0; week * DaysPerWeek < days; week++)
-        {
-            var span = byDay.Skip(week * DaysPerWeek).Take(DaysPerWeek).ToArray();
-            text.Append(week == 0 ? $" | week 1: {string.Join(" ", span.Select(x => x.ToString("0.0")))}" : $" | week {week + 1}: {span.Average():0.0}");
-        }
-        text.AppendLine();
+        var env = Environment.GetEnvironmentVariable("FOOD_BENCH_SEEDS");
+        int[] seeds = env is { Length: > 0 } ? [.. env.Split(',').Select(int.Parse)] : DefaultSeeds;
+        int days = int.TryParse(Environment.GetEnvironmentVariable("FOOD_BENCH_DAYS"), out int d) ? d : DefaultDays;
+        var results = seeds.AsParallel().AsOrdered().Select(seed => FoodBench.Run(TestWorlds.New(seed), seed, days)).ToList();
+        string text = FoodBenchText.Format(results, days);
+        if (Environment.GetEnvironmentVariable("FOOD_BENCH_OUT") is { Length: > 0 } file) File.WriteAllText(file, text);
+        output.WriteLine(text);
     }
 }

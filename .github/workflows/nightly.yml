@@ -16,7 +16,7 @@ name: Nightly
 # build queue: the Slow tests gate no PR.
 # - npc-bench: the NPC bench (NpcBenchReport) on fixed seeds. It reports and never gates: its result is
 #   not in the run's issue.
-# - food-bench: the food chain bench (FoodBenchRun): who kills and eats what, per day and week, over
+# - food-bench: the food chain bench (FoodBenchReport): who kills and eats what, per day and week, over
 #   fixed seeds. It reports and never gates either.
 # Baselines. A run on main commits what it measured to the `baselines` branch (the baseline job,
 # .github/scripts/publish_baselines.sh): npc-bench.txt, food-bench.txt, and cohesion-gate.txt, the lines
@@ -162,7 +162,7 @@ jobs:
     timeout-minutes: 75
     env:
       FOOD_BENCH: "1"
-      FOOD_BENCH_SEEDS: "1,3,5,7,11,17,42,101,202,303,404,505"
+      FOOD_BENCH_SEEDS: "1,3,5,7,11,17,42,777,2024,101,202,303,404,505,606,707,808,909,1111,1212"
       FOOD_BENCH_DAYS: "60"
     steps:
       - uses: actions/checkout@v7
@@ -176,7 +176,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/food-bench"
           export FOOD_BENCH_OUT="$RUNNER_TEMP/food-bench/report.txt"
-          timeout 60m dotnet test rebuild/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~FoodBenchRun" || true
+          timeout 60m dotnet test rebuild/Sim.Tests -c Release --no-build --filter "FullyQualifiedName~FoodBenchReport" || true
           {
             echo "Food bench: $GITHUB_REF_NAME at $GITHUB_SHA, $(date -u +%Y-%m-%d), $FOOD_BENCH_DAYS days, Release"
             if [ -f "$FOOD_BENCH_OUT" ]; then cat "$FOOD_BENCH_OUT"; fi
