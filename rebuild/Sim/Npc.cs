@@ -152,7 +152,7 @@ public static class Npc
         AgentId Id => agent.Id;
         TileId Here => agent.Tile;
         BodyState Body => agent.Body;
-        SpeciesStats Kind => SpeciesTable.Of(agent.Species);
+        SpeciesStats Stats => SpeciesTable.Of(agent.Species);
         TileId Camp => mind.Camp;
         bool AtCamp => Here == Camp;
         double RoomKg => Items.CapacityKg(pack) - Items.CarriedKg(agent);
@@ -283,7 +283,7 @@ public static class Npc
             {
                 [Stat.Warmth] = WarmthPriority(CoreAtCampF(), seeing(Stat.Warmth), RememberedLeftAt(Camp) + ForecastAt(Camp, 0).Hours, TonightHours() - NightSlackHours),
                 [Stat.Water] = WaterPriority(Body.HydrationPct, seeing(Stat.Water), waterToHandL, (1440 - Weather.MinuteOfDay(world.Minute)) / 60.0),
-                [Stat.Rest] = RestPriority(Kind, Body.SleepDebtMinutes, seeing(Stat.Rest)),
+                [Stat.Rest] = RestPriority(Stats, Body.SleepDebtMinutes, seeing(Stat.Rest)),
                 [Stat.Food] = FoodPriority(Body, mind.TargetFatKg, seeing(Stat.Food), foodToHand: false),
                 [Stat.Dirty] = DirtyPriority(Effects.Severity(Body, EffectKind.Dirty)),
             };
@@ -536,9 +536,9 @@ public static class Npc
             if (!AtCamp)
             {
                 double walk = ToSite(Camp).MinutesTo(Here, double.PositiveInfinity);
-                bool canWalk = priority < Priority.Critical && Body.SleepDebtMinutes + walk + WalkReserveMinutes < SleepDebt.CollapseOnsetMinutes(Kind);
+                bool canWalk = priority < Priority.Critical && Body.SleepDebtMinutes + walk + WalkReserveMinutes < SleepDebt.CollapseOnsetMinutes(Stats);
                 FromHere();
-                var rest = new Source(SleepDebt.RepayPerMinute(Kind, Body.SleepDebtMinutes));
+                var rest = new Source(SleepDebt.RepayPerMinute(Stats, Body.SleepDebtMinutes));
                 var ask = Ask(Stat.Rest, priority, Body.SleepDebtMinutes);
                 var plan = Planner.Choose(world, Id, View, ask, t => t == Camp || t == Here && !canWalk ? rest : null, only: Camp);
                 if (plan.At == Camp && WalkTo(Camp) is { } home) return home with { ForecastMinutes = walk, At = Camp };

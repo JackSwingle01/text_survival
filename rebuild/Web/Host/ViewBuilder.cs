@@ -181,8 +181,7 @@ sealed class ViewBuilder(World world, int gen)
             Weather.LightFromHour * 60, Weather.DarkFromHour * 60, Weather.LightLeftMinutes(world.Minute));
     }
 
-    /// The rest bar: how far a person is from the full hour of sleep debt.
-    public static double Rested(BodyState b) => Math.Clamp(1 - b.SleepDebtMinutes / SleepDebt.FullMinutes(SpeciesTable.Of(Species.Human)), 0, 1);
+    public static double Rested(BodyState b) => SleepDebt.RestedPct(SpeciesTable.Of(Species.Human), b.SleepDebtMinutes);
 
     static VitalDto[] Vitals(BodyState b, StatPriorities priorities, Exposure e)
     {

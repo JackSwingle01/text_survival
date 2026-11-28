@@ -108,7 +108,7 @@ public sealed class GameHost
                 sky.Condition.ToString(), Math.Round(sky.TemperatureF), Math.Round(Exposure.OpenAirF(w, p.Tile, sky)), Math.Round(sky.WindMph)),
             Vitals: new VitalsDto(
                 Warmth: Math.Clamp((b.CoreTempF - 90.0) / (Body.BaseCoreTempF - 90.0), 0, 1),
-                Food: Math.Clamp(b.CaloriesPct, 0, 1), Water: Math.Clamp(b.HydrationPct, 0, 1), Rest: Math.Clamp(1 - b.SleepDebtMinutes / SleepDebt.FullMinutes(SpeciesTable.Of(Species.Human)), 0, 1),
+                Food: Math.Clamp(b.CaloriesPct, 0, 1), Water: Math.Clamp(b.HydrationPct, 0, 1), Rest: SleepDebt.RestedPct(SpeciesTable.Of(Species.Human), b.SleepDebtMinutes),
                 CoreTempF: Math.Round(b.CoreTempF, 1), Effects: [.. Deprivations.Of(b).Select(d => d.Kind.ToString()), .. b.Effects.Select(e => e.Kind.ToString())]),
             Place: Map.Describe(map, p.Tile),
             Radius: Radius, X: p.Tile.X, Y: p.Tile.Y,
