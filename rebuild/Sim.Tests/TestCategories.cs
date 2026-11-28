@@ -1,5 +1,5 @@
 /// Trait values for `[Trait("Category", ...)]`, the tiers a test runs in.
-/// - Untagged: a quick test, under 5 s on CI's runner, which CI enforces.
+/// - Untagged: a quick test, under 5 s on CI's runner. A PR warns about a breach; the nightly run fails on it.
 /// - LongRun: a test that has to step a world for hours or days to see what it checks. Still on every PR,
 ///   in its own CI check, so the quick tests report without waiting on it.
 /// - Slow: five seconds or more in Debug, and not worth every PR: nightly only.

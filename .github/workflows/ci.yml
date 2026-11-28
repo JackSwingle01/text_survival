@@ -34,24 +34,12 @@ jobs:
       - run: dotnet build rebuild/tests.slnf -c Release
       - run: dotnet test rebuild/tests.slnf -c Release --no-build --no-restore --filter "Category!=Slow&Category!=LongRun" --logger trx --results-directory TestResults
       # A quick test takes at most 5 s; one that needs longer is LongRun (rebuild/Sim.Tests/TestCategories.cs).
-      # A time in the parallel run includes waiting on other tests, so it only screens: what it flags
-      # runs again alone and serially, and that run gates. Tiered compilation is off for that run: a
-      # short process otherwise runs the sim's hot code unoptimized for its first seconds.
-      - name: Quick tests stay quick
+      # On a PR this only warns: a test a hair over the limit blocks nobody. The nightly run gates
+      # (nightly.yml, quick-durations).
+      - name: Quick tests stay quick (warns only)
         if: ${{ !cancelled() }}
         shell: bash
-        run: |
-          set -euo pipefail
-          check=(python3 .github/scripts/test_durations.py --max-seconds 5)
-          mapfile -t trx < <(grep -l "Sim.Tests.dll" TestResults/*.trx)
-          "${check[@]}" "${trx[@]}" && exit 0
-          mapfile -t over < <("${check[@]}" --names-only "${trx[@]}")
-          [ ${#over[@]} -gt 0 ] || exit 1  # failed for another reason, shown above
-          filter=$(printf 'FullyQualifiedName=%s|' "${over[@]}")
-          echo "Re-running ${#over[@]} flagged test(s) alone and serially:"
-          DOTNET_TieredCompilation=0 dotnet test rebuild/Sim.Tests -c Release --no-build --no-restore --filter "${filter%|}" \
-            --logger "trx;LogFileName=$PWD/TestResults/isolated/alone.trx" -- xUnit.ParallelizeTestCollections=false
-          "${check[@]}" TestResults/isolated/alone.trx
+        run: bash .github/scripts/quick_durations.sh --warn
 
   # Sim.Tests' LongRun tier: the tests that step a world for hours or days.
   long-run:
