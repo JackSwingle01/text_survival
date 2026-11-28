@@ -214,13 +214,15 @@ public class SpeciesBodyTests
     }
 
     [Fact]
-    public void SpendingPastAnEmptyStore_BurnsFat()
+    public void SpendingPastAnEmptyStore_BurnsFatAndMuscle_ByForbesRule()
     {
         var man = BodyState.BaselineHuman();
         man.CaloriesKcal = 0;
-        double fat = man.FatKg;
-        Body.SpendKcal(man, 77);
-        Assert.Equal(fat - 0.01, man.FatKg, 9);
+        double fat = man.FatKg, muscle = man.MuscleKg;
+        Assert.Equal(0, Body.SpendKcal(man, 77));
+        double fatKg = fat - man.FatKg, muscleKg = muscle - man.MuscleKg;
+        Assert.Equal(77, fatKg * Body.KcalPerKgFat + muscleKg * Body.KcalPerKgMuscle, 9);
+        Assert.Equal(Body.ForbesConstantKg / (Body.ForbesConstantKg + fat), muscleKg / (fatKg + muscleKg), 9);
     }
 
     // ---- in a fight ----

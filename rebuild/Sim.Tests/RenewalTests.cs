@@ -92,8 +92,8 @@ public class RenewalTests
             Fauna.MindOf(pack[i]).LastFedMinute = w.Minute - Days(30);
             if (i == pack.Count - 1) continue; // fed, though long unfed by the clock
             b.CaloriesKcal = 0;
-            b.MuscleKg = 0.15 * b.WeightKg + 0.05 + 0.5 * i; // the first the leanest
-            b.FatKg = 0.03 * b.WeightKg;
+            b.MuscleKg = Body.LethalMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(Species.Wolf, b) + 0.05 + 0.5 * i; // the first the leanest
+            b.FatKg = 0.01 * b.WeightKg;
         }
         var deaths = new List<Killed>();
         for (int day = 0; day < 10; day++) deaths.AddRange(Sim.Advance(w, 1440).OfType<Killed>());

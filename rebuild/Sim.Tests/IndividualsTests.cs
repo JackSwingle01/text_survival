@@ -208,7 +208,7 @@ public class IndividualsTests(ITestOutputHelper output)
         foreach (var k in kin.Select(w.Agent)) TestKit.SetHunger(k, 0);
         TestKit.SetHunger(w.Agent(lone), 0.8);
         var body = w.Agent(lone).Body;
-        Assert.Equal(Priority.Need, Priorities.AnimalFoodPriority(body, SpeciesTable.Of(Species.Mammoth).FatPct, seeingTo: false));
+        Assert.Equal(Priority.Need, Priorities.AnimalFoodPriority(body, Species.Mammoth, seeingTo: false));
         var moved = new List<Moved>();
         for (int i = 0; i < 60; i++) moved.AddRange(Sim.Advance(w, 1).OfType<Moved>().Where(e => e.Who == lone));
         if (goes) Assert.Contains(moved, e => e.To.X > e.From.X);
@@ -385,7 +385,7 @@ public static class CohesionGate
     {
         foreach (var p in predators)
         {
-            bool due = Priorities.AnimalFoodPriority(p.Body, SpeciesTable.Of(p.Species).FatPct, seeingTo: false) >= Priority.Need;
+            bool due = Priorities.AnimalFoodPriority(p.Body, p.Species, seeingTo: false) >= Priority.Need;
             int reach = (int)(Sight.OpenGroundTiles * SpeciesTable.Of(p.Species).PerceptionFactor);
             bool prey = Nearby.Within(w, p.Tile, reach).Any(a => a.Mind is HerdMind && Fauna.IsQuarry(a.Species) && Sim.IsAlive(a));
             if (!due || prey) { withoutPrey.Remove(p.Id); continue; }

@@ -115,7 +115,7 @@ public class PlannerTests
         Sim.Advance(w, 1440); // a day's snow on the ground
         var wolf = Animal(w, Species.Wolf, T(20), hydrationPct: 0.4);
         var body = wolf.Body;
-        double KcalHeld() => body.CaloriesKcal + body.FatKg * Body.KcalPerKgFat;
+        double KcalHeld() => body.CaloriesKcal + body.FatKg * Body.KcalPerKgFat + body.MuscleKg * Body.KcalPerKgMuscle;
         double drankMl = 0, burnKcal = 0, held = KcalHeld();
         for (int i = 0; i < 3 * 1440; i++)
         {

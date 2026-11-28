@@ -53,7 +53,7 @@ public static partial class Fauna
         bool resting = mind.Plan?.Stat == Stat.Rest;
         var rest = Priorities.RestPriority(body.EnergyPct, resting);
         if (!ActiveNow(world, animal.Species) && body.EnergyPct < (resting ? 1 : Priorities.RestedPct) && rest < Priority.Need) rest = Priority.Need;
-        var food = Priorities.AnimalFoodPriority(body, SpeciesTable.Of(animal.Species).FatPct, seeingTo: mind.Plan?.Stat == Stat.Food);
+        var food = Priorities.AnimalFoodPriority(body, animal.Species, seeingTo: mind.Plan?.Stat == Stat.Food);
         var priorities = new StatPriorities(Priority.None, water, food, rest);
         // A plan holds until its stat is seen to or another outranks the priority it was made at (as an NPC's goal does).
         if (mind.Plan is { } plan && priorities[plan.Stat] >= Priority.Need)
