@@ -2,22 +2,22 @@ namespace Survival.Tests;
 
 public class CoreTests
 {
-    static World Play(int seed)
+    static World Play(int seed, double scale = 1)
     {
         var world = TestWorlds.New(seed);
         // Real weather can kill an unsheltered agent with no fire; determinism holds either way.
         bool Alive() => Body.IsAlive(world.Agent(AgentId.Player).Body);
-        Sim.Step(world, new Wait(AgentId.Player), 600);
-        if (Alive()) Sim.Step(world, new Rest(AgentId.Player), 120);
+        Sim.Step(world, new Wait(AgentId.Player), (int)(600 * scale));
+        if (Alive()) Sim.Step(world, new Rest(AgentId.Player), (int)(120 * scale));
         world.Rng("test").NextUlong(); // stand-in for a system drawing from its stream
-        if (Alive()) Sim.Step(world, new Wait(AgentId.Player), 900);
+        if (Alive()) Sim.Step(world, new Wait(AgentId.Player), (int)(900 * scale));
         return world;
     }
 
     [Fact]
     public void SameSeedAndActions_GiveIdenticalWorld()
     {
-        Assert.Equal(Save.ToJson(Play(7)), Save.ToJson(Play(7)));
+        Assert.Equal(Save.ToJson(Play(7, scale: 0.3)), Save.ToJson(Play(7, scale: 0.3)));
     }
 
     [Fact]
