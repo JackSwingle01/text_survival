@@ -151,6 +151,15 @@ public static class SpeciesTable
         }
     }
 
+    /// By its structure, which starving never spends: a member is born at its species' build at any size (NewBody).
+    public static double FreshMuscleKg(Species species, BodyState body)
+    {
+        var row = Of(species);
+        var (fatPct, musclePct) = species == Species.Human && body.Sex == Sex.Female && row.Female is PersonBuild f
+            ? (f.FatPct, f.MusclePct) : (row.FatPct, row.MusclePct);
+        return body.StructuralKg * musclePct / (1 - fatPct - musclePct);
+    }
+
     public static double SpeedPct(Species species, BodyState body) => Math.Min(1, Body.Speed(body) / FreshSpeed(species, body.Sex));
 
     static readonly Dictionary<(Species, Sex), double> FreshStrengths = [];

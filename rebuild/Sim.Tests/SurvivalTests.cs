@@ -253,15 +253,15 @@ public class SurvivalTests
     // ---- starvation, dehydration, regeneration ----
 
     [Fact]
-    public void Starvation_BurnsFatAtSevenThousandSevenHundredKcalPerKg()
+    public void Starvation_BurnsFatAtSevenThousandSevenHundredKcalPerKg_AndMuscleAtThirteenHundredTwenty()
     {
         var b = Baseline();
         b.CaloriesKcal = 0;
         double fatBefore = b.FatKg;
         var d = Body.Process(b, Room(), 60, TestRng());
         double burnedKcal = Body.MetabolismKcalPerDay(b, 1.0) / 24;
-        Assert.Equal(burnedKcal / Body.KcalPerKgFat, d.FatBurnedKg, 9);
-        Assert.Equal(0, d.MuscleBurnedKg);
+        Assert.Equal(burnedKcal, d.FatBurnedKg * Body.KcalPerKgFat + d.MuscleBurnedKg * 1320, 9);
+        Assert.Equal(Body.ForbesConstantKg / (Body.ForbesConstantKg + fatBefore), d.MuscleBurnedKg / (d.FatBurnedKg + d.MuscleBurnedKg), 9);
         Body.Apply(b, d, TestRng());
         Assert.Equal(0, b.CaloriesKcal);
         Assert.True(b.FatKg < fatBefore);
@@ -340,27 +340,25 @@ public class SurvivalTests
         Assert.InRange(MinutesToDeath(dry, Room(), 10 * 1440) / 60.0, 24, 48); // from dry: a day and a half
     }
 
-    /// Body review B4: starving takes weeks, through the fat, then the muscle, then the heart. Old:
+    /// Body review B4: starving takes weeks, through fat and muscle together, then the heart. Old:
     /// once both were spent an organ drawn at random failed within a couple of hours.
     [Fact]
-    public void Starvation_TakesWeeks_FatThenMuscleThenTheHeart()
+    public void Starvation_TakesWeeks_ThenTheHeart_OnceHalfTheMuscleIsGone()
     {
         var b = Baseline();
         b.CaloriesKcal = 0;
-        double? fatSpentDay = null, muscleSpentDay = null;
+        double halfOfFresh = b.MuscleKg / 2;
+        double? halfGoneDay = null;
         int minute = 0;
         int minutes = MinutesToDeath(b, Room(), 100 * 1440, body =>
         {
             if (minute++ % 60 == 0) Body.Drink(body, 200);
-            if (fatSpentDay == null && body.FatKg <= 0.03 * body.WeightKg + 1e-6) fatSpentDay = minute / 1440.0;
-            if (muscleSpentDay == null && body.MuscleKg <= 0.15 * body.WeightKg + 1e-6) muscleSpentDay = minute / 1440.0;
+            if (halfGoneDay == null && body.MuscleKg < halfOfFresh) halfGoneDay = minute / 1440.0;
         });
         Assert.InRange(minutes / 1440.0, 40, 75);
         Assert.Equal("starvation", Body.CauseOfDeath(b).What);
-        Assert.NotNull(fatSpentDay);
-        Assert.NotNull(muscleSpentDay);
-        Assert.True(fatSpentDay < muscleSpentDay && muscleSpentDay < minutes / 1440.0, $"fat spent day {fatSpentDay:0.0}, muscle day {muscleSpentDay:0.0}, dead day {minutes / 1440.0:0.0}");
-        Assert.InRange(minutes / 1440.0 - muscleSpentDay!.Value, 0.5, 2); // the heart lasts about a day
+        Assert.NotNull(halfGoneDay);
+        Assert.InRange(minutes / 1440.0 - halfGoneDay!.Value, 0.5, 2); // the heart lasts about a day
     }
 
     /// Body review B4: the cold harms from 95 °F core and kills around 82 °F, within hours. Old: mild
@@ -406,7 +404,7 @@ public class SurvivalTests
         for (double core = 99; core > 70; core -= 0.01)
         {
             b.CoreTempF = core;
-            double rate = Body.LethalRates(b).ColdPerHour;
+            double rate = Body.LethalRates(b, Species.Human).ColdPerHour;
             if (core >= 95) Assert.Equal(0, rate);
             Assert.True(rate >= previous, $"harm fell from {previous} to {rate} at {core:0.00} °F");
             Assert.True(rate - previous < 0.02, $"harm jumped from {previous} to {rate} at {core:0.00} °F");
@@ -432,7 +430,7 @@ public class SurvivalTests
             var b = Baseline();
             (b.CoreTempF, b.HydrationMl, b.CaloriesKcal, b.FatKg) = (core, ml, kcal, fatKg);
             if (fatKg == 0) b.MuscleKg = 0;
-            var (cold, thirst, hunger) = Body.LethalRates(b);
+            var (cold, thirst, hunger) = Body.LethalRates(b, Species.Human);
             var d = Body.Process(b, Room(), 1, TestRng());
             double Charged(string what) => d.Damage.Where(x => x.By?.What == what).Sum(x => x.Amount) * 60;
             Assert.Equal(cold, Charged("the cold"), 12);

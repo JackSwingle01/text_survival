@@ -106,8 +106,8 @@ public static partial class Fauna
     internal static void Live(World world, Agent animal, BodyState body, bool sleeping)
     {
         Burn(body);
-        Body.LiveNeeds(body, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
-        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body) == (0, 0, 0) && body.CaloriesPct > Body.RegenMinCaloriesPct) Mend(body);
+        Body.LiveNeeds(body, animal.Species, sleeping, SpeciesTable.Of(animal.Species).SleepHoursPerDay, SleepFactor(animal, animal.Tile), world.Rng("body", animal.Id));
+        if (Hurt(body) && Body.IsAlive(body) && Body.LethalRates(body, animal.Species) == (0, 0, 0) && body.CaloriesPct > Body.RegenMinCaloriesPct) Mend(body);
     }
 
     /// Its store's room plus the fat lost below its kind's build: a starved wolf gorges, and the surplus goes back on as fat.
@@ -501,7 +501,7 @@ public static partial class Fauna
         return hunters;
     }
 
-    static bool FoodDue(Agent a) => Priorities.AnimalFoodPriority(a.Body, SpeciesTable.Of(a.Species).FatPct,
+    static bool FoodDue(Agent a) => Priorities.AnimalFoodPriority(a.Body, a.Species,
         seeingTo: MindOf(a).Plan?.Stat == Stat.Food) >= Priority.Need;
 
     public const int MaxHunters = 6;

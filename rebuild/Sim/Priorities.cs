@@ -27,8 +27,8 @@ public static class Priorities
     public const double WaterCriticalPct = 0.15, WaterNeedPct = 0.5, WaterAgainPct = 0.9;
     public const double RestCriticalPct = 0.1, RestNeedPct = 0.3, RestAgainPct = 0.5, RestedPct = 0.8;
     public const double FatFloorPct = 0.10; // below it the body pays for leanness (Body.Speed, Body.ColdResistance)
-    /// The fat the body burns down to before it burns muscle (BodySurvival's MinFatPct).
-    public const double StarvingFatPct = 0.03, StarvingToleranceKg = 0.05;
+    /// About a week of a person's starving before hunger harms the heart (Body.LethalMuscleOfFreshPct).
+    public const double StarvingMuscleOfFreshPct = Body.LethalMuscleOfFreshPct + 0.1;
     public const double WantedShortfallKg = 0.3, SatisfiedShortfallKg = 0.1;
     public const double SpareFireHours = 12;
 
@@ -69,7 +69,7 @@ public static class Priorities
     /// Fat under the floor is Need, not Critical: at the floor a person holds weeks of reserve.
     public static Priority FoodPriority(BodyState body, double targetFatKg, bool seeingTo, bool foodToHand)
     {
-        if (Starving(body)) return Priority.Critical;
+        if (Starving(body, Species.Human)) return Priority.Critical;
         double shortfallKg = targetFatKg - body.FatKg;
         if (body.FatKg < FatFloorKg(body) || shortfallKg >= WantedShortfallKg || seeingTo && shortfallKg > SatisfiedShortfallKg) return Priority.Need;
         return Deprivations.Has(body, Deprivation.Hungry) && !foodToHand ? Priority.Need : Priority.Want;
@@ -78,9 +78,10 @@ public static class Priorities
     public const double AnimalFedPct = 0.8;
 
     /// By its own build, not a person's floor: the shortfalls are a person's share of its weight, and a meal is seen to until AnimalFedPct.
-    public static Priority AnimalFoodPriority(BodyState body, double buildFatPct, bool seeingTo)
+    public static Priority AnimalFoodPriority(BodyState body, Species species, bool seeingTo)
     {
-        if (Starving(body)) return Priority.Critical;
+        if (Starving(body, species)) return Priority.Critical;
+        double buildFatPct = SpeciesTable.Of(species).FatPct;
         double scale = body.WeightKg / Body.BaselineWeightKg, shortfallKg = buildFatPct * body.WeightKg - body.FatKg;
         if (shortfallKg >= WantedShortfallKg * scale || body.CaloriesPct < Deprivations.HungerOnsetPct) return Priority.Need;
         return seeingTo && (shortfallKg > SatisfiedShortfallKg * scale || body.CaloriesPct < AnimalFedPct) ? Priority.Need : Priority.Want;
@@ -96,9 +97,9 @@ public static class Priorities
     /// A Want above half Dirty, and never more: washing waits on every other stat.
     public static Priority DirtyPriority(double dirtySeverity) => dirtySeverity > WashWantedDirtyPct ? Priority.Want : Priority.None;
 
-    /// Fat down to what the body will burn with nothing in the stomach: the muscle is what burns.
-    public static bool Starving(BodyState body) =>
-        body.CaloriesKcal <= 0 && body.FatKg <= StarvingFatPct * body.WeightKg + StarvingToleranceKg;
+    /// Nothing in the stomach, and the muscle wasted close to where hunger begins to kill.
+    public static bool Starving(BodyState body, Species species) =>
+        body.CaloriesKcal <= 0 && body.MuscleKg < StarvingMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(species, body);
 
     public static double FatFloorKg(BodyState body) => FatFloorPct * body.WeightKg;
 

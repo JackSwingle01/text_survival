@@ -79,8 +79,8 @@ public class FoodTests
         Agent Lean(double muscleKg)
         {
             var a = Hungry(w, Species.Caribou, T(20));
-            a.Body.MuscleKg = 0.15 * a.Body.WeightKg + muscleKg;
-            a.Body.FatKg = 0.03 * a.Body.WeightKg;
+            a.Body.MuscleKg = Body.LethalMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(Species.Caribou, a.Body) + muscleKg;
+            a.Body.FatKg = 0.01 * a.Body.WeightKg;
             return a;
         }
         var leaner = Lean(0.5);

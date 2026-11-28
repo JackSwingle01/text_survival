@@ -11,8 +11,7 @@ namespace Survival.Tests.Verification;
 /// store or laid down as fat: between half the food's kcal (a ruined gut) and all of it, all of it
 /// with a whole gut. burned is metabolism (MetabolismKcalPerDay at the minute's activity, with Well fed's
 /// thermic share) paid in
-/// full, except once fat is down to 3% of body weight and muscle to 15%, when the shortfall is
-/// unpaid and starvation damages the organs instead (declared sink: nothing to burn).
+/// full while the body holds any fat or muscle: Forbes' split leaves no floor (declared sink: nothing to burn).
 public class ConservationCaloriesTests
 {
     public enum OpKind { Eat, Live, HurtGut }
@@ -28,13 +27,12 @@ public class ConservationCaloriesTests
     public sealed record Scene(double FatKg, double MuscleKg, double CaloriesKcal, double HydrationMl, Op[] Ops);
 
     static readonly Gen<Scene> Scenes = Gen.Select(
-        Gen.Frequency((1, Gen.Double[1.5, 3]), (3, Gen.Double[3, 25])),   // near the 3% floor (about 2.2 kg of a 75 kg body) to well fed
-        Gen.Frequency((1, Gen.Double[10, 12]), (3, Gen.Double[12, 35])), // near the 15% floor to strong
+        Gen.Frequency((1, Gen.Double[0.01, 3]), (3, Gen.Double[3, 25])),  // nearly none to well fed
+        Gen.Frequency((1, Gen.Double[0.01, 12]), (3, Gen.Double[12, 35])), // wasted to strong
         Gen.Double[0, Body.MaxCaloriesKcal], Gen.Double[400, 4000], Ops.Array[1, 30],
         (fat, muscle, kcal, ml, ops) => new Scene(fat, muscle, kcal, ml, ops));
 
     const double KcalPerKgFat = Body.KcalPerKgFat, KcalPerKgMuscle = 1320; // BodySurvival.cs
-    const double MinFatPct = 0.03, MinMusclePct = 0.15;                    // BodySurvival.cs ProcessStarvation floors
 
     static double Held(BodyState b) => b.CaloriesKcal + b.FatKg * KcalPerKgFat + b.MuscleKg * KcalPerKgMuscle;
 
@@ -72,13 +70,12 @@ public class ConservationCaloriesTests
                 case OpKind.Live:
                     for (int m = 0; m < op.Minutes && Body.IsAlive(b); m++)
                     {
-                        double weight = b.WeightKg;
                         // Well fed's extra heat is burned too (the thermic effect of food).
                         double kcalPerMinute = Body.MetabolismKcalPerDay(b, op.Ctx.ActivityFactor) / 24.0 / 60.0 * Effects.MetabolicHeatFactor(b);
                         double before = Held(b);
                         Body.Update(b, op.Ctx, rng);
                         double paid = before - Held(b);
-                        bool reservesLeft = b.FatKg > MinFatPct * weight + 1e-9 || b.MuscleKg > MinMusclePct * weight + 1e-9 || b.CaloriesKcal > 1e-9;
+                        bool reservesLeft = b.FatKg > 1e-9 || b.MuscleKg > 1e-9 || b.CaloriesKcal > 1e-9;
                         string at = $"op {i} minute {m} (fat {b.FatKg:R}, muscle {b.MuscleKg:R}, store {b.CaloriesKcal:R})";
                         Assert.True(paid <= kcalPerMinute + 1e-6, $"{at}: burned {paid:R} kcal, metabolism is {kcalPerMinute:R}");
                         Assert.True(paid >= -1e-6, $"{at}: living a minute made {-paid:R} kcal");
