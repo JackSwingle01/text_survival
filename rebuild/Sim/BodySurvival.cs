@@ -64,11 +64,11 @@ public static partial class Body
         BaseWaterLossMlPerDay / 1440 * MaxHydrationMlOf(body) / MaxHydrationMl * (sleeping ? SleepWaterLossFactor : 1.0);
 
     /// An animal's ProcessLethal, without warmth; sleepFactor is how deep the sleep is where it lies.
-    public static void LiveNeeds(BodyState body, bool sleeping, SpeciesStats species, double sleepFactor, Rng rng)
+    public static void LiveNeeds(BodyState body, Species species, bool sleeping, double sleepFactor, Rng rng)
     {
-        var (_, thirst, hunger) = LethalRates(body);
+        var (_, thirst, hunger) = LethalRates(body, species);
         body.HydrationMl = Math.Max(0, body.HydrationMl - WaterLossMlPerMinute(body, sleeping));
-        body.SleepDebtMinutes = Math.Max(0, body.SleepDebtMinutes + SleepDebt.DeltaPerMinute(species, body.SleepDebtMinutes, sleeping, sleepFactor));
+        body.SleepDebtMinutes = Math.Max(0, body.SleepDebtMinutes + SleepDebt.DeltaPerMinute(SpeciesTable.Of(species), body.SleepDebtMinutes, sleeping, sleepFactor));
         if (thirst > 0) Damage(body, new DamageInfo(thirst / 60.0, DamageType.Internal, BodyTarget.Brain, By: Thirst), rng);
         if (hunger > 0) Damage(body, new DamageInfo(hunger / 60.0, DamageType.Internal, BodyTarget.Heart, By: Starvation), rng);
     }
@@ -80,9 +80,11 @@ public static partial class Body
     public const double HyperthermiaThresholdF = 100.0;
     public const double SweatingThresholdF = 99.0;
 
-    const double MinFatPct = 0.03, MinMusclePct = 0.15;
     public const double KcalPerKgFat = 7700;
-    const double KcalPerKgMuscle = 1320;
+    public const double KcalPerKgMuscle = 1320;
+    /// Forbes' rule: the muscle share of each kilogram a starving body loses is F₀ / (F₀ + fat kg).
+    public const double ForbesConstantKg = 10.4;
+    public const double LethalMuscleOfFreshPct = 0.5;
 
     public const double RegenMinCaloriesPct = 0.10;
     const double RegenMinHydrationPct = 0.10;
@@ -191,7 +193,7 @@ public static partial class Body
     public static double TemperatureChangeFPerHour(BodyState body, SurvivalContext ctx) =>
         CalculateHeatBalance(body, ctx).DegreesFPerHour;
 
-    /// Pure: Apply makes it so. The rng is not drawn here, kept for callers that pass one.
+    /// A person's minute. Pure: Apply makes it so. The rng is not drawn here, kept for callers that pass one.
     public static SurvivalDelta Process(BodyState body, SurvivalContext ctx, int minutes, Rng rng)
     {
         var d = new SurvivalDelta();
@@ -383,30 +385,36 @@ public static partial class Body
         (d.FatBurnedKg, d.MuscleBurnedKg, _) = ReserveBurn(body, -calories);
     }
 
-    /// Fat down to 3% of body weight, then muscle down to 15%. UnpaidKcal is what both floors leave short; the heart answers for it (ProcessLethal).
+    /// While muscle lasts fat nears zero and never reaches it; what one tissue cannot give the other pays, so UnpaidKcal means both are gone.
     internal static (double FatKg, double MuscleKg, double UnpaidKcal) ReserveBurn(BodyState body, double deficitKcal)
     {
-        double fatKg = Math.Min(Math.Max(0, body.FatKg - MinFatPct * body.WeightKg), deficitKcal / KcalPerKgFat);
-        double left = deficitKcal - fatKg * KcalPerKgFat;
-        double muscleKg = Math.Min(Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg), left / KcalPerKgMuscle);
-        return (fatKg, muscleKg, Math.Max(0, left - muscleKg * KcalPerKgMuscle));
+        double musclePct = ForbesConstantKg / (ForbesConstantKg + Math.Max(0, body.FatKg));
+        double lostKg = deficitKcal / (musclePct * KcalPerKgMuscle + (1 - musclePct) * KcalPerKgFat);
+        double fatKg = Math.Min(Math.Max(0, body.FatKg), (1 - musclePct) * lostKg);
+        double muscleKg = Math.Min(Math.Max(0, body.MuscleKg), (deficitKcal - fatKg * KcalPerKgFat) / KcalPerKgMuscle);
+        double left = deficitKcal - fatKg * KcalPerKgFat - muscleKg * KcalPerKgMuscle;
+        double moreFatKg = Math.Min(Math.Max(0, body.FatKg) - fatKg, Math.Max(0, left) / KcalPerKgFat);
+        fatKg += moreFatKg;
+        return (fatKg, muscleKg, Math.Max(0, left - moreFatKg * KcalPerKgFat));
     }
 
-    /// At rest a person lives about three days without water, and a day once fat and muscle are spent.
+    /// At rest a person lives about three days without water, and a day once half its muscle is spent.
     const double DehydratedDamagePerHour = 0.03, StarvingDamagePerHour = 1 / 24.0;
     const double ColdHeartFailurePerHour = 0.8, ColdHeartFailureF = 82.0;
 
     static readonly Cause TheCold = new(null, "the cold"), Thirst = new(null, "thirst"), Starvation = new(null, "starvation"),
         BloodLoss = new(null, "blood loss");
 
-    internal static double ReservesKcal(BodyState body) =>
-        Math.Max(0, body.FatKg - MinFatPct * body.WeightKg) * KcalPerKgFat + Math.Max(0, body.MuscleKg - MinMusclePct * body.WeightKg) * KcalPerKgMuscle;
-
     /// Read as the minute begins, so a forecast is exactly what the survival step charges.
-    public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body) => (
+    public static (double ColdPerHour, double ThirstPerHour, double HungerPerHour) LethalRates(BodyState body, Species species) => (
         HypothermiaDamagePerHour(body.CoreTempF),
         body.HydrationMl > 0 ? 0 : DehydratedDamagePerHour,
-        body.CaloriesKcal > 0 || ReservesKcal(body) >= 10 ? 0 : StarvingDamagePerHour);
+        StarvingToDeath(body, species) ? StarvingDamagePerHour : 0);
+
+    public static bool StarvingToDeath(BodyState body, Species species) => StarvedBelow(body, species, LethalMuscleOfFreshPct);
+
+    public static bool StarvedBelow(BodyState body, Species species, double freshPct) =>
+        body.CaloriesKcal <= 0 && body.MuscleKg < freshPct * SpeciesTable.FreshMuscleKg(species, body);
 
     /// Fourth power of how far the core has fallen toward 82 °F: days at 90 °F, hours at 85 °F, under an hour past 82 °F. One continuous curve.
     static double HypothermiaDamagePerHour(double coreF)
@@ -418,7 +426,7 @@ public static partial class Body
 
     static void ProcessLethal(BodyState body, int minutes, SurvivalDelta d)
     {
-        var (cold, thirst, hunger) = LethalRates(body);
+        var (cold, thirst, hunger) = LethalRates(body, Species.Human);
         if (cold > 0) d.Damage.Add(new DamageInfo(cold / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: TheCold));
         if (thirst > 0) d.Damage.Add(new DamageInfo(thirst / 60.0 * minutes, DamageType.Internal, BodyTarget.Brain, By: Thirst));
         if (hunger > 0) d.Damage.Add(new DamageInfo(hunger / 60.0 * minutes, DamageType.Internal, BodyTarget.Heart, By: Starvation));

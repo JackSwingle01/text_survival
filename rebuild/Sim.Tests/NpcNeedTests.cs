@@ -122,10 +122,8 @@ public class NpcNeedTests(ITestOutputHelper output)
         b.HydrationMl = Body.MaxHydrationMl * s.Water switch { Priority.Critical => 0.1, Priority.Need => 0.4, Priority.Want => 0.8, _ => 0.95 };
         b.SleepDebtMinutes = 60 * s.Rest switch { Priority.Critical => 40, Priority.Need => 20, Priority.Want => 17, _ => 2 };
         b.CaloriesKcal = Body.CaloriesCapacityKcal(b) * s.Food switch { Priority.Critical or Priority.Need => 0.0, Priority.Want => 0.5, _ => 0.9 };
-        if (s.Food == Priority.Critical) b.FatKg = StarvingFatPct * b.WeightKg;
+        if (s.Food == Priority.Critical) b.MuscleKg = (Priorities.StarvingMuscleOfFreshPct - 0.01) * SpeciesTable.FreshMuscleKg(Species.Human, b);
     }
-
-    const double StarvingFatPct = Priorities.StarvingFatPct;
 
     static World WorldFor(State s, out Agent npc)
     {

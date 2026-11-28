@@ -16,6 +16,8 @@ public class BalanceReport(ITestOutputHelper output)
         output.WriteLine(ReferenceBodies.Table());
         output.WriteLine("");
         output.WriteLine(ReferenceBodies.Timelines());
+        output.WriteLine("");
+        output.WriteLine(ReferenceBodies.Starvation());
     }
 }
 
@@ -34,6 +36,16 @@ public class BalanceReportTests
     {
         var lines = ReferenceBodies.Timelines().Split('\n');
         foreach (var title in ReferenceBodies.TimelineTitles) Assert.Single(lines, l => l == title);
+    }
+
+    /// Two bodies starved to death a minute at a time: a long run.
+    [Fact]
+    [Trait("Category", TestCategories.LongRun)]
+    public void Starvation_PrintsEachBody_ToItsDeath()
+    {
+        var lines = ReferenceBodies.Starvation().Split('\n');
+        foreach (var title in ReferenceBodies.StarvationTitles) Assert.Single(lines, l => l == title);
+        Assert.Equal(ReferenceBodies.StarvationTitles.Length, lines.Count(l => l.StartsWith("dead on day ", StringComparison.Ordinal)));
     }
 }
 
@@ -54,7 +66,7 @@ public static class ReferenceBodies
         ("sixteen hours awake", Species.Human, () => Awake(16)),
         ("forty hours awake", Species.Human, () => Awake(40)),
         ("a day and a half without water", Species.Human, () => WithoutWater(36)),
-        ("starved to the floors", Species.Human, Starved),
+        ("starved to half its muscle", Species.Human, Starved),
         ("a whole wolf", Species.Wolf, () => SpeciesTable.Average(Species.Wolf)),
         ("a wolf, one leg destroyed", Species.Wolf, () => Destroyed(SpeciesTable.Average(Species.Wolf), "Front Left Leg")),
     ];
@@ -135,10 +147,56 @@ public static class ReferenceBodies
         return $"{hour,4}  {s.StrengthPct,8:0.00}  {s.SpeedPct,5:0.00}  {s.DexterityPct,9:0.00}  {s.PerceptionPct,10:0.00}  {s.VisionPct,6:0.00}  {s.Vitality,8:0.00}  {Felt(Deprivation.Hungry),6:0.00}  {Felt(Deprivation.Thirsty),7:0.00}  {Felt(Deprivation.Tired),5:0.00}  {(Body.IsAlive(body) ? "yes" : "no"),5}";
     }
 
-    /// Body.Update a minute at a time in a still 70 °F room, awake or asleep.
+    public const string StarvingAverage = "starving, the species-average body from full, watered, 16 hours awake and 8 asleep: each day",
+        StarvingGameStart = "starving, a game-start body, watered, 16 hours awake and 8 asleep: each day";
+
+    public static readonly string[] StarvationTitles = [StarvingAverage, StarvingGameStart];
+
+    /// Spec 2026-11-27-deprivation-rethink, "The balance report": fat, muscle, the hunger pang, faculties and
+    /// vitality each day of starving, until death.
+    public static string Starvation()
+    {
+        var lines = new List<string>();
+        foreach (var (title, body) in new[] { (StarvingAverage, Rested(Person())), (StarvingGameStart, GameStart()) })
+        {
+            if (lines.Count > 0) lines.Add("");
+            lines.AddRange([title, StarvationHeader]);
+            var rng = Rng.ForSystem(1, "balance report");
+            for (int day = 0; ; day++)
+            {
+                if (day > 200) throw new InvalidOperationException("the body never starved");
+                lines.Add(StarvationRow(day, body));
+                for (int hour = 0; hour < 24 && Body.IsAlive(body); hour++)
+                {
+                    TopUp(body, new(Water: true, Food: false, Rest: false));
+                    Step(body, awake: hour < 16, 60, rng);
+                }
+                if (!Body.IsAlive(body))
+                {
+                    lines.Add(StarvationRow(day + 1, body));
+                    lines.Add($"dead on day {day + 1}: {Body.CauseOfDeath(body)}");
+                    break;
+                }
+            }
+        }
+        return string.Join('\n', lines);
+    }
+
+    const string StarvationHeader = " day  fat kg  muscle kg  strength  speed  dexterity  perception  vision  vitality  hungry  alive";
+
+    static string StarvationRow(int day, BodyState body)
+    {
+        var s = Measure(Species.Human, body);
+        return $"{day,4}  {body.FatKg,6:0.00}  {body.MuscleKg,9:0.00}  {s.StrengthPct,8:0.00}  {s.SpeedPct,5:0.00}  {s.DexterityPct,9:0.00}  {s.PerceptionPct,10:0.00}  {s.VisionPct,6:0.00}  {s.Vitality,8:0.00}  {Deprivations.Severity(body, Deprivation.Hungry),6:0.00}  {(Body.IsAlive(body) ? "yes" : "no"),5}";
+    }
+
+    /// The player's body as World.New makes it: autumn fat, the stores three quarters full.
+    static BodyState GameStart() => SpeciesTable.NewBody(Species.Human, Rng.ForSystem(1, "balance report"));
+
+    /// Body.Update a minute at a time in a still 70 °F room, awake or asleep; asleep at Sim's sleeping burn.
     static void Step(BodyState body, bool awake, int minutes, Rng rng)
     {
-        var room = new SurvivalContext { AirTempF = 70, IsSleeping = !awake };
+        var room = new SurvivalContext { AirTempF = 70, IsSleeping = !awake, ActivityFactor = awake ? 1.0 : 0.5 };
         for (int m = 0; m < minutes && Body.IsAlive(body); m++) Body.Update(body, room, rng);
     }
 
@@ -184,17 +242,11 @@ public static class ReferenceBodies
         return body;
     }
 
-    /// No food until a minute burns neither fat nor muscle: both floors reached. Watered and rested every hour.
+    /// No food until hunger begins to harm the heart. Watered and rested every hour.
     static BodyState Starved()
     {
         var body = Rested(Person());
-        double fat = body.FatKg, muscle = body.MuscleKg;
-        Live(body, new(Water: true, Food: false, Rest: true), _ =>
-        {
-            bool floors = body.CaloriesKcal == 0 && body.FatKg == fat && body.MuscleKg == muscle;
-            (fat, muscle) = (body.FatKg, body.MuscleKg);
-            return floors;
-        });
+        Live(body, new(Water: true, Food: false, Rest: true), _ => Body.StarvingToDeath(body, Species.Human));
         return body;
     }
 

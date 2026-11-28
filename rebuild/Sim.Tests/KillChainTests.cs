@@ -159,8 +159,7 @@ public class KillChainTests
         LiveUntilDead(cold, b => b.CoreTempF = 80);
         Assert.Equal("the cold", Body.CauseOfDeath(cold).What);
         var starved = BodyState.BaselineHuman();
-        double spentKg = starved.StructuralKg / 0.82; // fat and muscle burned down to their floors (3% and 15%)
-        (starved.FatKg, starved.MuscleKg) = (0.03 * spentKg, 0.15 * spentKg);
+        (starved.FatKg, starved.MuscleKg) = (2, (Body.LethalMuscleOfFreshPct - 0.01) * SpeciesTable.FreshMuscleKg(Species.Human, starved));
         LiveUntilDead(starved, b => b.CaloriesKcal = 0);
         Assert.Equal("starvation", Body.CauseOfDeath(starved).What);
     }
@@ -521,7 +520,7 @@ public class KillChainTests
         for (int i = 0; i < 10; i++)
         {
             foreach (var wolf in wolves.In(w)) TestKit.SetHunger(wolf, 0);
-            foreach (var b in w.Agent(fox).Members) (b.CaloriesKcal, b.FatKg) = (0, Priorities.StarvingFatPct * b.WeightKg);
+            foreach (var b in w.Agent(fox).Members) (b.CaloriesKcal, b.MuscleKg) = (0, (Priorities.StarvingMuscleOfFreshPct - 0.01) * SpeciesTable.FreshMuscleKg(Species.Fox, b));
             Sim.Advance(w, 1);
         }
         Assert.Equal(carcass, Fauna.MeatHere(w, tile), 9);

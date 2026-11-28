@@ -257,11 +257,12 @@ internal static class Deprive
 
     internal static void Tired(BodyState b, double severity) => b.SleepDebtMinutes = (18 + 30 * severity) * 60;
 
-    /// The stomach empty and fat and muscle at their floors: hunger at full, and the body wasted.
+    /// The stomach empty, fat nearly gone and muscle wasted to where hunger begins to harm the heart: hunger at
+    /// full, and the body wasted.
     internal static void Starved(BodyState b)
     {
-        double kg = b.StructuralKg / (1 - 0.03 - 0.15);
-        (b.CaloriesKcal, b.FatKg, b.MuscleKg) = (0, 0.03 * kg, 0.15 * kg);
+        double muscleKg = Body.LethalMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(Species.Human, b);
+        (b.CaloriesKcal, b.FatKg, b.MuscleKg) = (0, 0.05 * (b.StructuralKg + muscleKg), muscleKg);
     }
 
     /// All three at full.

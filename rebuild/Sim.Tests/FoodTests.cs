@@ -8,7 +8,7 @@ public class FoodTests
 {
     static TileId T(int x, int y = 1) => new(x, y);
 
-    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * 1320;
+    static double KcalHeld(BodyState b) => b.CaloriesKcal + b.FatKg * Body.KcalPerKgFat + b.MuscleKg * Body.KcalPerKgMuscle;
 
     /// Lichen, grass and berries on every tile of the strip: what browsers, grazers and bears eat.
     internal static World Pasture(params TileId[] water)
@@ -79,8 +79,8 @@ public class FoodTests
         Agent Lean(double muscleKg)
         {
             var a = Hungry(w, Species.Caribou, T(20));
-            a.Body.MuscleKg = 0.15 * a.Body.WeightKg + muscleKg;
-            a.Body.FatKg = 0.03 * a.Body.WeightKg;
+            a.Body.MuscleKg = Body.LethalMuscleOfFreshPct * SpeciesTable.FreshMuscleKg(Species.Caribou, a.Body) + muscleKg;
+            a.Body.FatKg = 0.01 * a.Body.WeightKg;
             return a;
         }
         var leaner = Lean(0.5);

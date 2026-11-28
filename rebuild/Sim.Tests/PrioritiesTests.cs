@@ -72,10 +72,10 @@ public class PrioritiesTests
         b.CaloriesKcal = 1500;
         b.FatKg = 0.09 * b.WeightKg; // under the 10% floor: weeks of reserve, Need
         Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
-        b.FatKg = 0.025 * b.WeightKg; // the body's own floor, 3% of what it weighs now
-        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
+        b.MuscleKg = (Priorities.StarvingMuscleOfFreshPct - 0.01) * SpeciesTable.FreshMuscleKg(Species.Human, b); // wasted, but fed today
+        Assert.Equal(Priority.Need, Priorities.FoodPriority(b, b.FatKg + 1, false, foodToHand: true));
         b.CaloriesKcal = 0;
-        Assert.True(Priorities.Starving(b));
+        Assert.True(Priorities.Starving(b, Species.Human));
         Assert.Equal(Priority.Critical, Priorities.FoodPriority(b, b.FatKg, false, foodToHand: true));
     }
 

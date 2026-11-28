@@ -109,7 +109,7 @@ public class SleepDebtTests
         body.SleepDebtMinutes = 12 * 60;
         int minutes = 0;
         var rng = Rng.ForSystem(1, "body");
-        while (body.SleepDebtMinutes > 0) { Body.LiveNeeds(body, sleeping: true, wolf, sleepFactor: 1, rng); minutes++; }
+        while (body.SleepDebtMinutes > 0) { Body.LiveNeeds(body, Species.Wolf, sleeping: true, sleepFactor: 1, rng); minutes++; }
         Assert.Equal(12 * 60, minutes);
     }
 
@@ -119,7 +119,7 @@ public class SleepDebtTests
         var wolf = SpeciesTable.Of(Species.Wolf);
         var body = SpeciesTable.Average(Species.Wolf);
         body.SleepDebtMinutes = 100;
-        Body.LiveNeeds(body, sleeping: true, wolf, sleepFactor: 0.75, Rng.ForSystem(1, "body"));
+        Body.LiveNeeds(body, Species.Wolf, sleeping: true, sleepFactor: 0.75, Rng.ForSystem(1, "body"));
         Assert.Equal(99.25, body.SleepDebtMinutes, 9);
     }
 

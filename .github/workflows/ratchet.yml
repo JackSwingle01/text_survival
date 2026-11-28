@@ -45,7 +45,7 @@ jobs:
           fi
       - if: steps.when.outputs.go == 'true'
         uses: actions/checkout@v7
-      # Remaining commands may use the SDK (the formatting ratchet does).
+      # Remaining commands may use the SDK.
       - if: steps.when.outputs.go == 'true'
         uses: actions/setup-dotnet@v6
         with:
