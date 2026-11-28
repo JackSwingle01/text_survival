@@ -16,6 +16,7 @@ gates on that run.
 """
 
 import argparse
+import os
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -34,6 +35,20 @@ def method(test_name: str) -> str:
     return re.sub(r"\(.*$", "", test_name)
 
 
+def write_failed_trx(path: str, over, limit: float) -> None:
+    root = ET.Element(f"{{{NS['t']}}}TestRun")
+    results = ET.SubElement(root, f"{{{NS['t']}}}Results")
+    for d, name in over:
+        r = ET.SubElement(results, f"{{{NS['t']}}}UnitTestResult", testName=method(name), outcome="Failed")
+        msg = (f"Took {d:.1f} s when run alone and serially (limit {limit:g} s). Make it quicker (a test that "
+               "steps World.New(seed) pays for every animal in it), or tag it "
+               "[Trait(\"Category\", TestCategories.LongRun)].")
+        ET.SubElement(ET.SubElement(ET.SubElement(r, f"{{{NS['t']}}}Output"), f"{{{NS['t']}}}ErrorInfo"),
+                      f"{{{NS['t']}}}Message").text = msg
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("trx", nargs="+")
@@ -44,6 +59,8 @@ def main() -> int:
                     help="print only the over-limit tests' method names, one per line, and exit 0")
     ap.add_argument("--warn", action="store_true",
                     help="report over-limit tests as ::warning:: annotations and exit 0")
+    ap.add_argument("--failed-trx", help="write each over-limit test as a Failed result in a .trx at this path, "
+                    "so the nightly report files it like any failing test")
     args = ap.parse_args()
 
     allowed: set[str] = set()
@@ -74,6 +91,8 @@ def main() -> int:
         if args.max_seconds != float("inf"):
             print(f"\nNo test{' outside ' + args.allow if args.allow else ''} took over {args.max_seconds:g} s.")
         return 0
+    if args.failed_trx:
+        write_failed_trx(args.failed_trx, over, args.max_seconds)
     print(f"\n{len(over)} quick test(s) took over {args.max_seconds:g} s. Make each quicker (a test that steps "
           "World.New(seed) pays for every animal in it), or tag it "
           '[Trait("Category", TestCategories.LongRun)] so it runs in the long-run check:')

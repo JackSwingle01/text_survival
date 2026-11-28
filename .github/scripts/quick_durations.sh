@@ -23,4 +23,6 @@ filter=$(printf 'FullyQualifiedName=%s|' "${over[@]}")
 echo "Re-running ${#over[@]} flagged test(s) alone and serially:"
 DOTNET_TieredCompilation=0 dotnet test rebuild/Sim.Tests -c Release --no-build --no-restore --filter "${filter%|}" \
   --logger "trx;LogFileName=$PWD/TestResults/isolated/alone.trx" -- xUnit.ParallelizeTestCollections=false
+# NIGHTLY_FAILED_TRX: where to write the breaches as failed results, for the nightly report.
+[ -n "${NIGHTLY_FAILED_TRX:-}" ] && check+=(--failed-trx "$NIGHTLY_FAILED_TRX")
 "${check[@]}" "${warn[@]}" TestResults/isolated/alone.trx

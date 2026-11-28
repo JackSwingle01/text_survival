@@ -5,7 +5,7 @@ name: Nightly
 #   search below, which runs the same tests at ten times the iterations.
 # - property-search: the rebuild's property tests (Gens.Check) on fresh CsCheck seeds at ten times
 #   the iterations, where CI walks one fixed seed so a push fails only when the code changes.
-# - quick-durations: no quick test over 5 s (a PR only warns). It fails the run but is not in the issue.
+# - quick-durations: no quick test over 5 s (a PR only warns). A breach goes into the run's issue like a failing test.
 # A run on main with failures opens one issue for all of them (the report job,
 # .github/scripts/nightly_report.py), each test with its message (and seed, for a property) and the
 # command that replays it locally (documentation/verification.md). One issue a run, not one a test:
@@ -134,6 +134,16 @@ jobs:
       - run: dotnet build rebuild/tests.slnf -c Release
       - run: dotnet test rebuild/tests.slnf -c Release --no-build --no-restore --filter "Category!=Slow&Category!=LongRun" --logger trx --results-directory TestResults
       - run: bash .github/scripts/quick_durations.sh
+        env:
+          NIGHTLY_FAILED_TRX: ${{ runner.temp }}/results/breaches.trx
+      # The report job reads this like a test job's results: a breach is filed as a failing test.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nightly-results-quick-durations
+          path: ${{ runner.temp }}/results
+          if-no-files-found: ignore
+          retention-days: 7
 
   # Too long for an issue build (30 minutes a command there), so it runs here and builds read main's.
   npc-bench:
@@ -198,7 +208,7 @@ jobs:
 
   report:
     name: one issue for the run's failures
-    needs: test
+    needs: [test, quick-durations]
     if: failure() && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -220,7 +230,7 @@ jobs:
           results="$RUNNER_TEMP/results"
           mkdir -p "$results"
           # A job that failed before its tests ran uploaded nothing: it still gets a folder, and so a line.
-          for job in slow property-search; do mkdir -p "$results/nightly-results-$job"; done
+          for job in slow property-search quick-durations; do mkdir -p "$results/nightly-results-$job"; done
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'nightly-results-*' --dir "$results" || true
           for dir in "$results"/nightly-results-*; do mv "$dir" "$results/${dir##*/nightly-results-}"; done
           python3 .github/scripts/nightly_report.py "$results" > "$RUNNER_TEMP/body.md"
