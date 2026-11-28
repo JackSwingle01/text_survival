@@ -5,6 +5,7 @@ name: Nightly
 #   search below, which runs the same tests at ten times the iterations.
 # - property-search: the rebuild's property tests (Gens.Check) on fresh CsCheck seeds at ten times
 #   the iterations, where CI walks one fixed seed so a push fails only when the code changes.
+# - quick-durations: no quick test over 5 s (a PR only warns). It fails the run but is not in the issue.
 # A run on main with failures opens one issue for all of them (the report job,
 # .github/scripts/nightly_report.py), each test with its message (and seed, for a property) and the
 # command that replays it locally (documentation/verification.md). One issue a run, not one a test:
@@ -115,6 +116,24 @@ jobs:
         run: |
           echo "::error::Nightly ${{ matrix.name }} found failures; the report job files them as one issue."
           exit 1
+
+  # The 5 s limit on a quick test. A PR only warns about a breach; here it fails the run. The fix is to
+  # make the test quicker or tag it LongRun (rebuild/Sim.Tests/TestCategories.cs).
+  quick-durations:
+    name: quick tests stay quick
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      DOTNET_TC_CallCountingDelayMs: 0
+      DOTNET_TieredPGO: 0
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - run: dotnet build rebuild/tests.slnf -c Release
+      - run: dotnet test rebuild/tests.slnf -c Release --no-build --no-restore --filter "Category!=Slow&Category!=LongRun" --logger trx --results-directory TestResults
+      - run: bash .github/scripts/quick_durations.sh
 
   # Too long for an issue build (30 minutes a command there), so it runs here and builds read main's.
   npc-bench:

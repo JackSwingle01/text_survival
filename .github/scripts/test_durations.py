@@ -42,6 +42,8 @@ def main() -> int:
     ap.add_argument("--top", type=int, default=15)
     ap.add_argument("--names-only", action="store_true",
                     help="print only the over-limit tests' method names, one per line, and exit 0")
+    ap.add_argument("--warn", action="store_true",
+                    help="report over-limit tests as ::warning:: annotations and exit 0")
     args = ap.parse_args()
 
     allowed: set[str] = set()
@@ -76,8 +78,9 @@ def main() -> int:
           "World.New(seed) pays for every animal in it), or tag it "
           '[Trait("Category", TestCategories.LongRun)] so it runs in the long-run check:')
     for d, name in over:
-        print(f"::error::{name} took {d:.1f} s (limit {args.max_seconds:g} s)")
-    return 1
+        level = "warning" if args.warn else "error"
+        print(f"::{level}::{name} took {d:.1f} s (limit {args.max_seconds:g} s)")
+    return 0 if args.warn else 1
 
 
 if __name__ == "__main__":
